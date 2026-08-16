@@ -1,0 +1,17 @@
+{
+  "name": "VoidFall.Persistence",
+  "rootNamespace": "VoidFall.Persistence",
+  "references": [
+    "VoidFall.Core",
+    "VoidFall.Content"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

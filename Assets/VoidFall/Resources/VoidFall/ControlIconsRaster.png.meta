@@ -1,0 +1,507 @@
+fileFormatVersion: 2
+guid: 72a9db95fa77d17469a4bb4d70fd2a07
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -3575149056273713677
+    second: ControlIconsRaster_0
+  - first:
+      213: -8189276933949786712
+    second: ControlIconsRaster_1
+  - first:
+      213: -6933135297681535496
+    second: ControlIconsRaster_2
+  - first:
+      213: 7858258837197927029
+    second: ControlIconsRaster_3
+  - first:
+      213: 6258390825694540705
+    second: ControlIconsRaster_4
+  - first:
+      213: -7974582737390385461
+    second: ControlIconsRaster_5
+  - first:
+      213: 3001485895552021626
+    second: ControlIconsRaster_6
+  - first:
+      213: 704758856315420695
+    second: ControlIconsRaster_7
+  - first:
+      213: 5728003355359663464
+    second: ControlIconsRaster_8
+  - first:
+      213: -8147475696833907236
+    second: ControlIconsRaster_9
+  - first:
+      213: 3968854149415612650
+    second: ControlIconsRaster_10
+  - first:
+      213: 1495524258612875007
+    second: ControlIconsRaster_11
+  - first:
+      213: -8167939383878337493
+    second: ControlIconsRaster_12
+  - first:
+      213: -7736572470353908077
+    second: ControlIconsRaster_13
+  - first:
+      213: -2966279705167981189
+    second: ControlIconsRaster_14
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 1
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 0
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: ControlIconsRaster_0
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 15
+        width: 66
+        height: 66
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3f57bb110e4826ec0800000000000000
+      internalID: -3575149056273713677
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_1
+      rect:
+        serializedVersion: 2
+        x: 111
+        y: 7
+        width: 74
+        height: 82
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8a57f986408d95e80800000000000000
+      internalID: -8189276933949786712
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_2
+      rect:
+        serializedVersion: 2
+        x: 207
+        y: 7
+        width: 30
+        height: 82
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8fd48f91e2e88cf90800000000000000
+      internalID: -6933135297681535496
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_3
+      rect:
+        serializedVersion: 2
+        x: 243
+        y: 7
+        width: 30
+        height: 82
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 572b14017c42e0d60800000000000000
+      internalID: 7858258837197927029
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_4
+      rect:
+        serializedVersion: 2
+        x: 295
+        y: 7
+        width: 82
+        height: 82
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1a3361f2c454ad650800000000000000
+      internalID: 6258390825694540705
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_5
+      rect:
+        serializedVersion: 2
+        x: 391
+        y: 7
+        width: 82
+        height: 86
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc642e16047945190800000000000000
+      internalID: -7974582737390385461
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_6
+      rect:
+        serializedVersion: 2
+        x: 483
+        y: 11
+        width: 46
+        height: 74
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a7439baf48b67a920800000000000000
+      internalID: 3001485895552021626
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_7
+      rect:
+        serializedVersion: 2
+        x: 539
+        y: 31
+        width: 14
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 710cdf2227ec7c900800000000000000
+      internalID: 704758856315420695
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_8
+      rect:
+        serializedVersion: 2
+        x: 552
+        y: 17
+        width: 21
+        height: 62
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 865557414b4fd7f40800000000000000
+      internalID: 5728003355359663464
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_9
+      rect:
+        serializedVersion: 2
+        x: 579
+        y: 11
+        width: 46
+        height: 74
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cd5361a550a5eee80800000000000000
+      internalID: -8147475696833907236
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_10
+      rect:
+        serializedVersion: 2
+        x: 635
+        y: 31
+        width: 34
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ae0b04d22d3341730800000000000000
+      internalID: 3968854149415612650
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_11
+      rect:
+        serializedVersion: 2
+        x: 679
+        y: 7
+        width: 82
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ffe899bb36b21c410800000000000000
+      internalID: 1495524258612875007
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_12
+      rect:
+        serializedVersion: 2
+        x: 695
+        y: 31
+        width: 50
+        height: 58
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b2c320de766a5ae80800000000000000
+      internalID: -8167939383878337493
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_13
+      rect:
+        serializedVersion: 2
+        x: 771
+        y: 7
+        width: 90
+        height: 78
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39e2d7d045c22a490800000000000000
+      internalID: -7736572470353908077
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlIconsRaster_14
+      rect:
+        serializedVersion: 2
+        x: 875
+        y: 3
+        width: 74
+        height: 86
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b75130df258a5d6d0800000000000000
+      internalID: -2966279705167981189
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      ControlIconsRaster_0: -3575149056273713677
+      ControlIconsRaster_1: -8189276933949786712
+      ControlIconsRaster_10: 3968854149415612650
+      ControlIconsRaster_11: 1495524258612875007
+      ControlIconsRaster_12: -8167939383878337493
+      ControlIconsRaster_13: -7736572470353908077
+      ControlIconsRaster_14: -2966279705167981189
+      ControlIconsRaster_2: -6933135297681535496
+      ControlIconsRaster_3: 7858258837197927029
+      ControlIconsRaster_4: 6258390825694540705
+      ControlIconsRaster_5: -7974582737390385461
+      ControlIconsRaster_6: 3001485895552021626
+      ControlIconsRaster_7: 704758856315420695
+      ControlIconsRaster_8: 5728003355359663464
+      ControlIconsRaster_9: -8147475696833907236
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

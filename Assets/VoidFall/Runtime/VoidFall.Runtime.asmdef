@@ -1,0 +1,20 @@
+{
+  "name": "VoidFall.Runtime",
+  "rootNamespace": "VoidFall.Runtime",
+  "references": [
+    "VoidFall.Core",
+    "VoidFall.Content",
+    "VoidFall.Persistence",
+    "VoidFall.Audio",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

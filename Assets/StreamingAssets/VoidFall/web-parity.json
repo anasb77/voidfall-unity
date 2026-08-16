@@ -1,0 +1,3580 @@
+{
+  "arenas": {
+    "redNebula": {
+      "cycles": [
+        {
+          "flashRate": 0.04,
+          "id": "quiet",
+          "name": "Quiet clouds",
+          "seconds": 48
+        },
+        {
+          "flashRate": 0.1,
+          "id": "ionized",
+          "name": "Ionized filaments",
+          "seconds": 34
+        },
+        {
+          "flashRate": 0.7,
+          "id": "flare",
+          "name": "Stellar flare",
+          "seconds": 10
+        }
+      ],
+      "description": "Emission clouds under a cropped red giant.",
+      "eliteCadenceMultiplier": 1,
+      "eliteRewardMultiplier": 1,
+      "features": ["meteors"],
+      "id": "redNebula",
+      "modifier": "Destructible meteors · explosive fragments",
+      "name": "Red Nebula",
+      "starTint": "#ffd9c2",
+      "weightMultipliers": {}
+    },
+    "void": {
+      "cycles": [
+        { "flashRate": 0, "id": "steady", "name": "Steady", "seconds": 60 }
+      ],
+      "description": "Open ground with clear sightlines.",
+      "eliteCadenceMultiplier": 1,
+      "eliteRewardMultiplier": 1,
+      "features": [],
+      "id": "void",
+      "modifier": "No modifiers",
+      "name": "The Void",
+      "starTint": "#dbe4f4",
+      "weightMultipliers": {}
+    },
+    "whiteSakura": {
+      "cycles": [
+        {
+          "flashRate": 0.03,
+          "id": "still",
+          "name": "Still drift",
+          "seconds": 46
+        },
+        {
+          "flashRate": 0.06,
+          "id": "cross",
+          "name": "Cross current",
+          "seconds": 32
+        },
+        { "flashRate": 0.05, "id": "bloom", "name": "Bloom", "seconds": 20 }
+      ],
+      "description": "Ivory drift under a fractured orbital ring.",
+      "eliteCadenceMultiplier": 1.5,
+      "eliteRewardMultiplier": 1.5,
+      "features": ["eliteSurge"],
+      "id": "whiteSakura",
+      "modifier": "Faster elite cadence · richer elite rewards",
+      "name": "White Sakura",
+      "starTint": "#f3e6ea",
+      "weightMultipliers": {}
+    }
+  },
+  "bosses": {
+    "herald": {
+      "attacks": [
+        {
+          "activeSeconds": 0.08,
+          "cooldownSeconds": 4.2,
+          "damage": 10,
+          "id": "burst",
+          "projectileCount": 12,
+          "projectileSpeed": 215,
+          "recoverySeconds": 0.7,
+          "telegraphSeconds": 0.8
+        },
+        {
+          "activeSeconds": 0.08,
+          "cooldownSeconds": 5.2,
+          "damage": 12,
+          "id": "volley",
+          "projectileCount": 5,
+          "projectileSpeed": 260,
+          "recoverySeconds": 0.75,
+          "telegraphSeconds": 0.7
+        }
+      ],
+      "color": "#a78bfa",
+      "contactDamage": 14,
+      "health": 1500,
+      "id": "herald",
+      "name": "Herald",
+      "phaseTwoCooldownMultiplier": 0.78,
+      "phaseTwoHealthRatio": 0.42,
+      "phaseTwoSpeedMultiplier": 1.12,
+      "radius": 45,
+      "repeatEverySeconds": 600,
+      "rewardParts": 12,
+      "speed": 48,
+      "startsAtSeconds": 150
+    },
+    "matriarch": {
+      "attacks": [
+        {
+          "activeSeconds": 0.1,
+          "cooldownSeconds": 5.4,
+          "damage": 0,
+          "id": "summon",
+          "recoverySeconds": 0.85,
+          "summonCount": 6,
+          "telegraphSeconds": 0.95
+        },
+        {
+          "activeSeconds": 0.12,
+          "cooldownSeconds": 5.8,
+          "damage": 22,
+          "id": "slam",
+          "radius": 180,
+          "recoverySeconds": 1,
+          "telegraphSeconds": 1.15
+        }
+      ],
+      "color": "#34d399",
+      "contactDamage": 19,
+      "health": 4300,
+      "id": "matriarch",
+      "name": "Matriarch",
+      "phaseTwoCooldownMultiplier": 0.76,
+      "phaseTwoHealthRatio": 0.5,
+      "phaseTwoSpeedMultiplier": 1.08,
+      "radius": 58,
+      "repeatEverySeconds": 600,
+      "rewardParts": 24,
+      "speed": 43,
+      "startsAtSeconds": 450
+    },
+    "reaver": {
+      "attacks": [
+        {
+          "activeSeconds": 0.06,
+          "cooldownSeconds": 3.2,
+          "damage": 15,
+          "id": "blink",
+          "radius": 80,
+          "recoverySeconds": 0.5,
+          "telegraphSeconds": 0.52
+        },
+        {
+          "activeSeconds": 2.25,
+          "beamLength": 680,
+          "beamWidth": 48,
+          "cooldownSeconds": 5.4,
+          "damage": 16,
+          "id": "beam",
+          "recoverySeconds": 0.8,
+          "rotationSpeed": 0.82,
+          "telegraphSeconds": 0.95
+        }
+      ],
+      "color": "#60a5fa",
+      "contactDamage": 21,
+      "health": 5600,
+      "id": "reaver",
+      "name": "Reaver",
+      "phaseTwoCooldownMultiplier": 0.62,
+      "phaseTwoHealthRatio": 0.5,
+      "phaseTwoSpeedMultiplier": 1.16,
+      "radius": 52,
+      "repeatEverySeconds": 600,
+      "rewardParts": 30,
+      "speed": 62,
+      "startsAtSeconds": 600
+    },
+    "warden": {
+      "attacks": [
+        {
+          "activeSeconds": 0.42,
+          "cooldownSeconds": 3.4,
+          "damage": 24,
+          "id": "charge",
+          "recoverySeconds": 0.85,
+          "telegraphSeconds": 0.82
+        },
+        {
+          "activeSeconds": 0.12,
+          "cooldownSeconds": 5.6,
+          "damage": 20,
+          "id": "slam",
+          "radius": 210,
+          "recoverySeconds": 1.1,
+          "shockwaveSpeed": 320,
+          "telegraphSeconds": 1.05
+        }
+      ],
+      "color": "#ef4444",
+      "contactDamage": 18,
+      "health": 3200,
+      "id": "warden",
+      "name": "Warden",
+      "phaseTwoCooldownMultiplier": 0.8,
+      "phaseTwoHealthRatio": 0.5,
+      "phaseTwoSpeedMultiplier": 1.18,
+      "radius": 62,
+      "repeatEverySeconds": 600,
+      "rewardParts": 20,
+      "speed": 55,
+      "startsAtSeconds": 300
+    }
+  },
+  "constants": {
+    "arena": {
+      "collapseSeconds": 0.55,
+      "deferRetrySeconds": 12,
+      "maxIntervalSeconds": 900,
+      "minIntervalSeconds": 600,
+      "settleSeconds": 0.85,
+      "transitionSeconds": 7.3999999999999995,
+      "warningSeconds": 6
+    },
+    "balance": {
+      "cumulativeXpToLevel": [
+        { "level": 1, "xp": 0 },
+        { "level": 2, "xp": 12 },
+        { "level": 5, "xp": 100 },
+        { "level": 10, "xp": 475 },
+        { "level": 20, "xp": 2439 }
+      ],
+      "xpNeeded": [
+        { "level": 1, "xp": 12 },
+        { "level": 2, "xp": 20 },
+        { "level": 3, "xp": 29 },
+        { "level": 5, "xp": 50 },
+        { "level": 11, "xp": 133 },
+        { "level": 21, "xp": 326 },
+        { "level": 41, "xp": 867 },
+        { "level": 61, "xp": 1577 },
+        { "level": 81, "xp": 2430 },
+        { "level": 101, "xp": 3413 }
+      ]
+    },
+    "boss": { "maxIntervalSeconds": 210, "minIntervalSeconds": 150 },
+    "evolutions": {
+      "railLanceDamageSeconds": 1.05,
+      "railLanceTrailSeconds": 2.25
+    },
+    "maxActiveEnemies": 192,
+    "meteors": {
+      "explosiveBlastRadius": 128,
+      "explosiveChainDelaySeconds": 0.18,
+      "explosiveEnemyDamage": 180,
+      "explosiveMeteorHealthAt25Minutes": 118,
+      "explosiveShardCount": 6,
+      "explosiveShardSpeed": 220,
+      "maxExplosive": 2,
+      "maxOrdinary": 5,
+      "meteorHealthAt25Minutes": 171,
+      "slowFactor": 0.82
+    },
+    "pickups": {
+      "harvesterXpLimits": { "global": 60, "individual": 30 },
+      "maxActiveHarvesters": 3,
+      "overdriveCooldownMultiplier": 0.7407407407407407,
+      "overdriveDurationSeconds": 15,
+      "overdriveFireRateMultiplier": 1.35,
+      "overdriveSeconds": 15,
+      "overdriveSpeedMultiplier": 2,
+      "xpDropValues": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+    },
+    "progression": {
+      "baseWeaponSlots": 3,
+      "emptyWeaponSlotLimit": 3,
+      "expandedWeaponSlots": 4,
+      "maxedWeaponsForExtraSlot": 2,
+      "startingPistolRanks": { "pistol": 1 }
+    },
+    "save": {
+      "default": {
+        "arena": "void",
+        "bestiary": {
+          "brute": false,
+          "bulwark": false,
+          "carrier": false,
+          "chaser": false,
+          "dasher": false,
+          "elite": false,
+          "exploder": false,
+          "guard": false,
+          "gunner": false,
+          "harvester": false,
+          "herald": false,
+          "matriarch": false,
+          "mortar": false,
+          "reaver": false,
+          "runner": false,
+          "splitter": false,
+          "technician": false,
+          "twinGunner": false,
+          "warden": false
+        },
+        "highScores": [],
+        "parts": 0,
+        "recentRuns": [],
+        "settings": {
+          "effectsVolume": 0.9,
+          "highContrast": false,
+          "masterVolume": 0.8,
+          "musicVolume": 0.7,
+          "quality": "high",
+          "reducedMotion": false,
+          "shake": 0.8,
+          "touchSize": 1
+        },
+        "stats": {
+          "bestKills": 0,
+          "bestScore": 0,
+          "bestTime": 0,
+          "highestLevel": 1,
+          "totalBossKills": 0,
+          "totalDamageDealt": 0,
+          "totalDamageTaken": 0,
+          "totalEliteKills": 0,
+          "totalKills": 0,
+          "totalPartsEarned": 0,
+          "totalPlaySeconds": 0,
+          "totalRuns": 0
+        },
+        "version": 5,
+        "workshop": {
+          "arsenal": 0,
+          "integrity": 0,
+          "magnet": 0,
+          "mobility": 0,
+          "power": 0,
+          "precision": 0,
+          "protocol": 0,
+          "recovery": 0
+        }
+      },
+      "key": "voidfall_save_v4",
+      "sanitizedCorrupt": {
+        "arena": "void",
+        "bestiary": {
+          "brute": false,
+          "bulwark": false,
+          "carrier": false,
+          "chaser": false,
+          "dasher": false,
+          "elite": false,
+          "exploder": false,
+          "guard": false,
+          "gunner": false,
+          "harvester": false,
+          "herald": false,
+          "matriarch": false,
+          "mortar": false,
+          "reaver": false,
+          "runner": false,
+          "splitter": false,
+          "technician": false,
+          "twinGunner": false,
+          "warden": false
+        },
+        "highScores": [],
+        "parts": 0,
+        "recentRuns": [],
+        "settings": {
+          "effectsVolume": 0.9,
+          "highContrast": false,
+          "masterVolume": 0.8,
+          "musicVolume": 0.7,
+          "quality": "high",
+          "reducedMotion": false,
+          "shake": 0.8,
+          "touchSize": 1
+        },
+        "stats": {
+          "bestKills": 0,
+          "bestScore": 0,
+          "bestTime": 0,
+          "highestLevel": 1,
+          "totalBossKills": 0,
+          "totalDamageDealt": 0,
+          "totalDamageTaken": 0,
+          "totalEliteKills": 0,
+          "totalKills": 0,
+          "totalPartsEarned": 0,
+          "totalPlaySeconds": 0,
+          "totalRuns": 0
+        },
+        "version": 5,
+        "workshop": {
+          "arsenal": 0,
+          "integrity": 0,
+          "magnet": 0,
+          "mobility": 0,
+          "power": 0,
+          "precision": 0,
+          "protocol": 0,
+          "recovery": 0
+        }
+      },
+      "version": 5
+    }
+  },
+  "contentValidationErrors": [],
+  "elite": {
+    "chargeCooldownSeconds": 3.5,
+    "chargeDamageMultiplier": 1.35,
+    "chargeDurationSeconds": 0.42,
+    "chargeRecoverySeconds": 0.9,
+    "chargeSpeed": 520,
+    "chargeTelegraphSeconds": 0.78,
+    "color": "#facc15",
+    "contactDamage": 16,
+    "firstAtSeconds": 55,
+    "health": 360,
+    "id": "elite",
+    "name": "Elite",
+    "radius": 26,
+    "repeatEverySeconds": 85,
+    "speed": 70,
+    "xp": 25
+  },
+  "enemies": {
+    "brute": {
+      "behavior": "direct",
+      "color": "#fb923c",
+      "contactDamage": 16,
+      "health": 110,
+      "id": "brute",
+      "name": "Brute",
+      "naturalStartSeconds": 60,
+      "radius": 27,
+      "speed": 38,
+      "xp": 5
+    },
+    "bulwark": {
+      "behavior": "bulwark",
+      "color": "#38bdf8",
+      "contactDamage": 17,
+      "health": 145,
+      "id": "bulwark",
+      "name": "Bulwark",
+      "naturalStartSeconds": 420,
+      "radius": 26,
+      "speed": 36,
+      "xp": 8
+    },
+    "carrier": {
+      "attackCooldown": 4.6,
+      "behavior": "carrier",
+      "color": "#eab308",
+      "contactDamage": 18,
+      "health": 210,
+      "id": "carrier",
+      "name": "Carrier",
+      "naturalStartSeconds": 540,
+      "preferredDistance": 300,
+      "radius": 30,
+      "speed": 34,
+      "xp": 12
+    },
+    "chaser": {
+      "behavior": "direct",
+      "color": "#fb7185",
+      "contactDamage": 8,
+      "health": 20,
+      "id": "chaser",
+      "name": "Chaser",
+      "naturalStartSeconds": 0,
+      "radius": 15,
+      "speed": 76,
+      "xp": 1
+    },
+    "dasher": {
+      "attackCooldown": 3.6,
+      "behavior": "charge",
+      "color": "#e879f9",
+      "contactDamage": 18,
+      "health": 32,
+      "id": "dasher",
+      "name": "Dasher",
+      "naturalStartSeconds": 35,
+      "radius": 14,
+      "recoverySeconds": 0.65,
+      "speed": 82,
+      "telegraphSeconds": 0.72,
+      "xp": 3
+    },
+    "exploder": {
+      "behavior": "explode",
+      "blastRadius": 76,
+      "color": "#f59e0b",
+      "contactDamage": 26,
+      "health": 44,
+      "id": "exploder",
+      "name": "Exploder",
+      "naturalStartSeconds": 80,
+      "radius": 14,
+      "speed": 82,
+      "telegraphSeconds": 0.9,
+      "triggerDistance": 72,
+      "xp": 4
+    },
+    "guard": {
+      "behavior": "shield",
+      "color": "#60a5fa",
+      "contactDamage": 10,
+      "health": 48,
+      "id": "guard",
+      "name": "Guard",
+      "naturalStartSeconds": 120,
+      "radius": 19,
+      "shield": 38,
+      "speed": 56,
+      "xp": 4
+    },
+    "gunner": {
+      "attackCooldown": 2.8,
+      "behavior": "ranged",
+      "color": "#ef4444",
+      "contactDamage": 10,
+      "health": 34,
+      "id": "gunner",
+      "name": "Gunner",
+      "naturalStartSeconds": 30,
+      "preferredDistance": 330,
+      "projectileSpeed": 260,
+      "radius": 14,
+      "speed": 52,
+      "telegraphSeconds": 0.55,
+      "xp": 3
+    },
+    "harvester": {
+      "behavior": "harvest",
+      "color": "#34d399",
+      "contactDamage": 13,
+      "health": 86,
+      "id": "harvester",
+      "name": "Harvester",
+      "naturalStartSeconds": 480,
+      "radius": 18,
+      "speed": 64,
+      "xp": 5
+    },
+    "mortar": {
+      "attackCooldown": 5,
+      "behavior": "artillery",
+      "blastRadius": 45,
+      "color": "#f97316",
+      "contactDamage": 22,
+      "health": 72,
+      "id": "mortar",
+      "name": "Mortar",
+      "naturalStartSeconds": 300,
+      "preferredDistance": 470,
+      "radius": 18,
+      "speed": 42,
+      "telegraphSeconds": 1.15,
+      "xp": 6
+    },
+    "runner": {
+      "behavior": "zigzag",
+      "color": "#a78bfa",
+      "contactDamage": 5,
+      "health": 9,
+      "id": "runner",
+      "name": "Runner",
+      "naturalStartSeconds": 15,
+      "radius": 9,
+      "speed": 150,
+      "xp": 1
+    },
+    "splitter": {
+      "behavior": "split",
+      "color": "#f472b6",
+      "contactDamage": 11,
+      "health": 68,
+      "id": "splitter",
+      "name": "Splitter",
+      "naturalStartSeconds": 360,
+      "radius": 18,
+      "speed": 68,
+      "xp": 3
+    },
+    "technician": {
+      "attackCooldown": 2.4,
+      "behavior": "support",
+      "color": "#2dd4bf",
+      "contactDamage": 8,
+      "health": 58,
+      "id": "technician",
+      "name": "Technician",
+      "naturalStartSeconds": 240,
+      "preferredDistance": 270,
+      "radius": 16,
+      "speed": 52,
+      "xp": 5
+    },
+    "twinGunner": {
+      "attackCooldown": 3.1,
+      "behavior": "ranged",
+      "color": "#dc5a45",
+      "contactDamage": 14,
+      "health": 78,
+      "id": "twinGunner",
+      "name": "Twin Gunner",
+      "naturalStartSeconds": 300,
+      "preferredDistance": 360,
+      "projectileSpeed": 300,
+      "radius": 18,
+      "speed": 46,
+      "telegraphSeconds": 0.68,
+      "xp": 6
+    }
+  },
+  "evolutions": {
+    "arc": {
+      "accent": "#facc15",
+      "description": "Lightning forks into two independent chains. Each endpoint overloads.",
+      "name": "Arc Network",
+      "supportId": "overload",
+      "weaponId": "arc"
+    },
+    "blades": {
+      "accent": "#5eead4",
+      "description": "Orbit blades stay in formation while a hollow copy cuts through dense lines and returns.",
+      "name": "Hollow Blade",
+      "supportId": "mobility",
+      "weaponId": "blades"
+    },
+    "pistol": {
+      "accent": "#67e8f9",
+      "description": "Fires controlled three-round bursts. Every third round ricochets.",
+      "name": "Pulse Repeater",
+      "supportId": "cycling",
+      "weaponId": "pistol"
+    },
+    "railgun": {
+      "accent": "#c4b5fd",
+      "description": "Each rail shot leaves a lingering energized wake that damages pursuers.",
+      "name": "Rail Lance",
+      "supportId": "calibration",
+      "weaponId": "railgun"
+    },
+    "scattergun": {
+      "accent": "#fb923c",
+      "description": "Tightens the spread and adds a heavy center slug that breaks packed lines.",
+      "name": "Breach Cannon",
+      "supportId": "optics",
+      "weaponId": "scattergun"
+    },
+    "seeker": {
+      "accent": "#a3e635",
+      "description": "Missile impacts release three smaller charges that seek fresh targets.",
+      "name": "Cluster Launcher",
+      "supportId": "amplifier",
+      "weaponId": "seeker"
+    }
+  },
+  "formulaSnapshots": [
+    {
+      "arenas": [
+        {
+          "index": 0,
+          "interval": 899,
+          "nextFromVoid": "redNebula",
+          "scheduleAt": 899
+        },
+        {
+          "index": 1,
+          "interval": 737,
+          "nextFromVoid": "whiteSakura",
+          "scheduleAt": 1636
+        },
+        {
+          "index": 2,
+          "interval": 863,
+          "nextFromVoid": "redNebula",
+          "scheduleAt": 2499
+        }
+      ],
+      "bossOrderCycle0": ["matriarch", "herald", "warden", "reaver"],
+      "bossOrderCycle1": ["warden", "reaver", "matriarch", "herald"],
+      "bosses": [
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "matriarch",
+          "index": 0,
+          "startsAtSeconds": 176
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "herald",
+          "index": 1,
+          "startsAtSeconds": 383
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "warden",
+          "index": 2,
+          "startsAtSeconds": 569
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "reaver",
+          "index": 3,
+          "startsAtSeconds": 765
+        }
+      ],
+      "director": [
+        {
+          "durationSeconds": 0.45,
+          "enemyCount": 12,
+          "id": "swarm",
+          "index": 0,
+          "recoverySeconds": 8,
+          "safeGapAngle": 0.04878928925009279,
+          "spawnEdge": 1,
+          "startsAtSeconds": 30,
+          "warningAtSeconds": 27.5
+        },
+        {
+          "durationSeconds": 6,
+          "enemyCount": 13,
+          "id": "rushers",
+          "index": 1,
+          "recoverySeconds": 8,
+          "safeGapAngle": 0.12202939919286925,
+          "spawnEdge": 2,
+          "startsAtSeconds": 78,
+          "warningAtSeconds": 75.5
+        },
+        {
+          "durationSeconds": 0.45,
+          "enemyCount": 22,
+          "id": "encircle",
+          "index": 2,
+          "recoverySeconds": 8,
+          "safeGapAngle": 0.3815882981610853,
+          "spawnEdge": 1,
+          "startsAtSeconds": 124,
+          "warningAtSeconds": 121.5
+        },
+        {
+          "durationSeconds": 7,
+          "enemyCount": 0,
+          "id": "surge",
+          "index": 3,
+          "recoverySeconds": 8,
+          "safeGapAngle": 2.6420548367747756,
+          "spawnEdge": 1,
+          "startsAtSeconds": 171,
+          "warningAtSeconds": 168.5
+        }
+      ],
+      "rng": {
+        "draws": 16,
+        "seed": 0,
+        "values": [
+          0.0003297457005828619, 0.2232720274478197, 0.1462021479383111,
+          0.46732782293111086, 0.5450490827206522, 0.6152513844426721,
+          0.6489853798411787, 0.45600721263326705, 0.581218967679888,
+          0.24625753005966544, 0.09785169479437172, 0.9034309543203562,
+          0.40820372267626226, 0.7202955442480743, 0.6599067240022123,
+          0.8058585098478943
+        ]
+      },
+      "seed": 0
+    },
+    {
+      "arenas": [
+        {
+          "index": 0,
+          "interval": 778,
+          "nextFromVoid": "whiteSakura",
+          "scheduleAt": 778
+        },
+        {
+          "index": 1,
+          "interval": 880,
+          "nextFromVoid": "whiteSakura",
+          "scheduleAt": 1658
+        },
+        {
+          "index": 2,
+          "interval": 750,
+          "nextFromVoid": "whiteSakura",
+          "scheduleAt": 2408
+        }
+      ],
+      "bossOrderCycle0": ["matriarch", "reaver", "warden", "herald"],
+      "bossOrderCycle1": ["reaver", "herald", "matriarch", "warden"],
+      "bosses": [
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "matriarch",
+          "index": 0,
+          "startsAtSeconds": 197
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "reaver",
+          "index": 1,
+          "startsAtSeconds": 370
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "warden",
+          "index": 2,
+          "startsAtSeconds": 528
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "herald",
+          "index": 3,
+          "startsAtSeconds": 678
+        }
+      ],
+      "director": [
+        {
+          "durationSeconds": 0.45,
+          "enemyCount": 12,
+          "id": "swarm",
+          "index": 0,
+          "recoverySeconds": 8,
+          "safeGapAngle": 4.0488983141133374,
+          "spawnEdge": 1,
+          "startsAtSeconds": 30,
+          "warningAtSeconds": 27.5
+        },
+        {
+          "durationSeconds": 6,
+          "enemyCount": 13,
+          "id": "rushers",
+          "index": 1,
+          "recoverySeconds": 8,
+          "safeGapAngle": 1.6633329159710777,
+          "spawnEdge": 1,
+          "startsAtSeconds": 81,
+          "warningAtSeconds": 78.5
+        },
+        {
+          "durationSeconds": 0.45,
+          "enemyCount": 23,
+          "id": "encircle",
+          "index": 2,
+          "recoverySeconds": 8,
+          "safeGapAngle": 2.7580441851752844,
+          "spawnEdge": 0,
+          "startsAtSeconds": 130,
+          "warningAtSeconds": 127.5
+        },
+        {
+          "durationSeconds": 7,
+          "enemyCount": 0,
+          "id": "surge",
+          "index": 3,
+          "recoverySeconds": 8,
+          "safeGapAngle": 2.1360657603522926,
+          "spawnEdge": 3,
+          "startsAtSeconds": 174,
+          "warningAtSeconds": 171.5
+        }
+      ],
+      "rng": {
+        "draws": 16,
+        "seed": 1,
+        "values": [
+          0.6270739405881613, 0.002735721180215478, 0.5274470399599522,
+          0.9810509674716741, 0.9683778982143849, 0.281103502959013,
+          0.6128388606011868, 0.7207431411370635, 0.425796952098608,
+          0.9948229456786066, 0.45527112716808915, 0.48878831742331386,
+          0.13893358339555562, 0.40374476509168744, 0.24752389639616013,
+          0.15449313493445516
+        ]
+      },
+      "seed": 1
+    },
+    {
+      "arenas": [
+        {
+          "index": 0,
+          "interval": 804,
+          "nextFromVoid": "whiteSakura",
+          "scheduleAt": 804
+        },
+        {
+          "index": 1,
+          "interval": 673,
+          "nextFromVoid": "redNebula",
+          "scheduleAt": 1477
+        },
+        {
+          "index": 2,
+          "interval": 812,
+          "nextFromVoid": "whiteSakura",
+          "scheduleAt": 2289
+        }
+      ],
+      "bossOrderCycle0": ["reaver", "matriarch", "warden", "herald"],
+      "bossOrderCycle1": ["herald", "matriarch", "reaver", "warden"],
+      "bosses": [
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "reaver",
+          "index": 0,
+          "startsAtSeconds": 203
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "matriarch",
+          "index": 1,
+          "startsAtSeconds": 384
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "warden",
+          "index": 2,
+          "startsAtSeconds": 534
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "herald",
+          "index": 3,
+          "startsAtSeconds": 727
+        }
+      ],
+      "director": [
+        {
+          "durationSeconds": 0.45,
+          "enemyCount": 12,
+          "id": "swarm",
+          "index": 0,
+          "recoverySeconds": 8,
+          "safeGapAngle": 5.197400789630061,
+          "spawnEdge": 1,
+          "startsAtSeconds": 30,
+          "warningAtSeconds": 27.5
+        },
+        {
+          "durationSeconds": 6,
+          "enemyCount": 13,
+          "id": "rushers",
+          "index": 1,
+          "recoverySeconds": 8,
+          "safeGapAngle": 5.2204434635606365,
+          "spawnEdge": 3,
+          "startsAtSeconds": 74,
+          "warningAtSeconds": 71.5
+        },
+        {
+          "durationSeconds": 0.45,
+          "enemyCount": 22,
+          "id": "encircle",
+          "index": 2,
+          "recoverySeconds": 8,
+          "safeGapAngle": 5.615481061328321,
+          "spawnEdge": 1,
+          "startsAtSeconds": 125,
+          "warningAtSeconds": 122.5
+        },
+        {
+          "durationSeconds": 7,
+          "enemyCount": 0,
+          "id": "surge",
+          "index": 3,
+          "recoverySeconds": 8,
+          "safeGapAngle": 5.954493892334232,
+          "spawnEdge": 3,
+          "startsAtSeconds": 176,
+          "warningAtSeconds": 173.5
+        }
+      ],
+      "rng": {
+        "draws": 16,
+        "seed": 1595785438,
+        "values": [
+          0.7531694606877863, 0.05739508266560733, 0.26449661748483777,
+          0.4259755960665643, 0.10997820948250592, 0.3439558569807559,
+          0.8946858725976199, 0.38049650890752673, 0.1919775167480111,
+          0.6900567887350917, 0.23115387582220137, 0.6204246541019529,
+          0.23443654016591609, 0.44819746166467667, 0.29234746284782887,
+          0.14846273558214307
+        ]
+      },
+      "seed": 1595785438
+    },
+    {
+      "arenas": [
+        {
+          "index": 0,
+          "interval": 812,
+          "nextFromVoid": "redNebula",
+          "scheduleAt": 812
+        },
+        {
+          "index": 1,
+          "interval": 621,
+          "nextFromVoid": "whiteSakura",
+          "scheduleAt": 1433
+        },
+        {
+          "index": 2,
+          "interval": 625,
+          "nextFromVoid": "whiteSakura",
+          "scheduleAt": 2058
+        }
+      ],
+      "bossOrderCycle0": ["warden", "reaver", "herald", "matriarch"],
+      "bossOrderCycle1": ["matriarch", "reaver", "herald", "warden"],
+      "bosses": [
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "warden",
+          "index": 0,
+          "startsAtSeconds": 192
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "reaver",
+          "index": 1,
+          "startsAtSeconds": 402
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "herald",
+          "index": 2,
+          "startsAtSeconds": 579
+        },
+        {
+          "cycle": 0,
+          "damageScale": 1,
+          "healthScale": 1,
+          "id": "matriarch",
+          "index": 3,
+          "startsAtSeconds": 778
+        }
+      ],
+      "director": [
+        {
+          "durationSeconds": 0.45,
+          "enemyCount": 12,
+          "id": "swarm",
+          "index": 0,
+          "recoverySeconds": 8,
+          "safeGapAngle": 3.5334896346694364,
+          "spawnEdge": 2,
+          "startsAtSeconds": 30,
+          "warningAtSeconds": 27.5
+        },
+        {
+          "durationSeconds": 6,
+          "enemyCount": 13,
+          "id": "rushers",
+          "index": 1,
+          "recoverySeconds": 8,
+          "safeGapAngle": 3.069379442163426,
+          "spawnEdge": 2,
+          "startsAtSeconds": 79,
+          "warningAtSeconds": 76.5
+        },
+        {
+          "durationSeconds": 0.45,
+          "enemyCount": 22,
+          "id": "encircle",
+          "index": 2,
+          "recoverySeconds": 8,
+          "safeGapAngle": 4.238723987787814,
+          "spawnEdge": 1,
+          "startsAtSeconds": 125,
+          "warningAtSeconds": 122.5
+        },
+        {
+          "durationSeconds": 7,
+          "enemyCount": 0,
+          "id": "surge",
+          "index": 3,
+          "recoverySeconds": 8,
+          "safeGapAngle": 1.224524424328897,
+          "spawnEdge": 0,
+          "startsAtSeconds": 167,
+          "warningAtSeconds": 164.5
+        }
+      ],
+      "rng": {
+        "draws": 16,
+        "seed": 305419896,
+        "values": [
+          0.10615200875326991, 0.941276284167543, 0.9398706152569503,
+          0.2338848018553108, 0.9045877147000283, 0.778330324916169,
+          0.2794336583465338, 0.3410122946370393, 0.1999083326663822,
+          0.35710932151414454, 0.3698200259823352, 0.6530541232787073,
+          0.6123106309678406, 0.8474816563539207, 0.2628940457943827,
+          0.306836876552552
+        ]
+      },
+      "seed": 305419896
+    }
+  ],
+  "identifiers": {
+    "arenas": ["void", "redNebula", "whiteSakura"],
+    "bosses": ["herald", "warden", "matriarch", "reaver"],
+    "enemies": [
+      "chaser",
+      "runner",
+      "gunner",
+      "twinGunner",
+      "dasher",
+      "brute",
+      "exploder",
+      "guard",
+      "technician",
+      "mortar",
+      "splitter",
+      "bulwark",
+      "harvester",
+      "carrier"
+    ],
+    "evolutionWeaponIds": [
+      "pistol",
+      "scattergun",
+      "railgun",
+      "blades",
+      "arc",
+      "seeker"
+    ],
+    "lateUpgradeIds": ["output", "cooling", "frame"],
+    "stressScenarios": [
+      "productionMax",
+      "maxDensity",
+      "bossRush",
+      "meteorStorm",
+      "sakuraElites",
+      "soak"
+    ],
+    "supportIds": [
+      "calibration",
+      "cycling",
+      "plating",
+      "mobility",
+      "collector",
+      "optics",
+      "overload",
+      "adrenal",
+      "amplifier",
+      "regenerator"
+    ],
+    "weapons": ["pistol", "scattergun", "railgun", "blades", "arc", "seeker"]
+  },
+  "lateUpgrades": [
+    {
+      "accent": "#67e8f9",
+      "description": "+5% weapon damage",
+      "id": "output",
+      "maxRank": 12,
+      "name": "Output Tuning"
+    },
+    {
+      "accent": "#93c5fd",
+      "description": "Weapons recover 3% faster",
+      "id": "cooling",
+      "maxRank": 10,
+      "name": "Cooling Pass"
+    },
+    {
+      "accent": "#fb7185",
+      "description": "+8 maximum integrity and repair 8",
+      "id": "frame",
+      "maxRank": 12,
+      "name": "Frame Patch"
+    }
+  ],
+  "milestones": {
+    "kills": [
+      50, 100, 200, 500, 1000, 2500, 5000, 7500, 10000, 12500, 15000, 17500,
+      20000, 22500, 25000, 27500, 30000, 32500, 35000, 37500, 40000, 42500,
+      45000, 47500, 50000, 52500, 55000, 57500, 60000, 62500, 65000, 67500,
+      70000, 72500, 75000, 77500, 80000, 82500, 85000, 87500, 90000, 92500,
+      95000, 97500, 100000, 250000, 500000, 1000000
+    ],
+    "score": [
+      5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000, 2000000,
+      5000000
+    ]
+  },
+  "operative": {
+    "id": "operative",
+    "maxHealth": 100,
+    "moveSpeed": 235,
+    "name": "Operative",
+    "pickupRadius": 95,
+    "startingWeapon": "pistol"
+  },
+  "schema": 1,
+  "source": {
+    "generatedAt": "2026-08-11T08:20:27.396Z",
+    "repository": "Voidfall",
+    "sourceCommit": "4d5e955",
+    "unityEditor": "6000.5.7f1"
+  },
+  "spawnSnapshots": [
+    {
+      "activeEnemyCaps": [
+        { "bosses": 0, "cap": 45 },
+        { "bosses": 1, "cap": 80 }
+      ],
+      "bossCapacity": 1,
+      "bossHealthScales": {
+        "herald": 1,
+        "matriarch": 1,
+        "reaver": 1,
+        "warden": 1
+      },
+      "byArena": {
+        "redNebula": {
+          "picks": ["chaser", "chaser", "chaser", "chaser", "chaser"],
+          "weights": [{ "id": "chaser", "weight": 1 }]
+        },
+        "void": {
+          "picks": ["chaser", "chaser", "chaser", "chaser", "chaser"],
+          "weights": [{ "id": "chaser", "weight": 1 }]
+        },
+        "whiteSakura": {
+          "picks": ["chaser", "chaser", "chaser", "chaser", "chaser"],
+          "weights": [{ "id": "chaser", "weight": 1 }]
+        }
+      },
+      "cycle": {
+        "redNebula": {
+          "cycle": {
+            "flashRate": 0.04,
+            "id": "quiet",
+            "name": "Quiet clouds",
+            "seconds": 48
+          },
+          "progress": 0
+        },
+        "void": {
+          "cycle": {
+            "flashRate": 0,
+            "id": "steady",
+            "name": "Steady",
+            "seconds": 60
+          },
+          "progress": 0
+        },
+        "whiteSakura": {
+          "cycle": {
+            "flashRate": 0.03,
+            "id": "still",
+            "name": "Still drift",
+            "seconds": 46
+          },
+          "progress": 0
+        }
+      },
+      "time": 0,
+      "timePicks": ["chaser", "chaser", "chaser", "chaser", "chaser"],
+      "weights": [{ "id": "chaser", "weight": 1 }]
+    },
+    {
+      "activeEnemyCaps": [
+        { "bosses": 0, "cap": 52 },
+        { "bosses": 1, "cap": 80 }
+      ],
+      "bossCapacity": 1,
+      "bossHealthScales": {
+        "herald": 1,
+        "matriarch": 1,
+        "reaver": 1,
+        "warden": 1
+      },
+      "byArena": {
+        "redNebula": {
+          "picks": ["chaser", "chaser", "chaser", "runner", "runner"],
+          "weights": [
+            { "id": "chaser", "weight": 0.62 },
+            { "id": "runner", "weight": 0.38 }
+          ]
+        },
+        "void": {
+          "picks": ["chaser", "chaser", "chaser", "runner", "runner"],
+          "weights": [
+            { "id": "chaser", "weight": 0.62 },
+            { "id": "runner", "weight": 0.38 }
+          ]
+        },
+        "whiteSakura": {
+          "picks": ["chaser", "chaser", "chaser", "runner", "runner"],
+          "weights": [
+            { "id": "chaser", "weight": 0.62 },
+            { "id": "runner", "weight": 0.38 }
+          ]
+        }
+      },
+      "cycle": {
+        "redNebula": {
+          "cycle": {
+            "flashRate": 0.04,
+            "id": "quiet",
+            "name": "Quiet clouds",
+            "seconds": 48
+          },
+          "progress": 0.3125
+        },
+        "void": {
+          "cycle": {
+            "flashRate": 0,
+            "id": "steady",
+            "name": "Steady",
+            "seconds": 60
+          },
+          "progress": 0.25
+        },
+        "whiteSakura": {
+          "cycle": {
+            "flashRate": 0.03,
+            "id": "still",
+            "name": "Still drift",
+            "seconds": 46
+          },
+          "progress": 0.32608695652173914
+        }
+      },
+      "time": 15,
+      "timePicks": ["chaser", "chaser", "chaser", "runner", "runner"],
+      "weights": [
+        { "id": "chaser", "weight": 0.62 },
+        { "id": "runner", "weight": 0.38 }
+      ]
+    },
+    {
+      "activeEnemyCaps": [
+        { "bosses": 0, "cap": 60 },
+        { "bosses": 1, "cap": 80 }
+      ],
+      "bossCapacity": 1,
+      "bossHealthScales": {
+        "herald": 1,
+        "matriarch": 1,
+        "reaver": 1,
+        "warden": 1
+      },
+      "byArena": {
+        "redNebula": {
+          "picks": ["chaser", "chaser", "runner", "gunner", "gunner"],
+          "weights": [
+            { "id": "chaser", "weight": 0.48 },
+            { "id": "runner", "weight": 0.34 },
+            { "id": "gunner", "weight": 0.18 }
+          ]
+        },
+        "void": {
+          "picks": ["chaser", "chaser", "runner", "gunner", "gunner"],
+          "weights": [
+            { "id": "chaser", "weight": 0.48 },
+            { "id": "runner", "weight": 0.34 },
+            { "id": "gunner", "weight": 0.18 }
+          ]
+        },
+        "whiteSakura": {
+          "picks": ["chaser", "chaser", "runner", "gunner", "gunner"],
+          "weights": [
+            { "id": "chaser", "weight": 0.48 },
+            { "id": "runner", "weight": 0.34 },
+            { "id": "gunner", "weight": 0.18 }
+          ]
+        }
+      },
+      "cycle": {
+        "redNebula": {
+          "cycle": {
+            "flashRate": 0.04,
+            "id": "quiet",
+            "name": "Quiet clouds",
+            "seconds": 48
+          },
+          "progress": 0.625
+        },
+        "void": {
+          "cycle": {
+            "flashRate": 0,
+            "id": "steady",
+            "name": "Steady",
+            "seconds": 60
+          },
+          "progress": 0.5
+        },
+        "whiteSakura": {
+          "cycle": {
+            "flashRate": 0.03,
+            "id": "still",
+            "name": "Still drift",
+            "seconds": 46
+          },
+          "progress": 0.6521739130434783
+        }
+      },
+      "time": 30,
+      "timePicks": ["chaser", "chaser", "runner", "gunner", "gunner"],
+      "weights": [
+        { "id": "chaser", "weight": 0.48 },
+        { "id": "runner", "weight": 0.34 },
+        { "id": "gunner", "weight": 0.18 }
+      ]
+    },
+    {
+      "activeEnemyCaps": [
+        { "bosses": 0, "cap": 74 },
+        { "bosses": 1, "cap": 80 }
+      ],
+      "bossCapacity": 1,
+      "bossHealthScales": {
+        "herald": 1,
+        "matriarch": 1,
+        "reaver": 1,
+        "warden": 1
+      },
+      "byArena": {
+        "redNebula": {
+          "picks": ["chaser", "chaser", "runner", "brute", "brute"],
+          "weights": [
+            { "id": "chaser", "weight": 0.31 },
+            { "id": "runner", "weight": 0.22 },
+            { "id": "gunner", "weight": 0.14 },
+            { "id": "dasher", "weight": 0.17 },
+            { "id": "brute", "weight": 0.16 }
+          ]
+        },
+        "void": {
+          "picks": ["chaser", "chaser", "runner", "brute", "brute"],
+          "weights": [
+            { "id": "chaser", "weight": 0.31 },
+            { "id": "runner", "weight": 0.22 },
+            { "id": "gunner", "weight": 0.14 },
+            { "id": "dasher", "weight": 0.17 },
+            { "id": "brute", "weight": 0.16 }
+          ]
+        },
+        "whiteSakura": {
+          "picks": ["chaser", "chaser", "runner", "brute", "brute"],
+          "weights": [
+            { "id": "chaser", "weight": 0.31 },
+            { "id": "runner", "weight": 0.22 },
+            { "id": "gunner", "weight": 0.14 },
+            { "id": "dasher", "weight": 0.17 },
+            { "id": "brute", "weight": 0.16 }
+          ]
+        }
+      },
+      "cycle": {
+        "redNebula": {
+          "cycle": {
+            "flashRate": 0.1,
+            "id": "ionized",
+            "name": "Ionized filaments",
+            "seconds": 34
+          },
+          "progress": 0.35294117647058826
+        },
+        "void": {
+          "cycle": {
+            "flashRate": 0,
+            "id": "steady",
+            "name": "Steady",
+            "seconds": 60
+          },
+          "progress": 0
+        },
+        "whiteSakura": {
+          "cycle": {
+            "flashRate": 0.06,
+            "id": "cross",
+            "name": "Cross current",
+            "seconds": 32
+          },
+          "progress": 0.4375
+        }
+      },
+      "time": 60,
+      "timePicks": ["chaser", "chaser", "runner", "brute", "brute"],
+      "weights": [
+        { "id": "chaser", "weight": 0.31 },
+        { "id": "runner", "weight": 0.22 },
+        { "id": "gunner", "weight": 0.14 },
+        { "id": "dasher", "weight": 0.17 },
+        { "id": "brute", "weight": 0.16 }
+      ]
+    },
+    {
+      "activeEnemyCaps": [
+        { "bosses": 0, "cap": 117 },
+        { "bosses": 1, "cap": 80 }
+      ],
+      "bossCapacity": 1,
+      "bossHealthScales": {
+        "herald": 1,
+        "matriarch": 1,
+        "reaver": 1,
+        "warden": 1
+      },
+      "byArena": {
+        "redNebula": {
+          "picks": ["chaser", "chaser", "dasher", "guard", "guard"],
+          "weights": [
+            { "id": "chaser", "weight": 0.21 },
+            { "id": "runner", "weight": 0.15 },
+            { "id": "gunner", "weight": 0.14 },
+            { "id": "dasher", "weight": 0.14 },
+            { "id": "brute", "weight": 0.13 },
+            { "id": "exploder", "weight": 0.13 },
+            { "id": "guard", "weight": 0.1 }
+          ]
+        },
+        "void": {
+          "picks": ["chaser", "chaser", "dasher", "guard", "guard"],
+          "weights": [
+            { "id": "chaser", "weight": 0.21 },
+            { "id": "runner", "weight": 0.15 },
+            { "id": "gunner", "weight": 0.14 },
+            { "id": "dasher", "weight": 0.14 },
+            { "id": "brute", "weight": 0.13 },
+            { "id": "exploder", "weight": 0.13 },
+            { "id": "guard", "weight": 0.1 }
+          ]
+        },
+        "whiteSakura": {
+          "picks": ["chaser", "chaser", "dasher", "guard", "guard"],
+          "weights": [
+            { "id": "chaser", "weight": 0.21 },
+            { "id": "runner", "weight": 0.15 },
+            { "id": "gunner", "weight": 0.14 },
+            { "id": "dasher", "weight": 0.14 },
+            { "id": "brute", "weight": 0.13 },
+            { "id": "exploder", "weight": 0.13 },
+            { "id": "guard", "weight": 0.1 }
+          ]
+        }
+      },
+      "cycle": {
+        "redNebula": {
+          "cycle": {
+            "flashRate": 0.1,
+            "id": "ionized",
+            "name": "Ionized filaments",
+            "seconds": 34
+          },
+          "progress": 0.29411764705882354
+        },
+        "void": {
+          "cycle": {
+            "flashRate": 0,
+            "id": "steady",
+            "name": "Steady",
+            "seconds": 60
+          },
+          "progress": 0.5
+        },
+        "whiteSakura": {
+          "cycle": {
+            "flashRate": 0.06,
+            "id": "cross",
+            "name": "Cross current",
+            "seconds": 32
+          },
+          "progress": 0.1875
+        }
+      },
+      "time": 150,
+      "timePicks": ["chaser", "chaser", "dasher", "guard", "guard"],
+      "weights": [
+        { "id": "chaser", "weight": 0.21 },
+        { "id": "runner", "weight": 0.15 },
+        { "id": "gunner", "weight": 0.14 },
+        { "id": "dasher", "weight": 0.14 },
+        { "id": "brute", "weight": 0.13 },
+        { "id": "exploder", "weight": 0.13 },
+        { "id": "guard", "weight": 0.1 }
+      ]
+    },
+    {
+      "activeEnemyCaps": [
+        { "bosses": 0, "cap": 189 },
+        { "bosses": 1, "cap": 80 }
+      ],
+      "bossCapacity": 1,
+      "bossHealthScales": {
+        "herald": 1.2499655669078136,
+        "matriarch": 1.2499655669078136,
+        "reaver": 1.2499655669078136,
+        "warden": 1.2499655669078136
+      },
+      "byArena": {
+        "redNebula": {
+          "picks": ["chaser", "chaser", "dasher", "technician", "mortar"],
+          "weights": [
+            { "id": "chaser", "weight": 0.16 },
+            { "id": "runner", "weight": 0.12 },
+            { "id": "gunner", "weight": 0.11 },
+            { "id": "twinGunner", "weight": 0.06 },
+            { "id": "dasher", "weight": 0.13 },
+            { "id": "brute", "weight": 0.12 },
+            { "id": "exploder", "weight": 0.11 },
+            { "id": "guard", "weight": 0.09 },
+            { "id": "technician", "weight": 0.05 },
+            { "id": "mortar", "weight": 0.05 }
+          ]
+        },
+        "void": {
+          "picks": ["chaser", "chaser", "dasher", "technician", "mortar"],
+          "weights": [
+            { "id": "chaser", "weight": 0.16 },
+            { "id": "runner", "weight": 0.12 },
+            { "id": "gunner", "weight": 0.11 },
+            { "id": "twinGunner", "weight": 0.06 },
+            { "id": "dasher", "weight": 0.13 },
+            { "id": "brute", "weight": 0.12 },
+            { "id": "exploder", "weight": 0.11 },
+            { "id": "guard", "weight": 0.09 },
+            { "id": "technician", "weight": 0.05 },
+            { "id": "mortar", "weight": 0.05 }
+          ]
+        },
+        "whiteSakura": {
+          "picks": ["chaser", "chaser", "dasher", "technician", "mortar"],
+          "weights": [
+            { "id": "chaser", "weight": 0.16 },
+            { "id": "runner", "weight": 0.12 },
+            { "id": "gunner", "weight": 0.11 },
+            { "id": "twinGunner", "weight": 0.06 },
+            { "id": "dasher", "weight": 0.13 },
+            { "id": "brute", "weight": 0.12 },
+            { "id": "exploder", "weight": 0.11 },
+            { "id": "guard", "weight": 0.09 },
+            { "id": "technician", "weight": 0.05 },
+            { "id": "mortar", "weight": 0.05 }
+          ]
+        }
+      },
+      "cycle": {
+        "redNebula": {
+          "cycle": {
+            "flashRate": 0.04,
+            "id": "quiet",
+            "name": "Quiet clouds",
+            "seconds": 48
+          },
+          "progress": 0.5
+        },
+        "void": {
+          "cycle": {
+            "flashRate": 0,
+            "id": "steady",
+            "name": "Steady",
+            "seconds": 60
+          },
+          "progress": 0
+        },
+        "whiteSakura": {
+          "cycle": {
+            "flashRate": 0.03,
+            "id": "still",
+            "name": "Still drift",
+            "seconds": 46
+          },
+          "progress": 0.13043478260869565
+        }
+      },
+      "time": 300,
+      "timePicks": ["chaser", "chaser", "dasher", "technician", "mortar"],
+      "weights": [
+        { "id": "chaser", "weight": 0.16 },
+        { "id": "runner", "weight": 0.12 },
+        { "id": "gunner", "weight": 0.11 },
+        { "id": "twinGunner", "weight": 0.06 },
+        { "id": "dasher", "weight": 0.13 },
+        { "id": "brute", "weight": 0.12 },
+        { "id": "exploder", "weight": 0.11 },
+        { "id": "guard", "weight": 0.09 },
+        { "id": "technician", "weight": 0.05 },
+        { "id": "mortar", "weight": 0.05 }
+      ]
+    },
+    {
+      "activeEnemyCaps": [
+        { "bosses": 0, "cap": 192 },
+        { "bosses": 1, "cap": 80 }
+      ],
+      "bossCapacity": 1,
+      "bossHealthScales": {
+        "herald": 2.917977333507275,
+        "matriarch": 2.5373715943541524,
+        "reaver": 2.5373715943541524,
+        "warden": 2.5373715943541524
+      },
+      "byArena": {
+        "redNebula": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        },
+        "void": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        },
+        "whiteSakura": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        }
+      },
+      "cycle": {
+        "redNebula": {
+          "cycle": {
+            "flashRate": 0.1,
+            "id": "ionized",
+            "name": "Ionized filaments",
+            "seconds": 34
+          },
+          "progress": 0
+        },
+        "void": {
+          "cycle": {
+            "flashRate": 0,
+            "id": "steady",
+            "name": "Steady",
+            "seconds": 60
+          },
+          "progress": 0
+        },
+        "whiteSakura": {
+          "cycle": {
+            "flashRate": 0.03,
+            "id": "still",
+            "name": "Still drift",
+            "seconds": 46
+          },
+          "progress": 0.2608695652173913
+        }
+      },
+      "time": 600,
+      "timePicks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+      "weights": [
+        { "id": "chaser", "weight": 0.13 },
+        { "id": "runner", "weight": 0.08 },
+        { "id": "gunner", "weight": 0.08 },
+        { "id": "twinGunner", "weight": 0.05 },
+        { "id": "dasher", "weight": 0.09 },
+        { "id": "brute", "weight": 0.09 },
+        { "id": "exploder", "weight": 0.08 },
+        { "id": "guard", "weight": 0.07 },
+        { "id": "technician", "weight": 0.06 },
+        { "id": "mortar", "weight": 0.07 },
+        { "id": "splitter", "weight": 0.08 },
+        { "id": "bulwark", "weight": 0.05 },
+        { "id": "harvester", "weight": 0.04 },
+        { "id": "carrier", "weight": 0.03 }
+      ]
+    },
+    {
+      "activeEnemyCaps": [
+        { "bosses": 0, "cap": 192 },
+        { "bosses": 1, "cap": 80 }
+      ],
+      "bossCapacity": 1,
+      "bossHealthScales": {
+        "herald": 6.320432215822134,
+        "matriarch": 4.358918769532506,
+        "reaver": 4.358918769532506,
+        "warden": 4.358918769532506
+      },
+      "byArena": {
+        "redNebula": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        },
+        "void": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        },
+        "whiteSakura": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        }
+      },
+      "cycle": {
+        "redNebula": {
+          "cycle": {
+            "flashRate": 0.1,
+            "id": "ionized",
+            "name": "Ionized filaments",
+            "seconds": 34
+          },
+          "progress": 0.7058823529411765
+        },
+        "void": {
+          "cycle": {
+            "flashRate": 0,
+            "id": "steady",
+            "name": "Steady",
+            "seconds": 60
+          },
+          "progress": 0
+        },
+        "whiteSakura": {
+          "cycle": {
+            "flashRate": 0.03,
+            "id": "still",
+            "name": "Still drift",
+            "seconds": 46
+          },
+          "progress": 0.391304347826087
+        }
+      },
+      "time": 900,
+      "timePicks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+      "weights": [
+        { "id": "chaser", "weight": 0.13 },
+        { "id": "runner", "weight": 0.08 },
+        { "id": "gunner", "weight": 0.08 },
+        { "id": "twinGunner", "weight": 0.05 },
+        { "id": "dasher", "weight": 0.09 },
+        { "id": "brute", "weight": 0.09 },
+        { "id": "exploder", "weight": 0.08 },
+        { "id": "guard", "weight": 0.07 },
+        { "id": "technician", "weight": 0.06 },
+        { "id": "mortar", "weight": 0.07 },
+        { "id": "splitter", "weight": 0.08 },
+        { "id": "bulwark", "weight": 0.05 },
+        { "id": "harvester", "weight": 0.04 },
+        { "id": "carrier", "weight": 0.03 }
+      ]
+    },
+    {
+      "activeEnemyCaps": [
+        { "bosses": 0, "cap": 192 },
+        { "bosses": 1, "cap": 80 }
+      ],
+      "bossCapacity": 2,
+      "bossHealthScales": {
+        "herald": 9.520596461583501,
+        "matriarch": 6.565928594195518,
+        "reaver": 6.565928594195518,
+        "warden": 6.565928594195518
+      },
+      "byArena": {
+        "redNebula": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        },
+        "void": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        },
+        "whiteSakura": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        }
+      },
+      "cycle": {
+        "redNebula": {
+          "cycle": {
+            "flashRate": 0.04,
+            "id": "quiet",
+            "name": "Quiet clouds",
+            "seconds": 48
+          },
+          "progress": 0.08333333333333333
+        },
+        "void": {
+          "cycle": {
+            "flashRate": 0,
+            "id": "steady",
+            "name": "Steady",
+            "seconds": 60
+          },
+          "progress": 0
+        },
+        "whiteSakura": {
+          "cycle": {
+            "flashRate": 0.03,
+            "id": "still",
+            "name": "Still drift",
+            "seconds": 46
+          },
+          "progress": 0.5217391304347826
+        }
+      },
+      "time": 1200,
+      "timePicks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+      "weights": [
+        { "id": "chaser", "weight": 0.13 },
+        { "id": "runner", "weight": 0.08 },
+        { "id": "gunner", "weight": 0.08 },
+        { "id": "twinGunner", "weight": 0.05 },
+        { "id": "dasher", "weight": 0.09 },
+        { "id": "brute", "weight": 0.09 },
+        { "id": "exploder", "weight": 0.08 },
+        { "id": "guard", "weight": 0.07 },
+        { "id": "technician", "weight": 0.06 },
+        { "id": "mortar", "weight": 0.07 },
+        { "id": "splitter", "weight": 0.08 },
+        { "id": "bulwark", "weight": 0.05 },
+        { "id": "harvester", "weight": 0.04 },
+        { "id": "carrier", "weight": 0.03 }
+      ]
+    },
+    {
+      "activeEnemyCaps": [
+        { "bosses": 0, "cap": 192 },
+        { "bosses": 1, "cap": 80 }
+      ],
+      "bossCapacity": 2,
+      "bossHealthScales": {
+        "herald": 13.179178182177093,
+        "matriarch": 9.089088401501444,
+        "reaver": 9.089088401501444,
+        "warden": 9.089088401501444
+      },
+      "byArena": {
+        "redNebula": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        },
+        "void": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        },
+        "whiteSakura": {
+          "picks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+          "weights": [
+            { "id": "chaser", "weight": 0.13 },
+            { "id": "runner", "weight": 0.08 },
+            { "id": "gunner", "weight": 0.08 },
+            { "id": "twinGunner", "weight": 0.05 },
+            { "id": "dasher", "weight": 0.09 },
+            { "id": "brute", "weight": 0.09 },
+            { "id": "exploder", "weight": 0.08 },
+            { "id": "guard", "weight": 0.07 },
+            { "id": "technician", "weight": 0.06 },
+            { "id": "mortar", "weight": 0.07 },
+            { "id": "splitter", "weight": 0.08 },
+            { "id": "bulwark", "weight": 0.05 },
+            { "id": "harvester", "weight": 0.04 },
+            { "id": "carrier", "weight": 0.03 }
+          ]
+        }
+      },
+      "cycle": {
+        "redNebula": {
+          "cycle": {
+            "flashRate": 0.04,
+            "id": "quiet",
+            "name": "Quiet clouds",
+            "seconds": 48
+          },
+          "progress": 0.5833333333333334
+        },
+        "void": {
+          "cycle": {
+            "flashRate": 0,
+            "id": "steady",
+            "name": "Steady",
+            "seconds": 60
+          },
+          "progress": 0
+        },
+        "whiteSakura": {
+          "cycle": {
+            "flashRate": 0.03,
+            "id": "still",
+            "name": "Still drift",
+            "seconds": 46
+          },
+          "progress": 0.6521739130434783
+        }
+      },
+      "time": 1500,
+      "timePicks": ["chaser", "chaser", "brute", "bulwark", "carrier"],
+      "weights": [
+        { "id": "chaser", "weight": 0.13 },
+        { "id": "runner", "weight": 0.08 },
+        { "id": "gunner", "weight": 0.08 },
+        { "id": "twinGunner", "weight": 0.05 },
+        { "id": "dasher", "weight": 0.09 },
+        { "id": "brute", "weight": 0.09 },
+        { "id": "exploder", "weight": 0.08 },
+        { "id": "guard", "weight": 0.07 },
+        { "id": "technician", "weight": 0.06 },
+        { "id": "mortar", "weight": 0.07 },
+        { "id": "splitter", "weight": 0.08 },
+        { "id": "bulwark", "weight": 0.05 },
+        { "id": "harvester", "weight": 0.04 },
+        { "id": "carrier", "weight": 0.03 }
+      ]
+    }
+  ],
+  "spawnTimeline": [
+    {
+      "endSeconds": 15,
+      "startSeconds": 0,
+      "weights": [{ "id": "chaser", "weight": 1 }]
+    },
+    {
+      "endSeconds": 30,
+      "startSeconds": 15,
+      "weights": [
+        { "id": "chaser", "weight": 0.62 },
+        { "id": "runner", "weight": 0.38 }
+      ]
+    },
+    {
+      "endSeconds": 35,
+      "startSeconds": 30,
+      "weights": [
+        { "id": "chaser", "weight": 0.48 },
+        { "id": "runner", "weight": 0.34 },
+        { "id": "gunner", "weight": 0.18 }
+      ]
+    },
+    {
+      "endSeconds": 60,
+      "startSeconds": 35,
+      "weights": [
+        { "id": "chaser", "weight": 0.4 },
+        { "id": "runner", "weight": 0.28 },
+        { "id": "gunner", "weight": 0.14 },
+        { "id": "dasher", "weight": 0.18 }
+      ]
+    },
+    {
+      "endSeconds": 80,
+      "startSeconds": 60,
+      "weights": [
+        { "id": "chaser", "weight": 0.31 },
+        { "id": "runner", "weight": 0.22 },
+        { "id": "gunner", "weight": 0.14 },
+        { "id": "dasher", "weight": 0.17 },
+        { "id": "brute", "weight": 0.16 }
+      ]
+    },
+    {
+      "endSeconds": 120,
+      "startSeconds": 80,
+      "weights": [
+        { "id": "chaser", "weight": 0.25 },
+        { "id": "runner", "weight": 0.18 },
+        { "id": "gunner", "weight": 0.14 },
+        { "id": "dasher", "weight": 0.15 },
+        { "id": "brute", "weight": 0.14 },
+        { "id": "exploder", "weight": 0.14 }
+      ]
+    },
+    {
+      "endSeconds": 240,
+      "startSeconds": 120,
+      "weights": [
+        { "id": "chaser", "weight": 0.21 },
+        { "id": "runner", "weight": 0.15 },
+        { "id": "gunner", "weight": 0.14 },
+        { "id": "dasher", "weight": 0.14 },
+        { "id": "brute", "weight": 0.13 },
+        { "id": "exploder", "weight": 0.13 },
+        { "id": "guard", "weight": 0.1 }
+      ]
+    },
+    {
+      "endSeconds": 300,
+      "startSeconds": 240,
+      "weights": [
+        { "id": "chaser", "weight": 0.18 },
+        { "id": "runner", "weight": 0.14 },
+        { "id": "gunner", "weight": 0.13 },
+        { "id": "dasher", "weight": 0.14 },
+        { "id": "brute", "weight": 0.13 },
+        { "id": "exploder", "weight": 0.11 },
+        { "id": "guard", "weight": 0.1 },
+        { "id": "technician", "weight": 0.07 }
+      ]
+    },
+    {
+      "endSeconds": 360,
+      "startSeconds": 300,
+      "weights": [
+        { "id": "chaser", "weight": 0.16 },
+        { "id": "runner", "weight": 0.12 },
+        { "id": "gunner", "weight": 0.11 },
+        { "id": "twinGunner", "weight": 0.06 },
+        { "id": "dasher", "weight": 0.13 },
+        { "id": "brute", "weight": 0.12 },
+        { "id": "exploder", "weight": 0.11 },
+        { "id": "guard", "weight": 0.09 },
+        { "id": "technician", "weight": 0.05 },
+        { "id": "mortar", "weight": 0.05 }
+      ]
+    },
+    {
+      "endSeconds": 420,
+      "startSeconds": 360,
+      "weights": [
+        { "id": "chaser", "weight": 0.15 },
+        { "id": "runner", "weight": 0.11 },
+        { "id": "gunner", "weight": 0.1 },
+        { "id": "twinGunner", "weight": 0.06 },
+        { "id": "dasher", "weight": 0.12 },
+        { "id": "brute", "weight": 0.11 },
+        { "id": "exploder", "weight": 0.1 },
+        { "id": "guard", "weight": 0.09 },
+        { "id": "technician", "weight": 0.05 },
+        { "id": "mortar", "weight": 0.04 },
+        { "id": "splitter", "weight": 0.07 }
+      ]
+    },
+    {
+      "endSeconds": 480,
+      "startSeconds": 420,
+      "weights": [
+        { "id": "chaser", "weight": 0.14 },
+        { "id": "runner", "weight": 0.1 },
+        { "id": "gunner", "weight": 0.1 },
+        { "id": "twinGunner", "weight": 0.06 },
+        { "id": "dasher", "weight": 0.11 },
+        { "id": "brute", "weight": 0.1 },
+        { "id": "exploder", "weight": 0.09 },
+        { "id": "guard", "weight": 0.08 },
+        { "id": "technician", "weight": 0.05 },
+        { "id": "mortar", "weight": 0.05 },
+        { "id": "splitter", "weight": 0.07 },
+        { "id": "bulwark", "weight": 0.05 }
+      ]
+    },
+    {
+      "endSeconds": 540,
+      "startSeconds": 480,
+      "weights": [
+        { "id": "chaser", "weight": 0.14 },
+        { "id": "runner", "weight": 0.09 },
+        { "id": "gunner", "weight": 0.09 },
+        { "id": "twinGunner", "weight": 0.06 },
+        { "id": "dasher", "weight": 0.1 },
+        { "id": "brute", "weight": 0.1 },
+        { "id": "exploder", "weight": 0.09 },
+        { "id": "guard", "weight": 0.08 },
+        { "id": "technician", "weight": 0.05 },
+        { "id": "mortar", "weight": 0.05 },
+        { "id": "splitter", "weight": 0.07 },
+        { "id": "bulwark", "weight": 0.04 },
+        { "id": "harvester", "weight": 0.04 }
+      ]
+    },
+    {
+      "endSeconds": null,
+      "startSeconds": 540,
+      "weights": [
+        { "id": "chaser", "weight": 0.13 },
+        { "id": "runner", "weight": 0.08 },
+        { "id": "gunner", "weight": 0.08 },
+        { "id": "twinGunner", "weight": 0.05 },
+        { "id": "dasher", "weight": 0.09 },
+        { "id": "brute", "weight": 0.09 },
+        { "id": "exploder", "weight": 0.08 },
+        { "id": "guard", "weight": 0.07 },
+        { "id": "technician", "weight": 0.06 },
+        { "id": "mortar", "weight": 0.07 },
+        { "id": "splitter", "weight": 0.08 },
+        { "id": "bulwark", "weight": 0.05 },
+        { "id": "harvester", "weight": 0.04 },
+        { "id": "carrier", "weight": 0.03 }
+      ]
+    }
+  ],
+  "stressScenarios": {
+    "bossRush": {
+      "arena": "void",
+      "bosses": 3,
+      "eliteVariantRounds": 1,
+      "enemyFill": 0.6,
+      "evolve": ["pistol", "scattergun", "railgun", "blades", "arc", "seeker"],
+      "harvesters": 1,
+      "hostileShotFill": 0.6,
+      "id": "bossRush",
+      "intent": "Three simultaneous bosses with a boss-capped enemy field. Isolates boss rendering, beam telegraphs and boss attack scans from ambient enemy cost.",
+      "lateRanks": { "cooling": 10, "frame": 12, "output": 12 },
+      "measureSeconds": 12,
+      "meteorStorm": false,
+      "name": "Triple boss",
+      "pickupFill": 0.5,
+      "rosterTwoRounds": 0,
+      "supportRanks": {
+        "adrenal": 3,
+        "amplifier": 3,
+        "calibration": 4,
+        "collector": 3,
+        "cycling": 4,
+        "mobility": 3,
+        "optics": 3,
+        "overload": 3,
+        "plating": 3,
+        "regenerator": 3
+      },
+      "timeSeconds": 2400,
+      "topUpSeconds": 1,
+      "warmupSeconds": 1.5,
+      "weaponRanks": {
+        "arc": 6,
+        "blades": 6,
+        "pistol": 6,
+        "railgun": 6,
+        "scattergun": 6,
+        "seeker": 6
+      }
+    },
+    "maxDensity": {
+      "arena": "void",
+      "bosses": 3,
+      "eliteVariantRounds": 2,
+      "enemyFill": 1,
+      "evolve": ["pistol", "scattergun", "railgun", "blades", "arc", "seeker"],
+      "harvesters": 3,
+      "hostileShotFill": 1,
+      "id": "maxDensity",
+      "intent": "Every population cap saturated simultaneously with all six weapons evolved. This is an engineering headroom probe beyond the reachable four-weapon build, not a normal-run performance claim.",
+      "lateRanks": { "cooling": 10, "frame": 12, "output": 12 },
+      "measureSeconds": 12,
+      "meteorStorm": false,
+      "name": "Max density",
+      "pickupFill": 1,
+      "rosterTwoRounds": 2,
+      "supportRanks": {
+        "adrenal": 3,
+        "amplifier": 3,
+        "calibration": 4,
+        "collector": 3,
+        "cycling": 4,
+        "mobility": 3,
+        "optics": 3,
+        "overload": 3,
+        "plating": 3,
+        "regenerator": 3
+      },
+      "timeSeconds": 1500,
+      "topUpSeconds": 1,
+      "warmupSeconds": 1.5,
+      "weaponRanks": {
+        "arc": 6,
+        "blades": 6,
+        "pistol": 6,
+        "railgun": 6,
+        "scattergun": 6,
+        "seeker": 6
+      }
+    },
+    "meteorStorm": {
+      "arena": "redNebula",
+      "bosses": 1,
+      "eliteVariantRounds": 1,
+      "enemyFill": 1,
+      "evolve": ["pistol", "scattergun", "railgun", "blades", "arc", "seeker"],
+      "harvesters": 2,
+      "hostileShotFill": 0.8,
+      "id": "meteorStorm",
+      "intent": "Red Nebula at full meteor occupancy with every explosive slot filled, driving chain detonations, blast waves and area damage queries on top of a full enemy field.",
+      "lateRanks": { "cooling": 10, "frame": 12, "output": 12 },
+      "measureSeconds": 12,
+      "meteorStorm": true,
+      "name": "Red Nebula meteor storm",
+      "pickupFill": 0.8,
+      "rosterTwoRounds": 1,
+      "supportRanks": {
+        "adrenal": 3,
+        "amplifier": 3,
+        "calibration": 4,
+        "collector": 3,
+        "cycling": 4,
+        "mobility": 3,
+        "optics": 3,
+        "overload": 3,
+        "plating": 3,
+        "regenerator": 3
+      },
+      "timeSeconds": 1500,
+      "topUpSeconds": 1,
+      "warmupSeconds": 1.5,
+      "weaponRanks": {
+        "arc": 6,
+        "blades": 6,
+        "pistol": 6,
+        "railgun": 6,
+        "scattergun": 6,
+        "seeker": 6
+      }
+    },
+    "productionMax": {
+      "arena": "void",
+      "bosses": 2,
+      "eliteVariantRounds": 1,
+      "enemyFill": 1,
+      "evolve": ["pistol", "scattergun", "railgun", "blades"],
+      "harvesters": 3,
+      "hostileShotFill": 0.75,
+      "id": "productionMax",
+      "intent": "Maximum active enemies in a reachable 25-minute build: four evolved weapons, two bosses, elites, Roster II, Harvesters, and crowded pickup and hostile-shot fields.",
+      "lateRanks": { "cooling": 10, "frame": 12, "output": 12 },
+      "measureSeconds": 12,
+      "meteorStorm": false,
+      "name": "Production maximum",
+      "pickupFill": 0.85,
+      "rosterTwoRounds": 1,
+      "supportRanks": {
+        "adrenal": 3,
+        "amplifier": 3,
+        "calibration": 4,
+        "collector": 3,
+        "cycling": 4,
+        "mobility": 3,
+        "optics": 3,
+        "overload": 3,
+        "plating": 3,
+        "regenerator": 3
+      },
+      "timeSeconds": 1500,
+      "topUpSeconds": 1,
+      "warmupSeconds": 1.5,
+      "weaponRanks": { "blades": 6, "pistol": 6, "railgun": 6, "scattergun": 6 }
+    },
+    "sakuraElites": {
+      "arena": "whiteSakura",
+      "bosses": 2,
+      "eliteVariantRounds": 3,
+      "enemyFill": 1,
+      "evolve": ["pistol", "scattergun", "railgun", "blades", "arc", "seeker"],
+      "harvesters": 3,
+      "hostileShotFill": 1,
+      "id": "sakuraElites",
+      "intent": "White Sakura Space with a saturated elite field. Combines the heaviest decorative backdrop (petal motes) with the most telegraph-heavy enemy mix.",
+      "lateRanks": { "cooling": 10, "frame": 12, "output": 12 },
+      "measureSeconds": 12,
+      "meteorStorm": false,
+      "name": "White Sakura elite cadence",
+      "pickupFill": 1,
+      "rosterTwoRounds": 2,
+      "supportRanks": {
+        "adrenal": 3,
+        "amplifier": 3,
+        "calibration": 4,
+        "collector": 3,
+        "cycling": 4,
+        "mobility": 3,
+        "optics": 3,
+        "overload": 3,
+        "plating": 3,
+        "regenerator": 3
+      },
+      "timeSeconds": 1500,
+      "topUpSeconds": 1,
+      "warmupSeconds": 1.5,
+      "weaponRanks": {
+        "arc": 6,
+        "blades": 6,
+        "pistol": 6,
+        "railgun": 6,
+        "scattergun": 6,
+        "seeker": 6
+      }
+    },
+    "soak": {
+      "arena": "void",
+      "bosses": 2,
+      "eliteVariantRounds": 1,
+      "enemyFill": 0.9,
+      "evolve": ["pistol", "scattergun", "railgun", "blades", "arc", "seeker"],
+      "harvesters": 2,
+      "hostileShotFill": 0.7,
+      "id": "soak",
+      "intent": "Sustained high load over a long window. Measures frame-pacing drift, heap growth and thermal behaviour rather than peak throughput.",
+      "lateRanks": { "cooling": 10, "frame": 12, "output": 12 },
+      "measureSeconds": 180,
+      "meteorStorm": false,
+      "name": "Soak",
+      "pickupFill": 0.7,
+      "rosterTwoRounds": 1,
+      "supportRanks": {
+        "adrenal": 3,
+        "amplifier": 3,
+        "calibration": 4,
+        "collector": 3,
+        "cycling": 4,
+        "mobility": 3,
+        "optics": 3,
+        "overload": 3,
+        "plating": 3,
+        "regenerator": 3
+      },
+      "timeSeconds": 1320,
+      "topUpSeconds": 1.5,
+      "warmupSeconds": 2,
+      "weaponRanks": {
+        "arc": 6,
+        "blades": 6,
+        "pistol": 6,
+        "railgun": 6,
+        "scattergun": 6,
+        "seeker": 6
+      }
+    }
+  },
+  "supports": [
+    {
+      "accent": "#67e8f9",
+      "descriptions": [
+        "+12% damage for all weapons",
+        "+12% damage for all weapons",
+        "+12% damage for all weapons",
+        "+12% damage for all weapons"
+      ],
+      "id": "calibration",
+      "maxRank": 4,
+      "name": "Weapon Calibration",
+      "weight": 9
+    },
+    {
+      "accent": "#93c5fd",
+      "descriptions": [
+        "Weapons recover 8% faster",
+        "Weapons recover 8% faster",
+        "Weapons recover 8% faster",
+        "Weapons recover 8% faster"
+      ],
+      "id": "cycling",
+      "maxRank": 4,
+      "name": "Cycle Tuning",
+      "weight": 8
+    },
+    {
+      "accent": "#fb7185",
+      "descriptions": [
+        "+20 maximum integrity and repair 20",
+        "+20 maximum integrity and repair 20",
+        "+20 maximum integrity and repair 20"
+      ],
+      "id": "plating",
+      "maxRank": 3,
+      "name": "Reinforced Frame",
+      "weight": 8
+    },
+    {
+      "accent": "#a7f3d0",
+      "descriptions": [
+        "+8% movement speed",
+        "+8% movement speed",
+        "+8% movement speed"
+      ],
+      "id": "mobility",
+      "maxRank": 3,
+      "name": "Servo Tuning",
+      "weight": 7
+    },
+    {
+      "accent": "#6ee7b7",
+      "descriptions": [
+        "+25% pickup range",
+        "+25% pickup range",
+        "+25% pickup range"
+      ],
+      "id": "collector",
+      "maxRank": 3,
+      "name": "Pickup Coil",
+      "weight": 7
+    },
+    {
+      "accent": "#fde68a",
+      "descriptions": [
+        "+6% critical chance",
+        "+6% critical chance",
+        "+6% critical chance"
+      ],
+      "id": "optics",
+      "maxRank": 3,
+      "name": "Targeting Optics",
+      "weight": 6
+    },
+    {
+      "accent": "#facc15",
+      "descriptions": [
+        "Critical hits burst for 25% damage to nearby enemies",
+        "Critical hits burst for 50% damage to nearby enemies",
+        "Critical hits burst for 75% damage to nearby enemies"
+      ],
+      "id": "overload",
+      "maxRank": 3,
+      "name": "Overload Core",
+      "weight": 7
+    },
+    {
+      "accent": "#fb923c",
+      "descriptions": [
+        "After a hit: 10% faster fire recovery, 6% faster movement, 5 seconds",
+        "After a hit: 20% faster fire recovery, 12% faster movement, 5 seconds",
+        "After a hit: 30% faster fire recovery, 18% faster movement, 5 seconds"
+      ],
+      "id": "adrenal",
+      "maxRank": 3,
+      "name": "Adrenal Surge",
+      "weight": 7
+    },
+    {
+      "accent": "#f0abfc",
+      "descriptions": [
+        "+12% blast and orbit size",
+        "+12% blast and orbit size",
+        "+12% blast and orbit size"
+      ],
+      "id": "amplifier",
+      "maxRank": 3,
+      "name": "Amplifier",
+      "weight": 7
+    },
+    {
+      "accent": "#4ade80",
+      "descriptions": [
+        "Regenerate 0.6 integrity per second",
+        "Regenerate 1.2 integrity per second",
+        "Regenerate 1.8 integrity per second"
+      ],
+      "id": "regenerator",
+      "maxRank": 3,
+      "name": "Regenerator",
+      "weight": 6
+    }
+  ],
+  "weapons": {
+    "arc": {
+      "accent": "#93c5fd",
+      "id": "arc",
+      "kind": "chain",
+      "name": "Arc Lash",
+      "ranks": [
+        {
+          "rank": 1,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 2,
+            "cooldown": 1.15,
+            "damage": 16,
+            "hitCooldown": 0,
+            "knockback": 0,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 1,
+            "projectileRadius": 0,
+            "projectileSpeed": 0,
+            "range": 430,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 2,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 3,
+            "cooldown": 1.1,
+            "damage": 19,
+            "hitCooldown": 0,
+            "knockback": 0,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 1,
+            "projectileRadius": 0,
+            "projectileSpeed": 0,
+            "range": 430,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 3,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 3,
+            "cooldown": 0.98,
+            "damage": 22,
+            "hitCooldown": 0,
+            "knockback": 0,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 1,
+            "projectileRadius": 0,
+            "projectileSpeed": 0,
+            "range": 450,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 4,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 4,
+            "cooldown": 0.98,
+            "damage": 24,
+            "hitCooldown": 0,
+            "knockback": 0,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 1,
+            "projectileRadius": 0,
+            "projectileSpeed": 0,
+            "range": 450,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 5,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 5,
+            "cooldown": 0.85,
+            "damage": 28,
+            "hitCooldown": 0,
+            "knockback": 0,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 1,
+            "projectileRadius": 0,
+            "projectileSpeed": 0,
+            "range": 470,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 6,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 7,
+            "cooldown": 0.76,
+            "damage": 32,
+            "hitCooldown": 0,
+            "knockback": 0,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 1,
+            "projectileRadius": 0,
+            "projectileSpeed": 0,
+            "range": 500,
+            "spreadDegrees": 0
+          }
+        }
+      ],
+      "summary": "Lightning that jumps between enemies."
+    },
+    "blades": {
+      "accent": "#34d399",
+      "id": "blades",
+      "kind": "orbit",
+      "name": "Orbit Blades",
+      "ranks": [
+        {
+          "rank": 1,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0,
+            "damage": 14,
+            "hitCooldown": 0.32,
+            "knockback": 0,
+            "orbitCount": 1,
+            "orbitRadius": 76,
+            "orbitSpeed": 2.4,
+            "pierce": 0,
+            "projectileCount": 0,
+            "projectileRadius": 12,
+            "projectileSpeed": 0,
+            "range": 88,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 2,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0,
+            "damage": 16,
+            "hitCooldown": 0.3,
+            "knockback": 0,
+            "orbitCount": 2,
+            "orbitRadius": 76,
+            "orbitSpeed": 2.4,
+            "pierce": 0,
+            "projectileCount": 0,
+            "projectileRadius": 12,
+            "projectileSpeed": 0,
+            "range": 88,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 3,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0,
+            "damage": 18,
+            "hitCooldown": 0.27,
+            "knockback": 0,
+            "orbitCount": 2,
+            "orbitRadius": 86,
+            "orbitSpeed": 2.8,
+            "pierce": 0,
+            "projectileCount": 0,
+            "projectileRadius": 13,
+            "projectileSpeed": 0,
+            "range": 98,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 4,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0,
+            "damage": 22,
+            "hitCooldown": 0.24,
+            "knockback": 0,
+            "orbitCount": 3,
+            "orbitRadius": 88,
+            "orbitSpeed": 3,
+            "pierce": 0,
+            "projectileCount": 0,
+            "projectileRadius": 14,
+            "projectileSpeed": 0,
+            "range": 100,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 5,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0,
+            "damage": 26,
+            "hitCooldown": 0.21,
+            "knockback": 0,
+            "orbitCount": 4,
+            "orbitRadius": 92,
+            "orbitSpeed": 3.2,
+            "pierce": 0,
+            "projectileCount": 0,
+            "projectileRadius": 16,
+            "projectileSpeed": 0,
+            "range": 106,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 6,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0,
+            "damage": 30,
+            "hitCooldown": 0.19,
+            "knockback": 0,
+            "orbitCount": 5,
+            "orbitRadius": 98,
+            "orbitSpeed": 3.45,
+            "pierce": 0,
+            "projectileCount": 0,
+            "projectileRadius": 17,
+            "projectileSpeed": 0,
+            "range": 112,
+            "spreadDegrees": 0
+          }
+        }
+      ],
+      "summary": "Blades that hold close ground."
+    },
+    "pistol": {
+      "accent": "#22d3ee",
+      "id": "pistol",
+      "kind": "projectile",
+      "name": "Pulse Pistol",
+      "ranks": [
+        {
+          "rank": 1,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0.42,
+            "damage": 12,
+            "hitCooldown": 0,
+            "knockback": 60,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 1,
+            "projectileRadius": 3,
+            "projectileSpeed": 680,
+            "range": 650,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 2,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0.4,
+            "damage": 15,
+            "hitCooldown": 0,
+            "knockback": 60,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 1,
+            "projectileRadius": 3,
+            "projectileSpeed": 680,
+            "range": 650,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 3,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0.4,
+            "damage": 17,
+            "hitCooldown": 0,
+            "knockback": 60,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 1,
+            "projectileCount": 1,
+            "projectileRadius": 3,
+            "projectileSpeed": 720,
+            "range": 680,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 4,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0.33,
+            "damage": 19,
+            "hitCooldown": 0,
+            "knockback": 75,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 1,
+            "projectileCount": 1,
+            "projectileRadius": 3,
+            "projectileSpeed": 720,
+            "range": 680,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 5,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0.33,
+            "damage": 20,
+            "hitCooldown": 0,
+            "knockback": 75,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 1,
+            "projectileCount": 2,
+            "projectileRadius": 3,
+            "projectileSpeed": 740,
+            "range": 700,
+            "spreadDegrees": 7
+          }
+        },
+        {
+          "rank": 6,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0.3,
+            "damage": 22,
+            "hitCooldown": 0,
+            "knockback": 85,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 2,
+            "projectileCount": 2,
+            "projectileRadius": 3,
+            "projectileSpeed": 780,
+            "range": 720,
+            "spreadDegrees": 5
+          }
+        }
+      ],
+      "summary": "A steady automatic sidearm."
+    },
+    "railgun": {
+      "accent": "#a78bfa",
+      "id": "railgun",
+      "kind": "rail",
+      "name": "Railgun",
+      "ranks": [
+        {
+          "rank": 1,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 1.8,
+            "damage": 70,
+            "hitCooldown": 0,
+            "knockback": 220,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 8,
+            "projectileCount": 1,
+            "projectileRadius": 5,
+            "projectileSpeed": 1300,
+            "range": 1000,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 2,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 1.7,
+            "damage": 90,
+            "hitCooldown": 0,
+            "knockback": 240,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 8,
+            "projectileCount": 1,
+            "projectileRadius": 5,
+            "projectileSpeed": 1300,
+            "range": 1000,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 3,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 1.7,
+            "damage": 100,
+            "hitCooldown": 0,
+            "knockback": 250,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 12,
+            "projectileCount": 1,
+            "projectileRadius": 7,
+            "projectileSpeed": 1400,
+            "range": 1050,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 4,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 1.45,
+            "damage": 115,
+            "hitCooldown": 0,
+            "knockback": 280,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 12,
+            "projectileCount": 1,
+            "projectileRadius": 7,
+            "projectileSpeed": 1400,
+            "range": 1050,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 5,
+          "stats": {
+            "blastRadius": 55,
+            "chainCount": 0,
+            "cooldown": 1.35,
+            "damage": 135,
+            "hitCooldown": 0,
+            "knockback": 320,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 16,
+            "projectileCount": 1,
+            "projectileRadius": 9,
+            "projectileSpeed": 1500,
+            "range": 1100,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 6,
+          "stats": {
+            "blastRadius": 68,
+            "chainCount": 0,
+            "cooldown": 1.25,
+            "damage": 165,
+            "hitCooldown": 0,
+            "knockback": 360,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 24,
+            "projectileCount": 1,
+            "projectileRadius": 10,
+            "projectileSpeed": 1650,
+            "range": 1150,
+            "spreadDegrees": 0
+          }
+        }
+      ],
+      "summary": "A slow shot that cuts through a line."
+    },
+    "scattergun": {
+      "accent": "#fb923c",
+      "id": "scattergun",
+      "kind": "scatter",
+      "name": "Scattergun",
+      "ranks": [
+        {
+          "rank": 1,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0.95,
+            "damage": 8,
+            "hitCooldown": 0,
+            "knockback": 140,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 5,
+            "projectileRadius": 3,
+            "projectileSpeed": 540,
+            "range": 240,
+            "spreadDegrees": 28
+          }
+        },
+        {
+          "rank": 2,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0.95,
+            "damage": 9,
+            "hitCooldown": 0,
+            "knockback": 140,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 6,
+            "projectileRadius": 3,
+            "projectileSpeed": 540,
+            "range": 240,
+            "spreadDegrees": 26
+          }
+        },
+        {
+          "rank": 3,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0.82,
+            "damage": 9,
+            "hitCooldown": 0,
+            "knockback": 180,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 6,
+            "projectileRadius": 3,
+            "projectileSpeed": 560,
+            "range": 255,
+            "spreadDegrees": 26
+          }
+        },
+        {
+          "rank": 4,
+          "stats": {
+            "blastRadius": 0,
+            "chainCount": 0,
+            "cooldown": 0.82,
+            "damage": 11,
+            "hitCooldown": 0,
+            "knockback": 180,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 7,
+            "projectileRadius": 3,
+            "projectileSpeed": 560,
+            "range": 255,
+            "spreadDegrees": 24
+          }
+        },
+        {
+          "rank": 5,
+          "stats": {
+            "blastRadius": 36,
+            "chainCount": 0,
+            "cooldown": 0.76,
+            "damage": 12,
+            "hitCooldown": 0,
+            "knockback": 210,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 8,
+            "projectileRadius": 4,
+            "projectileSpeed": 580,
+            "range": 270,
+            "spreadDegrees": 23
+          }
+        },
+        {
+          "rank": 6,
+          "stats": {
+            "blastRadius": 42,
+            "chainCount": 0,
+            "cooldown": 0.7,
+            "damage": 13,
+            "hitCooldown": 0,
+            "knockback": 240,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 9,
+            "projectileRadius": 4,
+            "projectileSpeed": 610,
+            "range": 285,
+            "spreadDegrees": 22
+          }
+        }
+      ],
+      "summary": "A short-range spread with hard knockback."
+    },
+    "seeker": {
+      "accent": "#a3e635",
+      "id": "seeker",
+      "kind": "homing",
+      "name": "Seeker Launcher",
+      "ranks": [
+        {
+          "rank": 1,
+          "stats": {
+            "blastRadius": 62,
+            "chainCount": 0,
+            "cooldown": 1.6,
+            "damage": 30,
+            "hitCooldown": 0,
+            "knockback": 120,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 1,
+            "projectileRadius": 5,
+            "projectileSpeed": 430,
+            "range": 900,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 2,
+          "stats": {
+            "blastRadius": 68,
+            "chainCount": 0,
+            "cooldown": 1.55,
+            "damage": 34,
+            "hitCooldown": 0,
+            "knockback": 120,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 1,
+            "projectileRadius": 5,
+            "projectileSpeed": 450,
+            "range": 900,
+            "spreadDegrees": 0
+          }
+        },
+        {
+          "rank": 3,
+          "stats": {
+            "blastRadius": 68,
+            "chainCount": 0,
+            "cooldown": 1.4,
+            "damage": 34,
+            "hitCooldown": 0,
+            "knockback": 140,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 2,
+            "projectileRadius": 5,
+            "projectileSpeed": 470,
+            "range": 950,
+            "spreadDegrees": 20
+          }
+        },
+        {
+          "rank": 4,
+          "stats": {
+            "blastRadius": 76,
+            "chainCount": 0,
+            "cooldown": 1.3,
+            "damage": 38,
+            "hitCooldown": 0,
+            "knockback": 140,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 2,
+            "projectileRadius": 6,
+            "projectileSpeed": 510,
+            "range": 950,
+            "spreadDegrees": 20
+          }
+        },
+        {
+          "rank": 5,
+          "stats": {
+            "blastRadius": 84,
+            "chainCount": 0,
+            "cooldown": 1.15,
+            "damage": 42,
+            "hitCooldown": 0,
+            "knockback": 160,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 3,
+            "projectileRadius": 6,
+            "projectileSpeed": 550,
+            "range": 1000,
+            "spreadDegrees": 26
+          }
+        },
+        {
+          "rank": 6,
+          "stats": {
+            "blastRadius": 96,
+            "chainCount": 0,
+            "cooldown": 1.02,
+            "damage": 48,
+            "hitCooldown": 0,
+            "knockback": 180,
+            "orbitCount": 0,
+            "orbitRadius": 0,
+            "orbitSpeed": 0,
+            "pierce": 0,
+            "projectileCount": 3,
+            "projectileRadius": 7,
+            "projectileSpeed": 590,
+            "range": 1050,
+            "spreadDegrees": 22
+          }
+        }
+      ],
+      "summary": "Homing missiles that burst on impact."
+    }
+  },
+  "workshop": {
+    "arsenal": {
+      "costs": [90, 150, 195],
+      "description": "Weapons recover 3% faster per rank.",
+      "id": "arsenal",
+      "maxRank": 3,
+      "name": "Arsenal"
+    },
+    "integrity": {
+      "costs": [35, 75, 130],
+      "description": "+5 maximum health per rank.",
+      "id": "integrity",
+      "maxRank": 3,
+      "name": "Integrity"
+    },
+    "magnet": {
+      "costs": [25, 60, 105],
+      "description": "+8 pickup radius per rank.",
+      "id": "magnet",
+      "maxRank": 3,
+      "name": "Magnet"
+    },
+    "mobility": {
+      "costs": [40, 85, 145],
+      "description": "+3% movement speed per rank.",
+      "id": "mobility",
+      "maxRank": 3,
+      "name": "Mobility"
+    },
+    "power": {
+      "costs": [45, 95, 165],
+      "description": "+4% weapon damage per rank.",
+      "id": "power",
+      "maxRank": 3,
+      "name": "Power"
+    },
+    "precision": {
+      "costs": [50, 110, 190],
+      "description": "+2% critical chance per rank.",
+      "id": "precision",
+      "maxRank": 3,
+      "name": "Precision"
+    },
+    "protocol": {
+      "costs": [120],
+      "description": "+1 revive per run. Maximum two total.",
+      "id": "protocol",
+      "maxRank": 1,
+      "name": "Revival Protocol"
+    },
+    "recovery": {
+      "costs": [30, 70, 120],
+      "description": "Restore 3 health after each level per rank.",
+      "id": "recovery",
+      "maxRank": 3,
+      "name": "Recovery"
+    }
+  },
+  "workshopOrder": [
+    "integrity",
+    "power",
+    "mobility",
+    "recovery",
+    "magnet",
+    "precision",
+    "arsenal",
+    "protocol"
+  ]
+}

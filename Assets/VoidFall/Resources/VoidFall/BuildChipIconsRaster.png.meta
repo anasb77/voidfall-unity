@@ -1,0 +1,663 @@
+fileFormatVersion: 2
+guid: ea1b9b993e36b104abd123705f6934bb
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -2422654218121719979
+    second: BuildChipIconsRaster_0
+  - first:
+      213: 8092619072889755317
+    second: BuildChipIconsRaster_1
+  - first:
+      213: -6829499653000890057
+    second: BuildChipIconsRaster_2
+  - first:
+      213: 4311119085934489277
+    second: BuildChipIconsRaster_3
+  - first:
+      213: 7465418221706010216
+    second: BuildChipIconsRaster_4
+  - first:
+      213: 5006548641428611854
+    second: BuildChipIconsRaster_5
+  - first:
+      213: 8306722857345776402
+    second: BuildChipIconsRaster_6
+  - first:
+      213: -7579818240002208838
+    second: BuildChipIconsRaster_7
+  - first:
+      213: -8889707722565777992
+    second: BuildChipIconsRaster_8
+  - first:
+      213: 5825591228666929869
+    second: BuildChipIconsRaster_9
+  - first:
+      213: -2588805472466315965
+    second: BuildChipIconsRaster_10
+  - first:
+      213: -6372677969193163155
+    second: BuildChipIconsRaster_11
+  - first:
+      213: -8245405148706411243
+    second: BuildChipIconsRaster_12
+  - first:
+      213: -6343740622598112554
+    second: BuildChipIconsRaster_13
+  - first:
+      213: 6221679772535863173
+    second: BuildChipIconsRaster_14
+  - first:
+      213: 7072638628189429761
+    second: BuildChipIconsRaster_15
+  - first:
+      213: -7359249538681104167
+    second: BuildChipIconsRaster_16
+  - first:
+      213: -4460675828132346279
+    second: BuildChipIconsRaster_17
+  - first:
+      213: 7160369658936155772
+    second: BuildChipIconsRaster_18
+  - first:
+      213: -3563629954576373967
+    second: BuildChipIconsRaster_19
+  - first:
+      213: 223789841670582790
+    second: BuildChipIconsRaster_20
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 1
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 0
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_0
+      rect:
+        serializedVersion: 2
+        x: 29
+        y: 413
+        width: 134
+        height: 134
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 55fc04b03d0016ed0800000000000000
+      internalID: -2422654218121719979
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_1
+      rect:
+        serializedVersion: 2
+        x: 221
+        y: 413
+        width: 134
+        height: 134
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5b615269b22ce4070800000000000000
+      internalID: 8092619072889755317
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_2
+      rect:
+        serializedVersion: 2
+        x: 419
+        y: 413
+        width: 122
+        height: 134
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7397a35ff3eb831a0800000000000000
+      internalID: -6829499653000890057
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_3
+      rect:
+        serializedVersion: 2
+        x: 605
+        y: 419
+        width: 85
+        height: 128
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dbe2885a7fb24db30800000000000000
+      internalID: 4311119085934489277
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_4
+      rect:
+        serializedVersion: 2
+        x: 647
+        y: 455
+        width: 50
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 86ed384b15e7a9760800000000000000
+      internalID: 7465418221706010216
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_5
+      rect:
+        serializedVersion: 2
+        x: 654
+        y: 413
+        width: 85
+        height: 128
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e03211ba675da7540800000000000000
+      internalID: 5006548641428611854
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_6
+      rect:
+        serializedVersion: 2
+        x: 797
+        y: 413
+        width: 134
+        height: 134
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 21b76b78d68674370800000000000000
+      internalID: 8306722857345776402
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_7
+      rect:
+        serializedVersion: 2
+        x: 32
+        y: 224
+        width: 48
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: abb44a668731fc690800000000000000
+      internalID: -7579818240002208838
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_8
+      rect:
+        serializedVersion: 2
+        x: 41
+        y: 233
+        width: 122
+        height: 122
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8b58b6f0de961a480800000000000000
+      internalID: -8889707722565777992
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_9
+      rect:
+        serializedVersion: 2
+        x: 221
+        y: 221
+        width: 135
+        height: 134
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dc2e25f6b58a8d050800000000000000
+      internalID: 5825591228666929869
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_10
+      rect:
+        serializedVersion: 2
+        x: 412
+        y: 239
+        width: 135
+        height: 104
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 345de0d8327b21cd0800000000000000
+      internalID: -2588805472466315965
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_11
+      rect:
+        serializedVersion: 2
+        x: 617
+        y: 221
+        width: 110
+        height: 134
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d66a842a623bf87a0800000000000000
+      internalID: -6372677969193163155
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_12
+      rect:
+        serializedVersion: 2
+        x: 797
+        y: 227
+        width: 134
+        height: 117
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 51d6d2a04bf629d80800000000000000
+      internalID: -8245405148706411243
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_13
+      rect:
+        serializedVersion: 2
+        x: 29
+        y: 29
+        width: 134
+        height: 134
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6daf2daa38186f7a0800000000000000
+      internalID: -6343740622598112554
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_14
+      rect:
+        serializedVersion: 2
+        x: 239
+        y: 29
+        width: 98
+        height: 128
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 587bb3c0ac8d75650800000000000000
+      internalID: 6221679772535863173
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_15
+      rect:
+        serializedVersion: 2
+        x: 419
+        y: 107
+        width: 50
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 100efe12c5f072260800000000000000
+      internalID: 7072638628189429761
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_16
+      rect:
+        serializedVersion: 2
+        x: 491
+        y: 107
+        width: 50
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9d894791981bed990800000000000000
+      internalID: -7359249538681104167
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_17
+      rect:
+        serializedVersion: 2
+        x: 605
+        y: 35
+        width: 134
+        height: 117
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 956000ec7fe7812c0800000000000000
+      internalID: -4460675828132346279
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_18
+      rect:
+        serializedVersion: 2
+        x: 796
+        y: 28
+        width: 135
+        height: 135
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c7edf5d744ebe5360800000000000000
+      internalID: 7160369658936155772
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_19
+      rect:
+        serializedVersion: 2
+        x: 419
+        y: 35
+        width: 50
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 137a88eef617b8ec0800000000000000
+      internalID: -3563629954576373967
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BuildChipIconsRaster_20
+      rect:
+        serializedVersion: 2
+        x: 491
+        y: 35
+        width: 50
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 602bd11ecaf0b1300800000000000000
+      internalID: 223789841670582790
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      BuildChipIconsRaster_0: -2422654218121719979
+      BuildChipIconsRaster_1: 8092619072889755317
+      BuildChipIconsRaster_10: -2588805472466315965
+      BuildChipIconsRaster_11: -6372677969193163155
+      BuildChipIconsRaster_12: -8245405148706411243
+      BuildChipIconsRaster_13: -6343740622598112554
+      BuildChipIconsRaster_14: 6221679772535863173
+      BuildChipIconsRaster_15: 7072638628189429761
+      BuildChipIconsRaster_16: -7359249538681104167
+      BuildChipIconsRaster_17: -4460675828132346279
+      BuildChipIconsRaster_18: 7160369658936155772
+      BuildChipIconsRaster_19: -3563629954576373967
+      BuildChipIconsRaster_2: -6829499653000890057
+      BuildChipIconsRaster_20: 223789841670582790
+      BuildChipIconsRaster_3: 4311119085934489277
+      BuildChipIconsRaster_4: 7465418221706010216
+      BuildChipIconsRaster_5: 5006548641428611854
+      BuildChipIconsRaster_6: 8306722857345776402
+      BuildChipIconsRaster_7: -7579818240002208838
+      BuildChipIconsRaster_8: -8889707722565777992
+      BuildChipIconsRaster_9: 5825591228666929869
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
