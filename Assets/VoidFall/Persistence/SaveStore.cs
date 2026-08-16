@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using UnityEngine;
 using VoidFall.Core;
 
@@ -129,6 +130,14 @@ namespace VoidFall.Persistence
 
         private readonly string _path;
 
+        /// <summary>
+        /// Set when a save file exists but could not be read this session. While
+        /// this is true the file is presumed to hold real progression that we
+        /// simply could not see, so ordinary saves refuse to overwrite it rather
+        /// than replacing it with the default profile the player is looking at.
+        /// </summary>
+        private bool _storageUnreadable;
+
         public SaveStore(string path = null)
         {
             _path = string.IsNullOrEmpty(path)
@@ -137,6 +146,8 @@ namespace VoidFall.Persistence
         }
 
         public string PathOnDisk => _path;
+
+        public bool StorageUnreadable => _storageUnreadable;
 
         public SaveData Load()
         {
@@ -148,34 +159,57 @@ namespace VoidFall.Persistence
                 return PersistRecovery(CreateDefault());
             }
 
-            string raw = null;
+            // Reading is kept separate from parsing. A read failure means the
+            // storage was unavailable (file lock, permissions, transient I/O),
+            // not that the profile is bad, so nothing may be written over it.
+            string raw;
             try
             {
                 raw = File.ReadAllText(sourcePath);
+            }
+            catch (Exception exception)
+            {
+                // Latch the failure so a later run-end save cannot quietly
+                // replace the unread profile with this session's blank one.
+                _storageUnreadable = true;
+                Debug.LogError(
+                    "VoidFall save could not be read and was left untouched: " + exception.Message);
+                return CreateDefault();
+            }
+
+            // Only parsing happens inside this block. It performs no writes, so
+            // a failure here really does mean the stored document is corrupt.
+            // The previous version persisted migrations inside this try, which
+            // let a storage error be misread as corruption and replace a valid
+            // profile with defaults.
+            SaveData resolved;
+            bool persistMigration;
+            try
+            {
                 if (BrowserSaveImporter.TryConvert(raw, out var browserData))
                 {
-                    var imported = Sanitize(browserData);
-                    Save(imported);
-                    return imported;
+                    resolved = Sanitize(browserData);
+                    persistMigration = true;
                 }
-
-                var data = JsonUtility.FromJson<SaveData>(raw);
-                if (data == null) throw new FormatException("Save root is not an object.");
-                // Keep the raw value before Sanitize mutates the object to v5.
-                var storedVersion = data.version;
-                var sanitized = Sanitize(data);
-                // Browser loadSave() persists a v3/v4 migration immediately.
-                // Do the same for Unity-native saves so one-time protocol refunds
-                // and other legacy normalization cannot be applied again after a
-                // restart.
-                // Browser loadSave() compares the raw stored version, not the
-                // clamped value used by sanitization. Persist unknown/future
-                // versions too, so the repaired v5 profile is durable and a
-                // restart cannot re-enter the migration path.
-                if (!string.Equals(sourcePath, _path, StringComparison.OrdinalIgnoreCase) ||
-                    storedVersion != SaveVersion)
-                    Save(sanitized);
-                return sanitized;
+                else
+                {
+                    var data = JsonUtility.FromJson<SaveData>(raw);
+                    if (data == null) throw new FormatException("Save root is not an object.");
+                    // Keep the raw value before Sanitize mutates the object to v5.
+                    var storedVersion = data.version;
+                    resolved = Sanitize(data);
+                    // Browser loadSave() persists a v3/v4 migration immediately.
+                    // Do the same for Unity-native saves so one-time protocol refunds
+                    // and other legacy normalization cannot be applied again after a
+                    // restart.
+                    // Browser loadSave() compares the raw stored version, not the
+                    // clamped value used by sanitization. Persist unknown/future
+                    // versions too, so the repaired v5 profile is durable and a
+                    // restart cannot re-enter the migration path.
+                    persistMigration =
+                        !string.Equals(sourcePath, _path, StringComparison.OrdinalIgnoreCase) ||
+                        storedVersion != SaveVersion;
+                }
             }
             catch (Exception exception)
             {
@@ -183,6 +217,25 @@ namespace VoidFall.Persistence
                 if (TryLoadLegacyScores(out var legacyScores))
                     return PersistRecovery(legacyScores);
                 return PersistRecovery(CreateDefault());
+            }
+
+            // The profile is already recovered at this point. Persisting the
+            // migration is best-effort: browser loadSave() likewise returns the
+            // usable profile even when its safeSet() cannot write.
+            if (persistMigration) TryPersistMigration(resolved);
+            return resolved;
+        }
+
+        private void TryPersistMigration(SaveData data)
+        {
+            try
+            {
+                Save(data);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    "VoidFall save migration could not be persisted: " + exception.Message);
             }
         }
 
@@ -261,8 +314,17 @@ namespace VoidFall.Persistence
 
             try
             {
+                // An import replaces the whole profile and cannot be undone, so
+                // keep the outgoing native save alongside it. Unity-native runs
+                // carry per-run supports/late/evolved snapshots, and a browser
+                // document that was produced before those were exported would
+                // otherwise drop them permanently.
+                BackupBeforeImport();
                 imported = Sanitize(browserData);
-                Save(imported);
+                // An import is an explicit request to replace the profile, so it
+                // may proceed even if this session could not read the old file.
+                Save(imported, true);
+                _storageUnreadable = false;
                 return true;
             }
             catch (Exception exception)
@@ -273,23 +335,71 @@ namespace VoidFall.Persistence
             }
         }
 
-        public void Save(SaveData data)
+        private void BackupBeforeImport()
         {
+            try
+            {
+                if (!File.Exists(_path)) return;
+                File.Copy(_path, _path + ".pre-import.bak", true);
+            }
+            catch (Exception exception)
+            {
+                // A missing safety copy must not block the import the player
+                // explicitly asked for; surface it and continue.
+                Debug.LogWarning(
+                    "VoidFall pre-import save backup failed: " + exception.Message);
+            }
+        }
+
+        /// <param name="allowOverwriteUnreadable">
+        /// Only for destructive actions the player asked for explicitly, such as
+        /// resetting progress or importing a browser save. Ordinary saves must
+        /// leave a profile alone when this session could not read it.
+        /// </param>
+        public void Save(SaveData data, bool allowOverwriteUnreadable = false)
+        {
+            if (_storageUnreadable && !allowOverwriteUnreadable && File.Exists(_path))
+            {
+                throw new IOException(
+                    "Refusing to overwrite the save file because it could not be read this session.");
+            }
+
             var sanitized = Sanitize(data);
             var directory = System.IO.Path.GetDirectoryName(_path);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
             var temporaryPath = _path + ".tmp";
-            File.WriteAllText(temporaryPath, JsonUtility.ToJson(sanitized, true));
 
+            // File.WriteAllText only closes the handle; it does not force the
+            // data to the device. Without the explicit Flush(true) below, the
+            // rename can be committed to the filesystem journal before the
+            // replacement's contents land, so a power loss could leave a
+            // zero-length profile. Matches File.WriteAllText's BOM-less UTF-8
+            // so BrowserSaveImporter still reads the file byte-for-byte.
+            using (var stream = new FileStream(
+                       temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
+            {
+                writer.Write(JsonUtility.ToJson(sanitized, true));
+                writer.Flush();
+                stream.Flush(true);
+            }
+
+            // File.Replace is the only atomic path here, and it now keeps a
+            // one-generation backup instead of discarding it. The previous
+            // version fell back to File.Copy(overwrite: true), which truncates
+            // the live save in place and can leave it half-written. A failed
+            // Save must leave the last good profile intact, so the exception is
+            // allowed to reach the caller; every call site handles it.
             try
             {
-                if (File.Exists(_path)) File.Replace(temporaryPath, _path, null);
+                if (File.Exists(_path)) File.Replace(temporaryPath, _path, _path + ".bak");
                 else File.Move(temporaryPath, _path);
             }
             catch
             {
-                File.Copy(temporaryPath, _path, true);
-                File.Delete(temporaryPath);
+                try { if (File.Exists(temporaryPath)) File.Delete(temporaryPath); }
+                catch { /* the stale temp file is harmless; the next Save truncates it */ }
+                throw;
             }
         }
 
@@ -483,7 +593,11 @@ namespace VoidFall.Persistence
         {
             if (value <= 0) return 0;
             if (value < UnixMillisThreshold) return value;
-            if (value > DateTime.MaxValue.Ticks) return UnixMillisThreshold - 1;
+            // An unrepresentable date becomes "oldest", matching the browser's
+            // integer(value.date, 0, ...) fallback. Returning a far-future
+            // sentinel here instead sorted the junk entry to the front of
+            // recentRuns and evicted a genuine run at the 12-entry cap.
+            if (value > DateTime.MaxValue.Ticks) return 0;
             try
             {
                 return new DateTimeOffset(new DateTime(value, DateTimeKind.Utc)).ToUnixTimeMilliseconds();

@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Text;
+using UnityEngine;
 
 namespace VoidFall.Persistence
 {
@@ -13,7 +14,10 @@ namespace VoidFall.Persistence
     {
         public static string Export(SaveData value)
         {
-            var save = SaveStore.Sanitize(value);
+            // SaveStore.Sanitize clamps in place and hands back the same
+            // reference, so sanitizing the caller's profile here would mutate
+            // live game state as a side effect of an export. Detach first.
+            var save = SaveStore.Sanitize(Clone(value));
             var json = new StringBuilder(4096);
             json.Append('{');
             Property(json, "version");
@@ -44,6 +48,17 @@ namespace VoidFall.Persistence
             AppendString(json, save.arena);
             json.Append('}');
             return json.ToString();
+        }
+
+        /// <summary>
+        /// Detached deep copy, so sanitizing for export cannot clamp or reorder
+        /// the profile the game is still running against.
+        /// </summary>
+        private static SaveData Clone(SaveData value)
+        {
+            if (value == null) return SaveStore.CreateDefault();
+            var copy = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(value));
+            return copy ?? SaveStore.CreateDefault();
         }
 
         private static void AppendSettings(StringBuilder json, SaveSettings settings)
@@ -157,10 +172,22 @@ namespace VoidFall.Persistence
                 json.Append(',');
                 Property(json, "weaponDamage");
                 AppendWeaponDamageMap(json, entry.weaponDamage);
-                // React's current v5 RunRecord schema intentionally contains
-                // no per-run supports, late, or evolved fields. Unity keeps
-                // those richer snapshots in its native save, but a browser-
-                // compatible export must match the React object shape.
+                // React's v5 RunRecord declares no per-run supports, late, or
+                // evolved fields, but its sanitizeRunRecord() rebuilds the
+                // record from known keys and ignores unrecognized ones. Emitting
+                // Unity's richer snapshots is therefore still browser-readable,
+                // and it makes export -> import lossless. Omitting them meant a
+                // player who exported and re-imported destroyed these three
+                // arrays for all twelve retained runs.
+                json.Append(',');
+                Property(json, "supports");
+                AppendWorkshopMap(json, entry.supports);
+                json.Append(',');
+                Property(json, "late");
+                AppendWorkshopMap(json, entry.late);
+                json.Append(',');
+                Property(json, "evolved");
+                AppendWorkshopMap(json, entry.evolved);
                 json.Append('}');
             }
             json.Append(']');
