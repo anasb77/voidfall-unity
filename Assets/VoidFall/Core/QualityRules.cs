@@ -132,6 +132,11 @@ namespace VoidFall.Core
             float dpi,
             QualityPreset preset)
         {
+            if (preset.Id == QualityPresetId.High)
+            {
+                return 1f;
+            }
+
             var width = Math.Max(1, viewportWidth);
             var height = Math.Max(1, viewportHeight);
             var dpr = dpi > 0 && !float.IsNaN(dpi) && !float.IsInfinity(dpi)

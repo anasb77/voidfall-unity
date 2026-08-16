@@ -5,22 +5,33 @@ A high-performance C# Unity 6 port of **VoidFall**, an endless space-survival sh
 ## Project Overview
 
 - **Engine Version**: Unity 6 (`6000.5.7f1`)
-- **Rendering Pipeline**: Universal 2D / Custom procedural canvas rendering
+- **Rendering**: Built-in pipeline, rendering direct to the backbuffer at native
+  resolution. Sprites are rasterized procedurally at runtime; there are no
+  authored texture assets for gameplay entities. No scriptable render pipeline
+  is installed, so there is no post-processing stack (and therefore no bloom).
+- **UI**: Legacy IMGUI (`OnGUI`)
 - **Input System**: Unity New Input System (`com.unity.inputsystem`)
-- **Target Platforms**: PC / Standalone (Windows, macOS, Linux), WebGL, Mobile
+- **Target Platforms**: Windows/Standalone is the only configured and tested
+  target. Android components are not installed; WebGL is untested.
 
 ## Architecture & Modules
 
-The codebase is organized into clean, modular assembly definitions (`asmdef`) under `Assets/VoidFall/`:
+There are five assembly definitions (`asmdef`) under `Assets/VoidFall/`:
 
-- **VoidFall.Core**: Pure simulation models, spatial collision grid, entity math, movement, combat math, procedural generators, deterministic RNG, telemetry, and game loop abstractions (zero engine dependencies).
-- **VoidFall.Content**: Content catalogs, enemy definitions, elite abilities, director wave spawners, upgrade trees, and arena cycle configurations.
-- **VoidFall.Runtime**: Unity-specific gameplay behaviors, entity rendering bridges, particle emitters, camera effects, HUD, controller binding, and audio triggers.
-- **VoidFall.Persistence**: Save system, loadout state serialization, cross-platform persistence, and save data migration.
-- **VoidFall.Audio**: Synthesized audio manager, procedural sound effects, and spatial audio feedback.
-- **VoidFall.UI**: HUD widgets, upgrade selection screens, loadout panels, and pause menus.
-- **VoidFall.Mobile**: Mobile touch controls and virtual joysticks.
-- **VoidFall.Editor**: Editor tooling, asset processors, and build automation.
+- **VoidFall.Core**: Pure simulation rules — spatial collision grid, deterministic RNG, combat/movement/pickup/meteor/quality/balance math. No engine dependencies.
+- **VoidFall.Content**: Generated content catalog plus hand-written elite, enemy-roster, upgrade-pool, and evolution rules.
+- **VoidFall.Runtime**: All Unity behaviour. Simulation driver, procedural sprite and arena-plate factories, entity rendering, particles, camera effects, HUD, every menu, input, and telemetry.
+- **VoidFall.Persistence**: Save store and browser save import/export.
+- **VoidFall.Audio**: Procedural audio synthesis.
+
+Two caveats for anyone navigating this for the first time:
+
+- `Runtime/Gameplay/VoidFallGameRuntime.cs` is a single ~25,000-line class. The
+  simulation, all enemy behaviours, rendering, HUD, and every menu live in it.
+  Splitting it is tracked as open work in `MIGRATION_STATUS.md`.
+- The `UI`, `Mobile`, and `Editor` folders are empty, and `Rendering` contains
+  only shaders and icon assets. They are not assemblies. Earlier revisions of
+  this README described them as such.
 
 ## Getting Started
 

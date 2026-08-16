@@ -19,7 +19,7 @@ namespace VoidFall.Runtime
         // screen.
         public const int DefaultWidth = 1612;
         public const int DefaultHeight = 907;
-        private const int MaxBakePixels = 1_050_000;
+        private const int MaxBakePixels = 1_600_000;
         private const float SkyOverscan = 1.18f;
 
         /// <summary>
@@ -269,7 +269,7 @@ namespace VoidFall.Runtime
             return sprite;
         }
 
-        public static Sprite CreateGrainTile(ArenaId arena, int size = 128)
+        public static Sprite CreateGrainTile(ArenaId arena, int size = 256)
         {
             size = Mathf.Clamp(size, 16, 512);
             var spec = SpecFor(arena);
@@ -277,7 +277,7 @@ namespace VoidFall.Runtime
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
                 name = "VoidFall Arena Grain " + arena,
-                filterMode = FilterMode.Point,
+                filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Repeat,
             };
             texture.SetPixels32(pixels);

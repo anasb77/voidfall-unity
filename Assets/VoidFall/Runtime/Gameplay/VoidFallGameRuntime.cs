@@ -787,10 +787,6 @@ namespace VoidFall.Runtime
         private readonly ParticleSystem.Particle[] _fxParticleScratch =
             new ParticleSystem.Particle[MaxSourceParticles];
         private Canvas _canvas;
-        private RawImage _worldRenderView;
-        private RenderTexture _worldRenderTarget;
-        private int _worldRenderTargetWidth;
-        private int _worldRenderTargetHeight;
         private CanvasGroup _hudGroup;
         private Text _hudText;
         private Image _xpBarBackground;
@@ -1023,7 +1019,6 @@ namespace VoidFall.Runtime
         private int _renderResolutionWidth;
         private int _renderResolutionHeight;
         private int _renderResolutionDpi;
-        private float _renderScaleApplied = -1f;
         private GUISkin _menuSkin;
         private bool _debugOverlay;
         private float _debugFrameEmaMs = 16f;
@@ -1036,7 +1031,6 @@ namespace VoidFall.Runtime
         private bool _visualCaptureSettings;
         private bool _visualCaptureRecords;
         private bool _visualCaptureQuit;
-        private bool _visualCaptureNoGrain;
         private bool _visualCaptureNoGrid;
         private bool _visualCaptureIssued;
         private GUIStyle _menuPanelShadowStyle;
@@ -1216,10 +1210,10 @@ namespace VoidFall.Runtime
             SetupPlayer();
             SetupAudio();
             SetupFx();
-            // Browser makeSprites() bakes all 32 orientation frames before a
-            // run. Warm the same bounded cache before gameplay starts so the
-            // first shot never pays texture-rasterization cost.
-            ProceduralSpriteFactory.WarmProjectileFrames();
+            // Pre-bake all procedural enemy, boss, pickup, projectile, and
+            // weapon sprites before gameplay starts so gameplay never pays JIT
+            // texture-rasterization cost.
+            ProceduralSpriteFactory.WarmAllSprites();
             _saveStore = new SaveStore();
             _saveData = _saveStore.Load();
             ApplySettings();
@@ -1239,7 +1233,6 @@ namespace VoidFall.Runtime
 
         private void OnDestroy()
         {
-            ReleaseWorldRenderTarget();
             for (var group = 0; group < _arenaFilamentGroupNotchMasks.Length; group++)
             {
                 if (_arenaFilamentGroupNotchMasks[group] != null)
@@ -1534,10 +1527,9 @@ namespace VoidFall.Runtime
                 {
                     _visualCaptureQuit = true;
                 }
-                else if (string.Equals(argument, "-vfno-grain", StringComparison.OrdinalIgnoreCase))
-                {
-                    _visualCaptureNoGrain = true;
-                }
+                // -vfno-grain was removed with the film grain itself. Grain is
+                // now permanently off, so the flag had nothing left to suppress
+                // and silently did nothing for any capture tooling passing it.
                 else if (string.Equals(argument, "-vfno-grid", StringComparison.OrdinalIgnoreCase))
                 {
                     _visualCaptureNoGrid = true;
@@ -9705,24 +9697,26 @@ namespace VoidFall.Runtime
             for (var order = 0; order < _hostileShotOrderCount; order++)
             {
                 var i = _hostileShotOrder[order];
-                if (i < 0 || i >= _hostileShots.Length || !_hostileShots[i].Active || _hostileShotViews[i] == null)
+                if (i < 0 || i >= _hostileShots.Length || !_hostileShots[i].Active)
                 {
-                    if (i >= 0 && i < _hostileShots.Length) Hide(_hostileShotViews[i]);
+                    if (i >= 0 && i < _hostileShots.Length && _hostileShotViews[i] != null) Hide(_hostileShotViews[i]);
                     continue;
                 }
-                _hostileShotViews[i].rendererPriority = order;
-                _hostileShotViews[i].transform.position = _hostileShots[i].Position;
+                var view = EnsureHostileShotView(i);
+                view.rendererPriority = order;
+                view.transform.position = _hostileShots[i].Position;
                 if (!_hostileShots[i].MeteorOwned && !_hostileShots[i].Curved)
                 {
-                    _hostileShotViews[i].sprite = ProceduralSpriteFactory.ProjectileFrame(
+                    view.sprite = ProceduralSpriteFactory.ProjectileFrame(
                         "gunner",
                         SourceProjectileFrameIndex(_hostileShots[i].Velocity));
                 }
-                _hostileShotViews[i].transform.rotation = Quaternion.identity;
-                _hostileShotViews[i].transform.localScale = Vector3.one *
+                view.transform.rotation = Quaternion.identity;
+                view.transform.localScale = Vector3.one *
                     (_hostileShots[i].MeteorOwned
                         ? 18f
                         : SourceProjectileSpriteWorldSize(_hostileShots[i].Curved ? "curved" : "gunner"));
+                view.enabled = true;
             }
             // Meteors are rendered from the browser's compact meteor array as
             // well, so keep body order stable when a slot is recycled.
@@ -9958,7 +9952,8 @@ namespace VoidFall.Runtime
 
         private void TriggerFreeze(float seconds)
         {
-            _freezeTimer = Mathf.Max(_freezeTimer, Mathf.Max(0, seconds));
+            // Soften hard freezes to subtle micro-hitstop (capped at 0.035s) to prevent perceived stutter
+            _freezeTimer = Mathf.Max(_freezeTimer, Mathf.Clamp(seconds * 0.4f, 0f, 0.035f));
         }
 
         private Vector2 CameraShakeOffset()
@@ -11298,105 +11293,25 @@ namespace VoidFall.Runtime
             }
         }
 
+        /// <summary>
+        /// The world is rendered straight to the backbuffer at native
+        /// resolution. The previous dynamic-resolution path rendered into a
+        /// downscaled RenderTexture and upscaled it through a canvas RawImage,
+        /// which resampled the whole frame and was a major source of the port's
+        /// softness. Quality presets now scale cosmetic budgets only, never the
+        /// resolution the world is rasterized at.
+        /// </summary>
         private void ApplyRenderResolution()
         {
             if (_camera == null || Screen.width <= 0 || Screen.height <= 0) return;
             UpdateGameplayCameraViewport();
-            var dpi = Mathf.Max(0, Screen.dpi);
-            var dpiKey = Mathf.RoundToInt(dpi * 10f);
-            var scale = QualityRules.EffectiveRenderScale(
-                Screen.width,
-                Screen.height,
-                dpi,
-                _qualityPreset);
-            if (Screen.width == _renderResolutionWidth &&
-                Screen.height == _renderResolutionHeight &&
-                dpiKey == _renderResolutionDpi &&
-                _renderScaleApplied >= 0 &&
-                Mathf.Abs(_renderScaleApplied - scale) < 0.0005f &&
-                _worldRenderTarget != null &&
-                _worldRenderTargetWidth == Mathf.Max(1, Mathf.RoundToInt(Screen.width * scale)) &&
-                _worldRenderTargetHeight == Mathf.Max(1, Mathf.RoundToInt(Screen.height * scale)) &&
-                _camera.targetTexture == _worldRenderTarget &&
-                _worldRenderView != null &&
-                _worldRenderView.texture == _worldRenderTarget)
-            {
-                return;
-            }
-
-            var dpiChanged = dpiKey != _renderResolutionDpi;
-            _qualityController?.BeginSettle();
-            if (dpiChanged) RestartQualitySession();
-
-            _camera.allowDynamicResolution = true;
-            ScalableBufferManager.ResizeBuffers(scale, scale);
-            EnsureWorldRenderTarget(scale);
+            _camera.allowDynamicResolution = false;
+            // Defensive: guarantee the camera targets the backbuffer even if a
+            // scene-authored camera arrived with a render texture assigned.
+            if (_camera.targetTexture != null) _camera.targetTexture = null;
             _renderResolutionWidth = Screen.width;
             _renderResolutionHeight = Screen.height;
-            _renderResolutionDpi = dpiKey;
-            _renderScaleApplied = scale;
-        }
-
-        private void EnsureWorldRenderTarget(float scale)
-        {
-            if (_camera == null || Screen.width <= 0 || Screen.height <= 0) return;
-            if (UnityEngine.Rendering.GraphicsDeviceType.Null == SystemInfo.graphicsDeviceType ||
-                !SystemInfo.supportsRenderTextures)
-            {
-                ReleaseWorldRenderTarget();
-                return;
-            }
-
-            var targetWidth = Mathf.Max(1, Mathf.RoundToInt(Screen.width * scale));
-            var targetHeight = Mathf.Max(1, Mathf.RoundToInt(Screen.height * scale));
-            if (_worldRenderTarget != null &&
-                _worldRenderTargetWidth == targetWidth &&
-                _worldRenderTargetHeight == targetHeight &&
-                _camera.targetTexture == _worldRenderTarget &&
-                _worldRenderView != null &&
-                _worldRenderView.texture == _worldRenderTarget)
-            {
-                return;
-            }
-
-            ReleaseWorldRenderTarget();
-            _worldRenderTarget = new RenderTexture(
-                targetWidth,
-                targetHeight,
-                24,
-                RenderTextureFormat.ARGB32,
-                RenderTextureReadWrite.sRGB)
-            {
-                name = "VoidFall Dynamic World Target",
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp,
-                useMipMap = false,
-                autoGenerateMips = false
-            };
-            _worldRenderTarget.Create();
-            _worldRenderTargetWidth = targetWidth;
-            _worldRenderTargetHeight = targetHeight;
-            _camera.targetTexture = _worldRenderTarget;
-            _camera.aspect = targetWidth / (float)targetHeight;
-            if (_worldRenderView != null)
-            {
-                _worldRenderView.texture = _worldRenderTarget;
-                _worldRenderView.enabled = true;
-            }
-        }
-
-        private void ReleaseWorldRenderTarget()
-        {
-            if (_camera != null && _camera.targetTexture == _worldRenderTarget)
-                _camera.targetTexture = null;
-            if (_worldRenderView != null && _worldRenderView.texture == _worldRenderTarget)
-                _worldRenderView.texture = null;
-            if (_worldRenderTarget == null) return;
-            _worldRenderTarget.Release();
-            Destroy(_worldRenderTarget);
-            _worldRenderTarget = null;
-            _worldRenderTargetWidth = 0;
-            _worldRenderTargetHeight = 0;
+            _renderResolutionDpi = Mathf.RoundToInt(Mathf.Max(0, Screen.dpi) * 10f);
         }
 
         private void SetMenuNotice(string message)
@@ -12693,7 +12608,6 @@ namespace VoidFall.Runtime
             var overlayFade = CurrentOverlayFadeAlpha();
             var cardAlpha = CurrentOverlayCardAlpha();
             var cardOffset = CurrentOverlayCardOffset();
-            DrawOverlayBackdropBlur(overlayFade);
             GUI.color = new Color(0.008f, 0.020f, 0.059f, 0.59f * overlayFade);
             GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
             var oldMatrix = GUI.matrix;
@@ -14899,7 +14813,6 @@ namespace VoidFall.Runtime
             var overlayFade = CurrentOverlayFadeAlpha();
             var cardAlpha = CurrentOverlayCardAlpha();
             var cardOffset = CurrentOverlayCardOffset();
-            DrawOverlayBackdropBlur(overlayFade);
             GUI.color = new Color(0.008f, 0.020f, 0.059f, 0.59f * overlayFade);
             GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
             var oldMatrix = GUI.matrix;
@@ -15194,7 +15107,6 @@ namespace VoidFall.Runtime
             var overlayFade = CurrentOverlayFadeAlpha();
             var cardAlpha = CurrentOverlayCardAlpha();
             var cardOffset = CurrentOverlayCardOffset();
-            DrawOverlayBackdropBlur(overlayFade);
             GUI.color = new Color(0.008f, 0.020f, 0.059f, 0.59f * overlayFade);
             GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
             var oldMatrix = GUI.matrix;
@@ -15486,13 +15398,6 @@ namespace VoidFall.Runtime
                 HomeCardButtonStyle(),
                 GUILayout.Height(height),
                 GUILayout.ExpandWidth(true));
-            var hovered = Event.current != null && rect.Contains(Event.current.mousePosition);
-            var oldMatrix = GUI.matrix;
-            if (hovered && Event.current.type == EventType.Repaint)
-            {
-                GUI.matrix = Matrix4x4.Translate(
-                        new Vector3(0f, -HomeMenuCardHoverLift(), 0f)) * GUI.matrix;
-            }
             var clicked = GUI.Button(rect, GUIContent.none, HomeCardButtonStyle());
             var oldColor = GUI.color;
             DrawHomeIcon(
@@ -15510,7 +15415,6 @@ namespace VoidFall.Runtime
                 detail,
                 HomeCardDetailStyle());
             GUI.color = oldColor;
-            GUI.matrix = oldMatrix;
             return clicked;
         }
 
@@ -15553,11 +15457,6 @@ namespace VoidFall.Runtime
         private static float HomeStartBreathe(float elapsed)
         {
             return 0.5f - 0.5f * Mathf.Cos(elapsed * Mathf.PI * 2f / 2.4f);
-        }
-
-        private static float HomeMenuCardHoverLift()
-        {
-            return 3f;
         }
 
         private static int WorkshopMenuColumns(float width)
@@ -17116,7 +17015,9 @@ namespace VoidFall.Runtime
             var fresh = SaveStore.CreateDefault();
             try
             {
-                _saveStore.Save(fresh);
+                // Resetting is an explicit destructive request, so it is allowed
+                // to overwrite a profile this session could not read.
+                _saveStore.Save(fresh, true);
             }
             catch (System.Exception exception)
             {
@@ -17727,7 +17628,22 @@ namespace VoidFall.Runtime
                 }
                 _saveData.parts -= cost;
                 entry.rank++;
-                _saveStore.Save(_saveData);
+                // Every other Save() call site reports failure. This one used to
+                // let the exception escape through the IMGUI layout pass, which
+                // left the player charged in memory with no explanation. Roll the
+                // purchase back so the shown balance matches what is on disk.
+                try
+                {
+                    _saveStore.Save(_saveData);
+                }
+                catch (Exception exception)
+                {
+                    _saveData.parts += cost;
+                    entry.rank--;
+                    Debug.LogError("VoidFall workshop purchase could not be saved: " + exception.Message);
+                    SetMenuNotice("Purchase could not be saved. Parts were not spent.");
+                    return;
+                }
                 _workshopPreviewId = WorkshopPreviewAfterPurchase();
                 SetMenuNotice($"{WorkshopName(id)} upgraded to rank {entry.rank}. Applies next run.");
                 return;
@@ -17850,24 +17766,6 @@ namespace VoidFall.Runtime
                     GUI.DrawTexture(new Rect(0f, y, Screen.width, 1f), Texture2D.whiteTexture);
                     if (y > 0f)
                         GUI.DrawTexture(new Rect(0f, centreY - (y - centreY), Screen.width, 1f), Texture2D.whiteTexture);
-                }
-            }
-
-            if (!_visualCaptureNoGrain)
-            {
-                var grain = _arenaGrainSprites[(int)ArenaId.Void];
-                if (grain != null && grain.texture != null)
-                {
-                    GUI.color = new Color(1f, 1f, 1f, 0.16f);
-                    GUI.DrawTextureWithTexCoords(
-                        new Rect(0f, 0f, Screen.width, Screen.height),
-                        grain.texture,
-                        new Rect(
-                            0f,
-                            0f,
-                            Screen.width / (float)Mathf.Max(1, grain.texture.width),
-                            Screen.height / (float)Mathf.Max(1, grain.texture.height)),
-                        true);
                 }
             }
 
@@ -18162,82 +18060,26 @@ namespace VoidFall.Runtime
             return 160f;
         }
 
-        private void DrawOverlayBackdropBlur(float alpha)
-        {
-            if (Event.current == null || Event.current.type != EventType.Repaint ||
-                _worldRenderTarget == null || Screen.width <= 0 || Screen.height <= 0)
-            {
-                return;
-            }
-
-            var oldColor = GUI.color;
-            var sampleAlpha = OverlayBackdropBlurSampleAlpha() * Mathf.Clamp01(alpha);
-            var radius = OverlayBackdropBlurRadius();
-            var rect = new Rect(0f, 0f, Screen.width, Screen.height);
-            var sampleCount = OverlayBackdropBlurSampleCount();
-            for (var sample = 0; sample < sampleCount; sample++)
-            {
-                var angle = sample * Mathf.PI * 2f / sampleCount;
-                var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-                GUI.color = new Color(1f, 1f, 1f, sampleAlpha);
-                GUI.DrawTexture(
-                    new Rect(
-                        rect.x + offset.x,
-                        rect.y + offset.y,
-                        rect.width,
-                        rect.height),
-                    _worldRenderTarget,
-                    ScaleMode.StretchToFill,
-                    true);
-            }
-            GUI.color = oldColor;
-        }
-
-        private static float OverlayBackdropBlurRadius()
-        {
-            return 4f;
-        }
-
-        private static int OverlayBackdropBlurSampleCount()
-        {
-            return 8;
-        }
-
-        private static float OverlayBackdropBlurSampleAlpha()
-        {
-            return 0.10f;
-        }
+        // The fullscreen approximation of the browser's `.overlay {
+        // backdrop-filter: blur(4px) }` was removed with the render-target path
+        // it sampled from: it could only read the world through a RenderTexture,
+        // and once the world renders straight to the backbuffer there is nothing
+        // to sample. Every former call site already draws an explicit fullscreen
+        // dim immediately afterwards, so the overlays are unchanged on screen.
+        // Reinstating a true blur needs a render pipeline with post-processing,
+        // not eight offset copies of the frame.
 
         private void DrawOverlayCardBackdropBlur(Rect cardRect, float alpha)
         {
             if (Event.current == null || Event.current.type != EventType.Repaint ||
-                _worldRenderTarget == null || Screen.width <= 0 || Screen.height <= 0 ||
                 cardRect.width <= 0f || cardRect.height <= 0f)
             {
                 return;
             }
 
             var oldColor = GUI.color;
-            var sampleAlpha = OverlayCardBackdropBlurSampleAlpha() * Mathf.Clamp01(alpha);
-            var radius = OverlayCardBackdropBlurRadius();
-            var sampleCount = OverlayCardBackdropBlurSampleCount();
-            GUI.BeginGroup(cardRect);
-            for (var sample = 0; sample < sampleCount; sample++)
-            {
-                var angle = sample * Mathf.PI * 2f / sampleCount;
-                var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-                GUI.color = new Color(1f, 1f, 1f, sampleAlpha);
-                GUI.DrawTexture(
-                    new Rect(
-                        -cardRect.x + offset.x,
-                        -cardRect.y + offset.y,
-                        Screen.width,
-                        Screen.height),
-                    _worldRenderTarget,
-                    ScaleMode.StretchToFill,
-                    true);
-            }
-            GUI.EndGroup();
+            GUI.color = new Color(0.02f, 0.04f, 0.08f, Mathf.Clamp01(alpha) * 0.94f);
+            GUI.DrawTexture(cardRect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true);
             GUI.color = oldColor;
         }
 
@@ -19253,7 +19095,7 @@ namespace VoidFall.Runtime
             _camera.orthographic = true;
             _camera.orthographicSize = WorldHalfHeight;
             UpdateGameplayCameraViewport();
-            _camera.allowDynamicResolution = true;
+            _camera.allowDynamicResolution = false;
             _camera.backgroundColor = new Color(0.015f, 0.025f, 0.07f, 1);
             if (_camera.GetComponent<AudioListener>() == null)
                 _camera.gameObject.AddComponent<AudioListener>();
@@ -19584,16 +19426,6 @@ namespace VoidFall.Runtime
             }
             if (eventSystem.GetComponent<InputSystemUIInputModule>() == null)
                 eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
-
-            var worldRenderObject = new GameObject("VoidFall World Render Target");
-            worldRenderObject.transform.SetParent(canvasObject.transform, false);
-            _worldRenderView = worldRenderObject.AddComponent<RawImage>();
-            _worldRenderView.raycastTarget = false;
-            _worldRenderView.rectTransform.anchorMin = Vector2.zero;
-            _worldRenderView.rectTransform.anchorMax = Vector2.one;
-            _worldRenderView.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            _worldRenderView.rectTransform.offsetMin = Vector2.zero;
-            _worldRenderView.rectTransform.offsetMax = Vector2.zero;
 
             _xpBarBackground = CreateHudImage(canvasObject.transform, "XP Bar Background");
             _xpBarBackground.sprite = ProceduralSpriteFactory.Square();
@@ -20395,7 +20227,7 @@ namespace VoidFall.Runtime
         private SpriteRenderer EnsureHostileShotView(int index)
         {
             if (_hostileShotViews[index] != null) return _hostileShotViews[index];
-            _hostileShotViews[index] = CreateView("HostileShot_" + index, ProceduralSpriteFactory.Circle(), 38);
+            _hostileShotViews[index] = CreateView("HostileShot_" + index, ProceduralSpriteFactory.Circle(), 55);
             return _hostileShotViews[index];
         }
 
@@ -22758,23 +22590,13 @@ namespace VoidFall.Runtime
                 _arenaBakedDetailView.enabled = _arenaBakedDetailView.sprite != null;
             }
 
-            if (_arenaGrainCameraCanvas != null && _arenaGrainCameraView != null)
+            if (_arenaGrainCameraCanvas != null)
             {
-                var grainStrength = _arenaId == ArenaId.RedNebula
-                    ? 0.2f
-                    : _arenaId == ArenaId.WhiteSakura ? 0.24f : 0.16f;
-                var grainTexture = _arenaGrainSprites[(int)_arenaId]?.texture;
-                _arenaGrainCameraView.texture = grainTexture;
-                _arenaGrainCameraView.uvRect = grainTexture == null
-                    ? new Rect(0, 0, 1, 1)
-                    : new Rect(
-                        0,
-                        0,
-                        Screen.width / (float)Mathf.Max(1, grainTexture.width),
-                        Screen.height / (float)Mathf.Max(1, grainTexture.height));
-                _arenaGrainCameraView.color = new Color(1f, 1f, 1f, grainStrength);
-                _arenaGrainCameraView.enabled =
-                    !_visualCaptureNoGrain && grainTexture != null;
+                _arenaGrainCameraCanvas.gameObject.SetActive(false);
+            }
+            if (_arenaGrainCameraView != null)
+            {
+                _arenaGrainCameraView.enabled = false;
             }
 
             RenderArenaGrid();

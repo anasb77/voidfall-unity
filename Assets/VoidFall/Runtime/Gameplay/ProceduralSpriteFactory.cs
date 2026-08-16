@@ -1157,6 +1157,73 @@ namespace VoidFall.Runtime
                 ProjectileFrame(kind, 0);
         }
 
+        /// <summary>
+        /// Pre-bakes every procedural sprite the render path can request, so
+        /// gameplay never pays texture-rasterization cost on first sighting.
+        ///
+        /// The ids and accents are driven from <see cref="ContentCatalog"/>
+        /// rather than hardcoded lists for two reasons. Hardcoded lists silently
+        /// go stale when content is added. More importantly, the cache key must
+        /// match what the render path passes: VoidFallGameRuntime resolves enemy
+        /// and boss accents through ContentCatalog, so warming with the local
+        /// SourceEnemyColor/SourceBossColor switches would bake an unused key
+        /// and leave the real one cold the moment the two disagree.
+        /// </summary>
+        public static void WarmAllSprites()
+        {
+            WarmProjectileFrames();
+
+            foreach (var definition in ContentCatalog.Enemies)
+            {
+                var accent = ParseColor(definition.Color);
+                Enemy(definition.Id, accent, false);
+                Enemy(definition.Id, accent, true);
+
+                // Elite variants keep their base enemy body and base accent, so
+                // the two calls above already cover them. Roster II silhouettes
+                // are a separate cache keyed only by id and hit state.
+                if (EnemyRosterRules.RosterTwoEligible(definition.Id))
+                {
+                    RosterTwoEnemy(definition.Id, false);
+                    RosterTwoEnemy(definition.Id, true);
+                }
+            }
+
+            // The scheduled charging Elite is the only entity that uses the
+            // generic "elite" silhouette instead of a base enemy body.
+            var eliteAccent = ParseColor(ContentCatalog.Elite.Color);
+            Enemy("elite", eliteAccent, false);
+            Enemy("elite", eliteAccent, true);
+
+            foreach (var boss in ContentCatalog.Bosses)
+            {
+                var accent = ParseColor(boss.Color);
+                Boss(boss.Id, accent, false);
+                Boss(boss.Id, accent, true);
+            }
+
+            for (var tier = 0; tier < 3; tier++)
+                Gem(tier);
+            foreach (var kind in new[] { "xp", "part", "magnet", "repair", "bomb", "overdrive" })
+                Pickup(kind);
+
+            Projectile("curved");
+            for (var shard = 0; shard < 4; shard++)
+                MeteorShard(shard);
+            for (var variant = 0; variant < 4; variant++)
+            {
+                Meteor(variant, false);
+                Meteor(variant, true);
+            }
+
+            Blade(false);
+            Blade(true);
+            EliteRing();
+            BlastWaveDisc();
+            PlayerAura(false);
+            PlayerAura(true);
+        }
+
         public static float ProjectileCanvasSize(string kind)
         {
             switch (kind)

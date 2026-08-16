@@ -1,182 +1,258 @@
-# VoidFall Unity Migration Status
-
-Status: Phase 4 playable gameplay/runtime parity slice running; full parity port remains in progress.
-
-## Latest verified gate
-
-- Browser-compatible save-schema gate (2026-08-16): Unity's browser exporter now matches React v5 `RunRecord` shape by writing only `damageDealt`, `damageTaken`, `weapons`, and `weaponDamage` for per-run records; native Unity save still retains richer `supports`, `late`, and `evolved` snapshots. Focused EditMode passed 1/1 in `D:/VoidFall-builds/TestResults/browser-save-schema-focused-2922.xml`; full EditMode passed 63/63 in `D:/VoidFall-builds/TestResults/browser-save-schema-editmode-2923.xml`; full PlayMode passed 377/377 in `D:/VoidFall-builds/TestResults/browser-save-schema-playmode-2924.xml` in 289.10 seconds; and the rebuilt player succeeded in `D:/VoidFall-builds/TestResults/windows-build-2925.log` as `D:/VoidFall-builds/VoidFall-windows-validation-2925.exe` (667,648 bytes). Its corrected D3D11/GTX 1060 `productionMax` smoke exited 0 and wrote `D:/VoidFall-builds/TestResults/windows-player-stress-save-schema-2925-correct.json` with 191 enemies, 2 bosses, and a 6.588 ms final frame EMA; this short smoke is a boot/regression check, not an RTX 3080 performance claim. Workspace and validation-clone exporter/test files are SHA-256 identical. Android/device and exact browser raster/font equivalence remain open.
-
-- Settings quality-label focus gate (2026-08-16): Unity now gives the browser-equivalent settings quality row label area focus behavior, so clicking text outside the custom select focuses `VoidFall.SettingsQualitySelect` while clicks inside the select remain handled by the select control. The focused predicate regression passed 1/1 in `D:/VoidFall-builds/TestResults/settings-quality-label-focused-2918.xml`; full EditMode passed 62/62 in `D:/VoidFall-builds/TestResults/settings-quality-label-editmode-2919.xml`; full PlayMode passed 377/377 in `D:/VoidFall-builds/TestResults/settings-quality-label-playmode-2920.xml` in 289.07 seconds; and the rebuilt player succeeded in `D:/VoidFall-builds/TestResults/windows-build-2921.log` as `D:/VoidFall-builds/VoidFall-windows-validation-2921.exe` (667,648 bytes). Its corrected D3D11/GTX 1060 `productionMax` smoke exited 0 and wrote `D:/VoidFall-builds/TestResults/windows-player-stress-settings-2921-correct.json` with 191 enemies, 2 bosses, and a 6.750 ms final frame EMA; this short smoke is a boot/regression check, not an RTX 3080 performance claim. Workspace and validation-clone runtime/test files are SHA-256 identical. Android/device and exact browser raster/font equivalence remain open.
-
-- Settings toggle row hit-area gate (2026-08-16): Unity now treats the entire settings toggle row as the clickable control, matching React's `ToggleSetting` button wrapper instead of responding only to the small switch. The focused row-predicate regression passed 1/1 in `D:/VoidFall-builds/TestResults/settings-toggle-focused-2914-rerun.xml`; full EditMode passed 62/62 in `D:/VoidFall-builds/TestResults/settings-toggle-editmode-2915.xml`; full PlayMode passed 376/376 in `D:/VoidFall-builds/TestResults/settings-toggle-playmode-2916.xml` in 296.66 seconds; and the rebuilt player succeeded in `D:/VoidFall-builds/TestResults/windows-build-2917.log` as `D:/VoidFall-builds/VoidFall-windows-validation-2917.exe` (667,648 bytes). Its corrected D3D11/GTX 1060 `productionMax` smoke exited 0 and wrote `D:/VoidFall-builds/TestResults/windows-player-stress-settings-2917-correct.json` with 191 enemies, 2 bosses, and a 6.935 ms final frame EMA; this short smoke is a boot/regression check, not an RTX 3080 performance claim. Workspace and validation-clone runtime/test files are SHA-256 identical. Android/device and exact browser raster/font equivalence remain open.
-
-- Settings save-first transaction gate (2026-08-16): Unity now stages a copy of the prior settings, saves the changed profile before applying the live audio/quality state, and restores the previous value plus live controller state if persistence fails, matching React's `updateSettings` save-first contract. `CommitSettings` now reports storage failures through the existing menu notice instead of leaking an exception. The focused failure-path regression passed 1/1 in `D:/VoidFall-builds/TestResults/settings-save-focused-2910.xml`; full EditMode passed 62/62 in `D:/VoidFall-builds/TestResults/settings-save-editmode-2911.xml`; full PlayMode passed 375/375 in `D:/VoidFall-builds/TestResults/settings-save-playmode-2912.xml` in 293.13 seconds; and the rebuilt player succeeded in `D:/VoidFall-builds/TestResults/windows-build-2913.log` as `D:/VoidFall-builds/VoidFall-windows-validation-2913.exe` (667,648 bytes). Its corrected D3D11/GTX 1060 `productionMax` smoke exited cleanly and wrote `D:/VoidFall-builds/TestResults/windows-player-stress-settings-2913-correct.json` with 191 enemies, 2 bosses, and a 6.712 ms final frame EMA; the short smoke is a boot/regression check, not an RTX 3080 performance claim. Android/device and exact browser raster/font equivalence remain open.
-
-- Run-start toast visibility gate (2026-08-15): Unity's initial playing-phase toast is covered against the browser-rendered contract: `StartRun` queues the source `Run started` message, the HUD view is enabled during the initial playing phase, and the displayed text is uppercased to `RUN STARTED` like the browser's `.toast { text-transform: uppercase; }`. The focused PlayMode regression passed 1/1 in `D:/VoidFall-builds/TestResults/toast-focused-2907.xml`; the full validation-clone PlayMode suite passed 374/374 in `D:/VoidFall-builds/TestResults/toast-playmode-2908.xml` in 294.27 seconds. This was a test/evidence correction, not a runtime behavior change; the current 2904 Windows player remains the latest packaged runtime. A spawned unfocused player can auto-pause before a screenshot, so visible capture comparisons must keep the player focused; Android/device and exact raster/font equivalence remain open.
-
-- Touch/UI input boundary gate (2026-08-15): Unity now checks the primary touch's UI pointer capture before starting the floating joystick and retains that block until release, matching React's canvas-only `pointerdown` listener so tapping a pause/menu control cannot also start movement. The focused EditMode regression passed 1/1 in `D:/VoidFall-builds/TestResults/touch-ui-focused-2901.xml`; full EditMode passed 62/62 in `D:/VoidFall-builds/TestResults/touch-ui-editmode-2902.xml`; full PlayMode passed 373/373 in `D:/VoidFall-builds/TestResults/touch-ui-playmode-2903.xml`; and the updated Windows player packaged successfully in `D:/VoidFall-builds/TestResults/windows-build-2904.log` as `D:/VoidFall-builds/VoidFall-windows-validation-2904.exe` (667,648 bytes). The workspace/validation-clone runtime and test files are SHA-256 identical. Physical touch, safe-area, lifecycle, and Android-device validation remain open because the Android module and device are unavailable.
-
-- HUD pause-control parity gate (2026-08-15): Unity now keeps the pause control active whenever the source-equivalent HUD is visible, including immediately after a run starts at `_time == 0`, matching React's playing-phase gate. The focused PlayMode regression passed 1/1 in `D:/VoidFall-builds/TestResults/hud-pause-focused-2895.xml`; full PlayMode passed 373/373 in `D:/VoidFall-builds/TestResults/hud-pause-playmode-2896.xml`; and the rebuilt Windows player succeeded in `D:/VoidFall-builds/TestResults/windows-build-2897.log` as `D:/VoidFall-builds/VoidFall-windows-validation-2897.exe` (667,648 bytes). Its canonical D3D11 productionMax player smoke exited 0, loaded fixture `4d5e955`, held 192 enemies / 2 bosses, and wrote `D:/VoidFall-builds/TestResults/windows-player-stress-threaded-2897-nobatch.json` with a 22.118 ms final frame EMA; a repeat measured 22.060 ms, while the prior build under the same launch mode measured 22.045 ms, so the HUD change shows no runtime regression in this comparison. The workspace/validation-clone runtime and test files are SHA-256 identical. Browser verification remains green from the latest `npm run verify`; exact raster/device and Android gates remain open.
-
-- Stress-output argument parity gate (2026-08-15): `StressBenchmarkProbe` now accepts both `-name=value` and separate-token values through the same parser, and the canonical `-vfoutput=...` player invocation writes the requested D: artifact instead of silently falling back to `%LOCALAPPDATA%`. The focused EditMode regression passed 1/1 in `D:/VoidFall-builds/TestResults/stress-arg-focused-2892.xml`; full EditMode passed 61/61 in `D:/VoidFall-builds/TestResults/stress-arg-editmode-2893.xml`; the rebuilt Windows player succeeded in `D:/VoidFall-builds/TestResults/windows-build-2894.log` as `D:/VoidFall-builds/VoidFall-windows-validation-2894.exe`; and the no-batchmode threaded D3D11 productionMax smoke exited 0, loaded fixture `4d5e955`, held 192 enemies / 2 bosses, and wrote `D:/VoidFall-builds/TestResults/windows-player-stress-threaded-2894-nobatch.json` from `D:/VoidFall-builds/TestResults/windows-player-stress-threaded-2894-nobatch.log` with a 2.998 ms frame EMA. The workspace/validation-clone parser and test files are SHA-256 identical. Unity's batchmode path is intentionally excluded from the performance comparison because it measured 19.85 ms on the same build; it is a headless build/test mode, not the canonical player runtime. Browser verification remains green; exact raster/device and Android gates remain open.
-
-- Windows build and player stress gate (2026-08-15): the validation clone now packages successfully with Unity's native `Unity.com -buildWindows64Player` route while `TEMP`/`TMP` point at D:, avoiding the earlier C: `database or disk is full` failure without deleting storage. Build log: `D:/VoidFall-builds/TestResults/windows-build-2890.log`; executable: `D:/VoidFall-builds/VoidFall-windows-validation-2890.exe` (667,648 bytes). The built player exited 0 after the source-defined `productionMax` benchmark, loaded fixture `4d5e955`, reached 192 enemies and 2 bosses, and produced the copied result `D:/VoidFall-builds/TestResults/windows-player-stress-threaded-2890.json`; the canonical threaded D3D11 sample held 192 enemies / 2 bosses at 2.713 ms frame EMA with no targeted exception, assertion, or fatal markers. A separate non-threaded D3D11 launch measured 18.755 ms, confirming the earlier high sample was a launch-mode artifact rather than a code regression. Both runs used the current host's GTX 1060 6 GB GPU, so they are not performance claims for the incoming RTX 3080 machine. The build log contains a non-fatal Unity licensing access-token refresh message but resolves entitlements and ends `Build Finished, Result: Success.`
-
-- Workshop backdrop radial-stop parity gate (2026-08-15): Unity's 600x340 Workshop backdrop now preserves React's `createRadialGradient` 20px inner stop before the 0.48 middle stop, rather than interpolating from the exact centre. Focused EditMode passed 1/1 in `D:/VoidFall-builds/TestResults/workshop-backdrop-focused-2886.xml`; full EditMode passed 60/60 in `D:/VoidFall-builds/TestResults/workshop-backdrop-editmode-2887.xml`; and full PlayMode passed 372/372 in `D:/VoidFall-builds/TestResults/workshop-backdrop-playmode-2888.xml` in 295.09 seconds. The three logs contain no targeted compiler, shader, assertion, exception, or fatal-error markers, and the workspace/validation-clone factory and test files are SHA-256 identical. Browser verification was already green this turn (`npm run verify`: formatting, typecheck, 23 files / 222 tests, and Vite build). Windows packaging, player smoke, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact browser font/raster equivalence, device coverage, and Android packaging remain open.
-
-- Workshop precision/protocol color parity gate (2026-08-15): Unity's active and cached Workshop renderers now use the browser's exact `#fde68a` Precision and `#fb7185` Protocol source colors instead of approximate float tints. Focused Protocol EditMode passed 1/1 in `D:/VoidFall-builds/TestResults/workshop-colors-focused-2874.xml`; full EditMode passed 58/58 in `D:/VoidFall-builds/TestResults/workshop-colors-editmode-2875.xml`; and full PlayMode passed 372/372 in `D:/VoidFall-builds/TestResults/workshop-colors-playmode-2876.xml` in 296.15 seconds. The three logs contain no targeted compiler, shader, assertion, exception, or fatal-error markers, and the workspace/validation-clone factory and test files are SHA-256 identical. Browser verification was already green this turn (`npm run verify`: formatting, typecheck, 23 files / 222 tests, and Vite build). Windows packaging, player smoke, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact browser font/raster equivalence, device coverage, and Android packaging remain open.
-
-- Workshop purchase-preview reset parity gate (2026-08-15): Unity now clears `_workshopPreviewId` after a successful Workshop purchase, matching React's `setPreviewWorkshop(null)` even if a different row had focus. The final helper contract passed focused EditMode 1/1 in `D:/VoidFall-builds/TestResults/workshop-purchase-refactor-focused-2880.xml`; full EditMode passed 59/59 in `D:/VoidFall-builds/TestResults/workshop-purchase-refactor-editmode-2881.xml`; and the final full PlayMode validation passed 372/372 in `D:/VoidFall-builds/TestResults/workshop-purchase-refactor-playmode-2885.xml` in 297.32 seconds with no targeted compiler, shader, assertion, exception, or fatal-error markers. Browser verification was already green this turn (`npm run verify`: formatting, typecheck, 23 files / 222 tests, and Vite build). Windows packaging, player smoke, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact browser font/raster equivalence, device coverage, and Android packaging remain open.
-
-- Workshop blade/recovery/marker parity gate (2026-08-15): Unity's Workshop Arsenal layer now reuses the browser blade's source silhouette, two-tone fill, outline, emitter, 32x16 draw scale, and tangential `angle + PI/2` orientation; Recovery markers use the browser's exact `#6ee7b7` fill and `#052e2b` cross palette at full fill opacity; and Magnet markers use full-alpha `#c4b5fd`/`#67e8f9` source colors. Focused EditMode passed 1/1 in `D:/VoidFall-builds/TestResults/workshop-magnet-focused-2867.xml`; full EditMode passed 56/56 in `D:/VoidFall-builds/TestResults/workshop-magnet-editmode-2868.xml`; and full PlayMode passed 372/372 in `D:/VoidFall-builds/TestResults/workshop-magnet-playmode-2869.xml`. Browser verification was already green this turn (`npm run verify`: formatting, typecheck, 23 files / 222 tests, and Vite build). Windows packaging, player smoke, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact browser font/raster equivalence, device coverage, and Android packaging remain open.
-
-- Pickup geometry/palette parity gate (2026-08-15): Unity now matches React pickup construction for rotated 14px Parts, magnet pole-cap placement plus colored top strips, and the Repair pickup's dark fill with colored 3px outline. Focused EditMode passed 1/1 in `D:/VoidFall-builds/TestResults/pickup-geometry-focused-2858.xml`; full EditMode passed 54/54 in `D:/VoidFall-builds/TestResults/pickup-geometry-editmode-2859.xml`; and full PlayMode passed 372/372 in `D:/VoidFall-builds/TestResults/pickup-geometry-playmode-2860.xml`. Browser verification was already green this turn (`npm run verify`: formatting, typecheck, 23 files / 222 tests, and Vite build). Windows packaging, player smoke, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact browser font/raster equivalence, device coverage, and Android packaging remain open.
-
-- XP-gem glow radius parity gate (2026-08-15): Unity now uses React `gemSprite()`'s full padded glow radius (`r + pad`, where `pad = r + 12`, yielding 26/30/36px for the three tiers) instead of the shortened `r + 12` radius. Focused EditMode passed 1/1 in `D:/VoidFall-builds/TestResults/gem-glow-focused-2855.xml`; full EditMode passed 53/53 in `D:/VoidFall-builds/TestResults/gem-glow-editmode-2856.xml`; and full PlayMode passed 372/372 in `D:/VoidFall-builds/TestResults/gem-glow-playmode-2857.xml`. Browser verification was already green this turn (`npm run verify`: formatting, typecheck, 23 files / 222 tests, and Vite build). Windows packaging, player smoke, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact browser font/raster equivalence, device coverage, and Android packaging remain open.
-
-- Operative non-concentric gradient gate (2026-08-15): Unity now rasterizes React `createRadialGradient(-4,-5,2,0,0,15)` in Unity's screen-equivalent coordinate basis and clips it to the centered 15px player body path; the same helper is used by the Workshop core preview. Focused EditMode passed 1/1 in `D:/VoidFall-builds/TestResults/operative-gradient-focused-2852.xml`; full EditMode passed 52/52 in `D:/VoidFall-builds/TestResults/operative-gradient-editmode-2853.xml`; and full PlayMode passed 372/372 in `D:/VoidFall-builds/TestResults/operative-gradient-playmode-2854.xml`. Browser verification was already green this turn (`npm run verify`: formatting, typecheck, 23 files / 222 tests, and Vite build). Windows packaging, player smoke, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact browser font/raster equivalence, device coverage, and Android packaging remain open.
-
-- Enemy halo radius parity gate (2026-08-15): Unity standard and Roster II enemy sprites now pass React `enemySprite()`'s complete padded canvas radius (`r + pad`, `2.1r + 14`) to the glow raster instead of the shortened `r + 14` radius. The focused EditMode regression passed 1/1 in `D:/VoidFall-builds/TestResults/enemy-glow-focused-2849.xml`; full EditMode passed 51/51 in `D:/VoidFall-builds/TestResults/enemy-glow-editmode-2850.xml`; full PlayMode passed 372/372 in `D:/VoidFall-builds/TestResults/enemy-glow-playmode-2851.xml`; and browser `npm run verify` passed formatting, typecheck, 23 files / 222 tests, and the Vite build. Windows packaging, player smoke, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact browser font/raster equivalence, device coverage, and Android packaging remain open.
-
-- Weapon upgrade copy parity gate (2026-08-15): Unity now builds weapon acquisition and rank-change descriptions from the generated weapon kind/stat deltas using the browser's labels, ordering, suffixes, and precision, replacing generic `Rank ... damage ... recovery ...` copy. Focused EditMode passed 1/1 in `D:/VoidFall-builds/TestResults/weapon-copy-focused-2845.xml`; full EditMode passed 50/50 in `D:/VoidFall-builds/TestResults/weapon-copy-editmode-2846.xml`; and full PlayMode passed 372/372 in `D:/VoidFall-builds/TestResults/weapon-copy-playmode-2847.xml`. Windows packaging, player smoke, browser verification, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact browser font/raster equivalence, device coverage, and Android packaging remain open.
-
-- Late-upgrade weighted-pool parity gate (2026-08-15): Unity now adds late upgrades to the same weighted candidate pool used by React, instead of appending them directly to the picked list. This preserves the requested choice count and source selection ordering once core progression is complete. Focused EditMode passed 1/1 in `D:/VoidFall-builds/TestResults/late-choice-focused-2842.xml`; full EditMode passed 49/49 in `D:/VoidFall-builds/TestResults/late-choice-editmode-2843.xml`; and full PlayMode passed 372/372 in `D:/VoidFall-builds/TestResults/late-choice-playmode-2844.xml`. Windows packaging, player smoke, browser verification, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact browser/UI presentation, device coverage, and Android packaging remain open.
-
-- Damage-indicator and impact-mark frame gate (2026-08-15): Unity preserves the browser's 96px cached damage-indicator frame and 64px impact-mark frame with 1-unit logical bounds, keeping the browser's 30px HUD wedge and runtime-scaled 10-point ground mark contracts intact. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/fx-frame-focused-2839.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/fx-frame-editmode-2840.xml`; and full PlayMode passed 372/372 in `D:/VoidFall-builds/TestResults/fx-frame-playmode-2841.xml`. Windows packaging, player smoke, browser verification, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-- Blade source-frame resolution gate (2026-08-15): Unity now preserves React's natural gameplay blade frames—44x22 for `bladeSprite()` and 48x24 for `hollowBladeSprite()`—including the source-specific Hollow Blade silhouette, instead of using one 96x96 square raster and a 54-unit scale. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/blade-canvas-focused-2834.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/blade-canvas-editmode-2835.xml`; and full PlayMode passed 371/371 in `D:/VoidFall-builds/TestResults/blade-canvas-playmode-2836.xml`. Windows packaging, player smoke, browser verification, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-- Meteor-shard source-canvas resolution gate (2026-08-15): Unity now preserves React `meteorShardSprite()`'s 22px source canvas for all four deterministic shard variants instead of rasterizing them into 64px textures; the existing runtime particle-size rule is unchanged. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/meteor-shard-focused-2831.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/meteor-shard-editmode-2832.xml`; and full PlayMode passed 370/370 in `D:/VoidFall-builds/TestResults/meteor-shard-playmode-2833.xml`. Windows packaging, player smoke, browser verification, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-- Enemy source-canvas resolution gate (2026-08-15): Unity now preserves React `enemySprite()`'s ceil-sized per-radius canvases for all 15 standard enemies (70px to 188px) and the four Roster II silhouettes (91px/87px/104px/91px), replacing the fixed 128px enemy cache; runtime world-size contracts remain unchanged. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/enemy-canvas-focused-2828.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/enemy-canvas-editmode-2829.xml`; and full PlayMode passed 369/369 in `D:/VoidFall-builds/TestResults/enemy-canvas-playmode-2830.xml`. Windows packaging, player smoke, browser verification, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-- Meteor source-canvas resolution gate (2026-08-15): Unity now preserves React's ordinary meteor canvases at 62px/68px/72px/78px and explosive meteor canvases at 92px/100px/108px instead of oversampling every variant to 128px; runtime world-size contracts remain unchanged. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/meteor-canvas-focused-2824.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/meteor-canvas-editmode-2825.xml`; and full PlayMode passed 368/368 in `D:/VoidFall-builds/TestResults/meteor-canvas-playmode-2826.xml`. Windows packaging, player smoke, browser verification, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-- Small authored-sprite source-canvas gate (2026-08-15): Unity now preserves the React canvas sizes for the player/arena micro-sprites: 30px White Sakura petal, 74px operative, 62px player ring, and 24px dot/arena-mote/particle textures; existing runtime world-size contracts remain unchanged. The focused operative-core regression passed 1/1 in `D:/VoidFall-builds/TestResults/small-sprite-operative-focused-2821.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/small-sprite-canvas-editmode-2819.xml`; and final full PlayMode passed 368/368 in `D:/VoidFall-builds/TestResults/small-sprite-canvas-playmode-2822.xml`. Windows packaging, player smoke, browser verification, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-- Pickup and XP-gem source-canvas gate (2026-08-15): Unity's special pickup textures now preserve React's `pickupSprite()` 42px source canvas, and XP gem tiers now preserve `gemSprite()`'s exact 52px/60px/72px canvases instead of being oversampled into 64px/96px rasters; existing 42px special-pickup and 52px/60px/72px runtime frame contracts remain unchanged. Focused texture regression passed 1/1 in `D:/VoidFall-builds/TestResults/pickup-canvas-focused-2814.xml`; the focused browser-gradient regression passed 1/1 in `D:/VoidFall-builds/TestResults/pickup-gradient-focused-2817.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/pickup-canvas-editmode-2815.xml`; and final full PlayMode passed 368/368 in `D:/VoidFall-builds/TestResults/pickup-canvas-playmode-2818.xml`. Windows packaging, player smoke, browser verification, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-- Oriented projectile source-canvas gate (2026-08-15): Unity's baked projectile textures now preserve the browser's `orientedFrames()` canvas sizes derived from each source diagonal plus four pixels: 33px pistol, 26px scattergun, 64px railgun, 48px seeker, and 36px gunner; the un-oriented curved shot remains 20px. The existing world-size contract is unchanged, so this closes a raster-resolution mismatch without changing gameplay scale. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/projectile-canvas-focused-2811.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/projectile-canvas-editmode-2812.xml`; and full PlayMode passed 367/367 in `D:/VoidFall-builds/TestResults/projectile-canvas-playmode-2813.xml`. Windows packaging, player smoke, browser verification, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-- Meteor hot-core source-canvas gate (2026-08-15): Unity's armed meteor hot core now preserves React's `meteorHotCoreSprite()` 92px source canvas (`r = 46`) instead of oversampling the same gradient into a 128px texture; the 18px runtime world size is unchanged by the sprite's pixels-per-unit contract. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/meteor-core-size-focused-2806.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/meteor-core-editmode-2807.xml`; and full PlayMode passed 366/366 in `D:/VoidFall-builds/TestResults/meteor-core-playmode-2808.xml`. Windows packaging, player smoke, browser verification, and stress were not rerun because the host C: drive remains below 1 GB free and the prior package attempt hit Unity's `database or disk is full` failure. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-- Blast-wave disk raster gate (2026-08-15): Unity's cached 256px blast-wave fill now uses the shared 4x4 supersampled `RasterCanvas.FillCircle` path, preserving partial edge coverage from the React Canvas2D `arc().fill()` instead of a binary mask. The focused PlayMode regression passed 1/1 in `D:/VoidFall-builds/TestResults/blast-wave-disc-focused-2801.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/blast-wave-editmode-2802.xml`; and full PlayMode passed 366/366 in `D:/VoidFall-builds/TestResults/blast-wave-playmode-2803.xml`. Windows packaging was attempted in `D:/VoidFall-builds/TestResults/blast-wave-build-2804.log` but was blocked before producing a valid player because the host C: drive had only 0.76 GB free and Unity reported `database or disk is full`; the build process was stopped after no executable was produced. Browser verification, player smoke, and stress were not rerun for this gate. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-- Ordinary meteor source-construction gate (2026-08-15): Unity ordinary meteor sprites now match React's `meteorSprite()` construction: exact `#241d20` body, source light/shadow planes, seeded off-centre elliptical craters, fracture geometry, and two clipped Red Nebula rim arcs. A raster regression confirms fully opaque pixels stay inside the authored source silhouette. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/ordinary-meteor-clip-focused-2793.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/ordinary-meteor-editmode-2794.xml`; full PlayMode passed 365/365 in `D:/VoidFall-builds/TestResults/ordinary-meteor-playmode-2795.xml`; Windows packaging succeeded in `D:/VoidFall-builds/TestResults/ordinary-meteor-build-2796.log`, producing `D:/VoidFall-builds/VoidFall-ordinary-meteor-2796.exe` (667648 bytes); the 20-second player boot smoke loaded fixture `4d5e955` with no severe runtime marker in `D:/VoidFall-builds/TestResults/ordinary-meteor-player-2796.log`; browser `npm run verify` passed formatting, typecheck, 23 files / 222 tests, and the Vite build in `D:/VoidFall-builds/TestResults/ordinary-meteor-browser-verify-2797.log`; native Chrome production-max stress held 58.27 FPS at 1440x900 with 192 enemies and 2 bosses in `D:/VoidFall-builds/TestResults/ordinary-meteor-browser-stress-2798.json`; and threaded D3D11 production-max stress held 3.13-3.14 ms frame EMA after warmup with 192 enemies and 2 bosses in `D:/VoidFall-builds/TestResults/ordinary-meteor-unity-stress-threaded-2800.json`. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-- Meteor source-presentation gate (2026-08-15): Unity procedural meteor sprites now use the React six-outline rock set with source rotations, explosive dark-plane and cool-crust layers, deterministic five-ember fracture specks, and the Red Nebula lit-side rim arc; the previous generic baked explosive glow was removed because React layers the armed heat core separately. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/meteor-source-focused-2781.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/meteor-editmode-2782.xml`; full PlayMode passed 364/364 in `D:/VoidFall-builds/TestResults/meteor-playmode-2783.xml`; Windows packaging succeeded in `D:/VoidFall-builds/TestResults/meteor-build-2784.log`, producing `D:/VoidFall-builds/VoidFall-meteor-source-2784.exe` (667648 bytes); the player boot smoke completed cleanly in `D:/VoidFall-builds/TestResults/meteor-player-2784.log`; browser `npm run verify` passed formatting, typecheck, 23 files / 222 tests, and the Vite build in `D:/VoidFall-builds/TestResults/meteor-browser-verify-2785.log`; native Chrome production-max stress held 59.01 FPS at 1440x900 with 192 enemies and 2 bosses in `D:/VoidFall-builds/TestResults/meteor-browser-stress-2785.json`; and threaded D3D11 production-max stress held 2.78-3.03 ms frame EMA with 192 enemies and 2 bosses in `D:/VoidFall-builds/TestResults/meteor-unity-stress-threaded-2788.json`. Exact Canvas2D/Unity raster equivalence, device coverage, and Android packaging remain open.
-
-## Authority and scope
-
-- The React/TypeScript game in `src/` remains the behavioral and visual authority.
-- Unity source is in `unity/VoidFall`; the validation copy is `D:/VoidFall-builds/UnityTestProject`.
-- The migration is incremental and parity-preserving. Each gate is implemented, regression-tested, packaged, and recorded before the next source/runtime gap is selected.
-- The exhaustive source-to-Unity mapping is in `unity/PARITY_MATRIX.md`.
-
-## Latest verified gates
-
-- Arena rock-outline variants gate (2026-08-15): Unity now carries all six React `ROCK_OUTLINES` silhouettes, including the 12-point source variants, and consumes the source shape roll with `floor(stream() * 6)` instead of truncating dynamic arena rocks to four shapes; the six source-shaped sprites are cached independently. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-arena-rock-variants-focused-2774.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/VoidFall-arena-rock-variants-edit-2775.xml`; full PlayMode passed 363/363 in `D:/VoidFall-builds/TestResults/VoidFall-arena-rock-variants-play-2776.xml`; Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-arena-rock-variants-2777-build.log`, producing `D:/VoidFall-builds/VoidFall-arena-rock-variants-2777.exe` (667648 bytes); browser verification passed 23 files / 222 tests with the Vite build in `D:/VoidFall-builds/TestResults/VoidFall-arena-rock-variants-2778-browser-verify.log`; and the production-max player smoke completed with 192 enemies, 2 bosses, 4.51-6.13 ms frame EMA, 6.5 MB managed memory, and 295 MB reserved memory in `D:/VoidFall-builds/TestResults/VoidFall-arena-rock-variants-2779-stress.json`. Exact browser/Unity canvas antialiasing, remaining arena texture/FX details, device coverage, and Android packaging remain open.
-
-- White Sakura Bezier petal gate (2026-08-15): Unity's White Sakura mote sprite now samples the React `petalSprite()` cubic Bezier outline (three source control-point segments, 10 samples each; 31-point closed outline) before applying the source fill/stroke palette and the `rgba(233,199,214,.85)` midrib, replacing the prior eight-edge polygon approximation and opaque midrib. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-petal-bezier-alpha-focused-2767.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/VoidFall-petal-bezier-alpha-edit-2768.xml`; full PlayMode passed 362/362 in `D:/VoidFall-builds/TestResults/VoidFall-petal-bezier-alpha-play-2769.xml`; Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-petal-bezier-alpha-2770-build.log`, producing `D:/VoidFall-builds/VoidFall-petal-bezier-alpha-2770.exe` (667648 bytes); browser verification passed 23 files / 222 tests with the Vite build in `D:/VoidFall-builds/TestResults/VoidFall-petal-bezier-alpha-2771-browser-verify.log`; and the production-max player smoke completed with 192 enemies, 2 bosses, 2.88-3.15 ms frame EMA, 6.4 MB managed memory, and 295 MB reserved memory in `D:/VoidFall-builds/TestResults/VoidFall-petal-bezier-alpha-2772-stress.json`. Exact Canvas2D/Unity antialiasing, remaining arena texture/FX details, device coverage, and Android packaging remain open.
-
-- Operative starting-loadout gate (2026-08-15): Unity now resolves the initial weapon from the generated Operative definition's `startingWeapon` ID instead of assuming weapon array slot zero; the catalog values remain source-matched at 100 max health, 235 move speed, 95 pickup radius, and `pistol` start. Focused EditMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-operative-start-focused-2754.xml`; full EditMode passed 48/48 in `D:/VoidFall-builds/TestResults/VoidFall-operative-start-edit-2755.xml`; full PlayMode passed 361/361 in `D:/VoidFall-builds/TestResults/VoidFall-operative-start-play-2756.xml`; Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-operative-start-2757-build.log`, producing `D:/VoidFall-builds/VoidFall-operative-start-2757.exe` (667648 bytes); browser verification passed 23 files / 222 tests with the Vite build in `D:/VoidFall-builds/TestResults/VoidFall-operative-start-2758-browser-verify.log`; and the production-max player smoke completed with 192 enemies, 2 bosses, 3.09-4.61 ms frame EMA, 6.1 MB managed memory, and 295 MB reserved memory in `D:/VoidFall-builds/TestResults/VoidFall-operative-start-2759-stress.json`. The broader Operative/HUD/menu presentation audit, exact raster/device coverage, and Android packaging remain open.
-
-- Home START RUN glow gate (2026-08-15): Unity now replaces the flat rectangle around the home-screen START RUN action with cached rounded procedural outer and inset cyan glow layers following React's `neon-breathe` contract: normal outer 18-34px / .19-.38 alpha, inset 18-24px / .10-.16 alpha, hover outer 34px / .45 alpha, hover inset 24px / .20 alpha, and 6px corners, quantized to eight animation buckets to bound cache growth. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-home-start-glow-focused-2748.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-home-start-glow-edit-2749.xml`; full PlayMode passed 360/360 in `D:/VoidFall-builds/TestResults/VoidFall-home-start-glow-play-2750.xml`; Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-home-start-glow-2751-build.log`, producing `D:/VoidFall-builds/VoidFall-home-start-glow-2751.exe` (667648 bytes); browser verification passed 23 files / 222 tests with the Vite build in `D:/VoidFall-builds/TestResults/VoidFall-home-start-glow-2752-browser-verify.log`; and the production-max Windows player smoke completed with 192 enemies, 2 bosses, 3.36 ms frame EMA after warmup, 6.1 MB managed memory, and 295 MB reserved memory in `D:/VoidFall-builds/TestResults/VoidFall-home-start-glow-2753-stress.json`. Exact CSS blur/raster, animation timing raster, font metrics, device coverage, and Android packaging remain open. Source and validation runtime/test hashes matched; npm scratch/cache used D: because C: remains below 1 GB free, and no project or Git data was deleted.
-
-- Windows player smoke follow-up (2026-08-15): `D:/VoidFall-builds/VoidFall-menu-card-effects-2745.exe` ran the `productionMax` stress scenario at 1600x900/D3D11 on the GTX 1060, loaded fixture `4d5e955`, held 192 enemies and 2 bosses, reached 3.27 ms frame EMA after warmup, wrote `D:/VoidFall-builds/TestResults/VoidFall-menu-card-effects-2747-stress.json`, and exited cleanly with no exception/fatal/assert/crash markers in `D:/VoidFall-builds/TestResults/VoidFall-menu-card-effects-2747-player.log`. This is current Windows-host evidence; Android/device profiling remains blocked by the absent AndroidPlayer module.
-
-- Profile-menu card-effects gate (2026-08-15): Records, Workshop, and Settings profile panels now use the shared React card-local 14px backdrop-filter approximation and the same 80px/24px/12px card shadow contract as overlays, replacing the legacy small shadow rectangle; existing gradient, border, inset highlight, and accent rendering remain intact. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-menu-card-effects-focused-2742.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-menu-card-effects-edit-2743.xml`; full PlayMode passed 359/359 in `D:/VoidFall-builds/TestResults/VoidFall-menu-card-effects-play-2744.xml`; Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-menu-card-effects-2745-build.log`, producing `D:/VoidFall-builds/VoidFall-menu-card-effects-2745.exe` (667648 bytes); and browser verification passed 23 files / 222 tests with the Vite build in `D:/VoidFall-builds/TestResults/VoidFall-menu-card-effects-2746-browser-verify.log`. Exact CSS blur/compositing raster, menu animation raster, font metrics, device coverage, and Android packaging remain open. npm scratch/cache was routed to D: because the host C: drive remains below 1 GB free; no project or Git data was deleted.
-
-- Overlay-card backdrop-filter gate (2026-08-15): Unity now applies a guarded, clipped eight-sample card-local blur using a 14px sample radius and `.10` per-sample alpha to result, revive, and pause cards, in addition to the existing fullscreen overlay blur; missing render-target and non-Repaint paths remain safe. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-card-filter-focused-2737.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-card-filter-edit-2738.xml`; full PlayMode passed 358/358 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-card-filter-play-2739.xml`; Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-overlay-card-filter-2740-build.log`, producing `D:/VoidFall-builds/VoidFall-overlay-card-filter-2740.exe` (667648 bytes); and browser verification passed 23 files / 222 tests with the Vite build in `D:/VoidFall-builds/TestResults/VoidFall-overlay-card-filter-2741-browser-verify.log`. Exact CSS backdrop-filter Gaussian/compositing raster, browser font metrics, device coverage, and Android packaging remain open. The C: drive constraint was handled by routing npm scratch/cache to D:; no project or Git data was deleted.
-
-- Primary overlay-action glow-shadow gate (2026-08-15): Unity now adds cached, guarded cyan outer and inset glow passes to the compact primary actions used by result, revive, and pause overlays, matching React's normal `0 0 24px rgba(34,211,238,.12), inset 0 0 22px rgba(34,211,238,.055)` and hover `0 0 30px rgba(34,211,238,.2), inset 0 0 24px rgba(34,211,238,.08)` contracts with the source 7px corner radius. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-primary-action-shadow-focused-2732.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-primary-action-shadow-edit-2733.xml`; full PlayMode passed 357/357 in `D:/VoidFall-builds/TestResults/VoidFall-primary-action-shadow-play-2734.xml`; Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-primary-action-shadow-2735-build.log`, producing `D:/VoidFall-builds/VoidFall-primary-action-shadow-2735.exe` (667648 bytes); and browser verification passed 23 files / 222 tests with the Vite build in `D:/VoidFall-builds/TestResults/VoidFall-primary-action-shadow-2736-browser-verify.log`. Browser CSS blur/raster equivalence, hover-transition timing, device coverage, and Android packaging remain open. The host C: drive had only 0.79 GB free, so npm verification used a D: scratch/cache path; no project or Git data was deleted.
-
-- Overlay-card gradient gate (2026-08-15): Unity result and revive card textures now use React's exact shared card gradient tokens: `rgba(13,17,38,.90)` to `rgba(7,9,22,.94)` projected at 160°. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-gradient-focused-2724.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-gradient-edit-2725.xml`; full PlayMode passed 356/356 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-gradient-play-2726.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-overlay-gradient-2727-build.log`, producing `D:/VoidFall-builds/VoidFall-overlay-gradient-2727.exe` (667648 bytes). Exact browser gradient interpolation/raster, font metrics, device coverage, and Android packaging remain open.
-
-- Overlay backdrop-blur gate (2026-08-15): Unity now applies a guarded eight-sample fullscreen approximation of React's `.overlay { backdrop-filter: blur(4px) }` using the live world render target, with 4px sample radius and `.10` per-sample alpha; headless/no-render-texture paths remain safe. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-blur-focused-2720.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-blur-edit-2721.xml`; full PlayMode passed 355/355 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-blur-play-2722.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-overlay-blur-2723-build.log`, producing `D:/VoidFall-builds/VoidFall-overlay-blur-2723.exe` (667648 bytes). Exact browser Gaussian/compositing raster, device coverage, and Android packaging remain open.
-
-- Overlay-card shadow gate (2026-08-15): Unity now gives result, revive, and pause cards a shared cached rounded shadow pass derived from React's `box-shadow`: black 1px outline alpha `.40`, 24px vertical offset, 80px blur radius, 12px corners, and `.60` outer-shadow alpha. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-shadow-focused-2716.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-shadow-edit-2717.xml`; full PlayMode passed 354/354 in `D:/VoidFall-builds/TestResults/VoidFall-overlay-shadow-play-2718.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-overlay-shadow-2719-build.log`, producing `D:/VoidFall-builds/VoidFall-overlay-shadow-2719.exe` (667648 bytes). Exact CSS blur/compositing raster, backdrop-filter, device coverage, and Android packaging remain open.
-
-- Revive/Pause card-flow gate (2026-08-15): Unity now follows React's `.pause-card` grid flow: computed 11.5px kicker line, 13px kicker-to-title spacing, 32.6025px title line, 18px title-to-action spacing, 9px action gaps, and natural card heights of 228.1025px for Revive and 283.1025px for Pause. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-revive-flow-focused-2712.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-revive-flow-edit-2713.xml`; full PlayMode passed 353/353 in `D:/VoidFall-builds/TestResults/VoidFall-revive-flow-play-2714.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-revive-flow-2715-build.log`, producing `D:/VoidFall-builds/VoidFall-revive-flow-2715.exe` (667648 bytes). Exact browser font/raster, backdrop-filter raster, CSS animation raster, device coverage, and Android packaging remain open.
-
-- Revive/Pause title-glow gate (2026-08-15): Unity now draws the React cyan two-layer `text-shadow` contract behind both `REVIVE?` and `PAUSED`, using sampled-label rings at 12px/0.58 and 42px/0.25 source radius/alpha values. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-revive-title-glow-focused-2708.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-revive-title-glow-edit-2709.xml`; full PlayMode passed 352/352 in `D:/VoidFall-builds/TestResults/VoidFall-revive-title-glow-play-2710.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-revive-title-glow-2711-build.log`, producing `D:/VoidFall-builds/VoidFall-revive-title-glow-2711.exe` (667648 bytes). Exact CSS blur/raster, backdrop-filter raster, hover transition raster, device coverage, and Android packaging remain open.
-
-- Revive/Pause overlay-action gate (2026-08-15): Unity now matches React's shared compact overlay action contract: 12px kicker, 31px `REVIVE?`/`PAUSED` title, 18px regular body labels, a 38px boxed primary icon with 18px content, unboxed 17px secondary icons, source primary normal fill, and the `.compact:active` scale `0.988` transform. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-revive-overlay-focused-2703.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-revive-overlay-edit-2704.xml`; full PlayMode passed 351/351 in `D:/VoidFall-builds/TestResults/VoidFall-revive-overlay-play-2705.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-revive-overlay-2706-build.log`, producing `D:/VoidFall-builds/VoidFall-revive-overlay-2706.exe` (667648 bytes). Exact backdrop-filter raster, hover transition raster, device coverage, and Android packaging remain open.
-
-- Level-up reroll-action typography gate (2026-08-15): Unity now matches React's compact secondary-action contract: 18px regular body text, 12px display-font `Q` keycap text, and source enabled/disabled `#dbe5ee` / `#667382` icon-label colors. The existing 46px button, 20px keycap, 12px row margin, reroll state, and resource icon remain intact. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-reroll-focused-2699.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-reroll-edit-2700.xml`; full PlayMode passed 350/350 in `D:/VoidFall-builds/TestResults/VoidFall-reroll-play-2701.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-reroll-2702-build.log`, producing `D:/VoidFall-builds/VoidFall-reroll-2702.exe` (667648 bytes). Exact browser font raster, hover/active transition raster, device coverage, and Android packaging remain open.
-
-- Level-up card typography/flow gate (2026-08-15): Unity now uses React's computed 1.15 UI scale for upgrade-card meta, name, description, and index text: 12px, 21px, 14px, and 12px respectively. Card copy now follows the source 15px icon-to-copy margin, 8px name margin, 11px description margin, and computed line heights in both desktop and short-landscape layouts. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-levelup-card-typography-focused-2695.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-levelup-card-typography-edit-2696.xml`; full PlayMode passed 349/349 in `D:/VoidFall-builds/TestResults/VoidFall-levelup-card-typography-play-2697.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-levelup-card-typography-2698-build.log`, producing `D:/VoidFall-builds/VoidFall-levelup-card-typography-2698.exe` (667648 bytes). Exact browser font raster, letter-spacing, shadow/filter compositing, device coverage, and Android packaging remain open.
-
-- Supports/Late HUD safe-area gate (2026-08-15): Unity now matches React's owned Support/Late strip placement: 72px/76px browser top offsets, safe-area-aware left/right/top insets, full-viewport `48vh` wrapping height, and relayout when viewport dimensions or safe-area geometry changes within the same 720px breakpoint. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-support-late-focused-2691.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-support-late-edit-2692.xml`; full PlayMode passed 348/348 in `D:/VoidFall-builds/TestResults/VoidFall-support-late-play-2693.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-support-late-2694-build.log`, producing `D:/VoidFall-builds/VoidFall-support-late-2694.exe` (667648 bytes). Real-device safe-area delivery and Android packaging remain open.
-
-- Level-up heading typography gate (2026-08-15): Unity now uses React's computed 1.15 UI scale for the progression header: 13px `LEVEL UP` kicker, 25px mobile title at the 430px breakpoint, fluid 5vw title sizing with 32px/46px computed-equivalent clamps, and 46px desktop maximum. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-levelup-typography-focused-2687.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-levelup-typography-edit-2688.xml`; full PlayMode passed 347/347 in `D:/VoidFall-builds/TestResults/VoidFall-levelup-typography-play-2689.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-levelup-typography-2690-build.log`, producing `D:/VoidFall-builds/VoidFall-levelup-typography-2690.exe` (667648 bytes). Exact letter-spacing, text-shadow/raster, device coverage, and Android packaging remain open.
-
-- Game-over action active-transform gate (2026-08-15): Unity now applies React's `transform: scale(0.988)` pressed state around the full compact action, including panel chrome, primary icon box, and label, while retaining the React normal-color active state. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-active-focused-2682.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-active-edit-2683.xml`; full PlayMode passed 346/346 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-active-play-2684.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-action-active-2685-build.log`, producing `D:/VoidFall-builds/VoidFall-result-action-active-2685.exe` (667648 bytes). CSS transition timing/hover shadow raster, device coverage, and Android packaging remain open.
-
-- Game-over action hover-state gate (2026-08-15): Unity now maps the React compact result-button hover contract into distinct IMGUI hover textures: primary fill `rgba(10,43,55,0.92)` with `#a5f3fc` border, secondary fill `rgba(20,32,46,0.82)` with `rgba(103,232,249,0.43)` border, and normal-color active state. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-hover-focused-2678.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-hover-edit-2679.xml`; full PlayMode passed 346/346 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-hover-play-2680.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-action-hover-2681-build.log`, producing `D:/VoidFall-builds/VoidFall-result-action-hover-2681.exe` (667648 bytes). CSS hover shadow/transition raster, active scale transform, device coverage, and Android packaging remain open.
-
-- Game-over primary-action icon-box gate (2026-08-15): Unity now matches React's primary action icon treatment: the 18px rotate icon sits inside a 38px rounded box with 9px content padding, 1px cyan border, radius 5, and the source tinted background; the secondary 17px home icon remains unboxed. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-icon-box-focused-2673.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-icon-box-edit-2674.xml`; full PlayMode passed 345/345 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-icon-box-play-2675.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-action-icon-box-2676-build.log`, producing `D:/VoidFall-builds/VoidFall-result-action-icon-box-2676.exe` (667648 bytes). Exact browser raster, hover/active transitions, device coverage, and Android packaging remain open.
-
-- Game-over action-label typography gate (2026-08-15): Unity now matches React's inherited compact action text: browser body font family, regular weight, and 18px nearest-integer size for the 16px × 1.15 source scale. The previously matched 46px button chrome, centered layout, 12px icon gap, and 18/17px icons remain unchanged. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-typography-focused-2669.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-typography-edit-2670.xml`; full PlayMode passed 345/345 in `D:/VoidFall-builds/TestResults/VoidFall-result-action-typography-play-2671.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-action-typography-2672-build.log`, producing `D:/VoidFall-builds/VoidFall-result-action-typography-2672.exe` (667648 bytes). Exact browser line metrics, letter-spacing, hover/active transitions, device coverage, and Android packaging remain open.
-
-- Game-over New Best pulse gate (2026-08-15): Unity now renders the React `best-pulse` as six alpha-faded yellow rectangular shadow layers around the badge, using the source 18px-to-38px radius and 0.32-to-0.68 alpha curve instead of a single hard outline. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-badge-pulse-focused-2665.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-badge-pulse-edit-2666.xml`; full PlayMode passed 344/344 in `D:/VoidFall-builds/TestResults/VoidFall-result-badge-pulse-play-2667.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-badge-pulse-2668-build.log`, producing `D:/VoidFall-builds/VoidFall-result-badge-pulse-2668.exe` (667648 bytes). Rounded-corner/CSS blur raster equivalence, exact letter-spacing/font, device coverage, and Android packaging remain open.
-
-- Game-over badge typography gate (2026-08-15): Unity now uses the React badge contract for `NEW BEST` and save-warning badges: 12px computed-equivalent bold text, 28px minimum height, 10px horizontal padding, and 5px vertical padding, while retaining the source colors, 4px radius, and uppercase labels. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-badge-typography-focused-2661.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-badge-typography-edit-2662.xml`; full PlayMode passed 343/343 in `D:/VoidFall-builds/TestResults/VoidFall-result-badge-typography-play-2663.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-badge-typography-2664-build.log`, producing `D:/VoidFall-builds/VoidFall-result-badge-typography-2664.exe` (667648 bytes). Exact letter-spacing, CSS pulse box-shadow, browser font/raster, device coverage, and Android packaging remain open.
-
-- Game-over result vertical-spacing gate (2026-08-15): Unity now follows the React result-card spacing contract: 4px kicker bottom margin, 9px parent grid gap, 9px title bottom margin, 16px metric-grid top/bottom margins, conditional 18px title-to-badge spacing, 25px badge-to-grid spacing, and the existing 4px/7px detail-panel margins with a 9px panel gap. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-spacing-focused-2657.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-spacing-edit-2658.xml`; full PlayMode passed 342/342 in `D:/VoidFall-builds/TestResults/VoidFall-result-spacing-play-2659.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-spacing-2660-build.log`, producing `D:/VoidFall-builds/VoidFall-result-spacing-2660.exe` (667648 bytes). Exact browser font/raster, CSS margin/rendering equivalence, device coverage, and Android packaging remain open.
-
-- Game-over title-shadow gate (2026-08-15): Unity now draws a bounded sampled-label equivalent behind `TRY ANOTHER BUILD` using the React shadow contract: cyan `#22d3ee`, 12px inner radius at 0.58 source alpha, and 42px outer radius at 0.25 source alpha. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-title-glow-focused-2653.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-title-glow-edit-2654.xml`; full PlayMode passed 341/341 in `D:/VoidFall-builds/TestResults/VoidFall-result-title-glow-play-2655.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-title-glow-2656-build.log`, producing `D:/VoidFall-builds/VoidFall-result-title-glow-2656.exe` (667648 bytes). Exact CSS blur/raster equivalence, browser font comparison, remaining result spacing, device coverage, and Android packaging remain open.
-
-- Game-over result-detail typography gate (2026-08-15): Unity now uses browser-computed detail-panel sizes: 12px `FINAL BUILD` / `DAMAGE BY WEAPON` headings, 15px damage labels and values, non-wrapping damage rows, and the source 6px row gap. Existing 12px panel padding, 4px top / 7px bottom margins, colors, and chip-row gaps remain intact. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-detail-typography-focused-2649.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-detail-typography-edit-2650.xml`; full PlayMode passed 340/340 in `D:/VoidFall-builds/TestResults/VoidFall-result-detail-typography-play-2651.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-detail-typography-2652-build.log`, producing `D:/VoidFall-builds/VoidFall-result-detail-typography-2652.exe` (667648 bytes). Exact browser letter-spacing/font/raster, detail spacing capture, device coverage, and Android packaging remain open.
-
-- Game-over and Records metric-card typography gate (2026-08-15): Unity now shares the browser metric contract across the result and lifetime cards: 66px minimum height, centered vertical content, 5px label/value gap, 12px computed-equivalent uppercase label, 20px computed-equivalent bold value, and the source rgba(148,163,184,0.14) border color. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-metric-typography-focused-2645.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-metric-typography-edit-2646.xml`; full PlayMode passed 339/339 in `D:/VoidFall-builds/TestResults/VoidFall-metric-typography-play-2647.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-metric-typography-2648-build.log`, producing `D:/VoidFall-builds/VoidFall-metric-typography-2648.exe` (667648 bytes). CSS letter-spacing, exact browser font/raster comparison, remaining result spacing, device coverage, and Android packaging remain open.
-
-- Game-over heading typography gate (2026-08-15): Unity now uses dedicated browser-aligned result heading styles: a centered 12px computed-equivalent `RUN ENDED` kicker in muted cyan, a centered 31px computed-equivalent `TRY ANOTHER BUILD` heading in light text, and the source 9px heading gap, replacing the generic orange menu section/title styles. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-heading-focused-2641.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-heading-edit-2642.xml`; full PlayMode passed 338/338 in `D:/VoidFall-builds/TestResults/VoidFall-result-heading-play-2643.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-heading-2644-build.log`, producing `D:/VoidFall-builds/VoidFall-result-heading-2644.exe` (667648 bytes). Exact browser font/raster and text-shadow equivalence, remaining result spacing, device coverage, and Android packaging remain open.
-
-- Game-over result-grid column-gap gate (2026-08-15): Unity now inserts the browser's 8px horizontal gap between metric cards in each result row; the existing 8px row gap remains in place. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-metric-horizontal-gap-focused-2637.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-metric-horizontal-gap-edit-2638.xml`; full PlayMode passed 337/337 in `D:/VoidFall-builds/TestResults/VoidFall-result-metric-horizontal-gap-play-2639.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-metric-horizontal-gap-2640-build.log`, producing `D:/VoidFall-builds/VoidFall-result-metric-horizontal-gap-2640.exe` (667648 bytes). Exact browser metric typography/raster comparison, grid margins, device coverage, and Android packaging remain open.
-
-- Game-over result-action stack gate (2026-08-15): Unity now matches React's vertical full-width result actions: 46px compact buttons, 9px spacing, 18px rotate icon / 17px home icon, centered icon-plus-label groups, and distinct primary/secondary panel chrome. This replaces the prior side-by-side 38px generic buttons. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-actions-focused-2633.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-actions-edit-2634.xml`; full PlayMode passed 337/337 in `D:/VoidFall-builds/TestResults/VoidFall-result-actions-play-2635.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-actions-2636-build.log`, producing `D:/VoidFall-builds/VoidFall-result-actions-2636.exe` (667648 bytes). Exact browser font/raster comparison, hover/active animation equivalence, device coverage, and Android packaging remain open.
-
-- Game-over build-chip intrinsic-width gate (2026-08-15): Unity now measures each final-build label with the browser-preferred Windows font and adds the exact 56px fixed chrome (13px icon, two 6px gaps, 15px rank badge, 14px horizontal padding, and 2px border) instead of using the old character-count heuristic. The browser probe at 600x340 measured `Pulse Pistol` 116px, `Scattergun` 113px, `Railgun` 96px, `Weapon Calibration` 161px, and `Cluster Launcher` 145px; the probe is `D:/VoidFall-builds/visual/browser-build-chip-probe-600`. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-build-chip-width-focused-2629.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-build-chip-width-edit-2630b.xml`; full PlayMode passed 336/336 in `D:/VoidFall-builds/TestResults/VoidFall-result-build-chip-width-play-2631.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-build-chip-width-2632-build.log`, producing `D:/VoidFall-builds/VoidFall-result-build-chip-width-2632.exe` (667648 bytes). Exact browser font/raster comparison, rank-width edge cases, remaining result/detail styling, device coverage, and Android packaging remain open.
-
-- Game-over build-chip icon-size gate (2026-08-15): Unity now draws final-build weapon/support/late chips with the browser's 13px icon size; the prior 16px icon occupied too much of the 28px chip row. The focused regression passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-build-chip-icon-focused-2625.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-build-chip-icon-edit-2626.xml`; full PlayMode passed 336/336 in `D:/VoidFall-builds/TestResults/VoidFall-result-build-chip-icon-play-2627.xml`; and Windows packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-build-chip-icon-2628-build.log`, producing `D:/VoidFall-builds/VoidFall-result-build-chip-icon-2628.exe` (667648 bytes). Exact browser font/raster comparison, chip intrinsic-width equivalence, remaining result/detail styling, device coverage, and Android packaging remain open.
-
-- Game-over result-card chrome gate (2026-08-15): Unity now renders the result overlay card with the browser's rounded 12px panel chrome, 390px texture width, 720px scroll-surface height, source gradient colors, cyan border, and 25px content inset instead of the default Unity box. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-result-card-chrome-focused-2621.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-result-card-chrome-edit-2622.xml`; full PlayMode passed 336/336 in `D:/VoidFall-builds/TestResults/VoidFall-result-card-chrome-play-2623.xml`; packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-result-card-chrome-2624-build.log`; and the player is `D:/VoidFall-builds/VoidFall-result-card-chrome-2624.exe`.
-
-- Records/game-over metric-gap gate (2026-08-15): Unity now inserts the browser's 8px vertical metric-grid gap in both the Records lifetime grid and the game-over result grid. Focused PlayMode passed 1/1 in `D:/VoidFall-builds/TestResults/VoidFall-metric-gap-focused-2616.xml`; full EditMode passed 47/47 in `D:/VoidFall-builds/TestResults/VoidFall-metric-gap-edit-2617.xml`; full PlayMode passed 335/335 in `D:/VoidFall-builds/TestResults/VoidFall-metric-gap-play-2618.xml`; and packaging succeeded in `D:/VoidFall-builds/TestResults/VoidFall-metric-gap-2619-build.log`.
-
-- Evolution reveal presentation gates (2026-08-15): Unity now covers the source responsive vertical cross-line breakpoint, badge halo, title glow, intro blur fringe, and transparent-to-accent cross-line gradients. The relevant full-suite artifacts are `D:/VoidFall-builds/TestResults/VoidFall-evolution-crossline-edit-2576.xml`, `D:/VoidFall-builds/TestResults/VoidFall-evolution-halo-edit-2589.xml`, `D:/VoidFall-builds/TestResults/VoidFall-evolution-title-glow-edit-2595.xml`, `D:/VoidFall-builds/TestResults/VoidFall-evolution-intro-blur-edit-2609.xml`, and `D:/VoidFall-builds/TestResults/VoidFall-evolution-crossline-gradient-edit-2613.xml`, with matching PlayMode and Windows packaging artifacts recorded in `PARITY_MATRIX.md`.
-
-- Progression UI gates (2026-08-15): Unity now covers the browser's level-up short-landscape breakpoint, card/pip geometry, owned Support/Late chip chrome, responsive wrapping, and narrow intrinsic chip widths. Full EditMode, PlayMode, and Windows packaging artifacts are recorded in `PARITY_MATRIX.md` for gates 2579 through 2600.
-
-- Settings, Workshop, Records, home-menu, and touch-input gates (2026-08-15): responsive layout and source geometry were implemented and runtime-checked at desktop, portrait, and short-landscape viewports. Browser and Unity captures plus focused/full test and packaging artifacts are recorded in `PARITY_MATRIX.md`.
-
-- Gameplay presentation gates (2026-08-15): operative aura radius, player feedback, arena layers, projectile/wake FX, impact marks, burst particles, and related source-mapped effects have regression coverage. Exact browser raster/compositing equivalence remains partial and is tracked in the matrix.
-
-## Current verification baseline
-
-- Browser: `npm run verify` passed formatting, TypeScript typecheck, Vitest (23 files / 222 tests), and the production Vite build.
-- Unity source and validation-copy runtime/test files were synchronized and hash-matched after the latest gate.
-- Latest Unity focused regression: 1/1, `D:/VoidFall-builds/TestResults/browser-save-schema-focused-2922.xml`.
-- Latest Unity full EditMode: 63/63, `D:/VoidFall-builds/TestResults/browser-save-schema-editmode-2923.xml`.
-- Latest Unity full PlayMode: 377/377, `D:/VoidFall-builds/TestResults/browser-save-schema-playmode-2924.xml`.
-- Latest Windows packaging: success, `D:/VoidFall-builds/TestResults/windows-build-2925.log`; executable: `D:/VoidFall-builds/VoidFall-windows-validation-2925.exe` (667,648 bytes). The build used D:-hosted Unity temp storage; C: remained intact with low free space.
-- Latest Windows player stress: corrected D3D11 productionMax exited 0, reached 191 enemies and 2 bosses, and completed its 1.5 s warmup / 5 s measurement in `D:/VoidFall-builds/TestResults/windows-player-stress-save-schema-2925-correct.log` and `D:/VoidFall-builds/TestResults/windows-player-stress-save-schema-2925-correct.json`, with a 6.588 ms final frame EMA. The save-schema focused/full EditMode evidence is `browser-save-schema-focused-2922.xml` / `browser-save-schema-editmode-2923.xml`.
-- These runs used the existing development machine and Unity `6000.5.7f1`; they do not claim validation on the user's incoming 32 GB Ryzen 9 5900HX / RTX 3080 PC.
-
-## Known open or partial work
-
-- Full source behavior and content parity is not complete. The remaining rows and status are tracked in `PARITY_MATRIX.md`.
-- Exact browser font metrics, Canvas2D rasterization, gradients, shadows, filters, and compositing remain approximate in several Unity paths.
-- WebAudio graph/mixing/spatial equivalence and device audio behavior remain open.
-- Physical touch delivery, real-device safe-area behavior/profiling, Android packaging, and device capture coverage remain open.
-- Backdrop-filter and CSS-filter equivalence is not exact; the Unity fallbacks are bounded and regression-covered where implemented.
-- Save-state-independent fixtures, broader progression/result/detail rows, and full cross-device capture coverage remain open.
-- Browser-compatible save export now matches React's current v5 `RunRecord` shape by omitting per-run `supports`, `late`, and `evolved`; Unity native save retains those richer snapshots. The currently declared React fields are covered by the schema regression, while the richer Unity-only snapshots remain native-only.
-- Android SDK/NDK/OpenJDK components are not present in the current Unity installation. No storage or system data was deleted to address that blocker.
-
-## Next routing
-
-Continue by auditing the next high-impact source/runtime gap in `PARITY_MATRIX.md`, then implement the smallest justified parity fix, run focused and full Unity/browser verification, package a Windows validation build, and update both reports.
-
-Note: this status report was reconstructed after an interrupted documentation write; the detailed historical parity entries remain in `PARITY_MATRIX.md`.
+# VoidFall Unity — Migration Status
+
+Last updated: 2026-08-16
+
+## What this document is
+
+An honest description of what the Unity port currently is, what is verified, and
+what is not. It replaces an earlier version that had grown into a long log of
+"gates," each asserting a pixel-level parity claim as verified. That log was
+removed for two reasons:
+
+1. Several of its most recent claims described behaviour that no longer exists.
+   It asserted the fullscreen overlay backdrop-filter approximation, the
+   card-local blur, and dynamic render-scale as implemented and passing. All
+   three have since been removed or disabled (see **Rendering**).
+2. The test runs it cited as evidence live outside this repository, so none of
+   them can be reproduced from a clone. Numbers that cannot be re-derived are
+   not evidence.
+
+Where this document says something is verified, it names the command that
+verifies it.
+
+## Authority
+
+The React/TypeScript game in the sibling `voidfall.io` repository remains the
+behavioural and content authority. This port is expected to match its content
+and simulation exactly. It is **not** expected to match its rasterization.
+
+That second point is a deliberate change of direction. A large amount of earlier
+effort went into reproducing Canvas2D output by hand — rasterizing CSS radial
+gradients, `box-shadow` alpha falloff, and `backdrop-filter` blur into
+`Texture2D`, and faking `text-shadow` by drawing the same label 24–36 times at
+ring offsets. That work made the port slower without making it look better, and
+in the case of render-scale it actively made it look worse. Visual work should
+now target "correct and sharp in Unity's idiom," not "bit-identical to a
+browser."
+
+## Architecture (as built)
+
+Five assembly definitions under `Assets/VoidFall/`:
+
+| Assembly | Contents |
+| --- | --- |
+| `VoidFall.Core` | Engine-free simulation rules, collision grid, RNG, quality/balance/meteor/pickup rules |
+| `VoidFall.Content` | Generated content catalog plus hand-written elite, roster, upgrade, evolution rules |
+| `VoidFall.Runtime` | All Unity behaviour: simulation driver, rendering, HUD, menus, sprite/plate factories, telemetry |
+| `VoidFall.Persistence` | Save store, browser save import/export |
+| `VoidFall.Audio` | Procedural audio |
+
+Things worth knowing before working in here:
+
+- `Runtime/Gameplay/VoidFallGameRuntime.cs` is a single ~25,000-line class holding
+  the simulation, every enemy behaviour, all rendering, the HUD, every menu, the
+  settings flow, and telemetry. It is the project's main structural problem and
+  the reason most changes are riskier than they should be.
+- The UI is legacy IMGUI (`OnGUI`), roughly half the monolith. IMGUI re-runs
+  layout and draw every frame, allocates per frame, cannot be batched, and has
+  no SDF text. This is the largest remaining cause of poor visual quality.
+- There is no scriptable render pipeline. `Packages/manifest.json` contains
+  `com.unity.feature.2d` and no URP package, so there is no post-processing
+  stack and therefore no bloom. For a neon-heavy game this is the single
+  largest available visual improvement and is not yet done.
+- One scene (`Assets/Scenes/SampleScene.unity`), zero prefabs. Every object is
+  constructed in code at runtime.
+- `Assets/VoidFall/UI`, `Mobile`, and `Editor` are empty. `Rendering` holds only
+  shaders and icon assets. Earlier documentation described these as assemblies;
+  they are not.
+
+## Content parity — verified, and the strongest part of the port
+
+`Assets/VoidFall/Content/ContentCatalog.Generated.cs` is machine-generated from
+the source repository by `scripts/generate-unity-content.ts` and carries its
+provenance in code:
+
+```csharp
+public const string SourceCommit = "4d5e955";
+```
+
+A field-by-field comparison against the TypeScript source found no numeric
+drift anywhere:
+
+- 6 weapons × 6 ranks × 15 stat fields (540 values)
+- 14 enemies, emitted in `ENEMY_ORDER` (required, since the runtime indexes
+  these arrays positionally)
+- 4 bosses with 8 attacks, the scheduled Elite, 3 elite variants
+- 10 support upgrades, 3 late upgrades, 6 evolutions with matching gates
+- 13 spawn bands, 3 arenas, operative stats, XP curve, Roster II curve
+
+Floats are emitted at full double precision (`Cooldown = 0.41999999999999998` is
+the exact IEEE-754 double for `0.42`, not drift).
+
+**The maintenance rule is a provenance check, not a value diff.** If
+`voidfall.io` HEAD moves past `4d5e955` with changes under `src/game/`, re-run
+the generator. The only numbers that can drift independently are the
+hand-written ones: `EliteRules.cs`, `EnemyRosterRules.cs`, `BalanceRules.cs`,
+`EvolutionRules.cs`, `ProgressionRules.cs`, and the pool weights in
+`UpgradeRules.cs`. All were correct as of this update.
+
+Two known hardcoded lists that duplicate catalog data and can go stale silently:
+`SaveStore.BestiaryOrder` / `SaveStore.IsArena`, and
+`ProceduralSpriteFactory.SourceEnemyColor` / `SourceBossColor`. Adding content
+without updating these will silently drop bestiary flags or bake unused sprite
+cache keys.
+
+## Rendering — current model
+
+**The world renders straight to the backbuffer at native resolution.**
+
+The previous path rendered the world into a downscaled `RenderTexture` and
+upscaled it through a canvas `RawImage`. That resampled every frame and was a
+major cause of the softness the port was criticised for. Quality presets now
+scale cosmetic budgets (particle counts, floater counts, death ghosts) only;
+they never change the resolution the world is rasterized at.
+`QualityRules.EffectiveRenderScale` returns `1` for the High preset.
+
+**Film grain is removed, deliberately.** The grain overlay cost clarity and, at
+non-1:1 scale, read as blur rather than texture. The game's visual identity is
+better served by a clean, sharp image. `ArenaPlateFactory.CreateGrainTile` still
+exists and still produces a tile, but nothing enables it.
+
+Consequences of those two decisions, now reflected in the code:
+
+- The fullscreen overlay backdrop blur was deleted. It could only sample the
+  world through the render texture, so with the render texture gone it was a
+  permanent no-op. Every former call site already drew an explicit fullscreen
+  dim immediately afterwards, so overlays are unchanged on screen.
+- The card-local blur is now a flat scrim rather than eight offset copies of the
+  frame. Cheaper and cleaner.
+- The `-vfno-grain` capture flag was removed. With grain permanently off it had
+  nothing to suppress and silently did nothing.
+- `EnsureWorldRenderTarget`, `ReleaseWorldRenderTarget`, the render-target
+  fields, and the canvas `RawImage` that displayed it were all deleted as
+  unreachable.
+
+Reinstating a real blur or any glow/bloom requires a render pipeline with
+post-processing. It should not be re-attempted with multi-sample IMGUI draws.
+
+**Open visual work, in rough priority order:** add URP + the 2D renderer and
+enable bloom; replace IMGUI with UI Toolkit or uGUI + TextMeshPro; then revisit
+per-effect fidelity.
+
+## Gameplay feel deviations from source
+
+One deliberate deviation, recorded because it is a design decision and not a bug
+fix: `TriggerFreeze` clamps hitstop to `seconds * 0.4`, capped at 35 ms, where
+the source applies the full requested duration. This was done to reduce
+perceived stutter. It makes impacts read softer than the browser. If frame
+pacing improves, this is worth revisiting, because it may have been compensating
+for frame spikes rather than for the hitstop itself.
+
+## Persistence
+
+Schema version 5, key `voidfall_save_v4`, matching the source. Stored as JSON at
+`Application.persistentDataPath`. No version-keyed migration steps on either
+side; both clamp the incoming version and apply a single legacy fix-up (the
+Revival Protocol refund for `0 < version < 5`). Field clamping mirrors the
+source's `sanitizeSave` closely.
+
+Recent correctness work in this area:
+
+- `Load()` no longer performs writes inside the block whose `catch` classifies
+  the file as corrupt. Previously an I/O failure — antivirus lock, cloud-sync
+  hold, disk full — was indistinguishable from malformed JSON, so a valid
+  profile could be backed up as "corrupt", discarded, and overwritten with
+  defaults. Reading and parsing are now separate, and a read failure returns a
+  default profile **without writing anything**.
+- A read failure latches `StorageUnreadable`, and ordinary `Save()` calls then
+  refuse to overwrite the file. This closes the deferred version of the same
+  data loss, where the next successful run-save would clobber a profile the
+  session simply could not see. Explicit destructive actions (reset progress,
+  import browser save) pass `allowOverwriteUnreadable: true`.
+- `Save()` writes through a `FileStream` with `Flush(true)` before renaming, so
+  the replacement's bytes reach the device before the rename is committed.
+  `File.Replace` keeps a `.bak` one-generation backup. The previous truncating
+  `File.Copy(overwrite: true)` fallback was removed; a failed save now leaves
+  the last good profile intact and surfaces the exception.
+- Browser export is lossless. Per-run `supports`, `late`, and `evolved` are now
+  emitted. React's `sanitizeRunRecord` rebuilds records from known keys and
+  ignores unrecognized ones, so the document stays browser-readable while
+  export → import no longer destroys those arrays across all 12 retained runs.
+- `TryImportBrowserSave` writes a `.pre-import.bak` before overwriting.
+- `BrowserSaveExporter.Export` operates on a detached clone.
+  `SaveStore.Sanitize` clamps in place and returns the same reference, so
+  exporting previously mutated the live in-memory profile.
+- The workshop purchase save is guarded and rolls back parts and rank on
+  failure. It was the only unguarded `Save()` call site.
+- `NormalizeDate` returns `0` for unrepresentable dates instead of a far-future
+  sentinel that sorted to the front of `recentRuns` and evicted a genuine run at
+  the 12-entry cap.
+
+## Verification
+
+What can be verified from a clone of this repository:
+
+```
+dotnet build VoidFall.Runtime.csproj -t:Rebuild
+```
+
+This transitively builds all five assemblies. Current result: **0 errors, 14
+warnings.** All 14 are `CS0649` in `Runtime/ParityFixtureProbe.cs` — fields
+populated by `JsonUtility.FromJson`, which the compiler cannot see. They are
+pre-existing and harmless.
+
+Use `-t:Rebuild`. A plain incremental `dotnet build` can report 0 warnings from
+cached results and is not a trustworthy check.
+
+## What is not verified
+
+Be direct about this when planning work.
+
+- **There are no tests in this repository.** Earlier documentation cited 377
+  PlayMode and 63 EditMode tests, but they live in a separate validation clone
+  outside the repo. Nothing here runs them. Several of them were written against
+  the render-target and backdrop-blur paths that have since been removed, so an
+  unknown number now fail. Getting a test project in-repo is the highest-value
+  next task, because until then no change to this codebase can be regression
+  checked.
+- **Runtime performance is unmeasured.** No profiling claim in this document,
+  because there is no trustworthy measurement. Earlier reported frame times
+  ranged from 2.7 ms to 22.1 ms for the same build and were attributed to
+  "launch-mode artifacts"; they were also taken on different hardware than the
+  current target. A short boot smoke with a full enemy field is a crash check,
+  not a performance result.
+- No Android/device coverage. The Android SDK/NDK/JDK components are not present
+  in the current Unity install.
+- No WebAudio equivalence testing.
+- Physical touch input, safe-area behaviour, and app lifecycle on device.
+
+## Known performance issues, not yet addressed
+
+Identified by reading the code, not by profiling. Listed so they are not
+rediscovered from scratch:
+
+- `ProceduralSpriteFactory.Enemy` builds its cache key by string concatenation
+  (`id + "/" + ColorUtility.ToHtmlStringRGBA(accent) + "/" + hit`) on every call.
+  `Render()` calls it once per enemy per frame, so a full field allocates tens of
+  thousands of short-lived strings per second to look up sprites that are already
+  cached. `EnemySpriteAccent` compounds this with a linear string scan
+  (`FindEnemy`) and a hex re-parse per enemy per frame. All three should resolve
+  to an integer index and a cached `Color` at spawn.
+- Eight `static readonly Dictionary<string, Texture2D>` GUI caches are never
+  cleared and never `Destroy`ed. Being static, they survive scene reloads and
+  accumulate for the process lifetime.
+- Roughly 650 lines of near-identical `Reset/Append/Remove/Ensure*Order`
+  bookkeeping is duplicated across eleven entity types. One generic order-list
+  type replaces all of it and removes eleven independent chances of getting
+  swap-removal index math wrong.
+- `CollisionGrid.QueryCells` silently truncates when the caller's output buffer
+  fills. Buffers are currently sized to `MaxEnemies` so it is likely
+  unreachable, but a silent early return in collision broad-phase means missed
+  hits rather than a visible failure. It should assert.
+
+## Related documents
+
+`PARITY_MATRIX.md` holds the detailed source-to-Unity mapping. **Its rendering
+rows are stale.** Any row describing overlay backdrop-filter, card-local blur,
+render-scale, or film grain no longer reflects the code. Content, simulation, and
+progression rows are still accurate.
