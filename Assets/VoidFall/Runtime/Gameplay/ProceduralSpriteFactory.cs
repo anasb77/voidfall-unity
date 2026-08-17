@@ -311,7 +311,7 @@ namespace VoidFall.Runtime
                 new Color(color.r, color.g, color.b, 0.55f),
                 0.35f);
             canvas.StrokePolygon(diamond, new Color(1f, 1f, 1f, 0.8f), 1.5f);
-            var sprite = canvas.ToSprite("VoidFall_XP_Gem_" + tier, true);
+            var sprite = canvas.ToAtlasSprite("VoidFall_XP_Gem_" + tier);
             if (tier == 0) _gemSmall = sprite;
             else if (tier == 1) _gemMedium = sprite;
             else _gemLarge = sprite;
@@ -1171,13 +1171,45 @@ namespace VoidFall.Runtime
         /// </summary>
         public static void WarmAllSprites()
         {
-            WarmProjectileFrames();
+            var steps = WarmAllSpritesSteps();
+            while (steps.MoveNext())
+            {
+            }
+
+            // One page upload for everything baked above, rather than one per
+            // sprite. Apply always re-uploads the whole page.
+            FlushAtlas();
+        }
+
+        /// <summary>
+        /// The warm work, split into resumable steps. Yields the number of
+        /// sprites rasterized by each step so a caller can spend a fixed time
+        /// budget per frame instead of blocking startup for the whole set.
+        ///
+        /// This is the single definition of what gets warmed;
+        /// <see cref="WarmAllSprites"/> just drains it. Keeping one body means
+        /// the incremental and blocking paths cannot drift in coverage.
+        ///
+        /// The caller is responsible for calling <see cref="FlushAtlas"/> once
+        /// the sequence is exhausted. Flushing per step would re-upload the
+        /// whole atlas page every frame.
+        /// </summary>
+        public static IEnumerator<int> WarmAllSpritesSteps()
+        {
+            // Each call builds all ProjectileFrameCount frames for the kind, so
+            // this is five large steps rather than one enormous one.
+            foreach (var kind in new[] { "pistol", "scattergun", "railgun", "seeker", "gunner" })
+            {
+                ProjectileFrame(kind, 0);
+                yield return ProjectileFrameCount;
+            }
 
             foreach (var definition in ContentCatalog.Enemies)
             {
                 var accent = ParseColor(definition.Color);
                 Enemy(definition.Id, accent, false);
                 Enemy(definition.Id, accent, true);
+                var built = 2;
 
                 // Elite variants keep their base enemy body and base accent, so
                 // the two calls above already cover them. Roster II silhouettes
@@ -1186,7 +1218,10 @@ namespace VoidFall.Runtime
                 {
                     RosterTwoEnemy(definition.Id, false);
                     RosterTwoEnemy(definition.Id, true);
+                    built += 2;
                 }
+
+                yield return built;
             }
 
             // The scheduled charging Elite is the only entity that uses the
@@ -1194,34 +1229,56 @@ namespace VoidFall.Runtime
             var eliteAccent = ParseColor(ContentCatalog.Elite.Color);
             Enemy("elite", eliteAccent, false);
             Enemy("elite", eliteAccent, true);
+            yield return 2;
+
+            // The harvester-full and exploder-armed overlays request a white
+            // accent rather than the catalog colour, so they are separate cache
+            // keys from the bodies warmed above. Without these two the overlays
+            // would be the only sprites baked mid-run, and since the atlas is
+            // flushed at the start of Render they would be invisible for the
+            // single frame they were created on.
+            Enemy("harvester", Color.white, true);
+            Enemy("exploder", Color.white, true);
+            RosterTwoEnemy("exploder", true);
+            yield return 3;
 
             foreach (var boss in ContentCatalog.Bosses)
             {
                 var accent = ParseColor(boss.Color);
                 Boss(boss.Id, accent, false);
                 Boss(boss.Id, accent, true);
+                yield return 2;
             }
 
             for (var tier = 0; tier < 3; tier++)
                 Gem(tier);
+            yield return 3;
+
             foreach (var kind in new[] { "xp", "part", "magnet", "repair", "bomb", "overdrive" })
                 Pickup(kind);
+            yield return 6;
 
             Projectile("curved");
             for (var shard = 0; shard < 4; shard++)
                 MeteorShard(shard);
+            yield return 5;
+
             for (var variant = 0; variant < 4; variant++)
             {
                 Meteor(variant, false);
                 Meteor(variant, true);
+                yield return 2;
             }
 
             Blade(false);
             Blade(true);
             EliteRing();
             BlastWaveDisc();
+            yield return 4;
+
             PlayerAura(false);
             PlayerAura(true);
+            yield return 2;
         }
 
         public static float ProjectileCanvasSize(string kind)
@@ -1547,7 +1604,7 @@ namespace VoidFall.Runtime
             canvas.FillCircle(new Vector2(-radius * 0.08f, radius * 0.04f), radius * 0.52f,
                 hit ? ParseColor("#dbeafe") : ParseColor("#111827"));
             DrawEnemyDetails(canvas, id, radius, accent, hit);
-            return canvas.ToSprite("VoidFall_Enemy_" + id + (hit ? "_Hit" : ""), true);
+            return canvas.ToAtlasSprite("VoidFall_Enemy_" + id + (hit ? "_Hit" : ""));
         }
 
         private static Sprite BuildRosterTwoEnemy(string id, bool hit)
@@ -1696,7 +1753,7 @@ namespace VoidFall.Runtime
                 DrawRosterCore(canvas, new Vector2(-radius * 0.04f, -radius * 0.03f), radius * 0.27f, accent, hit);
             }
 
-            return canvas.ToSprite("VoidFall_RosterII_" + id + (hit ? "_Hit" : ""), true);
+            return canvas.ToAtlasSprite("VoidFall_RosterII_" + id + (hit ? "_Hit" : ""));
         }
 
         private static void DrawRosterCore(RasterCanvas canvas, Vector2 centre, float radius, Color accent, bool hit)
@@ -2042,7 +2099,7 @@ namespace VoidFall.Runtime
                     DrawCore(canvas, 0, 0, radius * 0.2f, accent, hit);
                     break;
             }
-            return canvas.ToSprite("VoidFall_Boss_" + id + (hit ? "_Hit" : ""));
+            return canvas.ToAtlasSprite("VoidFall_Boss_" + id + (hit ? "_Hit" : ""));
         }
 
         /// <summary>
@@ -2245,7 +2302,7 @@ namespace VoidFall.Runtime
                 c.FillPolygon(new[] { new Vector2(0, -10), new Vector2(8, 0), new Vector2(0, 10), new Vector2(-8, 0) }, color);
                 c.FillCircle(new Vector2(2, 2), 2.5f, new Color(0.88f, 1f, 0.95f, 1));
             }
-            return c.ToSprite("VoidFall_Pickup_" + kind, true);
+            return c.ToAtlasSprite("VoidFall_Pickup_" + kind);
         }
 
         private static Sprite[] BuildProjectileFrames(string kind)
@@ -2376,7 +2433,9 @@ namespace VoidFall.Runtime
                 canvas.FillCircle(Vector2.zero, 7f, new Color(1f, 0.48f, 0.28f, 1));
                 canvas.FillCircle(new Vector2(2, 1), 2.2f, new Color(1f, 0.9f, 0.78f, 1));
             }
-            return canvas.ToSprite("VoidFall_Projectile_" + kind + nameSuffix);
+            // The 32-frame orientation sets make this the largest family by far:
+            // five weapon kinds x 32 frames is 160 of the distinct textures.
+            return canvas.ToAtlasSprite("VoidFall_Projectile_" + kind + nameSuffix);
         }
 
         private static Sprite BuildMeteorShard(int variant)
@@ -2398,7 +2457,7 @@ namespace VoidFall.Runtime
             canvas.FillPolygon(polygon, new Color(0.165f, 0.13f, 0.14f, 1));
             canvas.StrokePolygon(polygon, new Color(0.42f, 0.29f, 0.23f, 1), 1.2f);
             canvas.FillCircle(new Vector2(-radius * 0.2f, -radius * 0.15f), radius * 0.3f, new Color(0.29f, 0.23f, 0.2f, 1));
-            return canvas.ToSprite("VoidFall_Meteor_Shard_" + variant);
+            return canvas.ToAtlasSprite("VoidFall_Meteor_Shard_" + variant);
         }
 
         private static Sprite BuildMeteor(int variant, bool explosive)
@@ -2548,7 +2607,7 @@ namespace VoidFall.Runtime
                     Mathf.Max(2, radius * 0.075f),
                     new Color(0.94f, 0.53f, 0.23f, 0.95f));
             }
-            return canvas.ToSprite("VoidFall_Meteor_" + variant + (explosive ? "_Explosive" : ""), true);
+            return canvas.ToAtlasSprite("VoidFall_Meteor_" + variant + (explosive ? "_Explosive" : ""));
         }
 
         private static Vector2[] MeteorPoints(float radius, int variant)
@@ -2672,6 +2731,190 @@ namespace VoidFall.Runtime
                 (source.b * sourceAlpha + destinationColor.b * destinationAlpha * (1f - sourceAlpha)) / outputAlpha,
                 outputAlpha);
             pixels[index] = output;
+        }
+
+        /// <summary>
+        /// Packs small runtime-baked sprites into shared atlas pages.
+        ///
+        /// Every sprite used to own a private Texture2D. SpriteRenderer can only
+        /// batch renderers that share a texture, so ~230 distinct sprites meant
+        /// ~230 unbatchable draw calls. Packing them collapses that to one call
+        /// per page.
+        ///
+        /// This is opt-in per sprite family rather than applied to every sprite,
+        /// because a handful of sprites are consumed as raw textures rather than
+        /// through SpriteRenderer: the particle system assigns
+        /// ParticleDot().texture to its material, and the workshop preview draws
+        /// Operative/PlayerRing/Dot/WorkshopPreviewLayer through
+        /// GUI.DrawTexture. Those would render the whole page, so they stay
+        /// standalone. The families that are packed are only ever assigned to
+        /// SpriteRenderer.sprite.
+        /// </summary>
+        private static class SpriteAtlasPacker
+        {
+            private const int PageSize = 2048;
+            // Bilinear filtering can reach half a texel outside the sprite rect.
+            // A standalone texture with Clamp wrapping extended its own edge
+            // pixel there; inside an atlas the neighbour would bleed in instead,
+            // so the edge extension is baked into a padded border.
+            private const int Padding = 2;
+
+            private sealed class Page
+            {
+                public Texture2D Texture;
+                public int CursorX;
+                public int CursorY;
+                public int RowHeight;
+                public bool Dirty;
+            }
+
+            private static readonly List<Page> Pages = new List<Page>();
+
+            public static Sprite Add(
+                Color32[] pixels,
+                int width,
+                int height,
+                float pixelsPerUnit,
+                string name)
+            {
+                if (pixels == null || width <= 0 || height <= 0) return null;
+
+                var blockWidth = width + Padding * 2;
+                var blockHeight = height + Padding * 2;
+                if (blockWidth > PageSize || blockHeight > PageSize)
+                    return Standalone(pixels, width, height, pixelsPerUnit, name);
+
+                var page = Acquire(blockWidth, blockHeight, out var blockX, out var blockY);
+                page.Texture.SetPixels32(
+                    blockX,
+                    blockY,
+                    blockWidth,
+                    blockHeight,
+                    ExpandWithEdgeClamp(pixels, width, height));
+                page.Dirty = true;
+
+                var sprite = Sprite.Create(
+                    page.Texture,
+                    new Rect(blockX + Padding, blockY + Padding, width, height),
+                    new Vector2(0.5f, 0.5f),
+                    pixelsPerUnit);
+                sprite.name = name;
+                return sprite;
+            }
+
+            /// <summary>
+            /// Uploads pages written since the last call. Deferred because Apply
+            /// re-uploads the whole page, so doing it per sprite would cost one
+            /// full-page upload per bake.
+            /// </summary>
+            public static void Flush()
+            {
+                for (var index = 0; index < Pages.Count; index++)
+                {
+                    var page = Pages[index];
+                    if (!page.Dirty) continue;
+                    // Keep the page readable: later sprites write into it.
+                    page.Texture.Apply(false, false);
+                    page.Dirty = false;
+                }
+            }
+
+            private static Color32[] ExpandWithEdgeClamp(Color32[] pixels, int width, int height)
+            {
+                var blockWidth = width + Padding * 2;
+                var blockHeight = height + Padding * 2;
+                var block = new Color32[blockWidth * blockHeight];
+                for (var y = 0; y < blockHeight; y++)
+                {
+                    var sourceY = Mathf.Clamp(y - Padding, 0, height - 1);
+                    var sourceRow = sourceY * width;
+                    var targetRow = y * blockWidth;
+                    for (var x = 0; x < blockWidth; x++)
+                    {
+                        var sourceX = Mathf.Clamp(x - Padding, 0, width - 1);
+                        block[targetRow + x] = pixels[sourceRow + sourceX];
+                    }
+                }
+                return block;
+            }
+
+            // Shelf allocator: fill a row left to right, then start a new row
+            // above it. Good enough for sprites of similar height and it never
+            // needs to move an entry once placed.
+            private static Page Acquire(int blockWidth, int blockHeight, out int x, out int y)
+            {
+                for (var index = 0; index < Pages.Count; index++)
+                {
+                    var page = Pages[index];
+                    if (page.CursorX + blockWidth > PageSize)
+                    {
+                        page.CursorX = 0;
+                        page.CursorY += page.RowHeight;
+                        page.RowHeight = 0;
+                    }
+                    if (page.CursorY + blockHeight > PageSize) continue;
+
+                    x = page.CursorX;
+                    y = page.CursorY;
+                    page.CursorX += blockWidth;
+                    if (blockHeight > page.RowHeight) page.RowHeight = blockHeight;
+                    return page;
+                }
+
+                var created = NewPage();
+                Pages.Add(created);
+                x = 0;
+                y = 0;
+                created.CursorX = blockWidth;
+                created.RowHeight = blockHeight;
+                return created;
+            }
+
+            private static Page NewPage()
+            {
+                var texture = new Texture2D(PageSize, PageSize, TextureFormat.RGBA32, false)
+                {
+                    name = "VoidFall_SpriteAtlas_" + Pages.Count,
+                    filterMode = FilterMode.Bilinear,
+                    wrapMode = TextureWrapMode.Clamp,
+                };
+                var clear = new Color32[PageSize * PageSize];
+                texture.SetPixels32(clear);
+                texture.Apply(false, false);
+                return new Page { Texture = texture };
+            }
+
+            private static Sprite Standalone(
+                Color32[] pixels,
+                int width,
+                int height,
+                float pixelsPerUnit,
+                string name)
+            {
+                var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+                {
+                    name = name + "_Texture",
+                    filterMode = FilterMode.Bilinear,
+                    wrapMode = TextureWrapMode.Clamp,
+                };
+                texture.SetPixels32(pixels);
+                texture.Apply(false, false);
+                var sprite = Sprite.Create(
+                    texture,
+                    new Rect(0, 0, width, height),
+                    new Vector2(0.5f, 0.5f),
+                    pixelsPerUnit);
+                sprite.name = name;
+                return sprite;
+            }
+        }
+
+        /// <summary>
+        /// Uploads any atlas pages that have pending writes. Cheap when clean.
+        /// </summary>
+        public static void FlushAtlas()
+        {
+            SpriteAtlasPacker.Flush();
         }
 
         private sealed class RasterCanvas
@@ -3357,6 +3600,19 @@ namespace VoidFall.Runtime
             public Sprite ToSprite(string name)
             {
                 return ToSprite(name, false);
+            }
+
+            /// <summary>
+            /// Packs into a shared atlas page instead of allocating a private
+            /// texture, so renderers using different sprites can batch. Only for
+            /// sprites consumed through SpriteRenderer.sprite; anything that
+            /// reads the raw texture must use <see cref="ToSprite(string, bool)"/>.
+            /// Geometry is unchanged: the rect is still the full canvas and
+            /// pixelsPerUnit is still the canvas size, so world size is identical.
+            /// </summary>
+            public Sprite ToAtlasSprite(string name)
+            {
+                return SpriteAtlasPacker.Add(_pixels, _size, _size, _size, name);
             }
 
             public Sprite ToSprite(string name, bool keepReadable)

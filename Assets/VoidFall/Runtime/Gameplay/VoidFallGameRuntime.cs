@@ -607,6 +607,7 @@ namespace VoidFall.Runtime
         private readonly LineRenderer[] _blastWaveArcViews = new LineRenderer[MaxBlastWaves];
         private static Material _blastWaveScreenMaterial;
         private static Material _additiveSpriteMaterial;
+        private static Material _defaultSpriteMaterial;
         private readonly Text[] _floaterViews = new Text[MaxFloaters];
         private readonly Image[] _damageIndicatorViews = new Image[MaxDamageIndicators];
         private readonly SpriteRenderer[] _deathGhostViews = new SpriteRenderer[MaxDeathGhosts];
@@ -709,6 +710,15 @@ namespace VoidFall.Runtime
         private int _arenaPlateDetail = -1;
         private int _arenaPlateBakeWidth = ArenaPlateFactory.DefaultWidth;
         private int _arenaPlateBakeHeight = ArenaPlateFactory.DefaultHeight;
+        private sealed class ArenaPlatePrebake
+        {
+            public Color32[] BasePixels;
+            public Color32[] DetailPixels;
+        }
+        private System.Threading.Tasks.Task<ArenaPlatePrebake> _arenaPlatePrebakeTask;
+        private ArenaId _arenaPlatePrebakeArena;
+        private int _arenaPlatePrebakeWidth;
+        private int _arenaPlatePrebakeHeight;
         private readonly LineRenderer[] _arenaRockRimViews = new LineRenderer[MaxArenaRocks];
         private readonly LineRenderer[] _arenaStellarRimViews = new LineRenderer[MaxArenaStellarRimSegments];
         private readonly LineRenderer[] _arenaLandmarkViews = new LineRenderer[MaxArenaLandmarkSegments];
@@ -782,6 +792,15 @@ namespace VoidFall.Runtime
         private float _ambientClock;
         private Vector2 _arenaDecorDrift;
         private ProceduralAudio _audio;
+        private MusicDirector _music;
+        // Non-null while procedural sprites are still being warmed in the
+        // background. See PumpSpriteWarm.
+        private IEnumerator<int> _spriteWarmSteps;
+
+        // Wall-time slice given to the background sprite warm each frame. Small
+        // enough to stay invisible at 60 Hz, large enough that the set finishes
+        // within the first couple of seconds of menu idle.
+        private const float SpriteWarmBudgetSeconds = 0.004f;
         private ParticleSystem _fx;
         private float _fxSimulationSpeed = 1f;
         private readonly ParticleSystem.Particle[] _fxParticleScratch =
@@ -1211,9 +1230,14 @@ namespace VoidFall.Runtime
             SetupAudio();
             SetupFx();
             // Pre-bake all procedural enemy, boss, pickup, projectile, and
-            // weapon sprites before gameplay starts so gameplay never pays JIT
-            // texture-rasterization cost.
-            ProceduralSpriteFactory.WarmAllSprites();
+            // weapon sprites so gameplay never pays rasterization cost on first
+            // sighting. This used to run to completion here, which put the whole
+            // set (~230 sprites, heavily supersampled) between the Unity splash
+            // and the main menu. Every sprite is lazily cached anyway, so the
+            // warm is purely pre-emptive and can be spread across menu frames
+            // instead. DrainSpriteWarm() forces the remainder before a run
+            // starts, which keeps the original no-hitch-in-gameplay guarantee.
+            _spriteWarmSteps = ProceduralSpriteFactory.WarmAllSpritesSteps();
             _saveStore = new SaveStore();
             _saveData = _saveStore.Load();
             ApplySettings();
@@ -1285,6 +1309,7 @@ namespace VoidFall.Runtime
                 _touchBlockedByUi = false;
                 _touchAxis = Vector2.zero;
                 _audio?.Suspend();
+                _music?.SetApplicationActive(false);
                 if (!_paused && !_gameOver && !_revivePending && !_levelUpActive && _menuPage == MenuPage.None)
                     _paused = true;
                 return;
@@ -1294,6 +1319,7 @@ namespace VoidFall.Runtime
             _applicationInactive = false;
             RestartQualitySession();
             _audio?.Resume();
+            _music?.SetApplicationActive(true);
         }
 
         private void RestartQualitySession()
@@ -1413,6 +1439,20 @@ namespace VoidFall.Runtime
             _redFlash = Mathf.Max(0, _redFlash - frameDt * 2.4f);
             _cyanFlash = Mathf.Max(0, _cyanFlash - frameDt * 2.2f);
             _amberFlash = Mathf.Max(0, _amberFlash - frameDt * 3.1f);
+            // Chips away at the procedural sprite warm while the menu is idle.
+            // Self-terminating; a no-op once the set is complete.
+            PumpSpriteWarm();
+
+            // Reactive soundtrack. Critical health only counts while the player
+            // is actually alive and in a run, so the drag does not persist into
+            // the death sequence or the game-over screen.
+            var playerAliveInRun = !_gameOver && !_mainMenuBrowsing && _playerHealth > 0;
+            _music?.SetReactiveState(
+                _levelUpActive,
+                _overdriveTimer > 0,
+                playerAliveInRun && _playerMaxHealth > 0 &&
+                    _playerHealth / _playerMaxHealth <= 0.2f);
+
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
             UpdateArenaDecor(frameDt, reducedMotion);
             Render();
@@ -1592,6 +1632,9 @@ namespace VoidFall.Runtime
 
         private void StartRunInternal(bool playStartCue)
         {
+            // Anything the menu-time warm has not reached yet is finished here,
+            // so a run never rasterizes a sprite on first sighting.
+            DrainSpriteWarm();
             _stressScenario = null;
             _stressTopUpTimer = 0;
             _runSeed = SelectRunSeed();
@@ -1607,7 +1650,14 @@ namespace VoidFall.Runtime
                 _audio?.Resume();
                 _audio?.Play(ProceduralAudio.Cue.Ui, 1f);
             }
-            _audio?.StartPad();
+            // Authored tracks replace the procedural ambient pad rather than
+            // layering over it; the pad stays as the fallback when soundtrack
+            // assets are absent. EnterMainMenu() also routes through here with
+            // playStartCue false, so keying on it is what stops a menu entry
+            // from rolling a gameplay track it is about to discard.
+            var soundtrackDrivesMusic = _music != null && _music.HasGameplayTracks;
+            if (playStartCue && soundtrackDrivesMusic) _music.PlayGameplay();
+            if (!soundtrackDrivesMusic) _audio?.StartPad();
             for (var i = 0; i < _enemies.Length; i++)
             {
                 _enemies[i].Active = false;
@@ -2104,6 +2154,9 @@ namespace VoidFall.Runtime
             _lastRunSaved = true;
             if (_canvas != null) _canvas.enabled = false;
             _audio?.StopPad();
+            // Menu tracks are exclusive to the menu, so this cross-fades away
+            // from whatever the last run was playing.
+            _music?.PlayMainMenu();
         }
 
         private static Vector2 MainMenuCameraPosition(float ambientClock)
@@ -2152,6 +2205,9 @@ namespace VoidFall.Runtime
                 ShowArenaToast("ARENA SHIFT IN 6s", 6f);
                 _arenaBannerRemaining = (float)ArenaRules.WarningSeconds;
                 _arenaBannerIncoming = arenaStep.State.Incoming ?? previousArena;
+                // Six seconds of lead time is enough to bake the incoming plate
+                // off-thread, so the swap itself only pays the texture upload.
+                BeginArenaPlatePrebake(_arenaBannerIncoming);
                 _telemetry.RecordArenaWarning(
                     arenaStep.State.Index,
                     ArenaIdName(previousArena),
@@ -7334,7 +7390,13 @@ namespace VoidFall.Runtime
                     : ProceduralSpriteFactory.ProjectileFrame(
                         "gunner",
                         SourceProjectileFrameIndex(direction));
-            view.sharedMaterial = meteorOwned ? ResolveAdditiveSpriteMaterial() : null;
+            // Never assign null here: see ResolveDefaultSpriteMaterial. Guarded
+            // so a failed shader lookup leaves the existing material in place
+            // rather than blanking the renderer.
+            var shotMaterial = meteorOwned
+                ? ResolveAdditiveSpriteMaterial()
+                : ResolveDefaultSpriteMaterial();
+            if (shotMaterial != null) view.sharedMaterial = shotMaterial;
             view.transform.rotation = Quaternion.identity;
             // Browser meteor-owned hostile shots draw the hot core at a fixed
             // 18 px square with 0.82 alpha; ordinary and curved shots keep
@@ -9478,8 +9540,61 @@ namespace VoidFall.Runtime
             }
         }
 
+        /// <summary>
+        /// Rasterizes queued procedural sprites for a fixed slice of wall time.
+        /// Spreading the set over menu frames keeps it off the load path without
+        /// changing what gets built or how it looks: identical calls, just later.
+        /// </summary>
+        private void PumpSpriteWarm()
+        {
+            if (_spriteWarmSteps == null) return;
+
+            // realtimeSinceStartupAsDouble rather than deltaTime because the
+            // point is to bound the work this frame, not to track sim time.
+            var deadline = Time.realtimeSinceStartupAsDouble + SpriteWarmBudgetSeconds;
+            do
+            {
+                if (!_spriteWarmSteps.MoveNext())
+                {
+                    FinishSpriteWarm();
+                    return;
+                }
+            }
+            while (Time.realtimeSinceStartupAsDouble < deadline);
+        }
+
+        /// <summary>
+        /// Forces the remaining warm work to complete synchronously.
+        /// </summary>
+        private void DrainSpriteWarm()
+        {
+            if (_spriteWarmSteps == null) return;
+            while (_spriteWarmSteps.MoveNext())
+            {
+            }
+
+            FinishSpriteWarm();
+        }
+
+        private void FinishSpriteWarm()
+        {
+            _spriteWarmSteps = null;
+            // The one upload for everything the warm produced.
+            ProceduralSpriteFactory.FlushAtlas();
+        }
+
         private void Render()
         {
+            // Publish any sprite baked since the last frame so a lazily baked
+            // sprite still appears.
+            //
+            // Suppressed while the background warm is running: it dirties the
+            // atlas page every frame, and Flush re-uploads the whole 2048x2048
+            // page, so leaving this unconditional would trade the load-time
+            // stall for a menu-long stream of uploads. Safe because every
+            // atlased family (enemy, boss, projectile, pickup, gem, meteor) is
+            // gameplay-only, and FinishSpriteWarm flushes once at the end.
+            if (_spriteWarmSteps == null) ProceduralSpriteFactory.FlushAtlas();
             var playerVisible = _playerHealth > 0 && !_gameOver && !_mainMenuBrowsing;
             if (!playerVisible)
             {
@@ -9952,8 +10067,20 @@ namespace VoidFall.Runtime
 
         private void TriggerFreeze(float seconds)
         {
-            // Soften hard freezes to subtle micro-hitstop (capped at 0.035s) to prevent perceived stutter
-            _freezeTimer = Mathf.Max(_freezeTimer, Mathf.Clamp(seconds * 0.4f, 0f, 0.035f));
+            // Hitstop durations are authored gameplay, not presentation. A
+            // previous revision scaled these to 0.4x and capped them at 0.035s
+            // to "prevent perceived stutter", which silently cut the protective
+            // pause the source grants on every event. The per-hit case went from
+            // 3 frozen steps (50ms) to 1 (17ms), and boss kills from 150ms to
+            // 50ms, so the player lost most of the read-and-reposition beat and
+            // the game played measurably harder than the browser build.
+            //
+            // A freeze sets the whole simulation step to dt = 0, so enemy
+            // movement, contact cooldowns and i-frame drain all halt together.
+            // Shortening it is a difficulty change, not a smoothing tweak. If
+            // frame pacing needs work it belongs in the presentation layer,
+            // which already treats _freezeTimer > 0 as FX speed zero.
+            _freezeTimer = Mathf.Max(_freezeTimer, Mathf.Max(0f, seconds));
         }
 
         private Vector2 CameraShakeOffset()
@@ -11084,6 +11211,7 @@ namespace VoidFall.Runtime
         {
             if (_audio == null) return;
             _audio.SetMuted(!_audio.Muted);
+            _music?.SetMuted(_audio.Muted);
             _audio.Play(ProceduralAudio.Cue.Ui, _audio.Muted ? 0.86f : 1.02f);
             SetMenuNotice(_audio.Muted ? "Audio muted." : "Audio unmuted.");
         }
@@ -11150,6 +11278,11 @@ namespace VoidFall.Runtime
             // twice to every generated clip.
             AudioListener.volume = 1f;
             _audio?.SetVolumes(settings.masterVolume, settings.effectsVolume, settings.musicVolume);
+            _music?.SetVolumes(settings.masterVolume, settings.musicVolume);
+            // Mute lives in ProceduralAudio (it owns the PlayerPrefs key), so
+            // mirror it here to keep the soundtrack in sync on boot as well as
+            // after a toggle.
+            if (_audio != null) _music?.SetMuted(_audio.Muted);
             switch (qualityMode)
             {
                 case "low":
@@ -19125,7 +19258,14 @@ namespace VoidFall.Runtime
                 Mathf.Max(1f, viewportHeight) * 0.5f);
         }
 
-        private void RebuildArenaPlatesForViewport(int viewportWidth, int viewportHeight, int detail)
+        /// <summary>
+        /// Drops every cached plate when the bake dimensions change. Plates are
+        /// rebuilt on demand for the arena actually on screen rather than for all
+        /// three up front: at 1080p a single base plate is ~2.23M pixels whose
+        /// inner loop runs trig per pixel, so baking the full set eagerly cost
+        /// roughly three times that before the menu could appear.
+        /// </summary>
+        private void InvalidateArenaPlatesIfBakeChanged(int viewportWidth, int viewportHeight, int detail)
         {
             viewportWidth = Mathf.Max(64, viewportWidth);
             viewportHeight = Mathf.Max(64, viewportHeight);
@@ -19139,71 +19279,159 @@ namespace VoidFall.Runtime
                 viewportWidth,
                 viewportHeight,
                 detail);
-            var rebuilt = new Sprite[_arenaPlateSprites.Length];
-            var rebuiltDetails = new Sprite[_arenaPlateDetailSprites.Length];
-            for (var index = 0; index < rebuilt.Length; index++)
-            {
-                rebuilt[index] = ArenaPlateFactory.CreateBase(
-                    (ArenaId)index,
-                    dimensions.x,
-                    dimensions.y);
-                rebuiltDetails[index] = ArenaPlateFactory.CreateBakedDetails(
-                    (ArenaId)index,
-                    dimensions.x,
-                    dimensions.y);
-            }
 
+            // Any in-flight pre-bake was sized for the old dimensions.
+            DiscardArenaPlatePrebake();
             for (var index = 0; index < _arenaPlateSprites.Length; index++)
-            {
-                if (_arenaPlateSprites[index] != null)
-                {
-                    var texture = _arenaPlateSprites[index].texture;
-                    Destroy(_arenaPlateSprites[index]);
-                    if (texture != null) Destroy(texture);
-                }
-                _arenaPlateSprites[index] = rebuilt[index];
-                if (_arenaPlateDetailSprites[index] != null)
-                {
-                    var detailTexture = _arenaPlateDetailSprites[index].texture;
-                    Destroy(_arenaPlateDetailSprites[index]);
-                    if (detailTexture != null) Destroy(detailTexture);
-                }
-                _arenaPlateDetailSprites[index] = rebuiltDetails[index];
-            }
+                ReleaseArenaPlate(index);
 
             _arenaPlateViewportWidth = viewportWidth;
             _arenaPlateViewportHeight = viewportHeight;
             _arenaPlateDetail = detail;
             _arenaPlateBakeWidth = dimensions.x;
             _arenaPlateBakeHeight = dimensions.y;
-            if (_backdropView != null)
+        }
+
+        private void ReleaseArenaPlate(int index)
+        {
+            if (index < 0 || index >= _arenaPlateSprites.Length) return;
+            if (_arenaPlateSprites[index] != null)
             {
-                _backdropView.sprite = _arenaPlateSprites[(int)_arenaId];
-                _backdropView.transform.localScale = new Vector3(
-                    GameplayViewportHalfExtent().x * 2f * ArenaSkyOverscan /
-                        Mathf.Max(1, _arenaPlateBakeWidth),
-                    GameplayViewportHalfExtent().y * 2f * ArenaSkyOverscan /
-                        Mathf.Max(1, _arenaPlateBakeHeight),
-                    1);
+                var texture = _arenaPlateSprites[index].texture;
+                Destroy(_arenaPlateSprites[index]);
+                if (texture != null) Destroy(texture);
+                _arenaPlateSprites[index] = null;
             }
-            if (_arenaBakedDetailView != null)
+            if (_arenaPlateDetailSprites[index] != null)
             {
-                _arenaBakedDetailView.sprite = _arenaPlateDetailSprites[(int)_arenaId];
-                _arenaBakedDetailView.transform.localScale = new Vector3(
-                    GameplayViewportHalfExtent().x * 2f * ArenaSkyOverscan /
-                        Mathf.Max(1, _arenaPlateBakeWidth),
-                    GameplayViewportHalfExtent().y * 2f * ArenaSkyOverscan /
-                        Mathf.Max(1, _arenaPlateBakeHeight),
-                    1);
+                var detailTexture = _arenaPlateDetailSprites[index].texture;
+                Destroy(_arenaPlateDetailSprites[index]);
+                if (detailTexture != null) Destroy(detailTexture);
+                _arenaPlateDetailSprites[index] = null;
             }
+        }
+
+        /// <summary>
+        /// Publishes the plate for one arena, using a completed background bake
+        /// when one is available and falling back to a synchronous bake when it
+        /// is not. Callers must treat this as potentially expensive.
+        /// </summary>
+        private void EnsureArenaPlate(ArenaId arena)
+        {
+            var index = (int)arena;
+            if (index < 0 || index >= _arenaPlateSprites.Length) return;
+            if (_arenaPlateSprites[index] != null && _arenaPlateDetailSprites[index] != null) return;
+
+            TryPublishArenaPlatePrebake();
+            if (_arenaPlateSprites[index] != null && _arenaPlateDetailSprites[index] != null) return;
+
+            if (_arenaPlateSprites[index] == null)
+            {
+                _arenaPlateSprites[index] = ArenaPlateFactory.CreateBase(
+                    arena,
+                    _arenaPlateBakeWidth,
+                    _arenaPlateBakeHeight);
+            }
+            if (_arenaPlateDetailSprites[index] == null)
+            {
+                _arenaPlateDetailSprites[index] = ArenaPlateFactory.CreateBakedDetails(
+                    arena,
+                    _arenaPlateBakeWidth,
+                    _arenaPlateBakeHeight);
+            }
+        }
+
+        /// <summary>
+        /// Starts a background bake for an arena that is not on screen yet. The
+        /// arena-shift warning fires six seconds before the swap, which is ample
+        /// lead time, so a swap still costs only the texture upload.
+        /// </summary>
+        private void BeginArenaPlatePrebake(ArenaId arena)
+        {
+            var index = (int)arena;
+            if (index < 0 || index >= _arenaPlateSprites.Length) return;
+            if (_arenaPlateSprites[index] != null && _arenaPlateDetailSprites[index] != null) return;
+            if (_arenaPlatePrebakeTask != null) return;
+
+            // ColorUtility is not documented as thread-safe, so prime the spec
+            // cache here on the main thread; the bake itself is pure math.
+            ArenaPlateFactory.WarmSpecs();
+            var width = _arenaPlateBakeWidth;
+            var height = _arenaPlateBakeHeight;
+            _arenaPlatePrebakeArena = arena;
+            _arenaPlatePrebakeWidth = width;
+            _arenaPlatePrebakeHeight = height;
+            _arenaPlatePrebakeTask = System.Threading.Tasks.Task.Run(() =>
+                new ArenaPlatePrebake
+                {
+                    BasePixels = ArenaPlateFactory.BuildBasePixels(arena, width, height),
+                    DetailPixels = ArenaPlateFactory.BuildDetailPixels(arena, width, height),
+                });
+        }
+
+        private void TryPublishArenaPlatePrebake()
+        {
+            var task = _arenaPlatePrebakeTask;
+            if (task == null || !task.IsCompleted) return;
+
+            _arenaPlatePrebakeTask = null;
+            var index = (int)_arenaPlatePrebakeArena;
+            var stale = _arenaPlatePrebakeWidth != _arenaPlateBakeWidth ||
+                _arenaPlatePrebakeHeight != _arenaPlateBakeHeight;
+
+            if (task.IsFaulted || task.Result == null || stale ||
+                index < 0 || index >= _arenaPlateSprites.Length)
+            {
+                if (task.IsFaulted)
+                {
+                    Debug.LogWarning(
+                        "VoidFall arena plate pre-bake failed; falling back to a synchronous bake: " +
+                        task.Exception?.GetBaseException().Message);
+                }
+                return;
+            }
+
+            var result = task.Result;
+            if (_arenaPlateSprites[index] == null)
+            {
+                _arenaPlateSprites[index] = ArenaPlateFactory.SpriteFromPixels(
+                    result.BasePixels,
+                    _arenaPlatePrebakeWidth,
+                    _arenaPlatePrebakeHeight,
+                    "VoidFall Arena Plate Base " + _arenaPlatePrebakeArena);
+            }
+            if (_arenaPlateDetailSprites[index] == null)
+            {
+                _arenaPlateDetailSprites[index] = ArenaPlateFactory.SpriteFromPixels(
+                    result.DetailPixels,
+                    _arenaPlatePrebakeWidth,
+                    _arenaPlatePrebakeHeight,
+                    "VoidFall Arena Baked Details " + _arenaPlatePrebakeArena);
+            }
+        }
+
+        private void DiscardArenaPlatePrebake()
+        {
+            // The task is pure computation with no Unity handles, so abandoning
+            // it leaks nothing; its buffers are collected once it finishes.
+            _arenaPlatePrebakeTask = null;
         }
 
         private void EnsureArenaPlateViewport()
         {
-            RebuildArenaPlatesForViewport(
+            InvalidateArenaPlatesIfBakeChanged(
                 Mathf.Max(64, Screen.width),
                 Mathf.Max(64, Screen.height),
                 _qualityPreset.Detail);
+            TryPublishArenaPlatePrebake();
+            EnsureArenaPlate(_arenaId);
+            // The home page draws the Void plate as its backdrop regardless of
+            // which arena the save resumed into, so it has to be baked too while
+            // the menu is up. Before plates became lazy, SetupBackdrop baked all
+            // three eagerly and this was always satisfied; without it the menu
+            // silently falls back to the small 256px procedural gradient
+            // whenever the saved arena is not Void.
+            if (_mainMenuBrowsing) EnsureArenaPlate(ArenaId.Void);
         }
 
         private void SetupBackdrop()
@@ -19212,11 +19440,12 @@ namespace VoidFall.Runtime
             backdrop.transform.SetParent(_worldRoot, false);
             var renderer = backdrop.AddComponent<SpriteRenderer>();
             _backdropView = renderer;
-            RebuildArenaPlatesForViewport(
-                Mathf.Max(64, Screen.width),
-                Mathf.Max(64, Screen.height),
-                _qualityPreset.Detail);
-            renderer.sprite = _arenaPlateSprites[(int)ArenaId.Void];
+            // No bake happens here. Awake runs before ApplySettings resolves the
+            // real quality preset, so baking now used the default High detail and
+            // then EnsureArenaPlateViewport re-baked everything on the first
+            // rendered frame whenever the saved quality differed. RenderArena
+            // owns the bake instead, with the settled preset and only for the
+            // arena on screen.
             renderer.color = Color.white;
             var viewportHalf = GameplayViewportHalfExtent();
             renderer.transform.localScale = new Vector3(
@@ -19226,9 +19455,11 @@ namespace VoidFall.Runtime
             // Keep every backdrop layer below the browser's grid pass. The
             // source draws the complete arena backdrop first, then the grid.
             renderer.sortingOrder = -110;
+            // Sprite is assigned by RenderArena once the plate for the active
+            // arena has been baked.
             _arenaBakedDetailView = CreateView(
                 "Arena Baked Edge Details",
-                _arenaPlateDetailSprites[(int)ArenaId.Void],
+                null,
                 -106);
             _arenaBakedDetailView.color = Color.white;
             _arenaBakedDetailView.transform.localScale = new Vector3(
@@ -19411,12 +19642,22 @@ namespace VoidFall.Runtime
             _hudGroup.interactable = false;
             _hudGroup.blocksRaycasts = false;
             var scaler = canvasObject.AddComponent<CanvasScaler>();
-            // The browser HUD is authored in CSS pixels rather than in a
-            // 1280x720 reference canvas. Constant pixels keep the desktop
-            // 1600x900 capture aligned with the source panels and let the
-            // explicit <=720 responsive layout own the narrow breakpoint.
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
-            scaler.scaleFactor = 1f;
+            // The HUD is authored in the browser's CSS pixels against a 1600x900
+            // desktop capture. ConstantPixelSize reproduced that exactly at that
+            // one resolution and nowhere else: because the layout is in raw
+            // pixels, the whole HUD stayed a fixed physical size, so it read far
+            // too small at 1440p and 4K.
+            //
+            // Scale against the authored reference instead, matching on height.
+            // The gameplay camera is orthographic with a fixed vertical extent
+            // (WorldHalfHeight), so height is the axis the world itself scales
+            // on; matching it keeps the HUD locked to the view rather than to
+            // the pixel grid. The explicit narrow breakpoint in
+            // UpdateHudResponsiveLayout still owns phone-shaped viewports.
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1600f, 900f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 1f;
             canvasObject.AddComponent<GraphicRaycaster>();
             var eventSystem = EventSystem.current;
             if (eventSystem == null)
@@ -19722,7 +19963,13 @@ namespace VoidFall.Runtime
             arenaBannerRect.anchoredPosition = new Vector2(0, -122.4f);
             arenaBannerRect.sizeDelta = new Vector2(300, 56);
             _arenaBannerOutline = arenaBannerObject.AddComponent<Outline>();
-            _arenaBannerOutline.effectDistance = new Vector2(1.5f, 1.5f);
+            // uGUI Outline is not a stroke: it re-emits the whole graphic four
+            // times at the four diagonal offsets. At 1.5px on bold dynamic-font
+            // glyphs the four copies overlap into a muddy fringe rather than an
+            // edge. One pixel keeps the red warning glow legible while collapsing
+            // the copies close enough to read as a single outline. A true stroke
+            // needs an SDF text shader, which uGUI Text cannot do.
+            _arenaBannerOutline.effectDistance = new Vector2(1f, 1f);
             _arenaBannerOutline.useGraphicAlpha = true;
             _arenaBannerTitle = CreateText(
                 arenaBannerObject.transform,
@@ -19840,6 +20087,7 @@ namespace VoidFall.Runtime
         private void SetupAudio()
         {
             _audio = gameObject.AddComponent<ProceduralAudio>();
+            _music = gameObject.AddComponent<MusicDirector>();
         }
 
         private void SetupFx()
@@ -22027,6 +22275,31 @@ namespace VoidFall.Runtime
                 hideFlags = HideFlags.HideAndDontSave,
             };
             return _blastWaveScreenMaterial;
+        }
+
+        /// <summary>
+        /// The plain alpha-blended sprite material, i.e. what a fresh
+        /// SpriteRenderer starts with.
+        ///
+        /// Needed because hostile shot views are pooled. A slot that last
+        /// carried a meteor-owned shot still has the additive material bound, so
+        /// reusing it for an ordinary shot has to put a real material back.
+        /// Clearing it to null instead leaves the renderer with no material at
+        /// all, and a SpriteRenderer with no material silently submits no draw:
+        /// the shot still moves and still damages the player, it just cannot be
+        /// seen. That was why gunner fire was invisible.
+        /// </summary>
+        private static Material ResolveDefaultSpriteMaterial()
+        {
+            if (_defaultSpriteMaterial != null) return _defaultSpriteMaterial;
+
+            var shader = Shader.Find("Sprites/Default");
+            if (shader == null) return null;
+            _defaultSpriteMaterial = new Material(shader)
+            {
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            return _defaultSpriteMaterial;
         }
 
         private static Material ResolveAdditiveSpriteMaterial()

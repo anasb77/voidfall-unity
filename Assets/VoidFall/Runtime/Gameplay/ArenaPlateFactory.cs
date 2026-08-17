@@ -120,13 +120,52 @@ namespace VoidFall.Runtime
         {
             width = Mathf.Max(64, width);
             height = Mathf.Max(36, height);
+            return SpriteFromPixels(
+                BuildDetailPixels(arena, width, height),
+                width,
+                height,
+                "VoidFall Arena Baked Details " + arena);
+        }
+
+        /// <summary>
+        /// Pure pixel work: safe to call from a background thread once
+        /// <see cref="WarmSpecs"/> has run. Pair with <see cref="SpriteFromPixels"/>
+        /// on the main thread to publish the result.
+        /// </summary>
+        public static Color32[] BuildDetailPixels(ArenaId arena, int width, int height)
+        {
+            width = Mathf.Max(64, width);
+            height = Mathf.Max(36, height);
             var pixels = new Color32[width * height];
             var spec = SpecFor(arena);
             PaintBakedEdgeRocks(pixels, width, height, spec);
             PaintBakedPetals(pixels, width, height, spec);
+            return pixels;
+        }
+
+        /// <summary>
+        /// Pure pixel work for the arena field plate. Safe to call from a
+        /// background thread once <see cref="WarmSpecs"/> has run.
+        /// </summary>
+        public static Color32[] BuildBasePixels(ArenaId arena, int width, int height)
+        {
+            return BuildPlatePixels(
+                arena,
+                Mathf.Max(64, width),
+                Mathf.Max(36, height),
+                false);
+        }
+
+        /// <summary>
+        /// Main-thread only: allocates the texture and uploads.
+        /// </summary>
+        public static Sprite SpriteFromPixels(Color32[] pixels, int width, int height, string name)
+        {
+            width = Mathf.Max(1, width);
+            height = Mathf.Max(1, height);
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
             {
-                name = "VoidFall Arena Baked Details " + arena,
+                name = name,
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp,
             };
@@ -145,6 +184,19 @@ namespace VoidFall.Runtime
         {
             width = Mathf.Max(64, width);
             height = Mathf.Max(36, height);
+            return SpriteFromPixels(
+                BuildPlatePixels(arena, width, height, includeBakedDetails),
+                width,
+                height,
+                "VoidFall Arena Plate " + (includeBakedDetails ? "" : "Base ") + arena);
+        }
+
+        private static Color32[] BuildPlatePixels(
+            ArenaId arena,
+            int width,
+            int height,
+            bool includeBakedDetails)
+        {
             var spec = SpecFor(arena);
             var pixels = new Color32[width * height];
             // paintField seeds its three value sweeps from the arena noise
@@ -256,17 +308,7 @@ namespace VoidFall.Runtime
                 PaintBakedPetals(pixels, width, height, spec);
             }
 
-            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
-            {
-                name = "VoidFall Arena Plate " + (includeBakedDetails ? "" : "Base ") + arena,
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp,
-            };
-            texture.SetPixels32(pixels);
-            texture.Apply(false, false);
-            var sprite = Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 1f);
-            sprite.name = texture.name + " Sprite";
-            return sprite;
+            return pixels;
         }
 
         public static Sprite CreateGrainTile(ArenaId arena, int size = 256)
@@ -638,7 +680,34 @@ namespace VoidFall.Runtime
             return inside / (float)(samplesPerAxis * samplesPerAxis);
         }
 
+        // Specs are immutable once built and are read by the pixel builders,
+        // which may run off the main thread. BuildSpec calls ColorUtility, which
+        // Unity does not document as thread-safe, so cache the results and prime
+        // them from the main thread via WarmSpecs before dispatching any bake.
+        private static readonly VisualSpec[] SpecCache = new VisualSpec[3];
+
+        /// <summary>
+        /// Main-thread only. Primes the spec cache so <see cref="BuildBasePixels"/>
+        /// and <see cref="BuildDetailPixels"/> can run on a background thread.
+        /// </summary>
+        public static void WarmSpecs()
+        {
+            for (var index = 0; index < SpecCache.Length; index++)
+                SpecFor((ArenaId)index);
+        }
+
         private static VisualSpec SpecFor(ArenaId arena)
+        {
+            var index = (int)arena;
+            if (index < 0 || index >= SpecCache.Length) return BuildSpec(arena);
+            var cached = SpecCache[index];
+            if (cached != null) return cached;
+            cached = BuildSpec(arena);
+            SpecCache[index] = cached;
+            return cached;
+        }
+
+        private static VisualSpec BuildSpec(ArenaId arena)
         {
             switch (arena)
             {
