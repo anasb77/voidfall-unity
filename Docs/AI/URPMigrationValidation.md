@@ -26,6 +26,8 @@ Command (Unity runner-managed exit; do not add a trailing `-quit`, which can exi
 
 Result: Unity process exit `0`; `TestResults/urp-editmode.xml` reports `total=10`, `passed=10`, `failed=0`, `skipped=0`, `inconclusive=0`. All ten cases are in `VoidFall.Tests.Editor.UrpMigrationTests` (including material-resource, renderer, global-settings, camera, volume, and Render Graph checks). The earlier command with `-quit` produced no result XML because it terminated during project refresh; it was not used as the gate result.
 
+The test assembly now explicitly declares `Unity.RenderPipelines.Core.Runtime` in `Assets/VoidFall/Tests/Editor/VoidFall.URP.Tests.Editor.asmdef`, because the migration tests use `VolumeProfile` and `RenderGraphSettings`. This closes a provenance gap: the prior red evidence (`task4-fix-red2.log`) showed `CS0246` for `VolumeProfile` until this reference was added. The reference is migration-owned and is included in the follow-up fix commit.
+
 ## Windows player build
 
 Command:
@@ -39,7 +41,7 @@ The initial validation build logged `Build Finished, Result: Success` and `Build
 - Clean-source replay reported player build size: `124,254,834` bytes.
 - Executable: `C:\Users\anasb\Desktop\voidfall\Builds\VoidFall.exe`.
 - Executable file size: `667,648` bytes; the corresponding `VoidFall_Data` directory and Windows player files are present.
-- Existing context documentation cites a prior `117,606,213`-byte player; against that non-reproducible pre-migration reference, the reported build-size delta is `+6,648,617` bytes (`+5.65%`). No equivalent prior executable-size measurement was available.
+- Existing context documentation cites a prior `117,606,213`-byte player; against that non-reproducible pre-migration reference, the reported build-size delta is `+6,648,621` bytes (`+5.65%`). No equivalent prior executable-size measurement was available.
 
 The clean-source replay dirtied exactly these four tracked files and no other migration-owned asset or setting:
 
