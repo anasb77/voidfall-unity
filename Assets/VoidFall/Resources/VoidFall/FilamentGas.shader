@@ -11,6 +11,71 @@ Shader "VoidFall/FilamentGas"
     {
         Tags
         {
+            "RenderPipeline" = "UniversalPipeline"
+            "Queue" = "Transparent"
+            "RenderType" = "Transparent"
+            "IgnoreProjector" = "True"
+        }
+        Blend SrcAlpha OneMinusSrcAlpha
+        ZWrite Off
+        Cull Off
+
+        Pass
+        {
+            Tags { "LightMode" = "UniversalForward" }
+
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment Frag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            TEXTURE2D(_MaskTex);
+            SAMPLER(sampler_MaskTex);
+
+            CBUFFER_START(UnityPerMaterial)
+                half _Peak;
+                half _PassCount;
+            CBUFFER_END
+
+            struct Attributes
+            {
+                float3 positionOS : POSITION;
+                half4 color : COLOR;
+                float2 uv : TEXCOORD0;
+            };
+
+            struct Varyings
+            {
+                float4 positionHCS : SV_POSITION;
+                half4 color : COLOR;
+                float2 uv : TEXCOORD0;
+            };
+
+            Varyings Vert(Attributes input)
+            {
+                Varyings output;
+                output.positionHCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.color = input.color;
+                output.uv = input.uv;
+                return output;
+            }
+
+            half4 Frag(Varyings input) : SV_Target
+            {
+                half remainingCoverage = SAMPLE_TEXTURE2D(_MaskTex, sampler_MaskTex, input.uv).a;
+                half target = saturate(_Peak * remainingCoverage);
+                half passAlpha = 1.0h - pow(max(0.0h, 1.0h - target), 1.0h / max(1.0h, _PassCount));
+                half alpha = saturate(input.color.a * passAlpha);
+                return half4(input.color.rgb, alpha);
+            }
+            ENDHLSL
+        }
+    }
+
+    SubShader
+    {
+        Tags
+        {
             "Queue" = "Transparent"
             "RenderType" = "Transparent"
             "IgnoreProjector" = "True"
@@ -56,15 +121,11 @@ Shader "VoidFall/FilamentGas"
 
             fixed4 frag(v2f input) : SV_Target
             {
-                // The browser stacks eleven source-over fills, then applies
-                // destination-out. Invert that stack per fragment so the
-                // mask reaches peak * remainingCoverage exactly.
-                fixed remainingCoverage = tex2D(_MaskTex, input.texcoord).a;
-                fixed target = saturate(_Peak * remainingCoverage);
-                fixed passCount = max(1.0, _PassCount);
-                fixed passAlpha = 1.0 - pow(max(0.0, 1.0 - target), 1.0 / passCount);
-                fixed alpha = saturate(input.color.a * passAlpha);
-                return fixed4(input.color.rgb, alpha);
+                half remainingCoverage = tex2D(_MaskTex, input.texcoord).a;
+                half target = saturate(_Peak * remainingCoverage);
+                half passAlpha = 1.0h - pow(max(0.0h, 1.0h - target), 1.0h / max(1.0h, _PassCount));
+                half alpha = saturate(input.color.a * passAlpha);
+                return half4(input.color.rgb, alpha);
             }
             ENDCG
         }

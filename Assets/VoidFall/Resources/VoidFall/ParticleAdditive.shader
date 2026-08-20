@@ -10,6 +10,75 @@ Shader "VoidFall/ParticleAdditive"
     {
         Tags
         {
+            "RenderPipeline" = "UniversalPipeline"
+            "Queue" = "Transparent"
+            "RenderType" = "Transparent"
+            "IgnoreProjector" = "True"
+            "PreviewType" = "Plane"
+        }
+        Blend One One
+        ZWrite Off
+        Cull Off
+
+        Pass
+        {
+            Tags { "LightMode" = "UniversalForward" }
+
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment Frag
+            #pragma multi_compile_particles
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
+
+            CBUFFER_START(UnityPerMaterial)
+                half4 _Color;
+            CBUFFER_END
+
+            struct Attributes
+            {
+                float3 positionOS : POSITION;
+                half4 color : COLOR;
+                float2 uv : TEXCOORD0;
+            };
+
+            struct Varyings
+            {
+                float4 positionHCS : SV_POSITION;
+                half4 color : COLOR;
+                float2 uv : TEXCOORD0;
+            };
+
+            Varyings Vert(Attributes input)
+            {
+                Varyings output;
+                output.positionHCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.color = input.color * _Color;
+                output.uv = input.uv;
+                return output;
+            }
+
+            half4 Frag(Varyings input) : SV_Target
+            {
+                half4 sample = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
+                half radius = saturate(distance(input.uv, float2(0.5, 0.5)) * 2.0);
+                half tintStart = 0.5 / 12.0;
+                half tintEnd = 3.6 / 12.0;
+                half tintAmount = saturate((radius - tintStart) / (tintEnd - tintStart));
+                half3 dotColor = lerp(half3(1, 1, 1), input.color.rgb, tintAmount);
+                half alpha = sample.a * input.color.a;
+                return half4(dotColor * alpha, alpha);
+            }
+            ENDHLSL
+        }
+    }
+
+    SubShader
+    {
+        Tags
+        {
             "Queue" = "Transparent"
             "RenderType" = "Transparent"
             "IgnoreProjector" = "True"
@@ -63,8 +132,6 @@ Shader "VoidFall/ParticleAdditive"
                 float tintAmount = saturate((radius - tintStart) / (tintEnd - tintStart));
                 fixed3 dotColor = lerp(fixed3(1, 1, 1), input.color.rgb, tintAmount);
                 fixed alpha = sample.a * input.color.a;
-                // Blend One One expects premultiplied colour. This matches the
-                // browser canvas "lighter" contribution at the soft edge.
                 return fixed4(dotColor * alpha, alpha);
             }
             ENDCG

@@ -1,9 +1,9 @@
-Shader "VoidFall/ScreenBlend"
+Shader "VoidFall/DefaultUnlit"
 {
     Properties
     {
-        [PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
-        _Color ("Tint", Color) = (1,1,1,1)
+        _MainTex ("Texture", 2D) = "white" {}
+        _Color ("Tint", Color) = (1, 1, 1, 1)
     }
 
     SubShader
@@ -13,15 +13,10 @@ Shader "VoidFall/ScreenBlend"
             "RenderPipeline" = "UniversalPipeline"
             "Queue" = "Transparent"
             "RenderType" = "Transparent"
-            "IgnoreProjector" = "True"
-            "PreviewType" = "Plane"
-            "CanUseSpriteAtlas" = "True"
         }
-        Cull Off
+        Blend SrcAlpha OneMinusSrcAlpha
         ZWrite Off
-        Blend OneMinusDstColor One
-        BlendOp Add
-        ColorMask RGB
+        Cull Off
 
         Pass
         {
@@ -57,17 +52,15 @@ Shader "VoidFall/ScreenBlend"
             {
                 Varyings output;
                 output.positionHCS = TransformObjectToHClip(input.positionOS.xyz);
-                output.uv = input.uv;
                 output.color = input.color * _Color;
+                output.uv = input.uv;
                 return output;
             }
 
             half4 Frag(Varyings input) : SV_Target
             {
                 half4 sample = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
-                half4 result = sample * input.color;
-                result.rgb *= result.a;
-                return half4(result.rgb, 1.0h);
+                return sample * input.color;
             }
             ENDHLSL
         }
@@ -79,16 +72,11 @@ Shader "VoidFall/ScreenBlend"
         {
             "Queue" = "Transparent"
             "RenderType" = "Transparent"
-            "IgnoreProjector" = "True"
-            "PreviewType" = "Plane"
-            "CanUseSpriteAtlas" = "True"
         }
+        Blend SrcAlpha OneMinusSrcAlpha
+        ZWrite Off
         Cull Off
         Lighting Off
-        ZWrite Off
-        Blend OneMinusDstColor One
-        BlendOp Add
-        ColorMask RGB
 
         Pass
         {
@@ -97,10 +85,13 @@ Shader "VoidFall/ScreenBlend"
             #pragma fragment frag
             #include "UnityCG.cginc"
 
+            sampler2D _MainTex;
+            fixed4 _Color;
+
             struct appdata_t
             {
                 float4 vertex : POSITION;
-                float4 color : COLOR;
+                fixed4 color : COLOR;
                 float2 texcoord : TEXCOORD0;
             };
 
@@ -111,28 +102,21 @@ Shader "VoidFall/ScreenBlend"
                 float2 texcoord : TEXCOORD0;
             };
 
-            sampler2D _MainTex;
-            fixed4 _Color;
-
             v2f vert(appdata_t input)
             {
                 v2f output;
                 output.vertex = UnityObjectToClipPos(input.vertex);
-                output.texcoord = input.texcoord;
                 output.color = input.color * _Color;
+                output.texcoord = input.texcoord;
                 return output;
             }
 
             fixed4 frag(v2f input) : SV_Target
             {
-                half4 sample = tex2D(_MainTex, input.texcoord);
-                half4 result = sample * input.color;
-                result.rgb *= result.a;
-                return half4(result.rgb, 1.0h);
+                fixed4 sample = tex2D(_MainTex, input.texcoord);
+                return sample * input.color;
             }
             ENDCG
         }
     }
-
-    Fallback Off
 }
