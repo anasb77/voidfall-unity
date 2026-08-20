@@ -44,13 +44,14 @@ Use a hybrid Unity architecture:
 - C# presenters/controllers bind game state and callbacks to those prefabs.
 - Dynamic gameplay state, simulation, effects, and rules remain runtime code.
 
-Web analogy:
+Terminology:
 
 ```text
-Editor-baked Texture/Sprite  = generated static asset from the web build step
-uGUI prefab                  = saved component/DOM hierarchy
-View MonoBehaviour           = component refs and display API
-Presenter/controller         = state, event handlers, and service calls
+Editor-only generator = preprocessing program that runs before the game ships
+Asset                 = serialized data file included in the game build
+Prefab                = serialized tree of GameObjects and Components used as a template
+View MonoBehaviour    = references to controls plus methods that update the display
+Presenter/controller  = program logic that supplies state and handles user actions
 ```
 
 ## Architecture
@@ -80,7 +81,11 @@ Each generated pair is represented by an `ArenaPlateSet` ScriptableObject contai
 - generated width and height
 - generator schema/version
 
-Generation uses a canonical 1920x1080 viewport. The existing 1.6M pre-overscan pixel cap means this also covers the current maximum high-quality bake density. The first supported layout matrix remains 1280x720 and 1920x1080, matching the current Windows target. Wider aspect ratios use aspect-preserving cover/crop; they must not stretch the artwork.
+High quality targets true 2560x1440 visible coverage. Because the arena renderer keeps a 1.18x overscan border outside the visible screen, each High base/detail asset is generated at 3021x1699. The border is cropped during rendering; the visible centre retains 1440p coverage instead of stretching a 2560x1440 file beyond its intended density.
+
+Balanced and Low retain smaller generated variants. The first supported layout matrix is 1280x720, 1920x1080, and 2560x1440 on Windows. Wider aspect ratios use aspect-preserving cover/crop; they must not stretch the artwork.
+
+At 3021x1699 RGBA32, one base/detail pair is about 39.2 MiB of raw GPU texture data. The provider may keep at most two High pairs resident (current/menu or current/next), giving a raw budget of about 78.4 MiB before driver/object overhead. CPU-readable copies are disabled. BC7 or another platform compression format may be adopted only after captured visual comparison confirms that gradients and noise remain acceptable.
 
 Importer requirements:
 
@@ -107,7 +112,7 @@ Runtime behavior:
 2. Load the required pre-generated plate asynchronously.
 3. Publish the base/detail Sprites on the Unity main thread.
 4. Preload the next arena during the existing six-second transition warning.
-5. Keep only the active, menu, and next required sets resident; release obsolete loaded assets through one owner.
+5. Keep at most two sets resident: menu plus selected arena while browsing, or current plus next arena during a run. Release obsolete loaded assets through one owner.
 
 Missing/corrupt assets never trigger a synchronous runtime bake. Development builds log a precise error naming arena and quality; the player keeps the lightweight fallback.
 
@@ -263,6 +268,7 @@ This is not the final prefab migration, but it restores usability and creates th
 
 - Windows Development Build at 1280x720 and 1920x1080.
 - Cold launch with a Void save and a non-Void save.
+- High-quality validation at 2560x1440 confirms native visible coverage and aspect-preserving crop.
 - Record time from post-splash player initialization to interactive Main Menu.
 - Requirement: zero runtime arena-generation calls before interaction; target <=3 seconds on the audit machine, with profiler markers identifying any remaining cost.
 - Memory Profiler confirms generated plate textures are not CPU-readable and obsolete variants are released.
@@ -278,6 +284,7 @@ This is not the final prefab migration, but it restores usability and creates th
 6. Current Core/Content/Persistence behavior and save schema remain unchanged.
 7. Unity compilation, EditMode tests, PlayMode tests, and Windows player build pass from the repository.
 8. Existing user working-tree changes remain preserved.
+9. High-quality base/detail assets are 3021x1699, are not CPU-readable in the player, and no more than two High pairs remain resident.
 
 ## Rollback
 
