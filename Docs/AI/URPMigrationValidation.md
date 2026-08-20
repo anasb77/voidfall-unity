@@ -3,7 +3,8 @@
 Date: 2026-08-20
 Worktree: `voidfall-unity/.worktrees/urp-migration`
 Branch: `migration/urp`
-Validation head before this report: `8d54550a1a2817e1315a4bae076c3c5d952e2e4c`
+Validation fix commit: `5d1765f36fc2bc89492d1d05a42db69e9c6c564d`
+Clean validation worktree: `voidfall-unity/.worktrees/urp-clean-validation-5d1765f`
 
 ## Scope and pipeline
 
@@ -14,7 +15,7 @@ Validation head before this report: `8d54550a1a2817e1315a4bae076c3c5d952e2e4c`
 - Render Graph compatibility mode is disabled; the migration tests verify `RenderGraphSettings.enableRenderCompatibilityMode == false`.
 - Post-processing, arena beautification, arena art replacement, and renderer features remain deferred by design.
 
-The worktree contained substantial pre-existing tracked and untracked user work before validation, including `Assets/VoidFall/Editor/BuildScript.cs`, `Assets/VoidFall/UI/`, `Docs/AI/`, and parity/content changes. No production code or build script was changed for Task 5. BuildPipeline serialization provenance was explicitly checked: a build from the four files restored byte-for-byte to `HEAD` deterministically dirtied exactly those four files, and they were restored again after the successful build. The final source state is clean for migration-owned assets/settings, and `VoidFallDefaultVolumeProfile.asset` is again the empty profile asserted by the tests.
+The worktree contained substantial pre-existing tracked and untracked user work before validation, including `Assets/VoidFall/Editor/BuildScript.cs`, `Assets/VoidFall/UI/`, `Docs/AI/`, and parity/content changes. The follow-up runtime fix is limited to owning the `SetupFx` additive particle material in `_fxMaterial`; the user-owned `_dynamicMaterials` declaration/cleanup and filament tracking remain uncommitted. BuildPipeline serialization provenance was checked in both working-copy and clean-branch runs. Source-clean claims below refer only to tracked migration files; Unity-generated disposable settings files are called out explicitly.
 
 ## EditMode suite
 
@@ -28,7 +29,17 @@ Result: Unity process exit `0`; `TestResults/urp-editmode.xml` reports `total=10
 
 The test assembly now explicitly declares `Unity.RenderPipelines.Core.Runtime` in `Assets/VoidFall/Tests/Editor/VoidFall.URP.Tests.Editor.asmdef`, because the migration tests use `VolumeProfile` and `RenderGraphSettings`. This closes a provenance gap: the prior red evidence (`task4-fix-red2.log`) showed `CS0246` for `VolumeProfile` until this reference was added. The reference is migration-owned and is included in the follow-up fix commit.
 
-## Windows player build
+## Clean committed-branch compile and EditMode suite
+
+The clean validation was run from detached worktree `C:\Users\anasb\Desktop\voidfall\voidfall-unity\.worktrees\urp-clean-validation-5d1765f` at commit `5d1765f36fc2bc89492d1d05a42db69e9c6c564d`, with no working-copy `BuildScript.cs` or other untracked source files. Unity's fresh project refresh/import completed and the full EditMode command below produced exit `0` and `TestResults/urp-clean-editmode.xml` with `total=10`, `passed=10`, `failed=0`, `skipped=0`, `inconclusive=0`:
+
+```powershell
+& 'C:\Program Files\Unity\Hub\Editor\6000.5.7f1\Editor\Unity.exe' -batchmode -nographics -projectPath 'C:\Users\anasb\Desktop\voidfall\voidfall-unity\.worktrees\urp-clean-validation-5d1765f' -runTests -testPlatform editmode -testResults 'C:\Users\anasb\Desktop\voidfall\voidfall-unity\.worktrees\urp-clean-validation-5d1765f\TestResults\urp-clean-editmode.xml' -logFile 'C:\Users\anasb\Desktop\voidfall\voidfall-unity\.worktrees\urp-clean-validation-5d1765f\TestResults\urp-clean-editmode-final.log'
+```
+
+The clean EditMode log contains no C# or shader compilation errors. Unity generated `ProjectSettings/ShaderGraphSettings.asset` during refresh; it is disposable Unity output and is not a tracked migration source claim.
+
+## Working-copy integration build
 
 Command:
 
@@ -36,7 +47,7 @@ Command:
 & 'C:\Program Files\Unity\Hub\Editor\6000.5.7f1\Editor\Unity.exe' -batchmode -nographics -projectPath 'C:\Users\anasb\Desktop\voidfall\voidfall-unity\.worktrees\urp-migration' -executeMethod VoidFall.EditorTools.BuildScript.BuildWindows -logFile 'C:\Users\anasb\Desktop\voidfall\voidfall-unity\.worktrees\urp-migration\TestResults\urp-windows-build.log'
 ```
 
-The initial validation build logged `Build Finished, Result: Success` and `Build succeeded: 124254830 bytes`. For provenance, the four build-generated files were then restored byte-for-byte to `HEAD` before rerunning the same BuildScript. That clean-source replay also logged `Build Finished, Result: Success` and `Build succeeded: 124254834 bytes`; `BuildScript` calls `EditorApplication.Exit(0)` on this result. The hard-coded output was intentionally left unchanged:
+This integration capture used the pre-existing untracked `Assets/VoidFall/Editor/BuildScript.cs`; it is user-owned and absent from the committed branch. Therefore this result is working-copy tooling evidence, not the committed-branch build gate. The initial validation build logged `Build Finished, Result: Success` and `Build succeeded: 124254830 bytes`. The restored-source replay logged `Build Finished, Result: Success` and `Build succeeded: 124254834 bytes`; `BuildScript` calls `EditorApplication.Exit(0)` on this result. The hard-coded output was intentionally left unchanged:
 
 - Clean-source replay reported player build size: `124,254,834` bytes.
 - Executable: `C:\Users\anasb\Desktop\voidfall\Builds\VoidFall.exe`.
@@ -51,6 +62,16 @@ The clean-source replay dirtied exactly these four tracked files and no other mi
 - `ProjectSettings/ProjectSettings.asset` (`+4/-1`, Standalone batching serialization).
 
 The mutation set was inspected, then all four files were restored with `apply_patch` to exact `HEAD` content. Hash comparison and scoped `git diff --exit-code` both pass after restoration.
+
+## Clean committed-branch Windows player build
+
+The committed branch was independently built without `BuildScript.cs`, using Unity's built-in `-buildWindows64Player` and committed `ProjectSettings/EditorBuildSettings.asset` (SampleScene enabled):
+
+```powershell
+& 'C:\Program Files\Unity\Hub\Editor\6000.5.7f1\Editor\Unity.exe' -batchmode -nographics -projectPath 'C:\Users\anasb\Desktop\voidfall\voidfall-unity\.worktrees\urp-clean-validation-5d1765f' -buildWindows64Player 'C:\Users\anasb\Desktop\voidfall\urp-clean-evidence-5d1765f\VoidFall.exe' -logFile 'C:\Users\anasb\Desktop\voidfall\voidfall-unity\.worktrees\urp-clean-validation-5d1765f\TestResults\urp-clean-built-in-build.log'
+```
+
+Result: Unity's build report logged `Build Finished, Result: Success`; the built-in Unity process completed with exit `0`. The external evidence executable is `C:\Users\anasb\Desktop\voidfall\urp-clean-evidence-5d1765f\VoidFall.exe` (`667,648` bytes), with `VoidFall_Data` and Windows player files present. The clean worktree was inspected after the build: Unity generated `ProjectSettings/ShaderGraphSettings.asset` and `ProjectSettings/URPProjectSettings.asset`, and deterministically dirtied the four tracked serialization files listed above. These are build-generated evidence changes and are not part of the committed source claim.
 
 ## Automated captures
 
@@ -95,10 +116,10 @@ The JSON does not instrument time-to-interactive, Unity object count, or materia
 
 - Package/version gate: **passed by project resolution and tests** (`6000.5.7f1`, URP `17.5.0`).
 - Compile/EditMode gate: **passed after final restoration**, Unity exit `0`, 10/10 tests; post-restoration batch compile exit `0` with no C# or shader compilation errors. The log also contains an environment shutdown `Curl error 42`, which is not a compile failure.
-- Windows x64 build gate: **passed from restored committed migration state**, Unity build report success and executable/data output present; the replayed output was `124,254,834` bytes.
-- Build provenance/source-integrity gate: **passed**, exactly four deterministic BuildPipeline serialization diffs were reproduced, inspected, restored, and all four now hash-match `HEAD`; no other tracked URP/ProjectSettings files are dirty.
+- Windows x64 build gate: **passed on the committed branch**, using Unity's built-in `-buildWindows64Player` without `BuildScript.cs`; Unity exit `0`, build report success, and external executable/data output present (`667,648`-byte executable). The working-copy integration build remains separately identified as dependent on untracked tooling.
+- Build provenance/source-integrity gate: **passed for tracked migration files**, with the clean branch's four deterministic BuildPipeline serialization diffs inspected. Unity-generated `ProjectSettings/ShaderGraphSettings.asset` and `ProjectSettings/URPProjectSettings.asset` are disposable untracked outputs in the clean validation worktree; they are excluded from the tracked source-clean claim.
 - Launch/capture gate: **passed**, all requested screen states and both resolutions have exit-0 captures; stress capture added for effect coverage.
-- Visual/effect gate: **passed with documented pre-existing UI limitations**; no pink/missing rendering observed. The normal gameplay captures alone were at `0:00` and insufficient for effect coverage; the isolated stress capture provides the additive/ring/arc evidence. Filament and transition-specific states were not independently triggered.
+- Visual/effect gate: **partial / unproven for independent coverage**; additive projectiles/particles, blast-wave rings, arcs, transparent sorting, and no-pink evidence are proven by the stress capture, but filament masking and transition-specific states were not independently isolated or exercised. No pink/missing rendering was observed in the available captures; pre-existing UI limitations remain documented above.
 - Runtime benchmark gate: **passed for hook execution**, but no numeric pre-URP baseline exists and TTI/object/material metrics are not instrumented.
 - Rollback gate: **preserved**; the original checkout at `C:\Users\anasb\Desktop\voidfall\voidfall-unity` was not overwritten.
 
