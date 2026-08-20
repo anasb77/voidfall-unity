@@ -9,6 +9,7 @@ using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using VoidFall.Core;
 using VoidFall.Persistence;
+using VoidFall.Runtime.Rendering;
 
 namespace VoidFall.Runtime
 {
@@ -20109,13 +20110,10 @@ namespace VoidFall.Runtime
             var shape = _fx.shape;
             shape.enabled = false;
             var renderer = _fx.GetComponent<ParticleSystemRenderer>();
-            var shader = Shader.Find("VoidFall/ParticleAdditive") ??
-                Shader.Find("Particles/Standard Unlit") ?? Shader.Find("Sprites/Default");
-            if (shader != null)
-            {
-                renderer.material = new Material(shader);
-                renderer.material.mainTexture = ProceduralSpriteFactory.ParticleDot().texture;
-            }
+            var material = new Material(VoidFallRenderMaterials.AdditiveSprite);
+            material.mainTexture = ProceduralSpriteFactory.ParticleDot().texture;
+            renderer.sharedMaterial = material;
+            _dynamicMaterials.Add(material);
             renderer.sortingOrder = 40;
             // Keep the ParticleSystem as a compatibility/simulation shadow for
             // existing runtime probes. Visible particles are rendered from the
@@ -22263,18 +22261,7 @@ namespace VoidFall.Runtime
 
         private static Material ResolveBlastWaveScreenMaterial()
         {
-            if (_blastWaveScreenMaterial != null) return _blastWaveScreenMaterial;
-
-            _blastWaveScreenMaterial = Resources.Load<Material>("VoidFall/BlastWaveScreen");
-            if (_blastWaveScreenMaterial != null) return _blastWaveScreenMaterial;
-
-            var shader = Shader.Find("VoidFall/ScreenBlend");
-            if (shader == null) return null;
-            _blastWaveScreenMaterial = new Material(shader)
-            {
-                hideFlags = HideFlags.HideAndDontSave,
-            };
-            return _blastWaveScreenMaterial;
+            return VoidFallRenderMaterials.ScreenBlend;
         }
 
         /// <summary>
@@ -22291,31 +22278,12 @@ namespace VoidFall.Runtime
         /// </summary>
         private static Material ResolveDefaultSpriteMaterial()
         {
-            if (_defaultSpriteMaterial != null) return _defaultSpriteMaterial;
-
-            var shader = Shader.Find("Sprites/Default");
-            if (shader == null) return null;
-            _defaultSpriteMaterial = new Material(shader)
-            {
-                hideFlags = HideFlags.HideAndDontSave,
-            };
-            return _defaultSpriteMaterial;
+            return VoidFallRenderMaterials.DefaultUnlit;
         }
 
         private static Material ResolveAdditiveSpriteMaterial()
         {
-            if (_additiveSpriteMaterial != null) return _additiveSpriteMaterial;
-
-            _additiveSpriteMaterial = Resources.Load<Material>("VoidFall/AdditiveSprite");
-            if (_additiveSpriteMaterial != null) return _additiveSpriteMaterial;
-
-            var shader = Shader.Find("VoidFall/AdditiveSprite");
-            if (shader == null) return null;
-            _additiveSpriteMaterial = new Material(shader)
-            {
-                hideFlags = HideFlags.HideAndDontSave,
-            };
-            return _additiveSpriteMaterial;
+            return VoidFallRenderMaterials.AdditiveSprite;
         }
 
         private SpriteRenderer EnsurePickupView(int index)
@@ -22386,13 +22354,7 @@ namespace VoidFall.Runtime
             }
 
             var additiveMaterial = ResolveAdditiveSpriteMaterial();
-            if (additiveMaterial != null)
-                renderer.material = additiveMaterial;
-            else
-            {
-                var additiveShader = Shader.Find("Particles/Standard Unlit") ?? Shader.Find("Sprites/Default");
-                if (additiveShader != null) renderer.material = new Material(additiveShader);
-            }
+            renderer.sharedMaterial = additiveMaterial;
             renderer.enabled = false;
             _railTrailViews[index] = renderer;
             return renderer;
@@ -22406,7 +22368,7 @@ namespace VoidFall.Runtime
             var line = objectRoot.AddComponent<LineRenderer>();
             line.useWorldSpace = true;
             var additiveMaterial = ResolveAdditiveSpriteMaterial();
-            line.material = additiveMaterial ?? new Material(Shader.Find("Sprites/Default"));
+            line.sharedMaterial = additiveMaterial;
             line.numCapVertices = 2;
             line.numCornerVertices = 2;
             line.sortingOrder = 36;
@@ -22423,7 +22385,7 @@ namespace VoidFall.Runtime
             var line = objectRoot.AddComponent<LineRenderer>();
             line.useWorldSpace = true;
             var additiveMaterial = ResolveAdditiveSpriteMaterial();
-            line.material = additiveMaterial ?? new Material(Shader.Find("Sprites/Default"));
+            line.sharedMaterial = additiveMaterial;
             line.numCapVertices = 2;
             line.numCornerVertices = 2;
             line.sortingOrder = 37;
@@ -22441,12 +22403,7 @@ namespace VoidFall.Runtime
             mesh.MarkDynamic();
             filter.sharedMesh = mesh;
             renderer = objectRoot.AddComponent<MeshRenderer>();
-            var shader = Shader.Find("Sprites/Default");
-            if (shader != null)
-            {
-                renderer.material = new Material(shader);
-                renderer.material.color = Color.white;
-            }
+            renderer.sharedMaterial = VoidFallRenderMaterials.DefaultUnlit;
             renderer.sortingOrder = sortingOrder;
             renderer.enabled = false;
             return filter;
@@ -22456,14 +22413,11 @@ namespace VoidFall.Runtime
         {
             if (slot < 0 || slot >= _arenaNearFilamentMaterials.Length) return;
             var renderer = _arenaNearFilamentOuterRenderers[slot];
-            var shader = Shader.Find("VoidFall/FilamentGas");
-            if (renderer == null || shader == null) return;
+            if (renderer == null) return;
 
-            var material = new Material(shader)
-            {
-                name = "VoidFall Filament Gas " + slot,
-                hideFlags = HideFlags.HideAndDontSave,
-            };
+            var material = VoidFallRenderMaterials.CreateFilamentInstance();
+            material.name = "VoidFall Filament Gas " + slot;
+            material.hideFlags = HideFlags.HideAndDontSave;
             material.SetFloat("_PassCount", ArenaNearFilamentPasses);
             renderer.sharedMaterial = material;
             _arenaNearFilamentMaterials[slot] = material;
@@ -22485,8 +22439,7 @@ namespace VoidFall.Runtime
             objectRoot.transform.SetParent(_worldRoot, false);
             var line = objectRoot.AddComponent<LineRenderer>();
             line.useWorldSpace = true;
-            var shader = Shader.Find("Sprites/Default");
-            if (shader != null) line.material = new Material(shader);
+            line.sharedMaterial = VoidFallRenderMaterials.DefaultUnlit;
             // CanvasRenderingContext2D defaults to butt caps and miter joins.
             // Explicit round paths opt in through ConfigureRoundLine.
             line.numCapVertices = 0;

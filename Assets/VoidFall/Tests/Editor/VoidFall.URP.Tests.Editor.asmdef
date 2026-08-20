@@ -1,0 +1,21 @@
+{
+  "name": "VoidFall.URP.Tests.Editor",
+  "rootNamespace": "VoidFall.Tests.Editor",
+  "references": [
+    "VoidFall.Runtime"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "testAssemblies": true
+}

@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: BlastWaveScreen
-  m_Shader: {fileID: 4800000, guid: 8e1c2f0f3b434be79e9b6a5f29e2c7d4, type: 3}
+  m_Name: DefaultUnlit
+  m_Shader: {fileID: 4800000, guid: 46c3a8cdb7f8f9b4db558563ac01edf9, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
