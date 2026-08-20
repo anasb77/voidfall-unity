@@ -609,6 +609,7 @@ namespace VoidFall.Runtime
         private static Material _blastWaveScreenMaterial;
         private static Material _additiveSpriteMaterial;
         private static Material _defaultSpriteMaterial;
+        private Material _fxMaterial;
         private readonly Text[] _floaterViews = new Text[MaxFloaters];
         private readonly Image[] _damageIndicatorViews = new Image[MaxDamageIndicators];
         private readonly SpriteRenderer[] _deathGhostViews = new SpriteRenderer[MaxDeathGhosts];
@@ -1288,6 +1289,7 @@ namespace VoidFall.Runtime
                 }
             }
             if (_instance == this) _instance = null;
+            if (_fxMaterial != null) { Destroy(_fxMaterial); _fxMaterial = null; }
         }
 
         private void OnApplicationPause(bool pauseStatus)
@@ -20110,10 +20112,9 @@ namespace VoidFall.Runtime
             var shape = _fx.shape;
             shape.enabled = false;
             var renderer = _fx.GetComponent<ParticleSystemRenderer>();
-            var material = new Material(VoidFallRenderMaterials.AdditiveSprite);
-            material.mainTexture = ProceduralSpriteFactory.ParticleDot().texture;
-            renderer.sharedMaterial = material;
-            _dynamicMaterials.Add(material);
+            _fxMaterial = new Material(VoidFallRenderMaterials.AdditiveSprite);
+            _fxMaterial.mainTexture = ProceduralSpriteFactory.ParticleDot().texture;
+            renderer.sharedMaterial = _fxMaterial;
             renderer.sortingOrder = 40;
             // Keep the ParticleSystem as a compatibility/simulation shadow for
             // existing runtime probes. Visible particles are rendered from the
