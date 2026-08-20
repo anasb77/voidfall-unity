@@ -1,4 +1,8 @@
+using System;
+using System.Reflection;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEditor.Rendering;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -28,7 +32,7 @@ namespace VoidFall.Tests.Editor
             }
             finally
             {
-                Object.DestroyImmediate(filament);
+                UnityEngine.Object.DestroyImmediate(filament);
             }
         }
 
@@ -56,6 +60,78 @@ namespace VoidFall.Tests.Editor
             {
                 QualitySettings.SetQualityLevel(originalLevel, false);
             }
+        }
+
+        [Test]
+        public void Graphics_uses_the_voidfall_global_settings_asset()
+        {
+            var expected = AssetDatabase.LoadAssetAtPath<RenderPipelineGlobalSettings>(
+                "Assets/VoidFall/Rendering/URP/VoidFallURPGlobalSettings.asset");
+            var actual = GraphicsSettings.GetSettingsForRenderPipeline<UniversalRenderPipeline>();
+
+            Assert.That(expected, Is.Not.Null);
+            Assert.That(actual, Is.SameAs(expected));
+        }
+
+        [Test]
+        public void Configure_registers_the_voidfall_global_settings_asset_when_missing()
+        {
+            var expected = AssetDatabase.LoadAssetAtPath<RenderPipelineGlobalSettings>(
+                "Assets/VoidFall/Rendering/URP/VoidFallURPGlobalSettings.asset");
+            Assert.That(expected, Is.Not.Null);
+            var pipelineType = typeof(UniversalRenderPipeline);
+            var original = GraphicsSettings.GetSettingsForRenderPipeline(pipelineType);
+
+            try
+            {
+                EditorGraphicsSettings.SetRenderPipelineGlobalSettingsAsset(pipelineType, null);
+                var setupType = Type.GetType("VoidFall.Editor.UrpPipelineSetup, Assembly-CSharp-Editor");
+                Assert.That(setupType, Is.Not.Null);
+                setupType.GetMethod("Configure", BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
+
+                var actual = GraphicsSettings.GetSettingsForRenderPipeline(pipelineType);
+                Assert.That(actual, Is.SameAs(expected));
+            }
+            finally
+            {
+                EditorGraphicsSettings.SetRenderPipelineGlobalSettingsAsset(pipelineType, original);
+                Assert.That(GraphicsSettings.GetSettingsForRenderPipeline(pipelineType), Is.SameAs(original));
+            }
+        }
+
+        [Test]
+        public void Urp_render_graph_compatibility_mode_is_disabled()
+        {
+#pragma warning disable CS0618
+            var settings = GraphicsSettings.GetRenderPipelineSettings<RenderGraphSettings>();
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(settings.enableRenderCompatibilityMode, Is.False);
+#pragma warning restore CS0618
+        }
+
+        [Test]
+        public void Urp_pipeline_has_one_renderer_at_default_index_zero()
+        {
+            var pipeline = (UniversalRenderPipelineAsset)GraphicsSettings.defaultRenderPipeline;
+            var serialized = new SerializedObject(pipeline);
+            var rendererList = serialized.FindProperty("m_RendererDataList");
+            var defaultRendererIndex = serialized.FindProperty("m_DefaultRendererIndex");
+
+            Assert.That(rendererList, Is.Not.Null);
+            Assert.That(rendererList.arraySize, Is.EqualTo(1));
+            Assert.That(defaultRendererIndex, Is.Not.Null);
+            Assert.That(defaultRendererIndex.intValue, Is.EqualTo(0));
+            Assert.That(pipeline.GetRenderer(0), Is.Not.Null);
+        }
+
+        [Test]
+        public void Urp_default_volume_profile_is_empty()
+        {
+            var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(
+                "Assets/VoidFall/Rendering/URP/VoidFallDefaultVolumeProfile.asset");
+
+            Assert.That(profile, Is.Not.Null);
+            Assert.That(profile.components, Is.Empty);
         }
 
         [Test]
