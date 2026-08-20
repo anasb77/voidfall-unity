@@ -14,7 +14,7 @@ Validation head before this report: `8d54550a1a2817e1315a4bae076c3c5d952e2e4c`
 - Render Graph compatibility mode is disabled; the migration tests verify `RenderGraphSettings.enableRenderCompatibilityMode == false`.
 - Post-processing, arena beautification, arena art replacement, and renderer features remain deferred by design.
 
-The worktree contained substantial pre-existing tracked and untracked user work before validation, including `Assets/VoidFall/Editor/BuildScript.cs`, `Assets/VoidFall/UI/`, `Docs/AI/`, and parity/content changes. No production code or build script was changed for Task 5. Unity import/test/build activity also produced local serialization changes in existing URP/project-settings files; these remain unstaged and are not part of this report commit.
+The worktree contained substantial pre-existing tracked and untracked user work before validation, including `Assets/VoidFall/Editor/BuildScript.cs`, `Assets/VoidFall/UI/`, `Docs/AI/`, and parity/content changes. No production code or build script was changed for Task 5. BuildPipeline serialization provenance was explicitly checked: a build from the four files restored byte-for-byte to `HEAD` deterministically dirtied exactly those four files, and they were restored again after the successful build. The final source state is clean for migration-owned assets/settings, and `VoidFallDefaultVolumeProfile.asset` is again the empty profile asserted by the tests.
 
 ## EditMode suite
 
@@ -34,12 +34,21 @@ Command:
 & 'C:\Program Files\Unity\Hub\Editor\6000.5.7f1\Editor\Unity.exe' -batchmode -nographics -projectPath 'C:\Users\anasb\Desktop\voidfall\voidfall-unity\.worktrees\urp-migration' -executeMethod VoidFall.EditorTools.BuildScript.BuildWindows -logFile 'C:\Users\anasb\Desktop\voidfall\voidfall-unity\.worktrees\urp-migration\TestResults\urp-windows-build.log'
 ```
 
-`BuildPipeline.BuildPlayer` logged `Build Finished, Result: Success` and `Build succeeded: 124254830 bytes`; `BuildScript` calls `EditorApplication.Exit(0)` on this result. The hard-coded output was intentionally left unchanged:
+The initial validation build logged `Build Finished, Result: Success` and `Build succeeded: 124254830 bytes`. For provenance, the four build-generated files were then restored byte-for-byte to `HEAD` before rerunning the same BuildScript. That clean-source replay also logged `Build Finished, Result: Success` and `Build succeeded: 124254834 bytes`; `BuildScript` calls `EditorApplication.Exit(0)` on this result. The hard-coded output was intentionally left unchanged:
 
-- Reported player build size: `124,254,830` bytes.
+- Clean-source replay reported player build size: `124,254,834` bytes.
 - Executable: `C:\Users\anasb\Desktop\voidfall\Builds\VoidFall.exe`.
 - Executable file size: `667,648` bytes; the corresponding `VoidFall_Data` directory and Windows player files are present.
 - Existing context documentation cites a prior `117,606,213`-byte player; against that non-reproducible pre-migration reference, the reported build-size delta is `+6,648,617` bytes (`+5.65%`). No equivalent prior executable-size measurement was available.
+
+The clean-source replay dirtied exactly these four tracked files and no other migration-owned asset or setting:
+
+- `Assets/VoidFall/Rendering/URP/VoidFallDefaultVolumeProfile.asset` (`+784/-1`, generated Volume component serialization; default profile was empty before build).
+- `Assets/VoidFall/Rendering/URP/VoidFallURP.asset` (`34/34`, shader prefilter/cache serialization).
+- `Assets/VoidFall/Rendering/URP/VoidFallURPGlobalSettings.asset` (`+14/-1`, runtime settings list serialization).
+- `ProjectSettings/ProjectSettings.asset` (`+4/-1`, Standalone batching serialization).
+
+The mutation set was inspected, then all four files were restored with `apply_patch` to exact `HEAD` content. Hash comparison and scoped `git diff --exit-code` both pass after restoration.
 
 ## Automated captures
 
@@ -83,8 +92,9 @@ The JSON does not instrument time-to-interactive, Unity object count, or materia
 ## Acceptance status and limitations
 
 - Package/version gate: **passed by project resolution and tests** (`6000.5.7f1`, URP `17.5.0`).
-- Compile/EditMode gate: **passed**, 10/10 tests.
-- Windows x64 build gate: **passed**, Unity build report success and executable/data output present.
+- Compile/EditMode gate: **passed after final restoration**, Unity exit `0`, 10/10 tests; post-restoration batch compile exit `0` with no C# or shader compilation errors. The log also contains an environment shutdown `Curl error 42`, which is not a compile failure.
+- Windows x64 build gate: **passed from restored committed migration state**, Unity build report success and executable/data output present; the replayed output was `124,254,834` bytes.
+- Build provenance/source-integrity gate: **passed**, exactly four deterministic BuildPipeline serialization diffs were reproduced, inspected, restored, and all four now hash-match `HEAD`; no other tracked URP/ProjectSettings files are dirty.
 - Launch/capture gate: **passed**, all requested screen states and both resolutions have exit-0 captures; stress capture added for effect coverage.
 - Visual/effect gate: **passed with documented pre-existing UI limitations**; no pink/missing rendering observed. The normal gameplay captures alone were at `0:00` and insufficient for effect coverage; the isolated stress capture provides the additive/ring/arc evidence. Filament and transition-specific states were not independently triggered.
 - Runtime benchmark gate: **passed for hook execution**, but no numeric pre-URP baseline exists and TTI/object/material metrics are not instrumented.
