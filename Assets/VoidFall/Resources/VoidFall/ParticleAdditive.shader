@@ -27,7 +27,6 @@ Shader "VoidFall/ParticleAdditive"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
-            #pragma multi_compile_particles
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             TEXTURE2D(_MainTex);
@@ -94,7 +93,6 @@ Shader "VoidFall/ParticleAdditive"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma multi_compile_particles
             #include "UnityCG.cginc"
 
             sampler2D _MainTex;
