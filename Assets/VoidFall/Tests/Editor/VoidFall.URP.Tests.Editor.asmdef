@@ -2,7 +2,8 @@
   "name": "VoidFall.URP.Tests.Editor",
   "rootNamespace": "VoidFall.Tests.Editor",
   "references": [
-    "VoidFall.Runtime"
+    "VoidFall.Runtime",
+    "Unity.RenderPipelines.Universal.Runtime"
   ],
   "includePlatforms": [
     "Editor"
