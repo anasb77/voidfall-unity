@@ -35,7 +35,13 @@ What changed since 2026-08-16, all verified from this checkout:
   (`Runtime/Gameplay/FxSim.cs`): its state arrays, shared insertion-order
   bookkeeping, FX random stream, update loops, and spawn insertion logic are
   now plain C#; only view syncing and the ParticleSystem emission calls
-  remain on the runtime. Every step was verified behavior-neutral: rebuild
+  remain on the runtime. Combat simulation state has likewise moved into
+  `Runtime/Gameplay/GameSim.cs` (v0: all six family arrays, order bookkeeping,
+  grid buffers, combat RNG; 543 references rewritten; method bodies migrate
+  inward next). The promoted data types live in
+  `Runtime/Gameplay/CombatStateTypes.cs`. See `Docs/Architecture.md` for the
+  component map and `Docs/RefactoringPlaybook.md` for the extraction recipe.
+  Every step was verified behavior-neutral: rebuild
   0 errors, EditMode 57/57, and the PlayMode golden-master hash
   (`15261090775683682834`) unchanged throughout.
 - **VF-002 and VF-006 from `Docs/AI/UnityProjectHealth.md` are fixed**:
