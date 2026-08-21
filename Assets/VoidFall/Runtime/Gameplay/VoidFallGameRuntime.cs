@@ -551,18 +551,10 @@ namespace VoidFall.Runtime
         // Blast waves and death ghosts use the browser's swap-pop expiry path.
         // Keep that logical array order separate from their reusable Unity
         // view slots so overlapping effects retain source draw order.
-        private readonly int[] _blastWaveOrder = new int[MaxBlastWaves];
-        private readonly int[] _blastWaveOrderPosition = new int[MaxBlastWaves];
-        private int _blastWaveOrderCount;
-        private readonly int[] _deathGhostOrder = new int[MaxDeathGhosts];
-        private readonly int[] _deathGhostOrderPosition = new int[MaxDeathGhosts];
-        private int _deathGhostOrderCount;
-        private readonly int[] _floaterOrder = new int[MaxFloaters];
-        private readonly int[] _floaterOrderPosition = new int[MaxFloaters];
-        private int _floaterOrderCount;
-        private readonly int[] _damageIndicatorOrder = new int[MaxDamageIndicators];
-        private readonly int[] _damageIndicatorOrderPosition = new int[MaxDamageIndicators];
-        private int _damageIndicatorOrderCount;
+        private readonly SlotOrder _blastWaveOrder = new SlotOrder(MaxBlastWaves);
+        private readonly SlotOrder _deathGhostOrder = new SlotOrder(MaxDeathGhosts);
+        private readonly SlotOrder _floaterOrder = new SlotOrder(MaxFloaters);
+        private readonly SlotOrder _damageIndicatorOrder = new SlotOrder(MaxDamageIndicators);
         private int _floaterSiblingBase;
         private int _damageIndicatorSiblingBase;
         private readonly BossState[] _bosses = new BossState[MaxBosses];
@@ -765,12 +757,8 @@ namespace VoidFall.Runtime
         private int _meteorOrderCount;
         // Browser projectiles also use compact arrays and reverse iteration;
         // keep their logical order independent from pooled Unity slots.
-        private readonly int[] _bulletOrder = new int[MaxBullets];
-        private readonly int[] _bulletOrderPosition = new int[MaxBullets];
-        private int _bulletOrderCount;
-        private readonly int[] _hostileShotOrder = new int[MaxHostileShots];
-        private readonly int[] _hostileShotOrderPosition = new int[MaxHostileShots];
-        private int _hostileShotOrderCount;
+        private readonly SlotOrder _bulletOrder = new SlotOrder(MaxBullets);
+        private readonly SlotOrder _hostileShotOrder = new SlotOrder(MaxHostileShots);
         private readonly CollisionGrid _enemyGrid = new CollisionGrid(MaxEnemies);
         private readonly int[] _enemyGridSpawnIds = new int[MaxEnemies];
         private readonly int[] _enemyGridBulletCandidates = new int[MaxEnemies];
@@ -2955,44 +2943,11 @@ namespace VoidFall.Runtime
             }
         }
 
-        private void ResetHostileShotOrder()
-        {
-            _hostileShotOrderCount = 0;
-            for (var index = 0; index < _hostileShotOrderPosition.Length; index++)
-            {
-                _hostileShotOrder[index] = -1;
-                _hostileShotOrderPosition[index] = -1;
-            }
-        }
+        private void ResetHostileShotOrder() => _hostileShotOrder.Reset();
 
-        private void AppendHostileShotOrder(int slot)
-        {
-            if (slot < 0 || slot >= _hostileShots.Length || _hostileShotOrderCount >= _hostileShotOrder.Length) return;
-            var position = _hostileShotOrderPosition[slot];
-            if (position >= 0 && position < _hostileShotOrderCount && _hostileShotOrder[position] == slot) return;
-            _hostileShotOrderPosition[slot] = _hostileShotOrderCount;
-            _hostileShotOrder[_hostileShotOrderCount++] = slot;
-        }
+        private void AppendHostileShotOrder(int slot) => _hostileShotOrder.Append(slot);
 
-        private void RemoveHostileShotOrder(int slot)
-        {
-            if (slot < 0 || slot >= _hostileShots.Length) return;
-            var position = _hostileShotOrderPosition[slot];
-            if (position < 0 || position >= _hostileShotOrderCount || _hostileShotOrder[position] != slot)
-            {
-                _hostileShotOrderPosition[slot] = -1;
-                return;
-            }
-            var lastPosition = --_hostileShotOrderCount;
-            if (position != lastPosition)
-            {
-                var replacement = _hostileShotOrder[lastPosition];
-                _hostileShotOrder[position] = replacement;
-                _hostileShotOrderPosition[replacement] = position;
-            }
-            _hostileShotOrder[lastPosition] = -1;
-            _hostileShotOrderPosition[slot] = -1;
-        }
+        private void RemoveHostileShotOrder(int slot) => _hostileShotOrder.Remove(slot);
 
         private void EnsureHostileShotOrderEntries()
         {
@@ -3000,9 +2955,9 @@ namespace VoidFall.Runtime
             {
                 if (_hostileShots[index].Active) AppendHostileShotOrder(index);
             }
-            for (var order = _hostileShotOrderCount - 1; order >= 0; order--)
+            for (var order = _hostileShotOrder.Count - 1; order >= 0; order--)
             {
-                var slot = _hostileShotOrder[order];
+                var slot = _hostileShotOrder.SlotAt(order);
                 if (slot < 0 || !_hostileShots[slot].Active) RemoveHostileShotOrder(slot);
             }
         }

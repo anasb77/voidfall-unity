@@ -146,9 +146,9 @@ namespace VoidFall.Runtime
                 var view = _deathGhostViews[index];
                 if (!ghost.Active) Hide(view);
             }
-            for (var order = 0; order < _deathGhostOrderCount; order++)
+            for (var order = 0; order < _deathGhostOrder.Count; order++)
             {
-                var index = _deathGhostOrder[order];
+                var index = _deathGhostOrder.SlotAt(order);
                 if (index < 0 || index >= _deathGhosts.Length) continue;
                 var ghost = _deathGhosts[index];
                 var view = _deathGhostViews[index];
@@ -178,9 +178,9 @@ namespace VoidFall.Runtime
             {
                 if (!_damageIndicators[index].Active) Hide(_damageIndicatorViews[index]);
             }
-            for (var order = 0; order < _damageIndicatorOrderCount; order++)
+            for (var order = 0; order < _damageIndicatorOrder.Count; order++)
             {
-                var index = _damageIndicatorOrder[order];
+                var index = _damageIndicatorOrder.SlotAt(order);
                 if (index < 0 || index >= _damageIndicators.Length) continue;
                 var indicator = _damageIndicators[index];
                 var view = _damageIndicatorViews[index];
@@ -206,9 +206,9 @@ namespace VoidFall.Runtime
             {
                 if (!_floaters[index].Active) Hide(_floaterViews[index]);
             }
-            for (var order = 0; order < _floaterOrderCount; order++)
+            for (var order = 0; order < _floaterOrder.Count; order++)
             {
-                var index = _floaterOrder[order];
+                var index = _floaterOrder.SlotAt(order);
                 if (index < 0 || index >= _floaters.Length) continue;
                 var floater = _floaters[index];
                 var view = _floaterViews[index];
@@ -438,9 +438,9 @@ namespace VoidFall.Runtime
             // Player bullets are also a browser compact array. Keep their
             // shared body sorting slot in source order after pooled reuse.
             EnsureBulletOrderEntries();
-            for (var order = 0; order < _bulletOrderCount; order++)
+            for (var order = 0; order < _bulletOrder.Count; order++)
             {
-                var i = _bulletOrder[order];
+                var i = _bulletOrder.SlotAt(order);
                 if (i < 0 || i >= _bullets.Length || !_bullets[i].Active || _bulletViews[i] == null)
                 {
                     if (i >= 0 && i < _bullets.Length) Hide(_bulletViews[i]);
@@ -507,9 +507,9 @@ namespace VoidFall.Runtime
             // Hostile shots use the same forward draw order as their source
             // array; fixed Unity slots must not decide overlap order.
             EnsureHostileShotOrderEntries();
-            for (var order = 0; order < _hostileShotOrderCount; order++)
+            for (var order = 0; order < _hostileShotOrder.Count; order++)
             {
-                var i = _hostileShotOrder[order];
+                var i = _hostileShotOrder.SlotAt(order);
                 if (i < 0 || i >= _hostileShots.Length || !_hostileShots[i].Active)
                 {
                     if (i >= 0 && i < _hostileShots.Length && _hostileShotViews[i] != null) Hide(_hostileShotViews[i]);
@@ -4223,9 +4223,9 @@ namespace VoidFall.Runtime
                     continue;
                 }
             }
-            for (var order = 0; order < _blastWaveOrderCount; order++)
+            for (var order = 0; order < _blastWaveOrder.Count; order++)
             {
-                var index = _blastWaveOrder[order];
+                var index = _blastWaveOrder.SlotAt(order);
                 if (index < 0 || index >= _blastWaves.Length) continue;
                 var wave = _blastWaves[index];
                 if (!wave.Active) continue;

@@ -2190,48 +2190,11 @@ namespace VoidFall.Runtime
             _enemyOrderPosition[slot] = -1;
         }
 
-        private void ResetDamageIndicatorOrder()
-        {
-            _damageIndicatorOrderCount = 0;
-            for (var index = 0; index < _damageIndicatorOrderPosition.Length; index++)
-            {
-                _damageIndicatorOrder[index] = -1;
-                _damageIndicatorOrderPosition[index] = -1;
-            }
-        }
+        private void ResetDamageIndicatorOrder() => _damageIndicatorOrder.Reset();
 
-        private void AppendDamageIndicatorOrder(int slot)
-        {
-            if (slot < 0 || slot >= _damageIndicators.Length ||
-                _damageIndicatorOrderCount >= _damageIndicatorOrder.Length) return;
-            var position = _damageIndicatorOrderPosition[slot];
-            if (position >= 0 && position < _damageIndicatorOrderCount &&
-                _damageIndicatorOrder[position] == slot) return;
-            _damageIndicatorOrderPosition[slot] = _damageIndicatorOrderCount;
-            _damageIndicatorOrder[_damageIndicatorOrderCount++] = slot;
-        }
+        private void AppendDamageIndicatorOrder(int slot) => _damageIndicatorOrder.Append(slot);
 
-        private void RemoveDamageIndicatorOrder(int slot)
-        {
-            if (slot < 0 || slot >= _damageIndicators.Length) return;
-            var position = _damageIndicatorOrderPosition[slot];
-            if (position < 0 || position >= _damageIndicatorOrderCount ||
-                _damageIndicatorOrder[position] != slot)
-            {
-                _damageIndicatorOrderPosition[slot] = -1;
-                return;
-            }
-
-            var lastPosition = --_damageIndicatorOrderCount;
-            if (position != lastPosition)
-            {
-                var replacement = _damageIndicatorOrder[lastPosition];
-                _damageIndicatorOrder[position] = replacement;
-                _damageIndicatorOrderPosition[replacement] = position;
-            }
-            _damageIndicatorOrder[lastPosition] = -1;
-            _damageIndicatorOrderPosition[slot] = -1;
-        }
+        private void RemoveDamageIndicatorOrder(int slot) => _damageIndicatorOrder.Remove(slot);
 
         private void EnsureDamageIndicatorOrderEntries()
         {
@@ -2239,52 +2202,19 @@ namespace VoidFall.Runtime
             {
                 if (_damageIndicators[index].Active) AppendDamageIndicatorOrder(index);
             }
-            for (var order = _damageIndicatorOrderCount - 1; order >= 0; order--)
+            for (var order = _damageIndicatorOrder.Count - 1; order >= 0; order--)
             {
-                var slot = _damageIndicatorOrder[order];
+                var slot = _damageIndicatorOrder.SlotAt(order);
                 if (slot < 0 || slot >= _damageIndicators.Length || !_damageIndicators[slot].Active)
                     RemoveDamageIndicatorOrder(slot);
             }
         }
 
-        private void ResetBulletOrder()
-        {
-            _bulletOrderCount = 0;
-            for (var index = 0; index < _bulletOrderPosition.Length; index++)
-            {
-                _bulletOrder[index] = -1;
-                _bulletOrderPosition[index] = -1;
-            }
-        }
+        private void ResetBulletOrder() => _bulletOrder.Reset();
 
-        private void AppendBulletOrder(int slot)
-        {
-            if (slot < 0 || slot >= _bullets.Length || _bulletOrderCount >= _bulletOrder.Length) return;
-            var position = _bulletOrderPosition[slot];
-            if (position >= 0 && position < _bulletOrderCount && _bulletOrder[position] == slot) return;
-            _bulletOrderPosition[slot] = _bulletOrderCount;
-            _bulletOrder[_bulletOrderCount++] = slot;
-        }
+        private void AppendBulletOrder(int slot) => _bulletOrder.Append(slot);
 
-        private void RemoveBulletOrder(int slot)
-        {
-            if (slot < 0 || slot >= _bullets.Length) return;
-            var position = _bulletOrderPosition[slot];
-            if (position < 0 || position >= _bulletOrderCount || _bulletOrder[position] != slot)
-            {
-                _bulletOrderPosition[slot] = -1;
-                return;
-            }
-            var lastPosition = --_bulletOrderCount;
-            if (position != lastPosition)
-            {
-                var replacement = _bulletOrder[lastPosition];
-                _bulletOrder[position] = replacement;
-                _bulletOrderPosition[replacement] = position;
-            }
-            _bulletOrder[lastPosition] = -1;
-            _bulletOrderPosition[slot] = -1;
-        }
+        private void RemoveBulletOrder(int slot) => _bulletOrder.Remove(slot);
 
         private void EnsureBulletOrderEntries()
         {
@@ -2292,9 +2222,9 @@ namespace VoidFall.Runtime
             {
                 if (_bullets[index].Active) AppendBulletOrder(index);
             }
-            for (var order = _bulletOrderCount - 1; order >= 0; order--)
+            for (var order = _bulletOrder.Count - 1; order >= 0; order--)
             {
-                var slot = _bulletOrder[order];
+                var slot = _bulletOrder.SlotAt(order);
                 if (slot < 0 || !_bullets[slot].Active) RemoveBulletOrder(slot);
             }
         }
@@ -2485,10 +2415,10 @@ namespace VoidFall.Runtime
         private void UpdateBullets(float dt)
         {
             EnsureBulletOrderEntries();
-            var initialOrderCount = _bulletOrderCount;
+            var initialOrderCount = _bulletOrder.Count;
             for (var order = initialOrderCount - 1; order >= 0; order--)
             {
-                var i = _bulletOrder[order];
+                var i = _bulletOrder.SlotAt(order);
                 var bullet = _bullets[i];
                 if (!bullet.Active)
                 {
@@ -4140,10 +4070,10 @@ namespace VoidFall.Runtime
         private void UpdateHostileShots(float dt)
         {
             EnsureHostileShotOrderEntries();
-            var initialOrderCount = _hostileShotOrderCount;
+            var initialOrderCount = _hostileShotOrder.Count;
             for (var order = initialOrderCount - 1; order >= 0; order--)
             {
-                var index = _hostileShotOrder[order];
+                var index = _hostileShotOrder.SlotAt(order);
                 var shot = _hostileShots[index];
                 if (!shot.Active)
                 {
@@ -5139,9 +5069,9 @@ namespace VoidFall.Runtime
             EnsureFloaterOrderEntries();
             if (targetKey > 0 && value > 0)
             {
-                for (var order = 0; order < _floaterOrderCount; order++)
+                for (var order = 0; order < _floaterOrder.Count; order++)
                 {
-                    var index = _floaterOrder[order];
+                    var index = _floaterOrder.SlotAt(order);
                     var existing = _floaters[index];
                     if (!existing.Active || existing.TargetKey != targetKey || existing.Value <= 0 ||
                         existing.Life <= existing.MaxLife - 0.3f) continue;

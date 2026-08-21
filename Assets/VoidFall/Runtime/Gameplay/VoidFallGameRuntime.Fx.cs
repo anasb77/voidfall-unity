@@ -75,48 +75,11 @@ namespace VoidFall.Runtime
             }
         }
 
-        private void ResetBlastWaveOrder()
-        {
-            _blastWaveOrderCount = 0;
-            for (var index = 0; index < _blastWaveOrderPosition.Length; index++)
-            {
-                _blastWaveOrder[index] = -1;
-                _blastWaveOrderPosition[index] = -1;
-            }
-        }
+        private void ResetBlastWaveOrder() => _blastWaveOrder.Reset();
 
-        private void AppendBlastWaveOrder(int slot)
-        {
-            if (slot < 0 || slot >= _blastWaves.Length ||
-                _blastWaveOrderCount >= _blastWaveOrder.Length) return;
-            var position = _blastWaveOrderPosition[slot];
-            if (position >= 0 && position < _blastWaveOrderCount &&
-                _blastWaveOrder[position] == slot) return;
-            _blastWaveOrderPosition[slot] = _blastWaveOrderCount;
-            _blastWaveOrder[_blastWaveOrderCount++] = slot;
-        }
+        private void AppendBlastWaveOrder(int slot) => _blastWaveOrder.Append(slot);
 
-        private void RemoveBlastWaveOrder(int slot)
-        {
-            if (slot < 0 || slot >= _blastWaves.Length) return;
-            var position = _blastWaveOrderPosition[slot];
-            if (position < 0 || position >= _blastWaveOrderCount ||
-                _blastWaveOrder[position] != slot)
-            {
-                _blastWaveOrderPosition[slot] = -1;
-                return;
-            }
-
-            var lastPosition = --_blastWaveOrderCount;
-            if (position != lastPosition)
-            {
-                var replacement = _blastWaveOrder[lastPosition];
-                _blastWaveOrder[position] = replacement;
-                _blastWaveOrderPosition[replacement] = position;
-            }
-            _blastWaveOrder[lastPosition] = -1;
-            _blastWaveOrderPosition[slot] = -1;
-        }
+        private void RemoveBlastWaveOrder(int slot) => _blastWaveOrder.Remove(slot);
 
         private void EnsureBlastWaveOrderEntries()
         {
@@ -124,56 +87,19 @@ namespace VoidFall.Runtime
             {
                 if (_blastWaves[index].Active) AppendBlastWaveOrder(index);
             }
-            for (var order = _blastWaveOrderCount - 1; order >= 0; order--)
+            for (var order = _blastWaveOrder.Count - 1; order >= 0; order--)
             {
-                var slot = _blastWaveOrder[order];
+                var slot = _blastWaveOrder.SlotAt(order);
                 if (slot < 0 || slot >= _blastWaves.Length || !_blastWaves[slot].Active)
                     RemoveBlastWaveOrder(slot);
             }
         }
 
-        private void ResetDeathGhostOrder()
-        {
-            _deathGhostOrderCount = 0;
-            for (var index = 0; index < _deathGhostOrderPosition.Length; index++)
-            {
-                _deathGhostOrder[index] = -1;
-                _deathGhostOrderPosition[index] = -1;
-            }
-        }
+        private void ResetDeathGhostOrder() => _deathGhostOrder.Reset();
 
-        private void AppendDeathGhostOrder(int slot)
-        {
-            if (slot < 0 || slot >= _deathGhosts.Length ||
-                _deathGhostOrderCount >= _deathGhostOrder.Length) return;
-            var position = _deathGhostOrderPosition[slot];
-            if (position >= 0 && position < _deathGhostOrderCount &&
-                _deathGhostOrder[position] == slot) return;
-            _deathGhostOrderPosition[slot] = _deathGhostOrderCount;
-            _deathGhostOrder[_deathGhostOrderCount++] = slot;
-        }
+        private void AppendDeathGhostOrder(int slot) => _deathGhostOrder.Append(slot);
 
-        private void RemoveDeathGhostOrder(int slot)
-        {
-            if (slot < 0 || slot >= _deathGhosts.Length) return;
-            var position = _deathGhostOrderPosition[slot];
-            if (position < 0 || position >= _deathGhostOrderCount ||
-                _deathGhostOrder[position] != slot)
-            {
-                _deathGhostOrderPosition[slot] = -1;
-                return;
-            }
-
-            var lastPosition = --_deathGhostOrderCount;
-            if (position != lastPosition)
-            {
-                var replacement = _deathGhostOrder[lastPosition];
-                _deathGhostOrder[position] = replacement;
-                _deathGhostOrderPosition[replacement] = position;
-            }
-            _deathGhostOrder[lastPosition] = -1;
-            _deathGhostOrderPosition[slot] = -1;
-        }
+        private void RemoveDeathGhostOrder(int slot) => _deathGhostOrder.Remove(slot);
 
         private void EnsureDeathGhostOrderEntries()
         {
@@ -181,56 +107,19 @@ namespace VoidFall.Runtime
             {
                 if (_deathGhosts[index].Active) AppendDeathGhostOrder(index);
             }
-            for (var order = _deathGhostOrderCount - 1; order >= 0; order--)
+            for (var order = _deathGhostOrder.Count - 1; order >= 0; order--)
             {
-                var slot = _deathGhostOrder[order];
+                var slot = _deathGhostOrder.SlotAt(order);
                 if (slot < 0 || slot >= _deathGhosts.Length || !_deathGhosts[slot].Active)
                     RemoveDeathGhostOrder(slot);
             }
         }
 
-        private void ResetFloaterOrder()
-        {
-            _floaterOrderCount = 0;
-            for (var index = 0; index < _floaterOrderPosition.Length; index++)
-            {
-                _floaterOrder[index] = -1;
-                _floaterOrderPosition[index] = -1;
-            }
-        }
+        private void ResetFloaterOrder() => _floaterOrder.Reset();
 
-        private void AppendFloaterOrder(int slot)
-        {
-            if (slot < 0 || slot >= _floaters.Length ||
-                _floaterOrderCount >= _floaterOrder.Length) return;
-            var position = _floaterOrderPosition[slot];
-            if (position >= 0 && position < _floaterOrderCount &&
-                _floaterOrder[position] == slot) return;
-            _floaterOrderPosition[slot] = _floaterOrderCount;
-            _floaterOrder[_floaterOrderCount++] = slot;
-        }
+        private void AppendFloaterOrder(int slot) => _floaterOrder.Append(slot);
 
-        private void RemoveFloaterOrder(int slot)
-        {
-            if (slot < 0 || slot >= _floaters.Length) return;
-            var position = _floaterOrderPosition[slot];
-            if (position < 0 || position >= _floaterOrderCount ||
-                _floaterOrder[position] != slot)
-            {
-                _floaterOrderPosition[slot] = -1;
-                return;
-            }
-
-            var lastPosition = --_floaterOrderCount;
-            if (position != lastPosition)
-            {
-                var replacement = _floaterOrder[lastPosition];
-                _floaterOrder[position] = replacement;
-                _floaterOrderPosition[replacement] = position;
-            }
-            _floaterOrder[lastPosition] = -1;
-            _floaterOrderPosition[slot] = -1;
-        }
+        private void RemoveFloaterOrder(int slot) => _floaterOrder.Remove(slot);
 
         private void EnsureFloaterOrderEntries()
         {
@@ -238,9 +127,9 @@ namespace VoidFall.Runtime
             {
                 if (_floaters[index].Active) AppendFloaterOrder(index);
             }
-            for (var order = _floaterOrderCount - 1; order >= 0; order--)
+            for (var order = _floaterOrder.Count - 1; order >= 0; order--)
             {
-                var slot = _floaterOrder[order];
+                var slot = _floaterOrder.SlotAt(order);
                 if (slot < 0 || slot >= _floaters.Length || !_floaters[slot].Active)
                     RemoveFloaterOrder(slot);
             }
