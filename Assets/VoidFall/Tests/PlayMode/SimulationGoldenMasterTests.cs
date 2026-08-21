@@ -51,10 +51,13 @@ namespace VoidFall.Tests.PlayMode
             "_xpNeed",
             "_level",
             "_kills",
-            "_playerHealth",
-            "_playerMaxHealth",
-            "_playerPosition",
-            "_playerVelocity",
+            // Player vitals migrated into GameSim.Player; dotted paths resolve
+            // through the runtime's _gameSim field. Order and values are
+            // unchanged from the original scalar list, so the mix is identical.
+            "_gameSim.Player.Health",
+            "_gameSim.Player.MaxHealth",
+            "_gameSim.Player.Position",
+            "_gameSim.Player.Velocity",
             "_runSeed",
         };
 
@@ -108,7 +111,7 @@ namespace VoidFall.Tests.PlayMode
             foreach (var name in FxStateArrayFields)
                 HashArray(ref hash, GetField(fx, fx.GetType(), name));
             foreach (var name in ScalarFields)
-                HashValue(ref hash, GetField(runtime, type, name));
+                HashValue(ref hash, ResolvePath(runtime, name));
 
             var combatRng = GetField(game, game.GetType(), "Rng");
             HashValue(ref hash, GetField(combatRng, combatRng.GetType(), "_state"));
@@ -125,6 +128,22 @@ namespace VoidFall.Tests.PlayMode
             var field = type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
             Assert.That(field, Is.Not.Null, $"Missing state field '{name}'; update SimulationGoldenMasterTests.");
             return field.GetValue(target);
+        }
+
+        /// <summary>
+        /// Resolves a dotted path like "_gameSim.Player.Health" from the root
+        /// object. Each segment is a field on the previous segment's type.
+        /// </summary>
+        private static object ResolvePath(object root, string path)
+        {
+            var target = root;
+            var type = root.GetType();
+            foreach (var part in path.Split('.'))
+            {
+                target = GetField(target, type, part);
+                type = target.GetType();
+            }
+            return target;
         }
 
         private static object GetMember(object target, Type type, string name)

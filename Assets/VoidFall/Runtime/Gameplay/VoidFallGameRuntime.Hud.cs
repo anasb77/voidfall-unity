@@ -72,8 +72,8 @@ namespace VoidFall.Runtime
             UpdateHudResponsiveLayout();
             UpdateDamageOverlays();
             UpdateArenaBanner();
-            var hpFraction = _playerMaxHealth > 0
-                ? Mathf.Clamp01(_playerHealth / _playerMaxHealth)
+            var hpFraction = _gameSim.Player.MaxHealth > 0
+                ? Mathf.Clamp01(_gameSim.Player.Health / _gameSim.Player.MaxHealth)
                 : 0;
             _healthGhostFraction +=
                 (hpFraction - _healthGhostFraction) *
@@ -83,15 +83,15 @@ namespace VoidFall.Runtime
                 _xpBarFill.fillAmount = _xpNeed > 0 ? Mathf.Clamp01(_xp / _xpNeed) : 0;
             if (_healthBarFill != null) _healthBarFill.fillAmount = hpFraction;
             if (_healthBarGhost != null) _healthBarGhost.fillAmount = Mathf.Clamp01(_healthGhostFraction);
-            if (_healthText != null && (_lastHudHealth != _playerHealth || _lastHudMaxHealth != _playerMaxHealth))
+            if (_healthText != null && (_lastHudHealth != _gameSim.Player.Health || _lastHudMaxHealth != _gameSim.Player.MaxHealth))
             {
-                _lastHudHealth = _playerHealth;
-                _lastHudMaxHealth = _playerMaxHealth;
-                _healthText.text = $"INTEGRITY   {Mathf.CeilToInt(Mathf.Max(0, _playerHealth))}/{Mathf.CeilToInt(_playerMaxHealth)}";
+                _lastHudHealth = _gameSim.Player.Health;
+                _lastHudMaxHealth = _gameSim.Player.MaxHealth;
+                _healthText.text = $"INTEGRITY   {Mathf.CeilToInt(Mathf.Max(0, _gameSim.Player.Health))}/{Mathf.CeilToInt(_gameSim.Player.MaxHealth)}";
             }
             if (_healthLabelText != null) _healthLabelText.text = "INTEGRITY";
-            if (_healthValueText != null && (_lastHudHealth != _playerHealth || _lastHudMaxHealth != _playerMaxHealth))
-                _healthValueText.text = $"{Mathf.CeilToInt(Mathf.Max(0, _playerHealth))}/{Mathf.CeilToInt(_playerMaxHealth)}";
+            if (_healthValueText != null && (_lastHudHealth != _gameSim.Player.Health || _lastHudMaxHealth != _gameSim.Player.MaxHealth))
+                _healthValueText.text = $"{Mathf.CeilToInt(Mathf.Max(0, _gameSim.Player.Health))}/{Mathf.CeilToInt(_gameSim.Player.MaxHealth)}";
             if (_timeText != null)
             {
                 var seconds = Mathf.Max(0, Mathf.FloorToInt(_time));
@@ -213,7 +213,7 @@ namespace VoidFall.Runtime
                         ? "LEVEL UP — press 1, 2, or 3"
                         : _paused ? "PAUSED — press Esc" : "PLAYING";
                 _hudText.text = $"{phase}\nTime {_time:0.0}s   Level {_level}   XP {_xp:0}/{_xpNeed}\n" +
-                    $"Integrity {_playerHealth:0}/{_playerMaxHealth:0}   Kills {_kills}   Score {CurrentScore()}\n" +
+                    $"Integrity {_gameSim.Player.Health:0}/{_gameSim.Player.MaxHealth:0}   Kills {_kills}   Score {CurrentScore()}\n" +
                     $"Pistol rank {_pistolRank}/6   Calibration {_calibrationRank}/4\n" +
                     $"Arena {ArenaName(_arenaId)}   Cycle {ArenaCycleRules.At(ArenaIdName(_arenaId), ArenaCycleElapsedSeconds()).CycleId}";
             }
@@ -583,7 +583,7 @@ namespace VoidFall.Runtime
         {
             if (_redFlashOverlay == null || _cyanFlashOverlay == null || _amberFlashOverlay == null) return;
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
-            var lowHealth = !_gameOver && _playerHealth > 0 && _playerHealth < _playerMaxHealth * 0.3f;
+            var lowHealth = !_gameOver && _gameSim.Player.Health > 0 && _gameSim.Player.Health < _gameSim.Player.MaxHealth * 0.3f;
             var redAlpha = _redFlash * (reducedMotion ? 0.35f : 0.8f) +
                 SourceLowHealthOverlayAlpha(lowHealth, _ambientClock);
             var cyanAlpha = reducedMotion ? 0 : _cyanFlash * 0.13f;

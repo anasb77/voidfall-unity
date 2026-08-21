@@ -65,12 +65,12 @@ namespace VoidFall.Runtime
             var speed = (float)ContentCatalog.Operative.MoveSpeed *
                 _moveSpeedMultiplier * (1 + (_adrenalTimer > 0 ? adrenal * 0.06f : 0)) *
                 (float)OverclockRules.MovementMultiplier(_overclock.PowerTier);
-            if (_playerHealth <= 0) input = Vector2.zero;
+            if (_gameSim.Player.Health <= 0) input = Vector2.zero;
             var targetVelocity = input * speed;
             var movementBlend = 1 - Mathf.Exp(-14f * dt);
-            _playerVelocity += (targetVelocity - _playerVelocity) * movementBlend;
-            var velocity = _playerVelocity;
-            _playerPosition += velocity * dt;
+            _gameSim.Player.Velocity += (targetVelocity - _gameSim.Player.Velocity) * movementBlend;
+            var velocity = _gameSim.Player.Velocity;
+            _gameSim.Player.Position += velocity * dt;
             _playerTrailTimer -= dt;
             if (_qualityPreset.PlayerTrail &&
                 !(_saveData?.settings != null && _saveData.settings.reducedMotion) &&
@@ -84,7 +84,7 @@ namespace VoidFall.Runtime
                     _overclock.Active,
                     _adrenalTimer > 0);
                 EmitTrailParticle(
-                    _playerPosition,
+                    _gameSim.Player.Position,
                     -velocity * 0.08f + jitter,
                     trailColor,
                     0.32f,
@@ -95,7 +95,7 @@ namespace VoidFall.Runtime
         private void UpdateCameraFollow(float dt)
         {
             var blend = 1f - Mathf.Exp(-6f * Mathf.Max(0f, dt));
-            _cameraFollowPosition += (_playerPosition - _cameraFollowPosition) * blend;
+            _cameraFollowPosition += (_gameSim.Player.Position - _cameraFollowPosition) * blend;
         }
 
         private static bool PlayerTrailSpeedExceeded(Vector2 velocity)
@@ -126,7 +126,7 @@ namespace VoidFall.Runtime
             {
                 var boss = _gameSim.Bosses[_gameSim.BossOrder[order]];
                 if (!boss.Active) continue;
-                var distance = (boss.Position - _playerPosition).magnitude;
+                var distance = (boss.Position - _gameSim.Player.Position).magnitude;
                 if (nearest < 0 || distance < nearest) nearest = distance;
             }
             return nearest;
@@ -361,7 +361,7 @@ namespace VoidFall.Runtime
                     {
                         var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                         SpawnSpecialPickup(
-                            _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 150,
+                            _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 150,
                             1,
                             PickupKind.Part);
                     }
@@ -436,7 +436,7 @@ namespace VoidFall.Runtime
             {
                 var angle = safeGapAngle + safeGapWidth * 0.5f +
                     occupiedArc * ((index + 0.5f) / Mathf.Max(1, count));
-                var position = _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                var position = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
                 if (SpawnEnemy(useRunners ? "runner" : "chaser", position)) _directorSpawned++;
             }
         }
@@ -462,11 +462,11 @@ namespace VoidFall.Runtime
                 var laneSize = edge < 2 ? viewportHalf.x * 1.44f : viewportHalf.y * 1.44f;
                 var offset = ((float)_gameSim.Rng.Next() - 0.5f) * laneSize;
                 var x = edge == 2
-                    ? _playerPosition.x - halfWidth
-                    : edge == 3 ? _playerPosition.x + halfWidth : _playerPosition.x + offset;
+                    ? _gameSim.Player.Position.x - halfWidth
+                    : edge == 3 ? _gameSim.Player.Position.x + halfWidth : _gameSim.Player.Position.x + offset;
                 var y = edge == 0
-                    ? _playerPosition.y - halfHeight
-                    : edge == 1 ? _playerPosition.y + halfHeight : _playerPosition.y + offset;
+                    ? _gameSim.Player.Position.y - halfHeight
+                    : edge == 1 ? _gameSim.Player.Position.y + halfHeight : _gameSim.Player.Position.y + offset;
                 if (SpawnEnemy("runner", new Vector2(x, y))) spawned++;
             }
             return spawned;
@@ -593,7 +593,7 @@ namespace VoidFall.Runtime
                 var enemy = _gameSim.Enemies[i];
                 if (!enemy.Active) continue;
                 enemy.Age += dt;
-                var delta = _playerPosition - enemy.Position;
+                var delta = _gameSim.Player.Position - enemy.Position;
                 var distance = SourceLengthOrOne(delta);
                 var direction = delta / distance;
                 enemy.AttackCooldown = Mathf.Max(0, enemy.AttackCooldown - dt);
@@ -683,12 +683,12 @@ namespace VoidFall.Runtime
                     var radius = Mathf.Sqrt(
                         Mathf.Pow(viewportHalf.x * 2f, 2) +
                         Mathf.Pow(viewportHalf.y * 2f, 2)) * 0.5f + 90f;
-                    enemy.Position = _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                    enemy.Position = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
                     enemy.Age = 0;
                 }
 
-                var canContactPlayer = _playerHealth > 0 && !_gameOver && !_revivePending &&
-                    _dyingTimer <= 0 && _playerIframes <= 0;
+                var canContactPlayer = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
+                    _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0;
                 if (enemy.Active && enemy.Id != "exploder" && enemy.Age > 0.4f &&
                     distance < enemy.Radius + PlayerRadius && enemy.ContactCooldown <= 0 &&
                     canContactPlayer)
@@ -1121,12 +1121,12 @@ namespace VoidFall.Runtime
 
                 if (enemy.StateTimer > 0) return;
                 var impact = siege ? (float)stats.BlastRadius : (float)(definition?.BlastRadius ?? 82);
-                var distanceToImpact = Vector2.Distance(_playerPosition, enemy.DashDirection);
+                var distanceToImpact = Vector2.Distance(_gameSim.Player.Position, enemy.DashDirection);
                 if (distanceToImpact < impact + AttackPlayerRadius)
                 {
-                    var impactDirection = _playerPosition - enemy.DashDirection;
-                    var canImpactPlayer = _playerHealth > 0 && !_gameOver && !_revivePending &&
-                        _dyingTimer <= 0 && _playerIframes <= 0;
+                    var impactDirection = _gameSim.Player.Position - enemy.DashDirection;
+                    var canImpactPlayer = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
+                        _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0;
                     DamagePlayer(enemy.Damage, impactDirection);
                     if (canImpactPlayer) ApplySourcePlayerKnockback(ref enemy, impactDirection);
                 }
@@ -1159,7 +1159,7 @@ namespace VoidFall.Runtime
             {
                 enemy.State = 1;
                 enemy.StateTimer = siege ? (float)stats.TelegraphSeconds : (float)(definition?.TelegraphSeconds ?? 1.15);
-                enemy.AimPosition = _playerPosition + _playerVelocity * 0.24f;
+                enemy.AimPosition = _gameSim.Player.Position + _gameSim.Player.Velocity * 0.24f;
                 enemy.DashDirection = enemy.AimPosition;
                 _audio?.Play(ProceduralAudio.Cue.Warning, 0.84f);
             }
@@ -1201,11 +1201,11 @@ namespace VoidFall.Runtime
                     : 0.24f - progress * 0.15f;
             }
             if (enemy.StateTimer > 0) return;
-            if (Vector2.Distance(_playerPosition, enemy.Position) < radius + AttackPlayerRadius)
+            if (Vector2.Distance(_gameSim.Player.Position, enemy.Position) < radius + AttackPlayerRadius)
             {
-                var impactDirection = _playerPosition - enemy.Position;
-                var canImpactPlayer = _playerHealth > 0 && !_gameOver && !_revivePending &&
-                    _dyingTimer <= 0 && _playerIframes <= 0;
+                var impactDirection = _gameSim.Player.Position - enemy.Position;
+                var canImpactPlayer = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
+                    _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0;
                 DamagePlayer(enemy.Damage, impactDirection);
                 if (canImpactPlayer) ApplySourcePlayerKnockback(ref enemy, impactDirection);
             }
@@ -1406,12 +1406,12 @@ namespace VoidFall.Runtime
             _gameSim.PendingMeteorDetonationCount = 0;
             // Player lifecycle flags cannot change inside the meteor loop, so
             // the per-meteor vulnerability check hoists to one evaluation.
-            var playerVulnerable = _playerHealth > 0 && !_gameOver && !_revivePending &&
-                _dyingTimer <= 0;
+            var playerVulnerable = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
+                _gameSim.Player.DyingTimer <= 0;
             var expiredCount = _gameSim.AdvanceMeteors(
                 dt,
-                ref _playerPosition,
-                ref _playerVelocity,
+                ref _gameSim.Player.Position,
+                ref _gameSim.Player.Velocity,
                 playerVulnerable,
                 _meteorExpiredSlots,
                 _meteorCulledSlots,
@@ -1466,8 +1466,8 @@ namespace VoidFall.Runtime
                     _gameSim.Meteors[index].Position.y,
                     _gameSim.Meteors[index].Radius);
             }
-            _meteorPlacementContext.PlayerX = _playerPosition.x;
-            _meteorPlacementContext.PlayerY = _playerPosition.y;
+            _meteorPlacementContext.PlayerX = _gameSim.Player.Position.x;
+            _meteorPlacementContext.PlayerY = _gameSim.Player.Position.y;
             _meteorPlacementContext.PlayerRadius = MeteorRules.PlayerCollisionRadius;
             _meteorPlacementContext.Enemies = _meteorPlacementEnemyCircles;
             _meteorPlacementContext.EnemyCount = enemyCount;
@@ -1477,7 +1477,7 @@ namespace VoidFall.Runtime
             {
                 var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                 var distance = 380f + (float)_gameSim.Rng.Next() * 520f;
-                var candidate = _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+                var candidate = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
                 var safe = MeteorRules.IsSafeMeteorPlacement(
                     new CircleDefinition(candidate.x, candidate.y, radius),
                     _meteorPlacementContext,
@@ -1539,12 +1539,12 @@ namespace VoidFall.Runtime
                 }
             }
 
-            if (_playerHealth > 0 && !_gameOver && !_revivePending && _dyingTimer <= 0 &&
-                _playerIframes <= 0 && Vector2.Distance(_playerPosition, meteor.Position) < radius + PlayerRadius)
+            if (_gameSim.Player.Health > 0 && !_gameOver && !_revivePending && _gameSim.Player.DyingTimer <= 0 &&
+                _gameSim.Player.Iframes <= 0 && Vector2.Distance(_gameSim.Player.Position, meteor.Position) < radius + PlayerRadius)
             {
                 DamagePlayer(
                     ExplosiveMeteorPlayerDamageAt((float)_time, _bossCycle, enemyDamage),
-                    _playerPosition - meteor.Position);
+                    _gameSim.Player.Position - meteor.Position);
                 _telemetry.RecordMeteorPlayerHit(ArenaIdName(_arenaId));
             }
 
@@ -1591,7 +1591,7 @@ namespace VoidFall.Runtime
             foreach (var meteor in _gameSim.Meteors)
             {
                 if (!meteor.Active || meteor.Explosive != explosive) continue;
-                if ((meteor.Position - _playerPosition).sqrMagnitude <= countRadiusSquared) count++;
+                if ((meteor.Position - _gameSim.Player.Position).sqrMagnitude <= countRadiusSquared) count++;
             }
 
             return count;
@@ -1722,7 +1722,7 @@ namespace VoidFall.Runtime
                     _gameSim.Bosses[i] = boss;
                     continue;
                 }
-                var delta = _playerPosition - boss.Position;
+                var delta = _gameSim.Player.Position - boss.Position;
                 var distance = SourceLengthOrOne(delta);
                 var direction = delta / distance;
                 var phaseTwo = boss.Health / Mathf.Max(1, boss.MaxHealth) <= definition.PhaseTwoHealthRatio;
@@ -1822,13 +1822,13 @@ namespace VoidFall.Runtime
                         boss.AttackIndex++;
                         boss.AttackCooldown = (float)boss.ActiveAttack.CooldownSeconds * cooldownScale;
                         boss.DashDirection = direction;
-                        boss.TargetPosition = _playerPosition;
+                        boss.TargetPosition = _gameSim.Player.Position;
                         boss.AttackAngle = Mathf.Atan2(direction.y, direction.x);
                         if (boss.ActiveAttack.Id == "blink")
                         {
                             var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                             var blinkDistance = 230f + (float)_gameSim.Rng.Next() * 100f;
-                            boss.TargetPosition = _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * blinkDistance;
+                            boss.TargetPosition = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * blinkDistance;
                         }
                         else if (boss.ActiveAttack.Id == "beam")
                         {
@@ -1844,10 +1844,10 @@ namespace VoidFall.Runtime
                     }
                 }
 
-                var contactDelta = _playerPosition - boss.Position;
+                var contactDelta = _gameSim.Player.Position - boss.Position;
                 var contactDistance = SourceLengthOrOne(contactDelta);
-                var canContactPlayer = _playerHealth > 0 && !_gameOver && !_revivePending &&
-                    _dyingTimer <= 0 && _playerIframes <= 0;
+                var canContactPlayer = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
+                    _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0;
                 if (boss.Active && contactDistance < boss.Radius + AttackPlayerRadius &&
                     boss.ContactCooldown <= 0 && canContactPlayer)
                 {
@@ -1869,8 +1869,8 @@ namespace VoidFall.Runtime
             boss.TierPressureTriggered = true;
             var tier = boss.PressureTier;
             var towardPlayer = Mathf.Atan2(
-                _playerPosition.y - boss.Position.y,
-                _playerPosition.x - boss.Position.x);
+                _gameSim.Player.Position.y - boss.Position.y,
+                _gameSim.Player.Position.x - boss.Position.x);
             if (boss.Id == "warden")
             {
                 var count = 3 + Mathf.Min(2, tier);
@@ -1990,8 +1990,8 @@ namespace VoidFall.Runtime
                 boss.AttackAngle += BossBeamRotationSpeed(
                     (float)(attack.RotationSpeed ?? 0.8),
                     encounterCycle) * dt;
-                if (_playerIframes > 0 || boss.BeamHitCooldown > 0) return;
-                var delta = _playerPosition - boss.Position;
+                if (_gameSim.Player.Iframes > 0 || boss.BeamHitCooldown > 0) return;
+                var delta = _gameSim.Player.Position - boss.Position;
                 var beamX = Mathf.Cos(boss.AttackAngle);
                 var beamY = Mathf.Sin(boss.AttackAngle);
                 var along = delta.x * beamX + delta.y * beamY;
@@ -2013,7 +2013,7 @@ namespace VoidFall.Runtime
                 _audio?.Play(ProceduralAudio.Cue.BossSlam, 0.92f);
                 AddCameraShake(0.55f);
                 var radius = BossSlamRadius((float)(attack.Radius ?? 190), encounterCycle);
-                var delta = _playerPosition - boss.Position;
+                var delta = _gameSim.Player.Position - boss.Position;
                 SpawnRingWave(boss.Position, 24f, radius * 2.2f, 0.62f, BossAccent(boss));
                 if (delta.magnitude < radius + AttackPlayerRadius) DamagePlayer(attackDamage, delta);
             }
@@ -2061,7 +2061,7 @@ namespace VoidFall.Runtime
             else if (attack.Id == "blink")
             {
                 boss.Position = boss.TargetPosition;
-                var delta = _playerPosition - boss.Position;
+                var delta = _gameSim.Player.Position - boss.Position;
                 var radius = (float)(attack.Radius ?? 80);
                 SpawnRingWave(boss.Position, 18f, radius * 2.2f, 0.42f,
                     new Color(0.376f, 0.647f, 0.98f, 0.8f));
@@ -2551,9 +2551,9 @@ namespace VoidFall.Runtime
                 var pickup = _gameSim.Pickups[i];
                 if (!pickup.Active) continue;
                 pickup.Age += dt;
-                var delta = _playerPosition - pickup.Position;
+                var delta = _gameSim.Player.Position - pickup.Position;
                 var distanceSquared = delta.sqrMagnitude;
-                var playerAlive = _playerHealth > 0 && !_gameOver && !_revivePending;
+                var playerAlive = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending;
                 var magnetRadius = _pickupRadius + _workshopMagnet * 8;
                 if (playerAlive && (pickup.Pull || distanceSquared < magnetRadius * magnetRadius))
                 {
@@ -2599,19 +2599,19 @@ namespace VoidFall.Runtime
                         // doing the heavy lifting.
                         if (!collectedFromPull || (_pickupStep & 3) == 0)
                             _audio?.PlayGem(_pickupStep);
-                        BurstFx(_playerPosition, SourceDotColor("emerald"), 2, 120, 0.25f, 0.6f);
+                        BurstFx(_gameSim.Player.Position, SourceDotColor("emerald"), 2, 120, 0.25f, 0.6f);
                     }
                     else if (pickup.Kind == PickupKind.Part)
                     {
                         var parts = Mathf.Max(1, Mathf.RoundToInt(pickup.Value));
                         _partsEarned += parts;
                         SpawnFloater(
-                            _playerPosition + Vector2.up * 18f,
+                            _gameSim.Player.Position + Vector2.up * 18f,
                             "+" + parts + " Part" + (parts > 1 ? "s" : string.Empty),
                             new Color(0.98f, 0.79f, 0.08f, 1f),
                             12);
                         _audio?.Play(ProceduralAudio.Cue.Currency, 1f);
-                        BurstFx(_playerPosition, SourceDotColor("yellow"), 3, 130, 0.28f, 0.65f);
+                        BurstFx(_gameSim.Player.Position, SourceDotColor("yellow"), 3, 130, 0.28f, 0.65f);
                     }
                     else if (pickup.Kind == PickupKind.Magnet)
                     {
@@ -2625,18 +2625,18 @@ namespace VoidFall.Runtime
                             }
                         }
                         _audio?.Play(ProceduralAudio.Cue.Pickup, 1f);
-                        BurstFx(_playerPosition, SourceDotColor("cyan"), 12, 230, 0.45f, 0.8f);
+                        BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"), 12, 230, 0.45f, 0.8f);
                         ShowArenaToast("Experience pulled in", 2.5f, ToastKind.Reward);
                     }
                     else if (pickup.Kind == PickupKind.Repair)
                     {
-                        var before = _playerHealth;
-                        _playerHealth = Mathf.Min(
-                            _playerMaxHealth,
-                            _playerHealth + Mathf.Max(20, _playerMaxHealth * 0.22f));
-                        var restored = SourceRound(_playerHealth - before);
+                        var before = _gameSim.Player.Health;
+                        _gameSim.Player.Health = Mathf.Min(
+                            _gameSim.Player.MaxHealth,
+                            _gameSim.Player.Health + Mathf.Max(20, _gameSim.Player.MaxHealth * 0.22f));
+                        var restored = SourceRound(_gameSim.Player.Health - before);
                         _audio?.Play(ProceduralAudio.Cue.Pickup, 1f);
-                        BurstFx(_playerPosition, SourceDotColor("emerald"), 12, 220, 0.45f, 0.8f);
+                        BurstFx(_gameSim.Player.Position, SourceDotColor("emerald"), 12, 220, 0.45f, 0.8f);
                         ShowArenaToast(
                             "Integrity restored  " + (restored > 0 ? "+" + restored : "Already full"),
                             2.5f,
@@ -2655,10 +2655,10 @@ namespace VoidFall.Runtime
                         _music?.NotifyOverclockStreak(previousStreak, _overclock.Streak);
                         _cyanFlash = Mathf.Max(_cyanFlash, 0.3f);
                         _audio?.Play(ProceduralAudio.Cue.Pickup, 1f);
-                        SpawnRingWave(_playerPosition, 14f, 250f, 0.4f,
+                        SpawnRingWave(_gameSim.Player.Position, 14f, 250f, 0.4f,
                             new Color(0.35f, 0.95f, 1f, 0.72f));
-                        BurstFx(_playerPosition, SourceDotColor("yellow"), 16, 260, 0.5f, 0.8f);
-                        BurstFx(_playerPosition, SourceDotColor("white"), 7, 180, 0.3f, 0.65f);
+                        BurstFx(_gameSim.Player.Position, SourceDotColor("yellow"), 16, 260, 0.5f, 0.8f);
+                        BurstFx(_gameSim.Player.Position, SourceDotColor("white"), 7, 180, 0.3f, 0.65f);
                         ShowArenaToast(
                             _overclock.Streak > 1
                                 ? "OVERCLOCKED ×" + _overclock.Streak
@@ -2680,7 +2680,7 @@ namespace VoidFall.Runtime
 
         private void UpdateWeapons(float dt)
         {
-            if (_upgradeProgress == null || _playerHealth <= 0 || _gameOver || _revivePending) return;
+            if (_upgradeProgress == null || _gameSim.Player.Health <= 0 || _gameOver || _revivePending) return;
             UpdatePulseBurst(dt);
             var recoveryScale = WeaponRecoveryScale();
             var weaponCount = Mathf.Min(
@@ -2720,7 +2720,7 @@ namespace VoidFall.Runtime
 
         private void UpdatePulseBurst(float dt)
         {
-            if (_pulseBurstShots <= 0 || _playerHealth <= 0 || _gameOver || _revivePending) return;
+            if (_pulseBurstShots <= 0 || _gameSim.Player.Health <= 0 || _gameOver || _revivePending) return;
             _pulseBurstTimer -= dt;
             if (_pulseBurstTimer > 0) return;
 
@@ -2734,7 +2734,7 @@ namespace VoidFall.Runtime
                 return;
             }
 
-            var direction = target.Position - _playerPosition;
+            var direction = target.Position - _gameSim.Player.Position;
             var angle = Mathf.Atan2(direction.y, direction.x);
             var thirdRound = _pulseBurstShots == 1;
             var pulseAngles = CombatRules.ProjectileAngles(
@@ -2759,7 +2759,7 @@ namespace VoidFall.Runtime
             }
             _audio?.Play(ProceduralAudio.Cue.Fire);
             BurstFx(
-                _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 20f,
+                _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 20f,
                 thirdRound ? SourceDotColor("white") : SourceDotColor("cyan"),
                 thirdRound ? 4 : 2,
                 150,
@@ -2790,7 +2790,7 @@ namespace VoidFall.Runtime
             // the player-bullet array is already at capacity. Preserve that
             // boundary so a rejected shot stays silent and side-effect free.
             if (ActiveBullets() >= MaxBullets) return;
-            var direction = target.Position - _playerPosition;
+            var direction = target.Position - _gameSim.Player.Position;
             var baseAngle = Mathf.Atan2(direction.y, direction.x);
             var evolved = _upgradeProgress.Evolved[weaponIndex];
             var spread = weapon.Id == "scattergun" && evolved ? 14 : (float)stats.SpreadDegrees;
@@ -2820,7 +2820,7 @@ namespace VoidFall.Runtime
             if (weapon.Id == "railgun" && evolved)
             {
                 var railDirection = new Vector2(Mathf.Cos(baseAngle), Mathf.Sin(baseAngle));
-                var start = _playerPosition + railDirection * 18;
+                var start = _gameSim.Player.Position + railDirection * 18;
                 StartRailTrail(
                     start,
                     start + railDirection * (float)stats.Range,
@@ -2848,7 +2848,7 @@ namespace VoidFall.Runtime
             }
             if (weapon.Id == "railgun")
             {
-                var muzzle = _playerPosition + new Vector2(Mathf.Cos(baseAngle), Mathf.Sin(baseAngle)) * 22f;
+                var muzzle = _gameSim.Player.Position + new Vector2(Mathf.Cos(baseAngle), Mathf.Sin(baseAngle)) * 22f;
                 BurstFx(muzzle, SourceDotColor("white"), 6, 250, 0.2f, 0.48f);
                 BurstFx(muzzle, SourceDotColor("violet"),
                     7, 190, 0.24f, 0.58f);
@@ -2863,7 +2863,7 @@ namespace VoidFall.Runtime
                         ? SourceDotColor("lime")
                         : SourceDotColor("cyan");
             BurstFx(
-                _playerPosition + new Vector2(Mathf.Cos(baseAngle), Mathf.Sin(baseAngle)) * 20f,
+                _gameSim.Player.Position + new Vector2(Mathf.Cos(baseAngle), Mathf.Sin(baseAngle)) * 20f,
                 muzzleColor,
                 2 + Mathf.FloorToInt(rank / 2f),
                 130,
@@ -2886,7 +2886,7 @@ namespace VoidFall.Runtime
             SpawnWeaponProjectileFromPosition(
                 weaponIndex,
                 stats,
-                _playerPosition,
+                _gameSim.Player.Position,
                 angle,
                 rank,
                 damageScale,
@@ -3004,7 +3004,7 @@ namespace VoidFall.Runtime
                 // emitting the first endpoint burst. If no second target is
                 // available, the first endpoint still receives its burst.
                 var second = FindNearestUnvisitedHostile(
-                    _playerPosition,
+                    _gameSim.Player.Position,
                     (float)stats.Range,
                     visited,
                     visitedCount);
@@ -3057,7 +3057,7 @@ namespace VoidFall.Runtime
             out List<Vector2> points,
             int weaponIndex)
         {
-            points = new List<Vector2> { _playerPosition };
+            points = new List<Vector2> { _gameSim.Player.Position };
             var current = first;
             for (var jump = 0; jump <= stats.ChainCount; jump++)
             {
@@ -3089,7 +3089,7 @@ namespace VoidFall.Runtime
 
         private void UpdateBlades(float dt)
         {
-            if (_upgradeProgress == null || _playerHealth <= 0 || _gameOver || _revivePending)
+            if (_upgradeProgress == null || _gameSim.Player.Health <= 0 || _gameOver || _revivePending)
             {
                 HideBlades(0);
                 return;
@@ -3146,7 +3146,7 @@ namespace VoidFall.Runtime
             for (var bladeIndex = 0; bladeIndex < activeBladeCount; bladeIndex++)
             {
                 var angle = _bladeAngle + bladeIndex / Mathf.Max(1f, stats.OrbitCount) * Mathf.PI * 2;
-                var position = _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) *
+                var position = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) *
                     (float)stats.OrbitRadius * _areaMultiplier;
                 var view = EnsureBladeView(bladeIndex);
                 view.transform.position = position;
@@ -3219,7 +3219,7 @@ namespace VoidFall.Runtime
             var orbitRadius = (float)stats.OrbitRadius * _areaMultiplier;
             var maximum = HollowBladeReach(stats);
             var hollowDistance = orbitRadius + (maximum - orbitRadius) * Mathf.Clamp01(travel);
-            var hollowPosition = _playerPosition + new Vector2(
+            var hollowPosition = _gameSim.Player.Position + new Vector2(
                 Mathf.Cos(_hollowBladeAngle), Mathf.Sin(_hollowBladeAngle)) * hollowDistance;
             var hollowView = EnsureHollowBladeView();
             hollowView.transform.position = hollowPosition;
@@ -3255,14 +3255,14 @@ namespace VoidFall.Runtime
         private float DensestEnemyAngle(float maximumRange)
         {
             var maximumRangeSquared = maximumRange * maximumRange;
-            var bestPosition = _playerPosition + new Vector2(Mathf.Cos(_bladeAngle), Mathf.Sin(_bladeAngle));
+            var bestPosition = _gameSim.Player.Position + new Vector2(Mathf.Cos(_bladeAngle), Mathf.Sin(_bladeAngle));
             var bestCount = -1;
             var eligibleCount = 0;
             for (var order = 0; order < _gameSim.EnemyOrderCount; order++)
             {
                 var index = _gameSim.EnemyOrder[order];
                 var candidate = _gameSim.Enemies[index];
-                if (!candidate.Active || candidate.Age < 0.15f || (candidate.Position - _playerPosition).sqrMagnitude > maximumRangeSquared) continue;
+                if (!candidate.Active || candidate.Age < 0.15f || (candidate.Position - _gameSim.Player.Position).sqrMagnitude > maximumRangeSquared) continue;
                 eligibleCount++;
                 var count = 0;
                 var neighborCount = _gameSim.EnemyGrid.QueryNeighborhood(
@@ -3283,15 +3283,15 @@ namespace VoidFall.Runtime
                 }
                 if (eligibleCount >= 48) break;
             }
-            if (bestCount >= 0) return Mathf.Atan2(bestPosition.y - _playerPosition.y, bestPosition.x - _playerPosition.x);
+            if (bestCount >= 0) return Mathf.Atan2(bestPosition.y - _gameSim.Player.Position.y, bestPosition.x - _gameSim.Player.Position.x);
             EnsureBossOrderEntries();
             for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
             {
                 var index = _gameSim.BossOrder[bossOrder];
                 var boss = _gameSim.Bosses[index];
-                if (boss.Active && (boss.Position - _playerPosition).sqrMagnitude <= maximumRangeSquared)
+                if (boss.Active && (boss.Position - _gameSim.Player.Position).sqrMagnitude <= maximumRangeSquared)
                 {
-                    return Mathf.Atan2(boss.Position.y - _playerPosition.y, boss.Position.x - _playerPosition.x);
+                    return Mathf.Atan2(boss.Position.y - _gameSim.Player.Position.y, boss.Position.x - _gameSim.Player.Position.x);
                 }
             }
             return _bladeAngle;
@@ -3566,7 +3566,7 @@ namespace VoidFall.Runtime
             var distance = Mathf.Sqrt(
                     Mathf.Pow(viewportHalf.x * 2f, 2) + Mathf.Pow(viewportHalf.y * 2f, 2)) * 0.5f +
                 70f + (float)_gameSim.Rng.Next() * 130f;
-            var position = forcedPosition ?? _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+            var position = forcedPosition ?? _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
             // Browser carrier drones pass hpScale=0.55 through spawnEnemy;
             // keep that source-specific health reduction coupled to the flag
             // so every carrier-drone spawn path uses the same rule.
@@ -3621,8 +3621,8 @@ namespace VoidFall.Runtime
                 SummonedByBossTelemetryId = summonedByBossTelemetryId,
                 SummonedByCarrierSpawnId = 0,
                 SpawnId = enemyId,
-                Facing = (_playerPosition - position).sqrMagnitude > 0.001f
-                    ? (_playerPosition - position).normalized
+                Facing = (_gameSim.Player.Position - position).sqrMagnitude > 0.001f
+                    ? (_gameSim.Player.Position - position).normalized
                     : Vector2.right,
                 State = 0,
                 StateTimer = standardElite
@@ -3695,7 +3695,7 @@ namespace VoidFall.Runtime
             var distance = Mathf.Min(
                 480f,
                 Mathf.Sqrt(Mathf.Pow(viewportHalf.x * 2f, 2) + Mathf.Pow(viewportHalf.y * 2f, 2)) * 0.5f + 120f);
-            var position = _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+            var position = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
             var boss = new BossState
             {
                 Active = true,
@@ -3831,9 +3831,9 @@ namespace VoidFall.Runtime
                 if (shot.Curved) shot.Velocity += shot.Acceleration * dt;
                 shot.Position += shot.Velocity * dt;
                 shot.Life -= dt;
-                if (shot.Life > 0 && _playerHealth > 0 && !_gameOver && !_revivePending &&
-                    _dyingTimer <= 0 && _playerIframes <= 0 &&
-                    Vector2.Distance(shot.Position, _playerPosition) < shot.Radius + AttackPlayerRadius)
+                if (shot.Life > 0 && _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
+                    _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0 &&
+                    Vector2.Distance(shot.Position, _gameSim.Player.Position) < shot.Radius + AttackPlayerRadius)
                 {
                     var impactDirection = shot.Velocity / SourceLengthOrOne(shot.Velocity);
                     DamagePlayer(shot.Damage, impactDirection);
@@ -4057,54 +4057,54 @@ namespace VoidFall.Runtime
 
         private void DamagePlayer(float damage, Vector2 sourceDirection)
         {
-            if (_gameOver || _revivePending || _dyingTimer > 0 || _playerIframes > 0) return;
+            if (_gameOver || _revivePending || _gameSim.Player.DyingTimer > 0 || _gameSim.Player.Iframes > 0) return;
             var appliedDamage = Mathf.Max(1, damage);
             // Commit the browser's player state before any hurt presentation:
             // later effects in the same simulation step observe the reduced
             // health, pressure timer, and invulnerability window immediately.
             _damageTaken += appliedDamage;
-            _playerHealth -= appliedDamage;
+            _gameSim.Player.Health -= appliedDamage;
             _music?.NotifyPlayerDamage(
-                _playerMaxHealth > 0f ? appliedDamage / _playerMaxHealth : 1f,
-                _playerHealth <= 0f);
+                _gameSim.Player.MaxHealth > 0f ? appliedDamage / _gameSim.Player.MaxHealth : 1f,
+                _gameSim.Player.Health <= 0f);
             _pressureReliefTimer = Mathf.Max(
                 _pressureReliefTimer,
-                _playerHealth < _playerMaxHealth * 0.35f ? 5f : 2.5f);
-            _playerIframes = 0.65f;
+                _gameSim.Player.Health < _gameSim.Player.MaxHealth * 0.35f ? 5f : 2.5f);
+            _gameSim.Player.Iframes = 0.65f;
             _redFlash = 1f;
             TriggerFreeze(0.04f);
             _audio?.Play(ProceduralAudio.Cue.Hurt, 0.82f);
             AddCameraShake(0.5f);
-            BurstFx(_playerPosition, SourceDotColor("red"), 9, 250, 0.48f, 0.85f);
+            BurstFx(_gameSim.Player.Position, SourceDotColor("red"), 9, 250, 0.48f, 0.85f);
             SpawnDamageIndicator(sourceDirection);
             var impactDirection = SourceNormalizedDirection(sourceDirection);
             if (impactDirection != Vector2.zero)
-                _playerVelocity += impactDirection * 250f;
-            if (SupportRank("adrenal") > 0 && _playerHealth > 0)
+                _gameSim.Player.Velocity += impactDirection * 250f;
+            if (SupportRank("adrenal") > 0 && _gameSim.Player.Health > 0)
             {
                 _adrenalTimer = 5;
                 _amberFlash = Mathf.Max(_amberFlash, 0.15f);
                 SpawnFloater(
-                    _playerPosition + Vector2.up * 22f,
+                    _gameSim.Player.Position + Vector2.up * 22f,
                     "ADRENAL SURGE",
                     new Color(0.984f, 0.576f, 0.188f, 1f),
                     12);
             }
-            if (_playerHealth <= 0)
+            if (_gameSim.Player.Health <= 0)
             {
-                _playerHealth = 0;
-                _dyingTimer = 1.1f;
-                _playerIframes = 10f;
+                _gameSim.Player.Health = 0;
+                _gameSim.Player.DyingTimer = 1.1f;
+                _gameSim.Player.Iframes = 10f;
                 _targetTimeScale = 0.22f;
                 TriggerFreeze(0.08f);
                 AddCameraShake(1f);
                 // Browser authority gives a revivable defeat the boss cue, and
                 // reserves the full game-over sting for a terminal defeat.
                 _audio?.Play(DefeatCueFor(_revivesRemaining));
-                BurstFx(_playerPosition, SourceDotColor("cyan"), 34, 390, 0.85f, 1.1f);
-                BurstFx(_playerPosition, SourceDotColor("white"), 18, 270, 0.65f, 0.85f);
+                BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"), 34, 390, 0.85f, 1.1f);
+                BurstFx(_gameSim.Player.Position, SourceDotColor("white"), 18, 270, 0.65f, 0.85f);
                 SpawnRingWave(
-                    _playerPosition,
+                    _gameSim.Player.Position,
                     20f,
                     320f,
                     0.68f,

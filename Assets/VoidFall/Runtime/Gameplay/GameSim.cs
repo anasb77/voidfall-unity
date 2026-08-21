@@ -59,6 +59,9 @@ namespace VoidFall.Runtime
         /// <summary>The deterministic combat random stream.</summary>
         public Rng Rng;
 
+        /// <summary>Player kinematics and vitals (migrated from the runtime).</summary>
+        public PlayerState Player;
+
         public GameSim(
             int maxEnemies,
             int maxBullets,

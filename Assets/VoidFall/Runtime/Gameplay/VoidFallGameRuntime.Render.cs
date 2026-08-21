@@ -293,7 +293,7 @@ namespace VoidFall.Runtime
             // atlased family (enemy, boss, projectile, pickup, gem, meteor) is
             // gameplay-only, and FinishSpriteWarm flushes once at the end.
             if (_spriteWarmSteps == null) ProceduralSpriteFactory.FlushAtlas();
-            var playerVisible = _playerHealth > 0 && !_gameOver && !_mainMenuBrowsing;
+            var playerVisible = _gameSim.Player.Health > 0 && !_gameOver && !_mainMenuBrowsing;
             if (!playerVisible)
             {
                 Hide(_playerAuraView);
@@ -302,7 +302,7 @@ namespace VoidFall.Runtime
             }
             if (playerVisible && _playerAuraView != null)
             {
-                _playerAuraView.transform.position = _playerPosition;
+                _playerAuraView.transform.position = _gameSim.Player.Position;
                 var auraRadius = 32f + Mathf.Sin(_ambientClock * 2.2f) * 4f;
                 _playerAuraView.transform.localScale = Vector3.one * (auraRadius * 2f);
                 var adrenalLit = _adrenalTimer > 0 && SupportRank("adrenal") > 0;
@@ -312,20 +312,20 @@ namespace VoidFall.Runtime
             }
             if (playerVisible && _playerView != null)
             {
-                _playerView.transform.position = _playerPosition;
-                var blink = _playerIframes > 0 && Mathf.Sin(_ambientClock * 34f) > 0;
+                _playerView.transform.position = _gameSim.Player.Position;
+                var blink = _gameSim.Player.Iframes > 0 && Mathf.Sin(_ambientClock * 34f) > 0;
                 _playerView.color = new Color(1f, 1f, 1f, blink ? 0.35f : 1f);
                 _playerView.enabled = true;
             }
             if (playerVisible && _playerRingView != null)
             {
-                _playerRingView.transform.position = _playerPosition;
+                _playerRingView.transform.position = _gameSim.Player.Position;
                 _playerRingView.transform.rotation = Quaternion.Euler(
                     0,
                     0,
                     _ambientClock * PlayerRingRotationRate() * Mathf.Rad2Deg);
                 _playerRingView.transform.localScale = Vector3.one * 62f;
-                var blink = _playerIframes > 0 && Mathf.Sin(_ambientClock * 34f) > 0;
+                var blink = _gameSim.Player.Iframes > 0 && Mathf.Sin(_ambientClock * 34f) > 0;
                 _playerRingView.color = new Color(1f, 1f, 1f, blink ? 0.35f : 1f);
                 _playerRingView.enabled = true;
             }
@@ -2603,7 +2603,7 @@ namespace VoidFall.Runtime
             GUILayout.Label("Run summary", MenuSectionStyle());
             GUILayout.Label(
                 $"Time {FormatRunTime(Mathf.FloorToInt(_time))}   Level {_level}   Kills {_kills}   Bosses {_bossKills}   Score {CurrentScore()}\n" +
-                $"Integrity {_playerHealth:0}/{_playerMaxHealth:0}   Parts earned {_partsEarned}\n" +
+                $"Integrity {_gameSim.Player.Health:0}/{_gameSim.Player.MaxHealth:0}   Parts earned {_partsEarned}\n" +
                 $"Best score {stats.bestScore}   Best time {FormatRunTime(stats.bestTime)}   Highest level {stats.highestLevel}",
                 MenuBodyStyle());
             if (!string.IsNullOrEmpty(_lastTelemetryPath))
@@ -4633,7 +4633,7 @@ namespace VoidFall.Runtime
         private Vector2 RenderCameraCentre()
         {
             return _camera == null
-                ? _playerPosition
+                ? _gameSim.Player.Position
                 : new Vector2(_camera.transform.position.x, _camera.transform.position.y);
         }
 
@@ -4828,7 +4828,7 @@ namespace VoidFall.Runtime
             if (!visible) return;
 
             var cameraCentre = _camera == null
-                ? new Vector3(_playerPosition.x, _playerPosition.y, 0)
+                ? new Vector3(_gameSim.Player.Position.x, _gameSim.Player.Position.y, 0)
                 : _camera.transform.position;
             var worldHeight = _camera == null
                 ? WorldHalfHeight * 2f

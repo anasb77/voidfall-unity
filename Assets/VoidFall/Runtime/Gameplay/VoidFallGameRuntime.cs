@@ -659,12 +659,7 @@ namespace VoidFall.Runtime
         private ArenaId _arenaBannerIncoming;
         private ArenaId _arenaId;
         private int _arenaRecipeIndex;
-        private Vector2 _playerPosition;
-        private Vector2 _playerVelocity;
-        private float _playerHealth;
-        private float _playerMaxHealth;
         private float _healthGhostFraction = 1f;
-        private float _playerIframes;
         private OverclockState _overclock;
         private float _overclockHudPunch;
         private float _overclockVisualSurge;
@@ -683,7 +678,6 @@ namespace VoidFall.Runtime
         private float _magnetTarget;
         private float _adrenalTimer;
         private float _playerTrailTimer;
-        private float _dyingTimer;
         private float _levelUpTimer = -1f;
         private float _levelUpPromptOpenedAt = -1f;
         private Vector2 _levelUpScroll;
@@ -1129,7 +1123,7 @@ namespace VoidFall.Runtime
                     _overclockVisualSurge = 1f;
                 }
                 if (_visualCaptureRunSeconds > 0f) _time = _visualCaptureRunSeconds;
-                if (_visualCaptureCritical) _playerHealth = _playerMaxHealth * 0.15f;
+                if (_visualCaptureCritical) _gameSim.Player.Health = _gameSim.Player.MaxHealth * 0.15f;
                 if (!string.IsNullOrEmpty(_visualCaptureArena))
                 {
                     _arenaId = ArenaIdFromName(_visualCaptureArena);
@@ -1409,10 +1403,10 @@ namespace VoidFall.Runtime
             // Reactive soundtrack. Critical health only counts while the player
             // is actually alive and in a run, so the drag does not persist into
             // the death sequence or the game-over screen.
-            var playerAliveInRun = !_gameOver && !_mainMenuBrowsing && _playerHealth > 0;
+            var playerAliveInRun = !_gameOver && !_mainMenuBrowsing && _gameSim.Player.Health > 0;
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
-            var criticalHealth = playerAliveInRun && _playerMaxHealth > 0 &&
-                _playerHealth / _playerMaxHealth <= 0.2f;
+            var criticalHealth = playerAliveInRun && _gameSim.Player.MaxHealth > 0 &&
+                _gameSim.Player.Health / _gameSim.Player.MaxHealth <= 0.2f;
             var magnetTime = _magnetTarget > _magnetIntensity ? 0.10f : 0.36f;
             _magnetIntensity = Mathf.Lerp(
                 _magnetIntensity,
@@ -1458,7 +1452,7 @@ namespace VoidFall.Runtime
             {
                 if (!_mainMenuBrowsing && !_gameOver)
                 {
-                    _ui.HUD?.UpdateHealth(_playerHealth, _playerMaxHealth);
+                    _ui.HUD?.UpdateHealth(_gameSim.Player.Health, _gameSim.Player.MaxHealth);
                     _ui.HUD?.UpdateShield(0f, 0f);
                     _ui.HUD?.UpdateXP((int)_xp, _xpNeed, _level);
                     _ui.HUD?.UpdateStats(CurrentScore(), _kills, _time);
@@ -1907,17 +1901,17 @@ namespace VoidFall.Runtime
             _pulseBurstTimer = 0;
             for (var i = 0; i < _weaponCooldowns.Length; i++) _weaponCooldowns[i] = 0;
 
-            _playerPosition = Vector2.zero;
-            _playerVelocity = Vector2.zero;
+            _gameSim.Player.Position = Vector2.zero;
+            _gameSim.Player.Velocity = Vector2.zero;
             _cameraFollowPosition = Vector2.zero;
             _workshopIntegrity = WorkshopRank("integrity");
             _workshopPower = WorkshopRank("power");
             _workshopMobility = WorkshopRank("mobility");
             _workshopMagnet = WorkshopRank("magnet");
-            _playerMaxHealth = (float)ContentCatalog.Operative.MaxHealth + _workshopIntegrity * 5;
-            _playerHealth = _playerMaxHealth;
+            _gameSim.Player.MaxHealth = (float)ContentCatalog.Operative.MaxHealth + _workshopIntegrity * 5;
+            _gameSim.Player.Health = _gameSim.Player.MaxHealth;
             _healthGhostFraction = 1f;
-            _playerIframes = 0;
+            _gameSim.Player.Iframes = 0;
             _overclock.Reset();
             _overclockHudPunch = 0f;
             _overclockVisualSurge = 0f;
@@ -1928,7 +1922,7 @@ namespace VoidFall.Runtime
             _music?.ResetReactiveState();
             _adrenalTimer = 0;
             _playerTrailTimer = 0;
-            _dyingTimer = 0;
+            _gameSim.Player.DyingTimer = 0;
             _levelUpTimer = -1f;
             _levelUpPromptOpenedAt = -1f;
             _levelUpScroll = Vector2.zero;
@@ -2066,7 +2060,7 @@ namespace VoidFall.Runtime
             if (_ui != null && !_mainMenuBrowsing)
             {
                 _ui.SwitchToGameplay();
-                _ui.HUD?.UpdateHealth(_playerHealth, _playerMaxHealth);
+                _ui.HUD?.UpdateHealth(_gameSim.Player.Health, _gameSim.Player.MaxHealth);
                 _ui.HUD?.UpdateShield(0f, 0f);
                 _ui.HUD?.UpdateXP((int)_xp, _xpNeed, _level);
                 _ui.HUD?.UpdateStats(_score, _kills, 0);
@@ -2092,8 +2086,8 @@ namespace VoidFall.Runtime
 
             ApplyStressRanks(scenario);
             RecalculatePlayerStats(false);
-            _playerHealth = _playerMaxHealth;
-            _playerIframes = float.PositiveInfinity;
+            _gameSim.Player.Health = _gameSim.Player.MaxHealth;
+            _gameSim.Player.Iframes = float.PositiveInfinity;
 
             var stressArena = ArenaIdFromName(scenario.Arena);
             if (_arenaId != stressArena)
@@ -2115,7 +2109,7 @@ namespace VoidFall.Runtime
                     var distance = 260f + (float)_gameSim.Rng.Next() * 220f;
                     SpawnEnemy(
                         EliteRules.EliteVariantDef(kind).BaseId,
-                        _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance,
+                        _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance,
                         kind,
                         false,
                         false);
@@ -2131,7 +2125,7 @@ namespace VoidFall.Runtime
                     var distance = 240f + (float)_gameSim.Rng.Next() * 260f;
                     SpawnEnemy(
                         StressRosterTwoTypes[index],
-                        _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance,
+                        _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance,
                         null,
                         false,
                         false,
@@ -2146,7 +2140,7 @@ namespace VoidFall.Runtime
                 var angle = index / (float)Mathf.Max(1, scenario.Harvesters) * Mathf.PI * 2f;
                 SpawnEnemy(
                     "harvester",
-                    _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 280f,
+                    _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 280f,
                     null,
                     false,
                     false);
@@ -2177,14 +2171,14 @@ namespace VoidFall.Runtime
         {
             _stressScenario = null;
             _stressTopUpTimer = 0;
-            if (float.IsInfinity(_playerIframes)) _playerIframes = 0;
+            if (float.IsInfinity(_gameSim.Player.Iframes)) _gameSim.Player.Iframes = 0;
         }
 
         private void DriveStress(float frameSeconds)
         {
             var scenario = _stressScenario;
             if (scenario == null) return;
-            _playerIframes = float.PositiveInfinity;
+            _gameSim.Player.Iframes = float.PositiveInfinity;
             _stressTopUpTimer -= frameSeconds;
             if (_stressTopUpTimer > 0) return;
             _stressTopUpTimer = Mathf.Max(0.25f, (float)scenario.TopUpSeconds);
@@ -2206,7 +2200,7 @@ namespace VoidFall.Runtime
             {
                 var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                 var radius = 120f + (float)_gameSim.Rng.Next() * 560f;
-                var position = _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                var position = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
                 if (ActivePickups() % 8 == 7) SpawnRarePickup(position);
                 else SpawnPickup(position, 1 + Mathf.FloorToInt((float)(_gameSim.Rng.Next() * 10)));
             }
@@ -2219,7 +2213,7 @@ namespace VoidFall.Runtime
                 var radius = 320f + (float)_gameSim.Rng.Next() * 300f;
                 var direction = new Vector2(-Mathf.Cos(angle), -Mathf.Sin(angle));
                 SpawnHostileShot(
-                    _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius,
+                    _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius,
                     direction,
                     1f,
                     260f,
@@ -2282,17 +2276,17 @@ namespace VoidFall.Runtime
             if (frozen) _freezeTimer = Mathf.Max(0, _freezeTimer - realDt);
             var dt = frozen ? 0 : realDt * _timeScale;
             _time += dt;
-            if (_playerHealth > 0)
+            if (_gameSim.Player.Health > 0)
             {
-                _playerHealth = Mathf.Min(
-                    _playerMaxHealth,
-                    _playerHealth + 0.6f * SupportRank("regenerator") * dt);
+                _gameSim.Player.Health = Mathf.Min(
+                    _gameSim.Player.MaxHealth,
+                    _gameSim.Player.Health + 0.6f * SupportRank("regenerator") * dt);
             }
             RebuildEnemyGrid();
             MovePlayer(dt);
             // The browser applies current-step movement/iframes/boost effects
             // first, then expires their timers before the remaining systems run.
-            _playerIframes = Mathf.Max(0, _playerIframes - dt);
+            _gameSim.Player.Iframes = Mathf.Max(0, _gameSim.Player.Iframes - dt);
             _overclock.Step(dt);
             _adrenalTimer = Mathf.Max(0, _adrenalTimer - dt);
             UpdateCameraFollow(dt);
@@ -2414,7 +2408,7 @@ namespace VoidFall.Runtime
                     {
                         _partsEarned += 2;
                         _score += 150;
-                        _playerHealth = Mathf.Min(_playerMaxHealth, _playerHealth + 12);
+                        _gameSim.Player.Health = Mathf.Min(_gameSim.Player.MaxHealth, _gameSim.Player.Health + 12);
                         _targetTimeScale = 1;
                         if (_xp >= _xpNeed)
                         {
@@ -2446,12 +2440,12 @@ namespace VoidFall.Runtime
             // The browser resolves the defeat/revive transition after the
             // current simulation systems, so damage dealt in this step still
             // consumes the current step before the defeat timer advances.
-            if (_dyingTimer > 0)
+            if (_gameSim.Player.DyingTimer > 0)
             {
-                _dyingTimer -= realDt;
-                if (_dyingTimer <= 0)
+                _gameSim.Player.DyingTimer -= realDt;
+                if (_gameSim.Player.DyingTimer <= 0)
                 {
-                    _dyingTimer = 0;
+                    _gameSim.Player.DyingTimer = 0;
                     if (_revivesRemaining > 0)
                     {
                         _revivePending = true;
@@ -2465,7 +2459,7 @@ namespace VoidFall.Runtime
                 }
             }
 
-            if (_playerHealth <= 0 && !_revivePending && _dyingTimer <= 0 && !_gameOver)
+            if (_gameSim.Player.Health <= 0 && !_revivePending && _gameSim.Player.DyingTimer <= 0 && !_gameOver)
                 EndRun();
 
             _timeScale += (_targetTimeScale - _timeScale) *
@@ -2510,9 +2504,9 @@ namespace VoidFall.Runtime
 
         private float SafestEscapeAngle(float fallback)
         {
-            var movementSpeed = _playerVelocity.magnitude;
+            var movementSpeed = _gameSim.Player.Velocity.magnitude;
             var preferred = movementSpeed > 35f
-                ? Mathf.Atan2(_playerVelocity.y, _playerVelocity.x)
+                ? Mathf.Atan2(_gameSim.Player.Velocity.y, _gameSim.Player.Velocity.x)
                 : fallback;
             var bestAngle = preferred;
             var bestScore = float.PositiveInfinity;
@@ -2523,7 +2517,7 @@ namespace VoidFall.Runtime
                 foreach (var enemy in _gameSim.Enemies)
                 {
                     if (!enemy.Active) continue;
-                    var delta = enemy.Position - _playerPosition;
+                    var delta = enemy.Position - _gameSim.Player.Position;
                     var distance = delta.magnitude;
                     if (distance > 440f) continue;
                     var enemyAngle = Mathf.Atan2(delta.y, delta.x);
@@ -2706,7 +2700,7 @@ namespace VoidFall.Runtime
                 var index = _gameSim.EnemyOrder[order];
                 var enemy = _gameSim.Enemies[index];
                 if (!enemy.Active || enemy.Age < 0.15f) continue;
-                var distance = (enemy.Position - _playerPosition).sqrMagnitude;
+                var distance = (enemy.Position - _gameSim.Player.Position).sqrMagnitude;
                 if (distance >= target.DistanceSquared) continue;
                 target = new HostileTarget
                 {
@@ -2724,7 +2718,7 @@ namespace VoidFall.Runtime
                 var index = _gameSim.BossOrder[bossOrder];
                 var boss = _gameSim.Bosses[index];
                 if (!boss.Active || boss.State == 4) continue;
-                var distance = (boss.Position - _playerPosition).sqrMagnitude;
+                var distance = (boss.Position - _gameSim.Player.Position).sqrMagnitude;
                 if (distance >= target.DistanceSquared) continue;
                 target = new HostileTarget
                 {
@@ -2926,7 +2920,7 @@ namespace VoidFall.Runtime
                     nearbyDistanceSquared = dropDistanceSquared;
                     nearbyIndex = index;
                 }
-                var playerDistanceSquared = (pickup.Position - _playerPosition).sqrMagnitude;
+                var playerDistanceSquared = (pickup.Position - _gameSim.Player.Position).sqrMagnitude;
                 if (playerDistanceSquared > farthestDistanceSquared)
                 {
                     farthestDistanceSquared = playerDistanceSquared;
@@ -3005,25 +2999,25 @@ namespace VoidFall.Runtime
         {
             var viewportHalf = GameplayViewportHalfExtent();
             var waveRadius = new Vector2(viewportHalf.x * 2f, viewportHalf.y * 2f).magnitude * 0.68f + 80f;
-            SpawnBlastWave(_playerPosition, waveRadius, 0.72f, true);
+            SpawnBlastWave(_gameSim.Player.Position, waveRadius, 0.72f, true);
             // The browser bomb is a screen-wide presentation event. Its
             // damage scope is enemies and bosses; meteors are intentionally
             // not included in that source path.
             SpawnRingWave(
-                _playerPosition,
+                _gameSim.Player.Position,
                 22f,
                 1120f,
                 0.78f,
                 new Color(1f, 0.78f, 0.16f, 0.82f));
             SpawnRingWave(
-                _playerPosition,
+                _gameSim.Player.Position,
                 12f,
                 760f,
                 0.58f,
                 new Color(1f, 0.46f, 0.12f, 0.78f));
-            BurstFx(_playerPosition, SourceDotColor("white"), 18, 360, 0.42f, 0.82f);
-            BurstFx(_playerPosition, SourceDotColor("yellow"), 24, 440, 0.64f, 0.95f);
-            BurstFx(_playerPosition, SourceDotColor("orange"), 34, 520, 0.78f, 1.08f);
+            BurstFx(_gameSim.Player.Position, SourceDotColor("white"), 18, 360, 0.42f, 0.82f);
+            BurstFx(_gameSim.Player.Position, SourceDotColor("yellow"), 24, 440, 0.64f, 0.95f);
+            BurstFx(_gameSim.Player.Position, SourceDotColor("orange"), 34, 520, 0.78f, 1.08f);
             var normalDamage = 120f + _time * 0.4f;
             var enemySnapshot = CaptureEnemyEffectSnapshot(out var enemySnapshotCount);
             try
@@ -3071,7 +3065,7 @@ namespace VoidFall.Runtime
         {
             if (_gameOver) return;
             _revivePending = false;
-            _dyingTimer = 0;
+            _gameSim.Player.DyingTimer = 0;
             _gameOver = true;
             _gameOverScroll = Vector2.zero;
             _paused = true;
@@ -3217,13 +3211,13 @@ namespace VoidFall.Runtime
         {
             var recovery = WorkshopRank("recovery") * 3;
             if (recovery > 0)
-                _playerHealth = Mathf.Min(_playerMaxHealth, _playerHealth + recovery);
+                _gameSim.Player.Health = Mathf.Min(_gameSim.Player.MaxHealth, _gameSim.Player.Health + recovery);
         }
 
         private UpgradeOptionDefinition[] RollLevelOptions()
         {
             var options = UpgradeRules.RollProgressionOptions(_upgradeProgress, _gameSim.Rng, 3);
-            if (_playerHealth >= _playerMaxHealth * 0.45f) return options;
+            if (_gameSim.Player.Health >= _gameSim.Player.MaxHealth * 0.45f) return options;
 
             var repair = new UpgradeOptionDefinition
             {
@@ -3258,7 +3252,7 @@ namespace VoidFall.Runtime
         {
             if (!_levelUpActive || _levelOptions == null || index < 0 || index >= _levelOptions.Length) return;
             var option = _levelOptions[index];
-            var previousMaxHealth = _playerMaxHealth;
+            var previousMaxHealth = _gameSim.Player.MaxHealth;
             var previousSlotLimit = UpgradeRules.WeaponSlotLimit(_upgradeProgress);
             if (!UpgradeRules.Apply(_upgradeProgress, option)) return;
             var expandedWeaponSlots = option.Kind == UpgradeOptionKind.Weapon &&
@@ -3270,21 +3264,21 @@ namespace VoidFall.Runtime
                 TriggerFreeze(0.12f);
                 _cyanFlash = 0.85f;
                 AddCameraShake(0.55f);
-                SpawnRingWave(_playerPosition, 26f, 680f, 0.72f, new Color(0.35f, 0.95f, 1f, 0.84f));
-                SpawnRingWave(_playerPosition, 14f, 430f, 0.52f, new Color(0.35f, 0.95f, 1f, 0.72f));
-                BurstFx(_playerPosition, SourceDotColor("white"), 18, 300, 0.65f, 0.9f);
-                BurstFx(_playerPosition, EvolutionAccent(option.TargetId), 24, 390, 0.78f, 1f);
+                SpawnRingWave(_gameSim.Player.Position, 26f, 680f, 0.72f, new Color(0.35f, 0.95f, 1f, 0.84f));
+                SpawnRingWave(_gameSim.Player.Position, 14f, 430f, 0.52f, new Color(0.35f, 0.95f, 1f, 0.72f));
+                BurstFx(_gameSim.Player.Position, SourceDotColor("white"), 18, 300, 0.65f, 0.9f);
+                BurstFx(_gameSim.Player.Position, EvolutionAccent(option.TargetId), 24, 390, 0.78f, 1f);
             }
             else if (option.Kind == UpgradeOptionKind.Repair)
             {
-                _playerHealth = Mathf.Min(_playerMaxHealth, _playerHealth + 35f);
+                _gameSim.Player.Health = Mathf.Min(_gameSim.Player.MaxHealth, _gameSim.Player.Health + 35f);
             }
             if (expandedWeaponSlots)
             {
                 ShowArenaToast("Fourth weapon slot unlocked", 2.5f, ToastKind.Reward);
-                SpawnRingWave(_playerPosition, 16f, 360f, 0.46f,
+                SpawnRingWave(_gameSim.Player.Position, 16f, 360f, 0.46f,
                     new Color(0.133f, 0.827f, 0.933f, 0.8f));
-                BurstFx(_playerPosition, SourceDotColor("cyan"),
+                BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"),
                     12, 220, 0.42f, 0.7f);
             }
             _telemetry.RecordUpgrade((float)_time, _level, option.TargetId, option.Kind.ToString(), BuildTelemetryProgress());
@@ -3293,11 +3287,11 @@ namespace VoidFall.Runtime
             RecalculatePlayerStats(false);
             // Browser applyUpgrade() explicitly restores the max-health delta
             // after recalculate() when Plating or Frame raises the cap.
-            if (_playerMaxHealth > previousMaxHealth)
+            if (_gameSim.Player.MaxHealth > previousMaxHealth)
             {
-                _playerHealth = Mathf.Min(
-                    _playerMaxHealth,
-                    _playerHealth + (_playerMaxHealth - previousMaxHealth));
+                _gameSim.Player.Health = Mathf.Min(
+                    _gameSim.Player.MaxHealth,
+                    _gameSim.Player.Health + (_gameSim.Player.MaxHealth - previousMaxHealth));
             }
             _levelOptions = null;
             _levelUpActive = false;
@@ -3363,7 +3357,7 @@ namespace VoidFall.Runtime
         {
             var plating = SupportRank("plating");
             var frame = LateRank("frame");
-            _playerMaxHealth = (float)ContentCatalog.Operative.MaxHealth + _workshopIntegrity * 5 + plating * 20 + frame * 8;
+            _gameSim.Player.MaxHealth = (float)ContentCatalog.Operative.MaxHealth + _workshopIntegrity * 5 + plating * 20 + frame * 8;
             _damageMultiplier = Mathf.Pow(1.12f, SupportRank("calibration")) *
                 (1 + _workshopPower * 0.04f) * Mathf.Pow(1.05f, LateRank("output"));
             _cooldownMultiplier = Mathf.Pow(0.92f, SupportRank("cycling")) *
@@ -3378,7 +3372,7 @@ namespace VoidFall.Runtime
                 0.05f + SupportRank("optics") * 0.06f + WorkshopRank("precision") * 0.02f);
             // Browser recalculate() clamps an over-cap health value but does
             // not heal the player when Plating or Frame raises max health.
-            _playerHealth = Mathf.Min(_playerHealth, _playerMaxHealth);
+            _gameSim.Player.Health = Mathf.Min(_gameSim.Player.Health, _gameSim.Player.MaxHealth);
         }
 
         private static void ResizeOwnedChipViews(

@@ -296,19 +296,19 @@ namespace VoidFall.Runtime
             if (!_revivePending || _revivesRemaining <= 0) return;
             _revivesRemaining--;
             _revivePending = false;
-            _dyingTimer = 0;
-            _playerHealth = Mathf.Ceil(_playerMaxHealth * 0.5f);
-            _playerIframes = 2.5f;
-            _playerVelocity = Vector2.zero;
+            _gameSim.Player.DyingTimer = 0;
+            _gameSim.Player.Health = Mathf.Ceil(_gameSim.Player.MaxHealth * 0.5f);
+            _gameSim.Player.Iframes = 2.5f;
+            _gameSim.Player.Velocity = Vector2.zero;
             _cyanFlash = 0.9f;
             _paused = false;
             _targetTimeScale = 1;
             TriggerFreeze(0.08f);
             _audio?.Play(ProceduralAudio.Cue.LevelUp, 1.12f);
-            BurstFx(_playerPosition, SourceDotColor("cyan"), 26, 380, 0.7f, 1f);
-            BurstFx(_playerPosition, SourceDotColor("white"), 14, 300, 0.55f, 0.8f);
-            SpawnRingWave(_playerPosition, 26f, 640f, 0.72f, new Color(0.133f, 0.827f, 0.933f, 1f));
-            SpawnRingWave(_playerPosition, 14f, 420f, 0.55f, new Color(0.133f, 0.827f, 0.933f, 1f));
+            BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"), 26, 380, 0.7f, 1f);
+            BurstFx(_gameSim.Player.Position, SourceDotColor("white"), 14, 300, 0.55f, 0.8f);
+            SpawnRingWave(_gameSim.Player.Position, 26f, 640f, 0.72f, new Color(0.133f, 0.827f, 0.933f, 1f));
+            SpawnRingWave(_gameSim.Player.Position, 14f, 420f, 0.55f, new Color(0.133f, 0.827f, 0.933f, 1f));
 
             var enemySnapshot = CaptureEnemyEffectSnapshot(out var enemySnapshotCount);
             try
@@ -318,7 +318,7 @@ namespace VoidFall.Runtime
                     var snapshot = enemySnapshot[target];
                     if (!IsLiveEnemyEffectTarget(snapshot)) continue;
                     var enemy = snapshot.State;
-                    var delta = enemy.Position - _playerPosition;
+                    var delta = enemy.Position - _gameSim.Player.Position;
                     var reach = 340f + enemy.Radius;
                     if (delta.sqrMagnitude >= reach * reach) continue;
                     ApplyEnemyDamage(snapshot.Slot, 60f + _time * 0.2f, delta, 460, false);
@@ -361,8 +361,8 @@ namespace VoidFall.Runtime
             if (_levelUpTimer >= 0) return;
             _audio?.Play(ProceduralAudio.Cue.LevelUp);
             _cyanFlash = 0.8f;
-            BurstFx(_playerPosition, SourceDotColor("cyan"), 20, 310, 0.66f, 0.95f);
-            SpawnRingWave(_playerPosition, 18f, 430f, 0.62f, new Color(0.133f, 0.827f, 0.933f, 1f));
+            BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"), 20, 310, 0.66f, 0.95f);
+            SpawnRingWave(_gameSim.Player.Position, 18f, 430f, 0.62f, new Color(0.133f, 0.827f, 0.933f, 1f));
             _levelOptions = null;
             _levelUpActive = false;
             _levelUpTimer = 0.38f;
@@ -515,8 +515,8 @@ namespace VoidFall.Runtime
             {
                 timeSeconds = (float)_time,
                 level = _level,
-                hp = _playerHealth,
-                maxHp = _playerMaxHealth,
+                hp = _gameSim.Player.Health,
+                maxHp = _gameSim.Player.MaxHealth,
                 enemies = ActiveEnemies(),
                 activeBosses = ActiveBosses(),
                 projectiles = ActiveBullets() + ActiveHostileShots(),
@@ -544,9 +544,9 @@ namespace VoidFall.Runtime
             _audio?.Play(major ? ProceduralAudio.Cue.MilestoneMajor : ProceduralAudio.Cue.Milestone);
             _telemetry.RecordMilestone((float)_time, kind, value);
             if (major) _cyanFlash = Mathf.Max(_cyanFlash, 0.48f);
-            if (major) SpawnRingWave(_playerPosition, 18f, 470f, 0.62f, new Color(1f, 0.78f, 0.28f, 0.78f));
+            if (major) SpawnRingWave(_gameSim.Player.Position, 18f, 470f, 0.62f, new Color(1f, 0.78f, 0.28f, 0.78f));
             BurstFx(
-                _playerPosition,
+                _gameSim.Player.Position,
                 major ? SourceDotColor("yellow") : SourceDotColor("cyan"),
                 major ? 14 : 7,
                 major ? 260 : 170,

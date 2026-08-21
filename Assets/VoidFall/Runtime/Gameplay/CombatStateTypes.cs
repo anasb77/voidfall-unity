@@ -181,4 +181,20 @@ namespace VoidFall.Runtime
             public int TelemetryInstanceId;
             public int View;
         }
+
+        /// <summary>
+        /// Player kinematics and vitals. Migrated from runtime fields so combat
+        /// families (meteors today, bullets/hostile shots next) can read and
+        /// mutate the player without by-ref parameter plumbing. Flow flags that
+        /// drive UI navigation (revive pending, game over) stay on the runtime.
+        /// </summary>
+        internal struct PlayerState
+        {
+            public Vector2 Position;
+            public Vector2 Velocity;
+            public float Health;
+            public float MaxHealth;
+            public float Iframes;
+            public float DyingTimer;
+        }
 }
