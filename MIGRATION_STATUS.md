@@ -1,6 +1,47 @@
 # VoidFall Unity — Migration Status
 
-Last updated: 2026-08-16
+Last updated: 2026-08-21
+
+## 2026-08-21 addendum — architecture refactor in progress
+
+This addendum supersedes conflicting statements below it. The document body
+still describes the 2026-08-16 state and is being revised.
+
+What changed since 2026-08-16, all verified from this checkout:
+
+- **The working tree was committed.** The entire uGUI layer, the prepared
+  arena/sprite assets under `Assets/VoidFall/Generated/`, six EditMode test
+  files, audit captures, and the URP settings are now in git (commit
+  `63b6ce5`). The VF-008 "untracked UI" risk is closed.
+- **URP 17.5 is installed and active** (`com.unity.render-pipelines.universal`
+  in `Packages/manifest.json`, activated in commits through `ef9f9a9`). The
+  body's "no scriptable render pipeline / no bloom" statements are obsolete.
+- **There is a sixth assembly, `VoidFall.UI`** (uGUI + TextMeshPro). The body's
+  "UI/Mobile/Editor folders are empty" and "UI is legacy IMGUI" statements are
+  obsolete. `Mobile` is still empty.
+- **Tests exist in-repo**: 57 EditMode tests across six files under
+  `Assets/VoidFall/Tests/Editor/` (run: Unity batchmode `-runTests
+  -testPlatform EditMode`; current result 57/57), plus one PlayMode
+  golden-master determinism test under `Assets/VoidFall/Tests/PlayMode/`.
+- **`VoidFallGameRuntime.cs` is split into partial class files by concern**
+  (main state/lifecycle file plus `Sim`/`Render`/`UI`/`Arena`/`Fx`/`Persist`/
+  `Audio` partials). It is still one class — the structural problem described
+  below remains until extraction completes — but it is navigable again.
+- **Extraction started**: gameplay device polling now lives in
+  `Runtime/Input/InputReader.cs`; the six byte-identical slot-order field
+  trios are unified into `Runtime/Gameplay/SlotOrder.cs`. Both changes were
+  verified behavior-neutral: rebuild 0 errors, EditMode 57/57, and the
+  PlayMode golden-master hash (`15261090775683682834`) unchanged.
+- **The golden master is the regression net for further extraction.** It boots
+  the real runtime, applies `productionMax` with seed `0x5f1dc0de`, steps
+  `Simulate` 600 fixed ticks, and hashes all gameplay state bit-exactly. Any
+  refactor that changes simulation behavior fails it. Intentional behavior
+  changes must regenerate the constant in a separate, clearly described commit.
+
+Remaining extraction order (agreed design): HudPresenter, ArenaRenderer,
+GameSim behind a facade, menu controllers into `VoidFall.UI`, then shrink the
+runtime to a composition root. See `Docs/AI/UnityProjectHealth.md` for the
+audit findings (VF-001..VF-014) that motivate this order.
 
 ## What this document is
 

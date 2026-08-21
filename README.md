@@ -16,22 +16,23 @@ A high-performance C# Unity 6 port of **VoidFall**, an endless space-survival sh
 
 ## Architecture & Modules
 
-There are five assembly definitions (`asmdef`) under `Assets/VoidFall/`:
+There are six assembly definitions (`asmdef`) under `Assets/VoidFall/`:
 
 - **VoidFall.Core**: Pure simulation rules — spatial collision grid, deterministic RNG, combat/movement/pickup/meteor/quality/balance math. No engine dependencies.
 - **VoidFall.Content**: Generated content catalog plus hand-written elite, enemy-roster, upgrade-pool, and evolution rules.
-- **VoidFall.Runtime**: All Unity behaviour. Simulation driver, procedural sprite and arena-plate factories, entity rendering, particles, camera effects, HUD, every menu, input, and telemetry.
+- **VoidFall.Runtime**: All Unity behaviour. Simulation driver, procedural sprite and arena-plate factories, entity rendering, particles, camera effects, input, and telemetry.
+- **VoidFall.UI**: Runtime-authored uGUI + TextMeshPro views (menus, HUD, overlays).
 - **VoidFall.Persistence**: Save store and browser save import/export.
-- **VoidFall.Audio**: Procedural audio synthesis.
+- **VoidFall.Audio**: Procedural audio synthesis plus streamed reactive soundtrack.
 
 Two caveats for anyone navigating this for the first time:
 
-- `Runtime/Gameplay/VoidFallGameRuntime.cs` is a single ~25,000-line class. The
-  simulation, all enemy behaviours, rendering, HUD, and every menu live in it.
-  Splitting it is tracked as open work in `MIGRATION_STATUS.md`.
-- The `UI`, `Mobile`, and `Editor` folders are empty, and `Rendering` contains
-  only shaders and icon assets. They are not assemblies. Earlier revisions of
-  this README described them as such.
+- `Runtime/Gameplay/VoidFallGameRuntime.cs` is a single class (split across
+  partial files by concern) holding the simulation, every enemy behaviour,
+  rendering, the HUD, and every menu. Splitting it into real services is
+  tracked as open work in `MIGRATION_STATUS.md`.
+- The `Mobile` folder is empty, and `Rendering` contains only shaders and icon
+  assets. They are not assemblies.
 
 ## Getting Started
 
