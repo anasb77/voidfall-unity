@@ -27,13 +27,17 @@ What changed since 2026-08-16, all verified from this checkout:
   (main state/lifecycle file plus `Sim`/`Render`/`UI`/`Arena`/`Fx`/`Persist`/
   `Audio` partials). It is still one class — the structural problem described
   below remains until extraction completes — but it is navigable again.
-- **Extraction started**: gameplay device polling now lives in
+- **Extraction started**: gameplay device polling lives in
   `Runtime/Input/InputReader.cs`; the six byte-identical slot-order field
   trios are unified into `Runtime/Gameplay/SlotOrder.cs`; all fourteen HUD
-  methods are consolidated into `Runtime/Gameplay/VoidFallGameRuntime.Hud.cs`
-  as the seam for a future HudPresenter. All three changes were verified
-  behavior-neutral: rebuild 0 errors, EditMode 57/57, and the PlayMode
-  golden-master hash (`15261090775683682834`) unchanged.
+  methods are consolidated into `Runtime/Gameplay/VoidFallGameRuntime.Hud.cs`.
+  The cosmetic-FX simulation has moved out of the runtime entirely
+  (`Runtime/Gameplay/FxSim.cs`): its state arrays, shared insertion-order
+  bookkeeping, FX random stream, update loops, and spawn insertion logic are
+  now plain C#; only view syncing and the ParticleSystem emission calls
+  remain on the runtime. Every step was verified behavior-neutral: rebuild
+  0 errors, EditMode 57/57, and the PlayMode golden-master hash
+  (`15261090775683682834`) unchanged throughout.
 - **VF-002 and VF-006 from `Docs/AI/UnityProjectHealth.md` are fixed**:
   vertical layouts now honor child preferred heights, and main-menu status
   dividers keep their 1px contract. Verified with committed player captures
