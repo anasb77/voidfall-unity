@@ -240,9 +240,7 @@ namespace VoidFall.Runtime
             // visible screen on every procedural combat sprite.
             StartRunInternal(false, false);
             _mainMenuBrowsing = true;
-            _touchActive = false;
-            _touchBlockedByUi = false;
-            _touchAxis = Vector2.zero;
+            _input.ResetTouch();
             _menuPage = MenuPage.Home;
             _menuScroll = Vector2.zero;
             _gameOverScroll = Vector2.zero;

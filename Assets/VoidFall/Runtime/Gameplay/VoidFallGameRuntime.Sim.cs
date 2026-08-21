@@ -59,22 +59,7 @@ namespace VoidFall.Runtime
 
         private void MovePlayer(float dt)
         {
-            var input = Vector2.zero;
-            var keyboard = Keyboard.current;
-            if (keyboard != null)
-            {
-                input = KeyboardMoveAxis(
-                    keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed,
-                    keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed,
-                    keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed,
-                    keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed);
-            }
-
-            var gamepad = Gamepad.current;
-            if (gamepad != null && input.sqrMagnitude < 0.01f) input = gamepad.leftStick.ReadValue();
-            var touchAxis = ReadTouchAxis();
-            if (input.sqrMagnitude < 0.01f) input = touchAxis;
-            if (input.sqrMagnitude > 1) input.Normalize();
+            var input = _input.ReadMoveAxis(_saveData?.settings?.touchSize ?? 1f);
             var mobility = SupportRank("mobility");
             var adrenal = SupportRank("adrenal");
             var speed = (float)ContentCatalog.Operative.MoveSpeed *
@@ -5941,7 +5926,7 @@ namespace VoidFall.Runtime
         private void UpdateTouchHud()
         {
             if (_touchBaseImage == null || _touchKnobImage == null) return;
-            var visible = _touchActive && !_paused && !_gameOver && !_levelUpActive && !_revivePending;
+            var visible = _input.TouchActive && !_paused && !_gameOver && !_levelUpActive && !_revivePending;
             if (!visible)
             {
                 _touchBaseImage.enabled = false;
@@ -5952,12 +5937,12 @@ namespace VoidFall.Runtime
             var scale = Mathf.Clamp(_saveData?.settings?.touchSize ?? 1f, 0.75f, 1.35f);
             var radius = 64f * scale * 0.82f;
             var safeArea = Screen.safeArea;
-            var safeX = Mathf.Clamp(_touchOrigin.x, safeArea.xMin + radius, safeArea.xMax - radius);
-            var safeY = Mathf.Clamp(_touchOrigin.y, safeArea.yMin + radius, safeArea.yMax - radius);
+            var safeX = Mathf.Clamp(_input.TouchOrigin.x, safeArea.xMin + radius, safeArea.xMax - radius);
+            var safeY = Mathf.Clamp(_input.TouchOrigin.y, safeArea.yMin + radius, safeArea.yMax - radius);
             var basePosition = new Vector3(safeX, safeY, 0);
             var knobPosition = basePosition + new Vector3(
-                _touchAxis.x * radius * 0.78f,
-                _touchAxis.y * radius * 0.78f,
+                _input.TouchAxis.x * radius * 0.78f,
+                _input.TouchAxis.y * radius * 0.78f,
                 0);
             _touchBaseImage.rectTransform.position = basePosition;
             _touchKnobImage.rectTransform.position = knobPosition;

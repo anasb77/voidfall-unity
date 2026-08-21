@@ -1011,10 +1011,7 @@ namespace VoidFall.Runtime
         private int _scoreMilestoneIndex;
         private float _telemetrySampleTimer;
         private string _lastTelemetryPath;
-        private bool _touchActive;
-        private bool _touchBlockedByUi;
-        private Vector2 _touchOrigin;
-        private Vector2 _touchAxis;
+        private InputReader _input;
         private int _bossCycle;
         private int _bossSequence;
         private bool _bossWarned;
@@ -1313,6 +1310,7 @@ namespace VoidFall.Runtime
 
             _instance = this;
             _ownsGlobalResources = true;
+            _input = new InputReader();
             _arenaResidency = new ArenaResidencyManager();
             DontDestroyOnLoad(gameObject);
             _worldRoot = new GameObject("VoidFall World").transform;
@@ -1500,9 +1498,7 @@ namespace VoidFall.Runtime
             {
                 if (_applicationInactive) return;
                 _applicationInactive = true;
-                _touchActive = false;
-                _touchBlockedByUi = false;
-                _touchAxis = Vector2.zero;
+                _input?.ResetTouch();
                 _audio?.Suspend();
                 _music?.SetApplicationActive(false);
                 if (!_paused && !_gameOver && !_revivePending && !_levelUpActive && _menuPage == MenuPage.None)
@@ -2747,39 +2743,6 @@ namespace VoidFall.Runtime
                 case "yellow": return DotYellow;
                 default: return Color.white;
             }
-        }
-
-        private Vector2 ReadTouchAxis()
-        {
-            _touchActive = false;
-            _touchAxis = Vector2.zero;
-            var touchscreen = Touchscreen.current;
-            var primaryTouch = touchscreen?.primaryTouch;
-            if (primaryTouch == null || !primaryTouch.press.isPressed)
-            {
-                _touchBlockedByUi = false;
-                return Vector2.zero;
-            }
-
-            var pointerId = primaryTouch.touchId.ReadValue();
-            var pointerOverUi = EventSystem.current != null &&
-                EventSystem.current.IsPointerOverGameObject(pointerId);
-            _touchBlockedByUi = TouchJoystickBlockedByUi(
-                primaryTouch.press.isPressed,
-                primaryTouch.press.wasPressedThisFrame,
-                pointerOverUi,
-                _touchBlockedByUi);
-            if (_touchBlockedByUi) return Vector2.zero;
-
-            var position = primaryTouch.position.ReadValue();
-            if (primaryTouch.press.wasPressedThisFrame) _touchOrigin = position;
-            var delta = position - _touchOrigin;
-            var maximum = 64f * Mathf.Clamp(_saveData?.settings?.touchSize ?? 1f, 0.75f, 1.35f);
-            var axis = TouchAxisFromDelta(delta, maximum, out var originShift);
-            _touchOrigin += originShift;
-            _touchActive = true;
-            _touchAxis = axis;
-            return _touchAxis;
         }
 
         private float SafestEscapeAngle(float fallback)
