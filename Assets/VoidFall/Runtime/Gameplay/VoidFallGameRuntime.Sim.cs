@@ -78,8 +78,8 @@ namespace VoidFall.Runtime
             {
                 _playerTrailTimer = 0.06f;
                 var jitter = new Vector2(
-                    ((float)_fxRng.Next() - 0.5f) * 20f,
-                    ((float)_fxRng.Next() - 0.5f) * 20f);
+                    ((float)_fxSim.FxRng.Next() - 0.5f) * 20f,
+                    ((float)_fxSim.FxRng.Next() - 0.5f) * 20f);
                 var trailColor = PlayerTrailDotColor(
                     _overclock.Active,
                     _adrenalTimer > 0);
@@ -739,7 +739,7 @@ namespace VoidFall.Runtime
             {
                 enemy.Velocity = enemy.DashDirection * (float)definition.ChargeSpeed;
                 enemy.StateTimer -= dt;
-                if (_qualityPreset.ParticleScale > 0.01f && (float)_fxRng.Next() < 0.38f)
+                if (_qualityPreset.ParticleScale > 0.01f && (float)_fxSim.FxRng.Next() < 0.38f)
                 {
                     BurstFx(enemy.Position, SourceDotColor("yellow"), 1, 24, 0.26f, 0.6f);
                 }
@@ -1132,7 +1132,7 @@ namespace VoidFall.Runtime
                 }
                 SpawnBlastWave(enemy.DashDirection, impact, 0.5f, false);
                 SpawnBlastWave(enemy.DashDirection, impact * 0.62f, 0.28f, false);
-                SpawnImpactMark(enemy.DashDirection, impact, (float)(_fxRng.Next() * Math.PI * 2));
+                SpawnImpactMark(enemy.DashDirection, impact, (float)(_fxSim.FxRng.Next() * Math.PI * 2));
                 BurstFx(enemy.DashDirection, SourceDotColor("orange"), 20, 320, 0.54f, 0.86f);
                 BurstFx(enemy.DashDirection, SourceDotColor("yellow"), 9, 240, 0.36f, 0.72f);
                 BurstFx(enemy.DashDirection, SourceDotColor("white"), 5, 150, 0.2f, 0.52f);
@@ -1273,7 +1273,7 @@ namespace VoidFall.Runtime
             {
                 enemy.Velocity = enemy.DashDirection * 570;
                 enemy.StateTimer -= dt;
-                if (_qualityPreset.ParticleScale > 0.01f && (float)_fxRng.Next() < 0.45f)
+                if (_qualityPreset.ParticleScale > 0.01f && (float)_fxSim.FxRng.Next() < 0.45f)
                     BurstFx(enemy.Position, SourceDotColor("pink"),
                         1, 20, 0.25f, 0.6f);
                 if (enemy.StateTimer <= 0)
@@ -1327,7 +1327,7 @@ namespace VoidFall.Runtime
                 enemy.StateTimer -= dt;
                 if (SourceRosterPincerDashFxEligible(
                         _qualityPreset.ParticleScale > 0.01f,
-                        _fxRng.Next()))
+                        _fxSim.FxRng.Next()))
                     BurstFx(enemy.Position, SourceDotColor("fuchsia"),
                         1, 18, 0.22f, 0.5f);
                 if (enemy.StateTimer <= 0)
@@ -1649,7 +1649,7 @@ namespace VoidFall.Runtime
                 Hide(_meteorDangerRingViews[index]);
                 Hide(_meteorHealthArcViews[index]);
             }
-            for (var index = 0; index < _meteorShards.Length; index++)
+            for (var index = 0; index < _fxSim.MeteorShards.Length; index++)
             {
                 // Remove the logical entry even when the pooled slot is
                 // already inactive. A previous budget trim can deactivate a
@@ -1657,7 +1657,7 @@ namespace VoidFall.Runtime
                 // behind would make the next reuse appear twice in the
                 // browser-equivalent particles array.
                 RemoveSourceFxOrder(SourceFxKind.MeteorShard, index);
-                _meteorShards[index].Active = false;
+                _fxSim.MeteorShards[index].Active = false;
                 Hide(_meteorShardViews[index]);
             }
             ResetMeteorOrder();
@@ -1669,11 +1669,11 @@ namespace VoidFall.Runtime
             var visibleRadius = Mathf.Max(1f, meteor.VisibleRadius);
             for (var index = 0; index < shardCount; index++)
             {
-                var angle = (float)(_fxRng.Next() * Math.PI * 2);
+                var angle = (float)(_fxSim.FxRng.Next() * Math.PI * 2);
                 var direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                var speed = (110f + (float)_fxRng.Next() * 190f) * force;
-                var size = visibleRadius * (0.32f + (float)_fxRng.Next() * 0.26f);
-                var life = 0.42f + (float)_fxRng.Next() * 0.3f;
+                var speed = (110f + (float)_fxSim.FxRng.Next() * 190f) * force;
+                var size = visibleRadius * (0.32f + (float)_fxSim.FxRng.Next() * 0.26f);
+                var life = 0.42f + (float)_fxSim.FxRng.Next() * 0.3f;
                 // Browser singleParticle() consumes this full tuple even
                 // when the particle budget rejects insertion. Keep the
                 // meteor-shard stream deterministic under pressure.
@@ -1681,7 +1681,7 @@ namespace VoidFall.Runtime
                     continue;
                 var slot = FindMeteorShardSlot();
                 if (slot < 0) continue;
-                if (_meteorShards[slot].Active)
+                if (_fxSim.MeteorShards[slot].Active)
                     RemoveSourceFxOrder(SourceFxKind.MeteorShard, slot);
                 var shard = new MeteorShardState
                 {
@@ -1696,7 +1696,7 @@ namespace VoidFall.Runtime
                     Variant = index % 4,
                     View = slot,
                 };
-                _meteorShards[slot] = shard;
+                _fxSim.MeteorShards[slot] = shard;
                 AppendSourceFxOrder(SourceFxKind.MeteorShard, slot);
                 var view = EnsureMeteorShardView(slot);
                 view.sprite = ProceduralSpriteFactory.MeteorShard(shard.Variant);
@@ -1718,12 +1718,12 @@ namespace VoidFall.Runtime
         {
             var oldest = -1;
             var lowestLife = float.MaxValue;
-            for (var index = 0; index < _meteorShards.Length; index++)
+            for (var index = 0; index < _fxSim.MeteorShards.Length; index++)
             {
-                if (!_meteorShards[index].Active) return index;
-                if (_meteorShards[index].Life < lowestLife)
+                if (!_fxSim.MeteorShards[index].Active) return index;
+                if (_fxSim.MeteorShards[index].Life < lowestLife)
                 {
-                    lowestLife = _meteorShards[index].Life;
+                    lowestLife = _fxSim.MeteorShards[index].Life;
                     oldest = index;
                 }
             }
@@ -1734,9 +1734,9 @@ namespace VoidFall.Runtime
         {
             if (dt <= 0) return;
             var decay = Mathf.Exp(-3.2f * Mathf.Clamp(dt, 0, 0.1f));
-            for (var index = 0; index < _sourceParticles.Length; index++)
+            for (var index = 0; index < _fxSim.SourceParticles.Length; index++)
             {
-                var particle = _sourceParticles[index];
+                var particle = _fxSim.SourceParticles[index];
                 if (!particle.Active) continue;
                 particle.Life -= dt;
                 if (particle.Life <= 0)
@@ -1750,15 +1750,15 @@ namespace VoidFall.Runtime
                     particle.Velocity *= decay;
                     particle.Position += particle.Velocity * dt;
                 }
-                _sourceParticles[index] = particle;
+                _fxSim.SourceParticles[index] = particle;
             }
         }
 
         private void UpdateMeteorShards(float dt)
         {
-            for (var index = 0; index < _meteorShards.Length; index++)
+            for (var index = 0; index < _fxSim.MeteorShards.Length; index++)
             {
-                var shard = _meteorShards[index];
+                var shard = _fxSim.MeteorShards[index];
                 if (!shard.Active) continue;
                 var decay = Mathf.Exp(-MeteorShardDrag * dt);
                 shard.Velocity *= decay;
@@ -1770,7 +1770,7 @@ namespace VoidFall.Runtime
                     RemoveSourceFxOrder(SourceFxKind.MeteorShard, index);
                     Hide(_meteorShardViews[index]);
                 }
-                _meteorShards[index] = shard;
+                _fxSim.MeteorShards[index] = shard;
             }
         }
 
@@ -2505,13 +2505,13 @@ namespace VoidFall.Runtime
                     // flag; Low quality must not advance the shared visual
                     // stream when projectile trails are disabled.
                     if (_qualityPreset.ProjectileTrails &&
-                        SourceProjectileTrailEligible(true, true, _fxRng.Next()))
+                        SourceProjectileTrailEligible(true, true, _fxSim.FxRng.Next()))
                     {
                         EmitTrailParticle(
                             bullet.Position,
                             new Vector2(
-                                ((float)_fxRng.Next() - 0.5f) * 24f,
-                                ((float)_fxRng.Next() - 0.5f) * 24f),
+                                ((float)_fxSim.FxRng.Next() - 0.5f) * 24f,
+                                ((float)_fxSim.FxRng.Next() - 0.5f) * 24f),
                             new Color(163f / 255f, 230f / 255f, 53f / 255f, 1f),
                             0.2f,
                             0.42f);
@@ -5113,7 +5113,7 @@ namespace VoidFall.Runtime
             {
                 Active = true,
                 Position = position + new Vector2(
-                    ((float)_fxRng.Next() - 0.5f) * 14f,
+                    ((float)_fxSim.FxRng.Next() - 0.5f) * 14f,
                     SourceFloatingTextAnchorOffset),
                 Life = 0.68f,
                 MaxLife = 0.68f,
@@ -5737,7 +5737,7 @@ namespace VoidFall.Runtime
             float size,
             Color color)
         {
-            if (_sourceFxOrderCount >= SourceParticleLimit(_qualityPreset.ParticleScale)) return false;
+            if (_fxSim.SourceFxOrderCount >= SourceParticleLimit(_qualityPreset.ParticleScale)) return false;
             var slot = FindSourceParticleSlot();
             if (slot < 0) return false;
             var particle = new SourceParticleState
@@ -5751,7 +5751,7 @@ namespace VoidFall.Runtime
                 Color = color,
                 View = slot,
             };
-            _sourceParticles[slot] = particle;
+            _fxSim.SourceParticles[slot] = particle;
             AppendSourceFxOrder(SourceFxKind.Particle, slot);
             var view = EnsureSourceParticleView(slot);
             view.transform.position = position;
@@ -6026,23 +6026,23 @@ namespace VoidFall.Runtime
 
             var slot = -1;
             var oldestAge = -1f;
-            for (var index = 0; index < _ringWaves.Length; index++)
+            for (var index = 0; index < _fxSim.RingWaves.Length; index++)
             {
-                if (!_ringWaves[index].Active)
+                if (!_fxSim.RingWaves[index].Active)
                 {
                     slot = index;
                     break;
                 }
-                if (_ringWaves[index].Age > oldestAge)
+                if (_fxSim.RingWaves[index].Age > oldestAge)
                 {
-                    oldestAge = _ringWaves[index].Age;
+                    oldestAge = _fxSim.RingWaves[index].Age;
                     slot = index;
                 }
             }
             if (slot < 0) return;
-            if (_ringWaves[slot].Active)
+            if (_fxSim.RingWaves[slot].Active)
                 RemoveSourceFxOrder(SourceFxKind.RingWave, slot);
-            _ringWaves[slot] = new RingWaveState
+            _fxSim.RingWaves[slot] = new RingWaveState
             {
                 Active = true,
                 Position = position,
@@ -6060,9 +6060,9 @@ namespace VoidFall.Runtime
 
         private void UpdateRingWaves(float dt)
         {
-            for (var index = 0; index < _ringWaves.Length; index++)
+            for (var index = 0; index < _fxSim.RingWaves.Length; index++)
             {
-                var wave = _ringWaves[index];
+                var wave = _fxSim.RingWaves[index];
                 if (!wave.Active) continue;
                 wave.Age += dt;
                 wave.Size += wave.Growth * dt;
@@ -6074,7 +6074,7 @@ namespace VoidFall.Runtime
                     Hide(_ringWaveGlowViews[index]);
                     Hide(_ringWaveSpriteViews[index]);
                 }
-                _ringWaves[index] = wave;
+                _fxSim.RingWaves[index] = wave;
             }
         }
 
@@ -6281,9 +6281,9 @@ namespace VoidFall.Runtime
             _arenaFlashT -= dt;
             if (_arenaFlashT > 0) return;
 
-            _arenaFlashT = 1.2f + (float)_fxRng.Next() * (2.2f / flashRate);
+            _arenaFlashT = 1.2f + (float)_fxSim.FxRng.Next() * (2.2f / flashRate);
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
-            if (!reducedMotion) _arenaFlash = 0.4f + (float)_fxRng.Next() * 0.35f;
+            if (!reducedMotion) _arenaFlash = 0.4f + (float)_fxSim.FxRng.Next() * 0.35f;
         }
 
         private void UpdateTransitionOverlay()

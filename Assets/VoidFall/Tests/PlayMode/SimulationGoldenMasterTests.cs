@@ -34,8 +34,13 @@ namespace VoidFall.Tests.PlayMode
             "_pickups",
             "_bosses",
             "_meteors",
-            "_meteorShards",
-            "_sourceParticles",
+        };
+
+        /// <summary>Public fields on the runtime's FxSim instance.</summary>
+        private static readonly string[] FxStateArrayFields =
+        {
+            "MeteorShards",
+            "SourceParticles",
         };
 
         private static readonly string[] ScalarFields =
@@ -93,16 +98,22 @@ namespace VoidFall.Tests.PlayMode
             var type = runtime.GetType();
             ulong hash = 0xcbf29ce484222325ul;
 
+            // Order matters: the hash is a sequence mix. Keep this layout
+            // identical to the original field order even as state migrates.
             foreach (var name in StateArrayFields)
                 HashArray(ref hash, GetField(runtime, type, name));
+            var fx = GetField(runtime, type, "_fxSim");
+            foreach (var name in FxStateArrayFields)
+                HashArray(ref hash, GetField(fx, fx.GetType(), name));
             foreach (var name in ScalarFields)
                 HashValue(ref hash, GetField(runtime, type, name));
-            foreach (var name in new[] { "_rng", "_fxRng" })
-            {
-                var rng = GetField(runtime, type, name);
-                HashValue(ref hash, GetField(rng, rng.GetType(), "_state"));
-                HashValue(ref hash, GetMember(rng, rng.GetType(), "Draws"));
-            }
+
+            var combatRng = GetField(runtime, type, "_rng");
+            HashValue(ref hash, GetField(combatRng, combatRng.GetType(), "_state"));
+            HashValue(ref hash, GetMember(combatRng, combatRng.GetType(), "Draws"));
+            var fxRng = GetField(fx, fx.GetType(), "FxRng");
+            HashValue(ref hash, GetField(fxRng, fxRng.GetType(), "_state"));
+            HashValue(ref hash, GetMember(fxRng, fxRng.GetType(), "Draws"));
 
             return hash;
         }

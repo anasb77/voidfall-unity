@@ -725,8 +725,8 @@ namespace VoidFall.Runtime
             if (_cameraTrauma <= 0) return Vector2.zero;
             var magnitude = CameraShakeAmplitude(_cameraTrauma);
             return new Vector2(
-                ((float)_fxRng.Next() * 2f - 1f) * magnitude,
-                ((float)_fxRng.Next() * 2f - 1f) * magnitude);
+                ((float)_fxSim.FxRng.Next() * 2f - 1f) * magnitude,
+                ((float)_fxSim.FxRng.Next() * 2f - 1f) * magnitude);
         }
 
         private static float CameraShakeAmplitude(float trauma)
@@ -925,7 +925,7 @@ namespace VoidFall.Runtime
                 $"Pickups {ActivePickups()}",
                 $"Quality {_qualityPreset.Detail:0}",
                 $"Seed {_runSeed}",
-                $"RNG {_rng.Draws}/{_fxRng.Draws}",
+                $"RNG {_rng.Draws}/{_fxSim.FxRng.Draws}",
                 $"Boss cycle {_bossSequence}",
                 $"Arena {ArenaName(_arenaId)} · {cycle.CycleId}",
                 $"Shift {_arenaTransitionState.Phase} in {Mathf.Max(0f, (float)(_arenaTransitionState.DueAt - _time)):0}s",
@@ -4080,22 +4080,22 @@ namespace VoidFall.Runtime
         private void RenderSourceFxOrder()
         {
             EnsureSourceFxOrderEntries();
-            for (var index = 0; index < _sourceParticles.Length; index++)
-                if (!_sourceParticles[index].Active) Hide(_sourceParticleViews[index]);
-            for (var index = 0; index < _meteorShards.Length; index++)
-                if (!_meteorShards[index].Active) Hide(_meteorShardViews[index]);
-            for (var index = 0; index < _ringWaves.Length; index++)
-                if (!_ringWaves[index].Active)
+            for (var index = 0; index < _fxSim.SourceParticles.Length; index++)
+                if (!_fxSim.SourceParticles[index].Active) Hide(_sourceParticleViews[index]);
+            for (var index = 0; index < _fxSim.MeteorShards.Length; index++)
+                if (!_fxSim.MeteorShards[index].Active) Hide(_meteorShardViews[index]);
+            for (var index = 0; index < _fxSim.RingWaves.Length; index++)
+                if (!_fxSim.RingWaves[index].Active)
                 {
                     Hide(_ringWaveViews[index]);
                     Hide(_ringWaveGlowViews[index]);
                     Hide(_ringWaveSpriteViews[index]);
                 }
 
-            for (var order = 0; order < _sourceFxOrderCount; order++)
+            for (var order = 0; order < _fxSim.SourceFxOrderCount; order++)
             {
-                var kind = (SourceFxKind)_sourceFxOrderKind[order];
-                var slot = _sourceFxOrderSlot[order];
+                var kind = (SourceFxKind)_fxSim.SourceFxOrderKind[order];
+                var slot = _fxSim.SourceFxOrderSlot[order];
                 switch (kind)
                 {
                     case SourceFxKind.Particle:
@@ -4113,12 +4113,12 @@ namespace VoidFall.Runtime
 
         private void RenderSourceParticleSlot(int index, int order)
         {
-            if (index < 0 || index >= _sourceParticles.Length || !_sourceParticles[index].Active)
+            if (index < 0 || index >= _fxSim.SourceParticles.Length || !_fxSim.SourceParticles[index].Active)
             {
                 if (index >= 0 && index < _sourceParticleViews.Length) Hide(_sourceParticleViews[index]);
                 return;
             }
-            var particle = _sourceParticles[index];
+            var particle = _fxSim.SourceParticles[index];
             var progress = Mathf.Clamp01(particle.Life / particle.MaxLife);
             var view = EnsureSourceParticleView(index);
             view.rendererPriority = order;
@@ -4135,12 +4135,12 @@ namespace VoidFall.Runtime
 
         private void RenderMeteorShardSlot(int index, int order)
         {
-            if (index < 0 || index >= _meteorShards.Length || !_meteorShards[index].Active)
+            if (index < 0 || index >= _fxSim.MeteorShards.Length || !_fxSim.MeteorShards[index].Active)
             {
                 if (index >= 0 && index < _meteorShardViews.Length) Hide(_meteorShardViews[index]);
                 return;
             }
-            var shard = _meteorShards[index];
+            var shard = _fxSim.MeteorShards[index];
             var alpha = Mathf.Clamp01(shard.Life / Mathf.Max(0.001f, shard.MaxLife));
             var view = EnsureMeteorShardView(index);
             view.rendererPriority = order;
@@ -4154,7 +4154,7 @@ namespace VoidFall.Runtime
 
         private void RenderMeteorShards()
         {
-            for (var index = 0; index < _meteorShards.Length; index++)
+            for (var index = 0; index < _fxSim.MeteorShards.Length; index++)
                 RenderMeteorShardSlot(index, 0);
         }
 
@@ -4274,13 +4274,13 @@ namespace VoidFall.Runtime
 
         private void RenderRingWaves()
         {
-            for (var index = 0; index < _ringWaves.Length; index++)
+            for (var index = 0; index < _fxSim.RingWaves.Length; index++)
                 RenderRingWaveSlot(index, 0);
         }
 
         private void RenderRingWaveSlot(int index, int order)
         {
-            if (index < 0 || index >= _ringWaves.Length || !_ringWaves[index].Active)
+            if (index < 0 || index >= _fxSim.RingWaves.Length || !_fxSim.RingWaves[index].Active)
             {
                 if (index >= 0 && index < _ringWaveViews.Length)
                 {
@@ -4291,7 +4291,7 @@ namespace VoidFall.Runtime
                 return;
             }
 
-            var wave = _ringWaves[index];
+            var wave = _fxSim.RingWaves[index];
             var progress = Mathf.Clamp01(wave.Age / wave.Life);
             var fade = 1f - progress;
             // Keep the legacy line-renderer shadow populated for diagnostics

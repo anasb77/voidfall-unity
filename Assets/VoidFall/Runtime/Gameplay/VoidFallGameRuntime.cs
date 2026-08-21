@@ -310,32 +310,6 @@ namespace VoidFall.Runtime
             public int View;
         }
 
-        private struct MeteorShardState
-        {
-            public bool Active;
-            public Vector2 Position;
-            public Vector2 Velocity;
-            public float Life;
-            public float MaxLife;
-            public float Size;
-            public float Rotation;
-            public float Spin;
-            public int Variant;
-            public int View;
-        }
-
-        private struct SourceParticleState
-        {
-            public bool Active;
-            public Vector2 Position;
-            public Vector2 Velocity;
-            public float Life;
-            public float MaxLife;
-            public float Size;
-            public Color Color;
-            public int View;
-        }
-
         private enum SourceFxKind
         {
             Particle,
@@ -374,19 +348,6 @@ namespace VoidFall.Runtime
             public float Rotation;
             public float Age;
             public float Life;
-            public int View;
-        }
-
-        private struct RingWaveState
-        {
-            public bool Active;
-            public Vector2 Position;
-            public float StartRadius;
-            public float Size;
-            public float Growth;
-            public float Age;
-            public float Life;
-            public Color Color;
             public int View;
         }
 
@@ -521,19 +482,10 @@ namespace VoidFall.Runtime
         private readonly HostileShotState[] _hostileShots = new HostileShotState[MaxHostileShots];
         private readonly MeteorState[] _meteors = new MeteorState[MaxMeteors];
         private readonly MeteorState[] _pendingMeteorDetonations = new MeteorState[MaxMeteors];
-        private readonly MeteorShardState[] _meteorShards = new MeteorShardState[MaxMeteorShards];
-        private readonly SourceParticleState[] _sourceParticles = new SourceParticleState[MaxSourceParticles];
         // Browser particles, ring waves, and meteor shards share one compact
         // forward-drawn array. Keep that logical order independent of Unity's
         // reusable view slots so overlap and replacement cannot reorder FX.
-        private readonly int[] _sourceFxOrderKind = new int[MaxSourceParticles];
-        private readonly int[] _sourceFxOrderSlot = new int[MaxSourceParticles];
-        private readonly int[] _sourceParticleOrderPosition = new int[MaxSourceParticles];
-        private readonly int[] _meteorShardOrderPosition = new int[MaxMeteorShards];
-        private readonly int[] _ringWaveOrderPosition = new int[MaxRingWaves];
-        private int _sourceFxOrderCount;
         private readonly ImpactMarkState[] _impactMarks = new ImpactMarkState[MaxImpactMarks];
-        private readonly RingWaveState[] _ringWaves = new RingWaveState[MaxRingWaves];
         private readonly BlastWaveState[] _blastWaves = new BlastWaveState[MaxBlastWaves];
         private readonly FloaterState[] _floaters = new FloaterState[MaxFloaters];
         private readonly DeathGhostState[] _deathGhosts = new DeathGhostState[MaxDeathGhosts];
@@ -551,6 +503,8 @@ namespace VoidFall.Runtime
         // Blast waves and death ghosts use the browser's swap-pop expiry path.
         // Keep that logical array order separate from their reusable Unity
         // view slots so overlapping effects retain source draw order.
+        // Cosmetic-FX simulation state lives in FxSim; see the class comment.
+        private readonly FxSim _fxSim = new FxSim(MaxSourceParticles, MaxMeteorShards, MaxRingWaves, FixtureRunSeed ^ 0xa5a5a5a5u);
         private readonly SlotOrder _blastWaveOrder = new SlotOrder(MaxBlastWaves);
         private readonly SlotOrder _deathGhostOrder = new SlotOrder(MaxDeathGhosts);
         private readonly SlotOrder _floaterOrder = new SlotOrder(MaxFloaters);
@@ -781,7 +735,6 @@ namespace VoidFall.Runtime
         private readonly RunTelemetryRecorder _telemetry = new RunTelemetryRecorder();
         private uint _runSeed = FixtureRunSeed;
         private Rng _rng = new Rng(FixtureRunSeed);
-        private Rng _fxRng = new Rng(FixtureRunSeed ^ 0xa5a5a5a5u);
 
         private Transform _worldRoot;
         private SpriteRenderer _playerView;
@@ -1986,7 +1939,7 @@ namespace VoidFall.Runtime
             _stressTopUpTimer = 0;
             _runSeed = SelectRunSeed();
             _rng = new Rng(_runSeed);
-            _fxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
+            _fxSim.FxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
             _musicPerimeter?.Configure(
                 unchecked((int)_runSeed),
                 _qualityPreset.Detail,
@@ -2065,14 +2018,14 @@ namespace VoidFall.Runtime
                 Hide(_meteorHealthArcViews[i]);
             }
             ResetMeteorOrder();
-            for (var i = 0; i < _meteorShards.Length; i++)
+            for (var i = 0; i < _fxSim.MeteorShards.Length; i++)
             {
-                _meteorShards[i].Active = false;
+                _fxSim.MeteorShards[i].Active = false;
                 Hide(_meteorShardViews[i]);
             }
-            for (var i = 0; i < _sourceParticles.Length; i++)
+            for (var i = 0; i < _fxSim.SourceParticles.Length; i++)
             {
-                _sourceParticles[i].Active = false;
+                _fxSim.SourceParticles[i].Active = false;
                 Hide(_sourceParticleViews[i]);
             }
             ResetSourceFxOrder();
@@ -2084,9 +2037,9 @@ namespace VoidFall.Runtime
                     Hide(_impactHeatViews[ImpactHeatSlot(i, segment)]);
             }
             ResetImpactMarkOrder();
-            for (var i = 0; i < _ringWaves.Length; i++)
+            for (var i = 0; i < _fxSim.RingWaves.Length; i++)
             {
-                _ringWaves[i].Active = false;
+                _fxSim.RingWaves[i].Active = false;
                 Hide(_ringWaveViews[i]);
                 Hide(_ringWaveGlowViews[i]);
                 Hide(_ringWaveSpriteViews[i]);
@@ -2252,7 +2205,7 @@ namespace VoidFall.Runtime
             _arenaMoteSeedDetail = -1;
             _arenaRockSeedsReady = false;
             _arenaRockSeedDetail = -1;
-            _fxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
+            _fxSim.FxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
             _telemetry.Begin(_runSeed);
             _telemetrySampleTimer = 10f;
             _lastTelemetryPath = null;
@@ -2816,18 +2769,18 @@ namespace VoidFall.Runtime
 
         private void ResetSourceFxOrder()
         {
-            _sourceFxOrderCount = 0;
-            for (var index = 0; index < _sourceFxOrderKind.Length; index++)
+            _fxSim.SourceFxOrderCount = 0;
+            for (var index = 0; index < _fxSim.SourceFxOrderKind.Length; index++)
             {
-                _sourceFxOrderKind[index] = -1;
-                _sourceFxOrderSlot[index] = -1;
+                _fxSim.SourceFxOrderKind[index] = -1;
+                _fxSim.SourceFxOrderSlot[index] = -1;
             }
-            for (var index = 0; index < _sourceParticleOrderPosition.Length; index++)
-                _sourceParticleOrderPosition[index] = -1;
-            for (var index = 0; index < _meteorShardOrderPosition.Length; index++)
-                _meteorShardOrderPosition[index] = -1;
-            for (var index = 0; index < _ringWaveOrderPosition.Length; index++)
-                _ringWaveOrderPosition[index] = -1;
+            for (var index = 0; index < _fxSim.SourceParticleOrderPosition.Length; index++)
+                _fxSim.SourceParticleOrderPosition[index] = -1;
+            for (var index = 0; index < _fxSim.MeteorShardOrderPosition.Length; index++)
+                _fxSim.MeteorShardOrderPosition[index] = -1;
+            for (var index = 0; index < _fxSim.RingWaveOrderPosition.Length; index++)
+                _fxSim.RingWaveOrderPosition[index] = -1;
         }
 
         private int SourceFxOrderPosition(SourceFxKind kind, int slot)
@@ -2836,16 +2789,16 @@ namespace VoidFall.Runtime
             switch (kind)
             {
                 case SourceFxKind.Particle:
-                    return slot < _sourceParticleOrderPosition.Length
-                        ? _sourceParticleOrderPosition[slot]
+                    return slot < _fxSim.SourceParticleOrderPosition.Length
+                        ? _fxSim.SourceParticleOrderPosition[slot]
                         : -1;
                 case SourceFxKind.MeteorShard:
-                    return slot < _meteorShardOrderPosition.Length
-                        ? _meteorShardOrderPosition[slot]
+                    return slot < _fxSim.MeteorShardOrderPosition.Length
+                        ? _fxSim.MeteorShardOrderPosition[slot]
                         : -1;
                 case SourceFxKind.RingWave:
-                    return slot < _ringWaveOrderPosition.Length
-                        ? _ringWaveOrderPosition[slot]
+                    return slot < _fxSim.RingWaveOrderPosition.Length
+                        ? _fxSim.RingWaveOrderPosition[slot]
                         : -1;
                 default:
                     return -1;
@@ -2858,58 +2811,58 @@ namespace VoidFall.Runtime
             switch (kind)
             {
                 case SourceFxKind.Particle:
-                    if (slot < _sourceParticleOrderPosition.Length)
-                        _sourceParticleOrderPosition[slot] = position;
+                    if (slot < _fxSim.SourceParticleOrderPosition.Length)
+                        _fxSim.SourceParticleOrderPosition[slot] = position;
                     break;
                 case SourceFxKind.MeteorShard:
-                    if (slot < _meteorShardOrderPosition.Length)
-                        _meteorShardOrderPosition[slot] = position;
+                    if (slot < _fxSim.MeteorShardOrderPosition.Length)
+                        _fxSim.MeteorShardOrderPosition[slot] = position;
                     break;
                 case SourceFxKind.RingWave:
-                    if (slot < _ringWaveOrderPosition.Length)
-                        _ringWaveOrderPosition[slot] = position;
+                    if (slot < _fxSim.RingWaveOrderPosition.Length)
+                        _fxSim.RingWaveOrderPosition[slot] = position;
                     break;
             }
         }
 
         private void AppendSourceFxOrder(SourceFxKind kind, int slot)
         {
-            if (slot < 0 || _sourceFxOrderCount >= _sourceFxOrderKind.Length) return;
+            if (slot < 0 || _fxSim.SourceFxOrderCount >= _fxSim.SourceFxOrderKind.Length) return;
             var position = SourceFxOrderPosition(kind, slot);
-            if (position >= 0 && position < _sourceFxOrderCount &&
-                _sourceFxOrderKind[position] == (int)kind &&
-                _sourceFxOrderSlot[position] == slot)
+            if (position >= 0 && position < _fxSim.SourceFxOrderCount &&
+                _fxSim.SourceFxOrderKind[position] == (int)kind &&
+                _fxSim.SourceFxOrderSlot[position] == slot)
             {
                 return;
             }
-            var order = _sourceFxOrderCount++;
-            _sourceFxOrderKind[order] = (int)kind;
-            _sourceFxOrderSlot[order] = slot;
+            var order = _fxSim.SourceFxOrderCount++;
+            _fxSim.SourceFxOrderKind[order] = (int)kind;
+            _fxSim.SourceFxOrderSlot[order] = slot;
             SetSourceFxOrderPosition(kind, slot, order);
         }
 
         private void RemoveSourceFxOrder(SourceFxKind kind, int slot)
         {
             var position = SourceFxOrderPosition(kind, slot);
-            if (position < 0 || position >= _sourceFxOrderCount ||
-                _sourceFxOrderKind[position] != (int)kind ||
-                _sourceFxOrderSlot[position] != slot)
+            if (position < 0 || position >= _fxSim.SourceFxOrderCount ||
+                _fxSim.SourceFxOrderKind[position] != (int)kind ||
+                _fxSim.SourceFxOrderSlot[position] != slot)
             {
                 SetSourceFxOrderPosition(kind, slot, -1);
                 return;
             }
 
-            var lastPosition = --_sourceFxOrderCount;
+            var lastPosition = --_fxSim.SourceFxOrderCount;
             if (position != lastPosition)
             {
-                var replacementKind = (SourceFxKind)_sourceFxOrderKind[lastPosition];
-                var replacementSlot = _sourceFxOrderSlot[lastPosition];
-                _sourceFxOrderKind[position] = (int)replacementKind;
-                _sourceFxOrderSlot[position] = replacementSlot;
+                var replacementKind = (SourceFxKind)_fxSim.SourceFxOrderKind[lastPosition];
+                var replacementSlot = _fxSim.SourceFxOrderSlot[lastPosition];
+                _fxSim.SourceFxOrderKind[position] = (int)replacementKind;
+                _fxSim.SourceFxOrderSlot[position] = replacementSlot;
                 SetSourceFxOrderPosition(replacementKind, replacementSlot, position);
             }
-            _sourceFxOrderKind[lastPosition] = -1;
-            _sourceFxOrderSlot[lastPosition] = -1;
+            _fxSim.SourceFxOrderKind[lastPosition] = -1;
+            _fxSim.SourceFxOrderSlot[lastPosition] = -1;
             SetSourceFxOrderPosition(kind, slot, -1);
         }
 
@@ -2918,11 +2871,11 @@ namespace VoidFall.Runtime
             switch (kind)
             {
                 case SourceFxKind.Particle:
-                    return slot >= 0 && slot < _sourceParticles.Length && _sourceParticles[slot].Active;
+                    return slot >= 0 && slot < _fxSim.SourceParticles.Length && _fxSim.SourceParticles[slot].Active;
                 case SourceFxKind.MeteorShard:
-                    return slot >= 0 && slot < _meteorShards.Length && _meteorShards[slot].Active;
+                    return slot >= 0 && slot < _fxSim.MeteorShards.Length && _fxSim.MeteorShards[slot].Active;
                 case SourceFxKind.RingWave:
-                    return slot >= 0 && slot < _ringWaves.Length && _ringWaves[slot].Active;
+                    return slot >= 0 && slot < _fxSim.RingWaves.Length && _fxSim.RingWaves[slot].Active;
                 default:
                     return false;
             }
@@ -2933,20 +2886,20 @@ namespace VoidFall.Runtime
             // Runtime spawns append explicitly. Reconcile active reflection
             // fixtures without disturbing entries that already have source
             // insertion order.
-            for (var index = 0; index < _sourceParticles.Length; index++)
-                if (_sourceParticles[index].Active)
+            for (var index = 0; index < _fxSim.SourceParticles.Length; index++)
+                if (_fxSim.SourceParticles[index].Active)
                     AppendSourceFxOrder(SourceFxKind.Particle, index);
-            for (var index = 0; index < _meteorShards.Length; index++)
-                if (_meteorShards[index].Active)
+            for (var index = 0; index < _fxSim.MeteorShards.Length; index++)
+                if (_fxSim.MeteorShards[index].Active)
                     AppendSourceFxOrder(SourceFxKind.MeteorShard, index);
-            for (var index = 0; index < _ringWaves.Length; index++)
-                if (_ringWaves[index].Active)
+            for (var index = 0; index < _fxSim.RingWaves.Length; index++)
+                if (_fxSim.RingWaves[index].Active)
                     AppendSourceFxOrder(SourceFxKind.RingWave, index);
 
-            for (var order = _sourceFxOrderCount - 1; order >= 0; order--)
+            for (var order = _fxSim.SourceFxOrderCount - 1; order >= 0; order--)
             {
-                var kind = (SourceFxKind)_sourceFxOrderKind[order];
-                var slot = _sourceFxOrderSlot[order];
+                var kind = (SourceFxKind)_fxSim.SourceFxOrderKind[order];
+                var slot = _fxSim.SourceFxOrderSlot[order];
                 if (!SourceFxEntryActive(kind, slot))
                     RemoveSourceFxOrder(kind, slot);
             }
@@ -3283,7 +3236,7 @@ namespace VoidFall.Runtime
                 for (var tIndex = 0; tIndex < 2; tIndex++)
                 {
                     var t = tIndex == 0 ? 0.33f : 0.66f;
-                    var offset = ((float)_fxRng.Next() - 0.5f) * Mathf.Min(28f, length * 0.3f);
+                    var offset = ((float)_fxSim.FxRng.Next() - 0.5f) * Mathf.Min(28f, length * 0.3f);
                     jagged.Add(previous + delta * t + normal * offset);
                 }
                 jagged.Add(next);
@@ -4006,12 +3959,12 @@ namespace VoidFall.Runtime
             while (ActiveFxVisualCount() > particleLimit)
             {
                 var removed = false;
-                for (var index = _ringWaves.Length - 1; index >= 0; index--)
+                for (var index = _fxSim.RingWaves.Length - 1; index >= 0; index--)
                 {
-                    if (!_ringWaves[index].Active) continue;
-                    var wave = _ringWaves[index];
+                    if (!_fxSim.RingWaves[index].Active) continue;
+                    var wave = _fxSim.RingWaves[index];
                     wave.Active = false;
-                    _ringWaves[index] = wave;
+                    _fxSim.RingWaves[index] = wave;
                     RemoveSourceFxOrder(SourceFxKind.RingWave, index);
                     Hide(_ringWaveViews[index]);
                     Hide(_ringWaveGlowViews[index]);
@@ -4021,12 +3974,12 @@ namespace VoidFall.Runtime
                 }
                 if (removed) continue;
 
-                for (var index = _meteorShards.Length - 1; index >= 0; index--)
+                for (var index = _fxSim.MeteorShards.Length - 1; index >= 0; index--)
                 {
-                    if (!_meteorShards[index].Active) continue;
-                    var shard = _meteorShards[index];
+                    if (!_fxSim.MeteorShards[index].Active) continue;
+                    var shard = _fxSim.MeteorShards[index];
                     shard.Active = false;
-                    _meteorShards[index] = shard;
+                    _fxSim.MeteorShards[index] = shard;
                     RemoveSourceFxOrder(SourceFxKind.MeteorShard, index);
                     Hide(_meteorShardViews[index]);
                     removed = true;
@@ -4067,10 +4020,10 @@ namespace VoidFall.Runtime
         private int ActiveFxVisualCount()
         {
             var count = _fx == null ? 0 : _fx.particleCount;
-            for (var index = 0; index < _ringWaves.Length; index++)
-                if (_ringWaves[index].Active) count++;
-            for (var index = 0; index < _meteorShards.Length; index++)
-                if (_meteorShards[index].Active) count++;
+            for (var index = 0; index < _fxSim.RingWaves.Length; index++)
+                if (_fxSim.RingWaves[index].Active) count++;
+            for (var index = 0; index < _fxSim.MeteorShards.Length; index++)
+                if (_fxSim.MeteorShards[index].Active) count++;
             return count;
         }
 

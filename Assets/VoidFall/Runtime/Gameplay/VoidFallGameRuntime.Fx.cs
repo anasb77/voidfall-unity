@@ -326,16 +326,16 @@ namespace VoidFall.Runtime
         private void TrimSourceParticleViews(int maximum)
         {
             var active = 0;
-            for (var index = 0; index < _sourceParticles.Length; index++)
-                if (_sourceParticles[index].Active) active++;
-            for (var order = _sourceFxOrderCount - 1; order >= 0 && active > maximum; order--)
+            for (var index = 0; index < _fxSim.SourceParticles.Length; index++)
+                if (_fxSim.SourceParticles[index].Active) active++;
+            for (var order = _fxSim.SourceFxOrderCount - 1; order >= 0 && active > maximum; order--)
             {
-                if ((SourceFxKind)_sourceFxOrderKind[order] != SourceFxKind.Particle) continue;
-                var slot = _sourceFxOrderSlot[order];
-                if (slot < 0 || slot >= _sourceParticles.Length || !_sourceParticles[slot].Active) continue;
-                var particle = _sourceParticles[slot];
+                if ((SourceFxKind)_fxSim.SourceFxOrderKind[order] != SourceFxKind.Particle) continue;
+                var slot = _fxSim.SourceFxOrderSlot[order];
+                if (slot < 0 || slot >= _fxSim.SourceParticles.Length || !_fxSim.SourceParticles[slot].Active) continue;
+                var particle = _fxSim.SourceParticles[slot];
                 particle.Active = false;
-                _sourceParticles[slot] = particle;
+                _fxSim.SourceParticles[slot] = particle;
                 RemoveSourceFxOrder(SourceFxKind.Particle, slot);
                 Hide(_sourceParticleViews[slot]);
                 active--;
@@ -385,8 +385,8 @@ namespace VoidFall.Runtime
 
         private int FindSourceParticleSlot()
         {
-            for (var index = 0; index < _sourceParticles.Length; index++)
-                if (!_sourceParticles[index].Active) return index;
+            for (var index = 0; index < _fxSim.SourceParticles.Length; index++)
+                if (!_fxSim.SourceParticles[index].Active) return index;
             return -1;
         }
 
@@ -412,21 +412,21 @@ namespace VoidFall.Runtime
                 Mathf.Max(0, SourceParticleLimit(_qualityPreset.ParticleScale) - ActiveFxVisualCount()));
             for (var index = 0; index < count; index++)
             {
-                var angle = (float)(_fxRng.Next() * Math.PI * 2);
+                var angle = (float)(_fxSim.FxRng.Next() * Math.PI * 2);
                 var velocity = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0) *
-                    (speed * (0.3f + (float)_fxRng.Next() * 0.9f));
+                    (speed * (0.3f + (float)_fxSim.FxRng.Next() * 0.9f));
                 // Browser singleParticle() still consumes the complete FX RNG
                 // tuple when the cosmetic budget is full; only insertion is
                 // dropped. Keep that stream behavior without emitting past
                 // Unity's visual cap.
                 if (index >= emitCount)
                 {
-                    _fxRng.Next();
-                    _fxRng.Next();
+                    _fxSim.FxRng.Next();
+                    _fxSim.FxRng.Next();
                     continue;
                 }
-                var lifeMultiplier = 0.6f + (float)_fxRng.Next() * 0.7f;
-                var sizeMultiplier = 0.6f + (float)_fxRng.Next() * 0.8f;
+                var lifeMultiplier = 0.6f + (float)_fxSim.FxRng.Next() * 0.7f;
+                var sizeMultiplier = 0.6f + (float)_fxSim.FxRng.Next() * 0.8f;
                 var emit = new ParticleSystem.EmitParams
                 {
                     position = position,
