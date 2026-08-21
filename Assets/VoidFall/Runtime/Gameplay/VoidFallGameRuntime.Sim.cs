@@ -1484,32 +1484,15 @@ namespace VoidFall.Runtime
                     _meteorPlacementProjectedCircles);
                 if (!safe) continue;
 
-                var slot = FindInactive(_gameSim.Meteors);
+                // Insertion (slot find, state rolls, order append) is GameSim's
+                // now; the roll order inside it matches the browser exactly.
+                var slot = _gameSim.TryInsertMeteor(
+                    candidate,
+                    radius,
+                    variant,
+                    explosive,
+                    _time);
                 if (slot < 0) return;
-                var driftAngle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
-                var speed = 6f + (float)_gameSim.Rng.Next() * 11f;
-                var maxHealth = explosive
-                    ? MeteorRules.ExplosiveMeteorMaxHealth(_time)
-                    : MeteorRules.MeteorMaxHealth(_time);
-                _gameSim.Meteors[slot] = new MeteorState
-                {
-                    Active = true,
-                    Position = candidate,
-                    Velocity = new Vector2(Mathf.Cos(driftAngle), Mathf.Sin(driftAngle)) * speed,
-                    Rotation = (float)(_gameSim.Rng.Next() * Math.PI * 2),
-                    Spin = ((float)_gameSim.Rng.Next() - 0.5f) * 0.26f,
-                    Health = maxHealth,
-                    MaxHealth = maxHealth,
-                    Radius = radius,
-                    VisibleRadius = (float)MeteorRules.MeteorVisibleRadius(variant, explosive),
-                    HitTimer = 0,
-                    FuseTimer = 0,
-                    Seed = (float)(_gameSim.Rng.Next() * 100),
-                    Explosive = explosive,
-                    Variant = variant,
-                    View = slot,
-                };
-                AppendMeteorOrder(slot);
                 var view = EnsureMeteorView(slot);
                 view.sprite = ProceduralSpriteFactory.Meteor(variant, explosive);
                 view.transform.rotation = Quaternion.Euler(0, 0, _gameSim.Meteors[slot].Rotation * Mathf.Rad2Deg);

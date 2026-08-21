@@ -323,6 +323,50 @@ namespace VoidFall.Runtime
             return expiredCount;
         }
 
+        /// <summary>
+        /// Inserts a spawned meteor into an inactive slot: deterministic state
+        /// rolls happen here so the combat stream order matches the browser
+        /// (drift angle, speed, rotation, spin, seed, in that order), then the
+        /// slot joins the pooled order. Returns the slot, or -1 when the pool
+        /// is full - the caller abandons further placement attempts either way.
+        /// View creation stays on the runtime.
+        /// </summary>
+        public int TryInsertMeteor(
+            Vector2 candidate,
+            float radius,
+            int variant,
+            bool explosive,
+            double elapsedSeconds)
+        {
+            var slot = FindInactive(Meteors);
+            if (slot < 0) return -1;
+            var driftAngle = (float)(Rng.Next() * Math.PI * 2);
+            var speed = 6f + (float)Rng.Next() * 11f;
+            var maxHealth = explosive
+                ? MeteorRules.ExplosiveMeteorMaxHealth(elapsedSeconds)
+                : MeteorRules.MeteorMaxHealth(elapsedSeconds);
+            Meteors[slot] = new MeteorState
+            {
+                Active = true,
+                Position = candidate,
+                Velocity = new Vector2(Mathf.Cos(driftAngle), Mathf.Sin(driftAngle)) * speed,
+                Rotation = (float)(Rng.Next() * Math.PI * 2),
+                Spin = ((float)Rng.Next() - 0.5f) * 0.26f,
+                Health = maxHealth,
+                MaxHealth = maxHealth,
+                Radius = radius,
+                VisibleRadius = (float)MeteorRules.MeteorVisibleRadius(variant, explosive),
+                HitTimer = 0,
+                FuseTimer = 0,
+                Seed = (float)(Rng.Next() * 100),
+                Explosive = explosive,
+                Variant = variant,
+                View = slot,
+            };
+            AppendMeteorOrder(slot);
+            return slot;
+        }
+
         public void ResetPickupOrder()
         {
             PickupOrderCount = 0;
