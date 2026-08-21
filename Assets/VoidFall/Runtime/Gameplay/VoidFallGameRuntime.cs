@@ -707,7 +707,10 @@ namespace VoidFall.Runtime
         private float _nextEliteVariantTime;
         private float _meteorSpawnTimer;
         private int _meteorTarget;
-        private int _pendingMeteorDetonationCount;
+        // Scratch buffers for GameSim.AdvanceMeteors: fuse-expired and
+    // distance-culled slots needing view hides. No allocation per step.
+    private readonly int[] _meteorExpiredSlots = new int[MaxMeteors];
+    private readonly int[] _meteorCulledSlots = new int[MaxMeteors];
         private DirectorEventDefinition _nextDirectorEvent;
         private bool _directorActive;
         private bool _directorWarned;
@@ -1945,7 +1948,7 @@ namespace VoidFall.Runtime
             _nextEliteVariantTime = (float)EliteRules.EliteCadenceStartSeconds;
             _meteorSpawnTimer = 3f;
             _meteorTarget = MeteorRules.MinOrdinaryMeteors;
-            _pendingMeteorDetonationCount = 0;
+            _gameSim.PendingMeteorDetonationCount = 0;
             _directorIndex = 0;
             _nextDirectorEvent = DirectorRules.Event(_runSeed, _directorIndex);
             _directorActive = false;

@@ -1397,72 +1397,49 @@ namespace VoidFall.Runtime
             }
 
             // The browser moves every meteor first, then resolves all fuse
-            // expirations. Keeping a fixed queue preserves that two-phase
-            // behavior without allocating a temporary list in the hot loop.
+            // expirations. The state half of that loop now lives on GameSim
+            // (AdvanceMeteors); this wrapper hides views for the slots it
+            // reports and then runs the deferred detonations. View operations
+            // never feed back into the simulation, so hoisting the hides out
+            // of the loop is behavior-neutral; the golden master proves it.
             EnsureMeteorOrderEntries();
-            _pendingMeteorDetonationCount = 0;
-            for (var order = _gameSim.MeteorOrderCount - 1; order >= 0; order--)
+            _gameSim.PendingMeteorDetonationCount = 0;
+            // Player lifecycle flags cannot change inside the meteor loop, so
+            // the per-meteor vulnerability check hoists to one evaluation.
+            var playerVulnerable = _playerHealth > 0 && !_gameOver && !_revivePending &&
+                _dyingTimer <= 0;
+            var expiredCount = _gameSim.AdvanceMeteors(
+                dt,
+                ref _playerPosition,
+                ref _playerVelocity,
+                playerVulnerable,
+                _meteorExpiredSlots,
+                _meteorCulledSlots,
+                out var culledCount);
+            for (var slotIndex = 0; slotIndex < expiredCount; slotIndex++)
             {
-                var index = _gameSim.MeteorOrder[order];
-                var meteor = _gameSim.Meteors[index];
-                if (!meteor.Active) continue;
-                meteor.Position += meteor.Velocity * dt;
-                meteor.Rotation += meteor.Spin * dt;
-                meteor.HitTimer = Mathf.Max(0, meteor.HitTimer - dt);
-                if (meteor.FuseTimer > 0)
-                {
-                    meteor.FuseTimer -= dt;
-                    if (meteor.FuseTimer <= 0)
-                    {
-                        meteor.Active = false;
-                        RemoveMeteorOrder(index);
-                        Hide(_meteorViews[index]);
-                        Hide(_meteorHitViews[index]);
-                        Hide(_meteorCoreViews[index]);
-                        Hide(_meteorDangerArcViews[index]);
-                        Hide(_meteorDangerRingViews[index]);
-                        Hide(_meteorHealthArcViews[index]);
-                        _gameSim.Meteors[index] = meteor;
-                        if (_pendingMeteorDetonationCount < _gameSim.PendingMeteorDetonations.Length)
-                            _gameSim.PendingMeteorDetonations[_pendingMeteorDetonationCount++] = meteor;
-                        continue;
-                    }
-                }
-
-                if ((meteor.Position - _playerPosition).sqrMagnitude > 1900f * 1900f)
-                {
-                    meteor.Active = false;
-                    RemoveMeteorOrder(index);
-                    Hide(_meteorViews[index]);
-                    Hide(_meteorHitViews[index]);
-                    Hide(_meteorCoreViews[index]);
-                    Hide(_meteorDangerArcViews[index]);
-                    Hide(_meteorDangerRingViews[index]);
-                    Hide(_meteorHealthArcViews[index]);
-                    _gameSim.Meteors[index] = meteor;
-                    continue;
-                }
-
-                if (_playerHealth > 0 && !_gameOver && !_revivePending && _dyingTimer <= 0 &&
-                    meteor.FuseTimer <= 0)
-                {
-                    var push = MeteorRules.ResolveMeteorPush(
-                        _playerPosition.x,
-                        _playerPosition.y,
-                        new CircleDefinition(meteor.Position.x, meteor.Position.y, meteor.Radius));
-                    if (push.Slow)
-                    {
-                        _playerPosition += new Vector2((float)push.PushX, (float)push.PushY);
-                        _playerVelocity *= (float)MeteorRules.MeteorSlowFactor;
-                    }
-                }
-
-                _gameSim.Meteors[index] = meteor;
+                var expiredSlot = _meteorExpiredSlots[slotIndex];
+                Hide(_meteorViews[expiredSlot]);
+                Hide(_meteorHitViews[expiredSlot]);
+                Hide(_meteorCoreViews[expiredSlot]);
+                Hide(_meteorDangerArcViews[expiredSlot]);
+                Hide(_meteorDangerRingViews[expiredSlot]);
+                Hide(_meteorHealthArcViews[expiredSlot]);
+            }
+            for (var slotIndex = 0; slotIndex < culledCount; slotIndex++)
+            {
+                var culledSlot = _meteorCulledSlots[slotIndex];
+                Hide(_meteorViews[culledSlot]);
+                Hide(_meteorHitViews[culledSlot]);
+                Hide(_meteorCoreViews[culledSlot]);
+                Hide(_meteorDangerArcViews[culledSlot]);
+                Hide(_meteorDangerRingViews[culledSlot]);
+                Hide(_meteorHealthArcViews[culledSlot]);
             }
 
-            for (var index = 0; index < _pendingMeteorDetonationCount; index++)
+            for (var index = 0; index < _gameSim.PendingMeteorDetonationCount; index++)
                 DetonateMeteor(_gameSim.PendingMeteorDetonations[index]);
-            _pendingMeteorDetonationCount = 0;
+            _gameSim.PendingMeteorDetonationCount = 0;
         }
 
         private void TrySpawnMeteor(bool explosive)

@@ -25,6 +25,9 @@ namespace VoidFall.Runtime
         public readonly MeteorState[] Meteors;
         public readonly MeteorState[] PendingMeteorDetonations;
 
+        /// <summary>Deferred detonation queue depth for this simulation step.</summary>
+        public int PendingMeteorDetonationCount;
+
         // Pooled insertion-order bookkeeping. The enemy trio intentionally has
         // no duplicate guard on append; boss/meteor/pickup keep their own
         // historical semantics (see MIGRATION_STATUS on SlotOrder scoping).
@@ -239,6 +242,87 @@ namespace VoidFall.Runtime
                 if (slot < 0 || !Meteors[slot].Active) RemoveMeteorOrder(slot);
             }
         }
+        /// <summary>
+        /// Advances every active meteor: drift, spin, hit-timer decay, fuse
+        /// countdown, and distance culling.
+        ///
+        /// Fuse-expired meteors are deactivated, removed from the order, and
+        /// queued into PendingMeteorDetonations exactly as the browser's
+        /// two-phase update requires; their slots are reported through
+        /// expiredSlots so the caller can hide views. Distance-culled meteors
+        /// are reported through culledSlots without queueing a detonation.
+        ///
+        /// Player kinematics are still owned by the runtime, so position and
+        /// velocity arrive by ref: the meteor-push resolution mutates them
+        /// mid-loop exactly as the single-pass original did. Detonation damage
+        /// stays on the runtime; only this state half migrated.
+        /// </summary>
+        public int AdvanceMeteors(
+            float dt,
+            ref Vector2 playerPosition,
+            ref Vector2 playerVelocity,
+            bool playerVulnerable,
+            int[] expiredSlots,
+            int[] culledSlots,
+            out int culledCount)
+        {
+            var expiredCount = 0;
+            culledCount = 0;
+            // Reverse order walk matches the browser: newest meteors move
+            // first, and removals inside the loop swap order tail entries.
+            for (var order = MeteorOrderCount - 1; order >= 0; order--)
+            {
+                var index = MeteorOrder[order];
+                var meteor = Meteors[index];
+                if (!meteor.Active) continue;
+                meteor.Position += meteor.Velocity * dt;
+                meteor.Rotation += meteor.Spin * dt;
+                meteor.HitTimer = Mathf.Max(0, meteor.HitTimer - dt);
+                if (meteor.FuseTimer > 0)
+                {
+                    meteor.FuseTimer -= dt;
+                    if (meteor.FuseTimer <= 0)
+                    {
+                        meteor.Active = false;
+                        RemoveMeteorOrder(index);
+                        Meteors[index] = meteor;
+                        if (PendingMeteorDetonationCount < PendingMeteorDetonations.Length)
+                            PendingMeteorDetonations[PendingMeteorDetonationCount++] = meteor;
+                        if (expiredSlots != null && expiredCount < expiredSlots.Length)
+                            expiredSlots[expiredCount++] = index;
+                        continue;
+                    }
+                }
+
+                if ((meteor.Position - playerPosition).sqrMagnitude > 1900f * 1900f)
+                {
+                    meteor.Active = false;
+                    RemoveMeteorOrder(index);
+                    Meteors[index] = meteor;
+                    if (culledSlots != null && culledCount < culledSlots.Length)
+                        culledSlots[culledCount++] = index;
+                    continue;
+                }
+
+                if (playerVulnerable && meteor.FuseTimer <= 0)
+                {
+                    var push = MeteorRules.ResolveMeteorPush(
+                        playerPosition.x,
+                        playerPosition.y,
+                        new CircleDefinition(meteor.Position.x, meteor.Position.y, meteor.Radius));
+                    if (push.Slow)
+                    {
+                        playerPosition += new Vector2((float)push.PushX, (float)push.PushY);
+                        playerVelocity *= (float)MeteorRules.MeteorSlowFactor;
+                    }
+                }
+
+                Meteors[index] = meteor;
+            }
+
+            return expiredCount;
+        }
+
         public void ResetPickupOrder()
         {
             PickupOrderCount = 0;
