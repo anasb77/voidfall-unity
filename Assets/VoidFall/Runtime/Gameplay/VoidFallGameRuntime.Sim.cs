@@ -2172,37 +2172,9 @@ namespace VoidFall.Runtime
             }
         }
 
-        private EnemyEffectTarget[] CaptureEnemyEffectSnapshot(out int snapshotCount)
-        {
-            // Browser effects iterate over [...this.enemies]. A copied target
-            // list is important because damage can remove an enemy, chain an
-            // Exploder, or immediately reuse the pooled slot for a fragment.
-            snapshotCount = _gameSim.EnemyOrderCount;
-            var snapshot = ArrayPool<EnemyEffectTarget>.Shared.Rent(Math.Max(1, snapshotCount));
-            for (var order = 0; order < snapshotCount; order++)
-            {
-                var slot = _gameSim.EnemyOrder[order];
-                snapshot[order] = new EnemyEffectTarget
-                {
-                    Slot = slot,
-                    State = _gameSim.Enemies[slot],
-                };
-            }
-            return snapshot;
-        }
-
-        private static void ReleaseEnemyEffectSnapshot(EnemyEffectTarget[] snapshot)
-        {
-            if (snapshot != null) ArrayPool<EnemyEffectTarget>.Shared.Return(snapshot);
-        }
-
-        private bool IsLiveEnemyEffectTarget(EnemyEffectTarget target)
-        {
-            if (target.Slot < 0 || target.Slot >= _gameSim.Enemies.Length) return false;
-            var live = _gameSim.Enemies[target.Slot];
-            return live.Active && live.SpawnId == target.State.SpawnId;
-        }
-
+        private EnemyEffectTarget[] CaptureEnemyEffectSnapshot(out int snapshotCount) => _gameSim.CaptureEnemyEffectSnapshot(out snapshotCount);
+        private static void ReleaseEnemyEffectSnapshot(EnemyEffectTarget[] snapshot) => GameSim.ReleaseEnemyEffectSnapshot(snapshot);
+        private bool IsLiveEnemyEffectTarget(EnemyEffectTarget target) => _gameSim.IsLiveEnemyEffectTarget(target);
         /// <summary>
         /// Persistent per-enemy angular offset applied to a beeline approach.
         /// Seed is a stable per-spawn value in [0, 100), so mapping it to a
@@ -6139,27 +6111,9 @@ namespace VoidFall.Runtime
             return count;
         }
 
-        private int ActiveBosses()
-        {
-            var count = 0;
-            foreach (var boss in _gameSim.Bosses) if (boss.Active) count++;
-            return count;
-        }
-
-        private int ActiveBullets()
-        {
-            var count = 0;
-            foreach (var bullet in _gameSim.Bullets) if (bullet.Active) count++;
-            return count;
-        }
-
-        private int ActivePickups()
-        {
-            var count = 0;
-            foreach (var pickup in _gameSim.Pickups) if (pickup.Active) count++;
-            return count;
-        }
-
+        private int ActiveBosses() => _gameSim.ActiveBosses();
+        private int ActiveBullets() => _gameSim.ActiveBullets();
+        private int ActivePickups() => _gameSim.ActivePickups();
         private float XpOnGround()
         {
             var total = 0f;
@@ -6168,12 +6122,6 @@ namespace VoidFall.Runtime
             return total;
         }
 
-        private int ActiveMeteors()
-        {
-            var count = 0;
-            foreach (var meteor in _gameSim.Meteors) if (meteor.Active) count++;
-            return count;
-        }
-
+        private int ActiveMeteors() => _gameSim.ActiveMeteors();
     }
 }

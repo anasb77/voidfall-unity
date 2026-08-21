@@ -1,4 +1,6 @@
 using System;
+using System.Buffers;
+using UnityEngine;
 using VoidFall.Core;
 
 namespace VoidFall.Runtime
@@ -269,6 +271,150 @@ namespace VoidFall.Runtime
                 PickupOrderPosition[movedSlot] = position;
             }
             PickupOrderPosition[removedSlot] = -1;
+        }
+
+        public void SeparateEnemies()
+        {
+            // The browser runs one bounded grid-backed pair pass after enemy
+            // movement. Querying a radius larger than the largest catalog body
+            // keeps this exact rule allocation-free while avoiding an O(n^2)
+            // scan when the director fills the pool.
+            for (var order = 0; order < EnemyOrderCount; order++)
+            {
+                var index = EnemyOrder[order];
+                var enemy = Enemies[index];
+                if (!enemy.Active) continue;
+                var candidateCount = EnemyGrid.QueryNeighborhood(
+                    enemy.Position.x,
+                    enemy.Position.y,
+                    1,
+                    EnemyGridSeparationCandidates);
+                for (var candidate = 0; candidate < candidateCount; candidate++)
+                {
+                    var otherIndex = EnemyGridSeparationCandidates[candidate];
+                    var other = Enemies[otherIndex];
+                    // The browser resolves each pair once using the immutable
+                    // spawn ID, not the pooled array slot. Slot reuse would
+                    // otherwise reverse the push order for a live pair.
+                    if (!IsCurrentGridEnemy(otherIndex) || other.SpawnId <= enemy.SpawnId) continue;
+
+                    var delta = other.Position - enemy.Position;
+                    var distanceSquared = delta.sqrMagnitude;
+                    var minimumDistance = SeparationRules.MinimumDistance(enemy.Radius, other.Radius);
+                    if (minimumDistance <= 0 || distanceSquared >= minimumDistance * minimumDistance ||
+                        distanceSquared < 0.0001f) continue;
+
+                    var distance = Mathf.Sqrt(distanceSquared);
+
+                    var push = SeparationRules.PushMagnitude(minimumDistance, distance);
+                    delta *= push;
+                    var otherWeight = SeparationRules.OtherWeight(enemy.Radius, other.Radius);
+                    enemy.Position -= delta * otherWeight;
+                    other.Position += delta * (1f - otherWeight);
+                    Enemies[otherIndex] = other;
+                }
+                Enemies[index] = enemy;
+            }
+        }
+        public int ActiveEnemies()
+        {
+            var count = 0;
+            foreach (var enemy in Enemies) if (enemy.Active) count++;
+            return count;
+        }
+        public int ActiveHostileShots()
+        {
+            var count = 0;
+            foreach (var shot in HostileShots) if (shot.Active) count++;
+            return count;
+        }
+        public static int FindInactive(EnemyState[] states)
+        {
+            for (var i = 0; i < states.Length; i++) if (!states[i].Active) return i;
+            return -1;
+        }
+        public static int FindInactive(BulletState[] states)
+        {
+            for (var i = 0; i < states.Length; i++) if (!states[i].Active) return i;
+            return -1;
+        }
+        public static int FindInactive(HostileShotState[] states)
+        {
+            for (var i = 0; i < states.Length; i++) if (!states[i].Active) return i;
+            return -1;
+        }
+        public static int FindInactive(MeteorState[] states)
+        {
+            for (var i = 0; i < states.Length; i++) if (!states[i].Active) return i;
+            return -1;
+        }
+        public static int FindInactive(PickupState[] states)
+        {
+            return FindInactive(states, states != null ? states.Length : 0);
+        }
+        public static int FindInactive(PickupState[] states, int count)
+        {
+            if (states == null) return -1;
+            var limit = Mathf.Min(states.Length, Mathf.Max(0, count));
+            for (var i = 0; i < limit; i++) if (!states[i].Active) return i;
+            return -1;
+        }
+        public static int FindInactive(BossState[] states)
+        {
+            for (var i = 0; i < states.Length; i++) if (!states[i].Active) return i;
+            return -1;
+        }
+        public EnemyEffectTarget[] CaptureEnemyEffectSnapshot(out int snapshotCount)
+        {
+            // Browser effects iterate over [...this.enemies]. A copied target
+            // list is important because damage can remove an enemy, chain an
+            // Exploder, or immediately reuse the pooled slot for a fragment.
+            snapshotCount = EnemyOrderCount;
+            var snapshot = ArrayPool<EnemyEffectTarget>.Shared.Rent(Math.Max(1, snapshotCount));
+            for (var order = 0; order < snapshotCount; order++)
+            {
+                var slot = EnemyOrder[order];
+                snapshot[order] = new EnemyEffectTarget
+                {
+                    Slot = slot,
+                    State = Enemies[slot],
+                };
+            }
+            return snapshot;
+        }
+        public static void ReleaseEnemyEffectSnapshot(EnemyEffectTarget[] snapshot)
+        {
+            if (snapshot != null) ArrayPool<EnemyEffectTarget>.Shared.Return(snapshot);
+        }
+        public bool IsLiveEnemyEffectTarget(EnemyEffectTarget target)
+        {
+            if (target.Slot < 0 || target.Slot >= Enemies.Length) return false;
+            var live = Enemies[target.Slot];
+            return live.Active && live.SpawnId == target.State.SpawnId;
+        }
+        public int ActiveBosses()
+        {
+            var count = 0;
+            foreach (var boss in Bosses) if (boss.Active) count++;
+            return count;
+        }
+        public int ActiveBullets()
+        {
+            var count = 0;
+            foreach (var bullet in Bullets) if (bullet.Active) count++;
+            return count;
+        }
+        public int ActivePickups()
+        {
+            var count = 0;
+            foreach (var pickup in Pickups) if (pickup.Active) count++;
+            return count;
+        }
+        public int ActiveMeteors()
+        {
+            var count = 0;
+            foreach (var meteor in Meteors) if (meteor.Active) count++;
+            return count;
         }
     }
 }

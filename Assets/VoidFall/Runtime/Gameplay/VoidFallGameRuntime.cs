@@ -2597,50 +2597,7 @@ namespace VoidFall.Runtime
             }
         }
 
-        private void SeparateEnemies()
-        {
-            // The browser runs one bounded grid-backed pair pass after enemy
-            // movement. Querying a radius larger than the largest catalog body
-            // keeps this exact rule allocation-free while avoiding an O(n^2)
-            // scan when the director fills the pool.
-            for (var order = 0; order < _gameSim.EnemyOrderCount; order++)
-            {
-                var index = _gameSim.EnemyOrder[order];
-                var enemy = _gameSim.Enemies[index];
-                if (!enemy.Active) continue;
-                var candidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
-                    enemy.Position.x,
-                    enemy.Position.y,
-                    1,
-                    _gameSim.EnemyGridSeparationCandidates);
-                for (var candidate = 0; candidate < candidateCount; candidate++)
-                {
-                    var otherIndex = _gameSim.EnemyGridSeparationCandidates[candidate];
-                    var other = _gameSim.Enemies[otherIndex];
-                    // The browser resolves each pair once using the immutable
-                    // spawn ID, not the pooled array slot. Slot reuse would
-                    // otherwise reverse the push order for a live pair.
-                    if (!IsCurrentGridEnemy(otherIndex) || other.SpawnId <= enemy.SpawnId) continue;
-
-                    var delta = other.Position - enemy.Position;
-                    var distanceSquared = delta.sqrMagnitude;
-                    var minimumDistance = SeparationRules.MinimumDistance(enemy.Radius, other.Radius);
-                    if (minimumDistance <= 0 || distanceSquared >= minimumDistance * minimumDistance ||
-                        distanceSquared < 0.0001f) continue;
-
-                    var distance = Mathf.Sqrt(distanceSquared);
-
-                    var push = SeparationRules.PushMagnitude(minimumDistance, distance);
-                    delta *= push;
-                    var otherWeight = SeparationRules.OtherWeight(enemy.Radius, other.Radius);
-                    enemy.Position -= delta * otherWeight;
-                    other.Position += delta * (1f - otherWeight);
-                    _gameSim.Enemies[otherIndex] = other;
-                }
-                _gameSim.Enemies[index] = enemy;
-            }
-        }
-
+        private void SeparateEnemies() => _gameSim.SeparateEnemies();
         private HostileTarget FindNearestHostileFrom(
             Vector2 origin,
             float range,
@@ -5744,66 +5701,19 @@ namespace VoidFall.Runtime
             }
         }
 
-        private int ActiveEnemies()
-        {
-            var count = 0;
-            foreach (var enemy in _gameSim.Enemies) if (enemy.Active) count++;
-            return count;
-        }
-
-        private int ActiveHostileShots()
-        {
-            var count = 0;
-            foreach (var shot in _gameSim.HostileShots) if (shot.Active) count++;
-            return count;
-        }
-
+        private int ActiveEnemies() => _gameSim.ActiveEnemies();
+        private int ActiveHostileShots() => _gameSim.ActiveHostileShots();
         private static bool HasExplosiveShardCapacity(int activeHostileShots)
         {
             return MaxHostileShots - Mathf.Max(0, activeHostileShots) >= MeteorRules.ExplosiveShardCount;
         }
 
-        private static int FindInactive(EnemyState[] states)
-        {
-            for (var i = 0; i < states.Length; i++) if (!states[i].Active) return i;
-            return -1;
-        }
-
-        private static int FindInactive(BulletState[] states)
-        {
-            for (var i = 0; i < states.Length; i++) if (!states[i].Active) return i;
-            return -1;
-        }
-
-        private static int FindInactive(HostileShotState[] states)
-        {
-            for (var i = 0; i < states.Length; i++) if (!states[i].Active) return i;
-            return -1;
-        }
-
-        private static int FindInactive(MeteorState[] states)
-        {
-            for (var i = 0; i < states.Length; i++) if (!states[i].Active) return i;
-            return -1;
-        }
-
-        private static int FindInactive(PickupState[] states)
-        {
-            return FindInactive(states, states != null ? states.Length : 0);
-        }
-
-        private static int FindInactive(PickupState[] states, int count)
-        {
-            if (states == null) return -1;
-            var limit = Mathf.Min(states.Length, Mathf.Max(0, count));
-            for (var i = 0; i < limit; i++) if (!states[i].Active) return i;
-            return -1;
-        }
-
-        private static int FindInactive(BossState[] states)
-        {
-            for (var i = 0; i < states.Length; i++) if (!states[i].Active) return i;
-            return -1;
-        }
+        private static int FindInactive(EnemyState[] states) => GameSim.FindInactive(states);
+        private static int FindInactive(BulletState[] states) => GameSim.FindInactive(states);
+        private static int FindInactive(HostileShotState[] states) => GameSim.FindInactive(states);
+        private static int FindInactive(MeteorState[] states) => GameSim.FindInactive(states);
+        private static int FindInactive(PickupState[] states) => GameSim.FindInactive(states);
+        private static int FindInactive(PickupState[] states, int count) => GameSim.FindInactive(states, count);
+        private static int FindInactive(BossState[] states) => GameSim.FindInactive(states);
     }
 }
