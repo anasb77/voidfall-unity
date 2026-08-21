@@ -243,10 +243,10 @@ namespace VoidFall.Runtime
             BossState firstBoss = default(BossState);
             var firstBossSet = false;
             EnsureBossOrderEntries();
-            for (var bossOrder = 0; bossOrder < _bossOrderCount; bossOrder++)
+            for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
             {
-                var index = _bossOrder[bossOrder];
-                var boss = _bosses[index];
+                var index = _gameSim.BossOrder[bossOrder];
+                var boss = _gameSim.Bosses[index];
                 if (!boss.Active) continue;
                 if (!firstBossSet)
                 {

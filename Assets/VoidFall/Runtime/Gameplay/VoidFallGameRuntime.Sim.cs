@@ -122,9 +122,9 @@ namespace VoidFall.Runtime
         private float NearestActiveBossDistance()
         {
             var nearest = -1f;
-            for (var order = 0; order < _bossOrderCount; order++)
+            for (var order = 0; order < _gameSim.BossOrderCount; order++)
             {
-                var boss = _bosses[_bossOrder[order]];
+                var boss = _gameSim.Bosses[_gameSim.BossOrder[order]];
                 if (!boss.Active) continue;
                 var distance = (boss.Position - _playerPosition).magnitude;
                 if (nearest < 0 || distance < nearest) nearest = distance;
@@ -357,9 +357,9 @@ namespace VoidFall.Runtime
                     _directorWarned = false;
                     _directorSpawned = 0;
                     _score += 75;
-                    if (_rng.Next() < 0.35)
+                    if (_gameSim.Rng.Next() < 0.35)
                     {
-                        var angle = (float)(_rng.Next() * Math.PI * 2);
+                        var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                         SpawnSpecialPickup(
                             _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 150,
                             1,
@@ -430,7 +430,7 @@ namespace VoidFall.Runtime
             // of walking in from off-screen. Keep this as the plain magnitude of
             // the half extents.
             var radius = viewportHalf.magnitude + (encircle ? 20f : 45f);
-            var useRunners = _time >= 180 && _rng.Next() < (encircle ? 0.6 : 0.35);
+            var useRunners = _time >= 180 && _gameSim.Rng.Next() < (encircle ? 0.6 : 0.35);
             var safeGapAngle = SafestEscapeAngle((float)_nextDirectorEvent.SafeGapAngle);
             for (var index = 0; index < count; index++)
             {
@@ -460,7 +460,7 @@ namespace VoidFall.Runtime
             {
                 if (ActiveEnemies() >= DirectorRules.ActiveEnemyCap(_time, ActiveBosses())) break;
                 var laneSize = edge < 2 ? viewportHalf.x * 1.44f : viewportHalf.y * 1.44f;
-                var offset = ((float)_rng.Next() - 0.5f) * laneSize;
+                var offset = ((float)_gameSim.Rng.Next() - 0.5f) * laneSize;
                 var x = edge == 2
                     ? _playerPosition.x - halfWidth
                     : edge == 3 ? _playerPosition.x + halfWidth : _playerPosition.x + offset;
@@ -483,7 +483,7 @@ namespace VoidFall.Runtime
             var context = new EliteCadenceContext
             {
                 ElapsedSeconds = _time,
-                PickRoll = _rng.Next(),
+                PickRoll = _gameSim.Rng.Next(),
                 ActiveTotal = ActiveEliteVariantTotal(),
                 ActiveCap = EliteRules.EliteCadenceActiveCap(arena?.EliteCadenceMultiplier ?? 1),
                 ThreatHeadroom = budget - activeThreat - replacedCost,
@@ -508,7 +508,7 @@ namespace VoidFall.Runtime
                 kind.Value);
             if (!spawned) return false;
             _nextEliteVariantTime = _time + (float)EliteRules.EliteCadenceIntervalSeconds(
-                _rng.Next(),
+                _gameSim.Rng.Next(),
                 arena?.EliteCadenceMultiplier ?? 1);
             return true;
         }
@@ -516,7 +516,7 @@ namespace VoidFall.Runtime
         private int ActiveEnemyTypeCount(string id)
         {
             var count = 0;
-            foreach (var enemy in _enemies)
+            foreach (var enemy in _gameSim.Enemies)
             {
                 if (enemy.Active && enemy.Id == id) count++;
             }
@@ -569,7 +569,7 @@ namespace VoidFall.Runtime
             {
                 var band = ContentCatalog.SpawnTimeline[bandIndex];
                 if (rosterTime < band.StartSeconds || rosterTime >= band.EndSeconds) continue;
-                var roll = _rng.Next();
+                var roll = _gameSim.Rng.Next();
                 var cursor = 0.0;
                 foreach (var weight in band.Weights)
                 {
@@ -587,10 +587,10 @@ namespace VoidFall.Runtime
             var globalHarvesterXp = XpHeldByHarvesters();
             // Browser updateEnemies walks its compact array backwards. The
             // logical order list preserves that behavior across pooled slots.
-            for (var order = _enemyOrderCount - 1; order >= 0; order--)
+            for (var order = _gameSim.EnemyOrderCount - 1; order >= 0; order--)
             {
-                var i = _enemyOrder[order];
-                var enemy = _enemies[i];
+                var i = _gameSim.EnemyOrder[order];
+                var enemy = _gameSim.Enemies[i];
                 if (!enemy.Active) continue;
                 enemy.Age += dt;
                 var delta = _playerPosition - enemy.Position;
@@ -678,7 +678,7 @@ namespace VoidFall.Runtime
                 enemy.Position += (enemy.Velocity + enemy.Knockback) * dt;
                 if ((!enemy.Elite || enemy.EliteKind.HasValue) && distance > 1750f)
                 {
-                    var angle = (float)(_rng.Next() * Math.PI * 2);
+                    var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                     var viewportHalf = GameplayViewportHalfExtent();
                     var radius = Mathf.Sqrt(
                         Mathf.Pow(viewportHalf.x * 2f, 2) +
@@ -700,7 +700,7 @@ namespace VoidFall.Runtime
                     ApplySourcePlayerKnockback(ref enemy, direction);
                     enemy.ContactCooldown = 0.72f;
                 }
-                _enemies[i] = enemy;
+                _gameSim.Enemies[i] = enemy;
                 if (!enemy.Active) RemoveEnemyOrder(i);
             }
         }
@@ -756,7 +756,7 @@ namespace VoidFall.Runtime
             if (enemy.StateTimer <= 0)
             {
                 enemy.State = 0;
-                enemy.StateTimer = (float)definition.ChargeCooldownSeconds + (float)(_rng.Next() * 1.2);
+                enemy.StateTimer = (float)definition.ChargeCooldownSeconds + (float)(_gameSim.Rng.Next() * 1.2);
             }
         }
 
@@ -783,9 +783,9 @@ namespace VoidFall.Runtime
 
             var targetIndex = -1;
             var targetDistanceSquared = 500f * 500f;
-            for (var index = 0; index < _pickups.Length; index++)
+            for (var index = 0; index < _gameSim.Pickups.Length; index++)
             {
-                var pickup = _pickups[index];
+                var pickup = _gameSim.Pickups[index];
                 if (!pickup.Active || pickup.Kind != PickupKind.Xp || pickup.Pull) continue;
                 var distance = (pickup.Position - enemy.Position).sqrMagnitude;
                 if (distance >= targetDistanceSquared) continue;
@@ -801,7 +801,7 @@ namespace VoidFall.Runtime
                 return;
             }
 
-            var pickupState = _pickups[targetIndex];
+            var pickupState = _gameSim.Pickups[targetIndex];
             var pickupDelta = pickupState.Position - enemy.Position;
             var distanceToPickup = SourceLengthOrOne(pickupDelta);
             var direction = pickupDelta / distanceToPickup;
@@ -818,7 +818,7 @@ namespace VoidFall.Runtime
                 pickupState.Velocity += new Vector2(
                     pullDirection.x * 1150f - pullDirection.y * curve,
                     pullDirection.y * 1150f + pullDirection.x * curve) * dt;
-                _pickups[targetIndex] = pickupState;
+                _gameSim.Pickups[targetIndex] = pickupState;
             }
             if (mouthDistance >= 12) return;
 
@@ -831,7 +831,7 @@ namespace VoidFall.Runtime
             if (absorbed >= pickupState.Value)
             {
                 pickupState.Active = false;
-                _pickups[targetIndex] = pickupState;
+                _gameSim.Pickups[targetIndex] = pickupState;
                 Hide(_pickupViews[targetIndex]);
                 RemovePickupOrder(targetIndex);
             }
@@ -839,7 +839,7 @@ namespace VoidFall.Runtime
             {
                 pickupState.Value -= absorbed;
                 pickupState.Velocity = -direction * 85f;
-                _pickups[targetIndex] = pickupState;
+                _gameSim.Pickups[targetIndex] = pickupState;
             }
 
             enemy.StoredXp += absorbed;
@@ -864,9 +864,9 @@ namespace VoidFall.Runtime
         private float XpHeldByHarvesters()
         {
             var total = 0f;
-            for (var index = 0; index < _enemies.Length; index++)
+            for (var index = 0; index < _gameSim.Enemies.Length; index++)
             {
-                if (_enemies[index].Active && _enemies[index].Id == "harvester") total += _enemies[index].StoredXp;
+                if (_gameSim.Enemies[index].Active && _gameSim.Enemies[index].Id == "harvester") total += _gameSim.Enemies[index].StoredXp;
             }
 
             return total;
@@ -882,11 +882,11 @@ namespace VoidFall.Runtime
             if (enemy.AttackCooldown > 0) return;
 
             var activeDrones = 0;
-            for (var index = 0; index < _enemies.Length; index++)
+            for (var index = 0; index < _gameSim.Enemies.Length; index++)
             {
-                if (_enemies[index].Active &&
-                    _enemies[index].CarrierDrone &&
-                    _enemies[index].SummonedByCarrierSpawnId == enemy.SpawnId)
+                if (_gameSim.Enemies[index].Active &&
+                    _gameSim.Enemies[index].CarrierDrone &&
+                    _gameSim.Enemies[index].SummonedByCarrierSpawnId == enemy.SpawnId)
                     activeDrones++;
             }
             var amount = Mathf.Min(2, 6 - activeDrones);
@@ -912,12 +912,12 @@ namespace VoidFall.Runtime
         {
             if (!SpawnEnemy("runner", position, null, true, false)) return false;
             var spawnedId = _nextEnemyId - 1;
-            for (var index = 0; index < _enemies.Length; index++)
+            for (var index = 0; index < _gameSim.Enemies.Length; index++)
             {
-                var drone = _enemies[index];
+                var drone = _gameSim.Enemies[index];
                 if (!drone.Active || !drone.CarrierDrone || drone.SpawnId != spawnedId) continue;
                 drone.SummonedByCarrierSpawnId = carrierSpawnId;
-                _enemies[index] = drone;
+                _gameSim.Enemies[index] = drone;
                 return true;
             }
             return false;
@@ -1056,10 +1056,10 @@ namespace VoidFall.Runtime
 
             var target = -1;
             var lowestRatio = 0.96f;
-            for (var order = 0; order < _enemyOrderCount; order++)
+            for (var order = 0; order < _gameSim.EnemyOrderCount; order++)
             {
-                var index = _enemyOrder[order];
-                var other = _enemies[index];
+                var index = _gameSim.EnemyOrder[order];
+                var other = _gameSim.Enemies[index];
                 if (!other.Active || index == enemy.View) continue;
                 if ((other.Position - enemy.Position).sqrMagnitude > 260f * 260f) continue;
                 var healthRatio = other.Health / Mathf.Max(1, other.MaxHealth);
@@ -1078,12 +1078,12 @@ namespace VoidFall.Runtime
                 return;
             }
 
-            var repaired = _enemies[target];
+            var repaired = _gameSim.Enemies[target];
             var repair = Mathf.Max(7, repaired.MaxHealth * 0.07f);
             repaired.Health = Mathf.Min(repaired.MaxHealth, repaired.Health + repair);
             if (repaired.MaxShield > 0) repaired.Shield = Mathf.Min(repaired.MaxShield, repaired.Shield + repaired.MaxShield * 0.12f);
             repaired.HitTimer = Mathf.Max(repaired.HitTimer, 0.06f);
-            _enemies[target] = repaired;
+            _gameSim.Enemies[target] = repaired;
             SpawnFloater(
                 repaired.Position + Vector2.up * repaired.Radius,
                 "REPAIRED",
@@ -1237,7 +1237,7 @@ namespace VoidFall.Runtime
             }
             // Resolve the self-detonating enemy after its source-side effects,
             // then apply the flash/shake/audio cues that follow removeEnemy().
-            _enemies[enemy.View] = enemy;
+            _gameSim.Enemies[enemy.View] = enemy;
             ResolveEnemyDeath(enemy.View, true);
             enemy.Active = false;
             AddCameraShake(elite ? 0.46f : 0.38f);
@@ -1351,10 +1351,10 @@ namespace VoidFall.Runtime
             enemy.Velocity = direction * enemy.Speed * 0.76f;
             if (enemy.AttackCooldown > 0) return;
             var shielded = 0;
-            for (var order = 0; order < _enemyOrderCount && shielded < 3; order++)
+            for (var order = 0; order < _gameSim.EnemyOrderCount && shielded < 3; order++)
             {
-                var index = _enemyOrder[order];
-                var other = _enemies[index];
+                var index = _gameSim.EnemyOrder[order];
+                var other = _gameSim.Enemies[index];
                 if (!other.Active || index == enemy.View || other.Elite) continue;
                 if ((other.Position - enemy.Position).sqrMagnitude > 235f * 235f) continue;
                 var capacity = Mathf.Max(8, other.MaxHealth * 0.12f);
@@ -1366,7 +1366,7 @@ namespace VoidFall.Runtime
                     shielded++;
                     BurstFx(other.Position, SourceDotColor("blue"),
                         3, 80, 0.25f, 0.46f);
-                    _enemies[index] = other;
+                    _gameSim.Enemies[index] = other;
                 }
             }
             if (shielded > 0)
@@ -1401,10 +1401,10 @@ namespace VoidFall.Runtime
             // behavior without allocating a temporary list in the hot loop.
             EnsureMeteorOrderEntries();
             _pendingMeteorDetonationCount = 0;
-            for (var order = _meteorOrderCount - 1; order >= 0; order--)
+            for (var order = _gameSim.MeteorOrderCount - 1; order >= 0; order--)
             {
-                var index = _meteorOrder[order];
-                var meteor = _meteors[index];
+                var index = _gameSim.MeteorOrder[order];
+                var meteor = _gameSim.Meteors[index];
                 if (!meteor.Active) continue;
                 meteor.Position += meteor.Velocity * dt;
                 meteor.Rotation += meteor.Spin * dt;
@@ -1422,9 +1422,9 @@ namespace VoidFall.Runtime
                         Hide(_meteorDangerArcViews[index]);
                         Hide(_meteorDangerRingViews[index]);
                         Hide(_meteorHealthArcViews[index]);
-                        _meteors[index] = meteor;
-                        if (_pendingMeteorDetonationCount < _pendingMeteorDetonations.Length)
-                            _pendingMeteorDetonations[_pendingMeteorDetonationCount++] = meteor;
+                        _gameSim.Meteors[index] = meteor;
+                        if (_pendingMeteorDetonationCount < _gameSim.PendingMeteorDetonations.Length)
+                            _gameSim.PendingMeteorDetonations[_pendingMeteorDetonationCount++] = meteor;
                         continue;
                     }
                 }
@@ -1439,7 +1439,7 @@ namespace VoidFall.Runtime
                     Hide(_meteorDangerArcViews[index]);
                     Hide(_meteorDangerRingViews[index]);
                     Hide(_meteorHealthArcViews[index]);
-                    _meteors[index] = meteor;
+                    _gameSim.Meteors[index] = meteor;
                     continue;
                 }
 
@@ -1457,11 +1457,11 @@ namespace VoidFall.Runtime
                     }
                 }
 
-                _meteors[index] = meteor;
+                _gameSim.Meteors[index] = meteor;
             }
 
             for (var index = 0; index < _pendingMeteorDetonationCount; index++)
-                DetonateMeteor(_pendingMeteorDetonations[index]);
+                DetonateMeteor(_gameSim.PendingMeteorDetonations[index]);
             _pendingMeteorDetonationCount = 0;
         }
 
@@ -1469,25 +1469,25 @@ namespace VoidFall.Runtime
         {
             var limit = explosive ? MeteorRules.MaxExplosiveMeteors : _meteorTarget;
             if (CountMeteors(explosive) >= limit) return;
-            var variant = Mathf.FloorToInt((float)(_rng.Next() * MeteorRules.MeteorVariantCount(explosive)));
+            var variant = Mathf.FloorToInt((float)(_gameSim.Rng.Next() * MeteorRules.MeteorVariantCount(explosive)));
             var radius = (float)MeteorRules.MeteorCollisionRadius(variant, explosive);
             var enemyCount = 0;
-            for (var index = 0; index < _enemies.Length; index++)
+            for (var index = 0; index < _gameSim.Enemies.Length; index++)
             {
-                if (!_enemies[index].Active) continue;
+                if (!_gameSim.Enemies[index].Active) continue;
                 _meteorPlacementEnemyCircles[enemyCount++] = new CircleDefinition(
-                    _enemies[index].Position.x,
-                    _enemies[index].Position.y,
-                    _enemies[index].Radius);
+                    _gameSim.Enemies[index].Position.x,
+                    _gameSim.Enemies[index].Position.y,
+                    _gameSim.Enemies[index].Radius);
             }
             var meteorCount = 0;
-            for (var index = 0; index < _meteors.Length; index++)
+            for (var index = 0; index < _gameSim.Meteors.Length; index++)
             {
-                if (!_meteors[index].Active) continue;
+                if (!_gameSim.Meteors[index].Active) continue;
                 _meteorPlacementCircles[meteorCount++] = new CircleDefinition(
-                    _meteors[index].Position.x,
-                    _meteors[index].Position.y,
-                    _meteors[index].Radius);
+                    _gameSim.Meteors[index].Position.x,
+                    _gameSim.Meteors[index].Position.y,
+                    _gameSim.Meteors[index].Radius);
             }
             _meteorPlacementContext.PlayerX = _playerPosition.x;
             _meteorPlacementContext.PlayerY = _playerPosition.y;
@@ -1498,8 +1498,8 @@ namespace VoidFall.Runtime
             _meteorPlacementContext.MeteorCount = meteorCount;
             for (var attempt = 0; attempt < 10; attempt++)
             {
-                var angle = (float)(_rng.Next() * Math.PI * 2);
-                var distance = 380f + (float)_rng.Next() * 520f;
+                var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
+                var distance = 380f + (float)_gameSim.Rng.Next() * 520f;
                 var candidate = _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
                 var safe = MeteorRules.IsSafeMeteorPlacement(
                     new CircleDefinition(candidate.x, candidate.y, radius),
@@ -1507,27 +1507,27 @@ namespace VoidFall.Runtime
                     _meteorPlacementProjectedCircles);
                 if (!safe) continue;
 
-                var slot = FindInactive(_meteors);
+                var slot = FindInactive(_gameSim.Meteors);
                 if (slot < 0) return;
-                var driftAngle = (float)(_rng.Next() * Math.PI * 2);
-                var speed = 6f + (float)_rng.Next() * 11f;
+                var driftAngle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
+                var speed = 6f + (float)_gameSim.Rng.Next() * 11f;
                 var maxHealth = explosive
                     ? MeteorRules.ExplosiveMeteorMaxHealth(_time)
                     : MeteorRules.MeteorMaxHealth(_time);
-                _meteors[slot] = new MeteorState
+                _gameSim.Meteors[slot] = new MeteorState
                 {
                     Active = true,
                     Position = candidate,
                     Velocity = new Vector2(Mathf.Cos(driftAngle), Mathf.Sin(driftAngle)) * speed,
-                    Rotation = (float)(_rng.Next() * Math.PI * 2),
-                    Spin = ((float)_rng.Next() - 0.5f) * 0.26f,
+                    Rotation = (float)(_gameSim.Rng.Next() * Math.PI * 2),
+                    Spin = ((float)_gameSim.Rng.Next() - 0.5f) * 0.26f,
                     Health = maxHealth,
                     MaxHealth = maxHealth,
                     Radius = radius,
                     VisibleRadius = (float)MeteorRules.MeteorVisibleRadius(variant, explosive),
                     HitTimer = 0,
                     FuseTimer = 0,
-                    Seed = (float)(_rng.Next() * 100),
+                    Seed = (float)(_gameSim.Rng.Next() * 100),
                     Explosive = explosive,
                     Variant = variant,
                     View = slot,
@@ -1535,7 +1535,7 @@ namespace VoidFall.Runtime
                 AppendMeteorOrder(slot);
                 var view = EnsureMeteorView(slot);
                 view.sprite = ProceduralSpriteFactory.Meteor(variant, explosive);
-                view.transform.rotation = Quaternion.Euler(0, 0, _meteors[slot].Rotation * Mathf.Rad2Deg);
+                view.transform.rotation = Quaternion.Euler(0, 0, _gameSim.Meteors[slot].Rotation * Mathf.Rad2Deg);
                 view.color = Color.white;
                 view.enabled = true;
                 var coreView = EnsureMeteorCoreView(slot);
@@ -1609,17 +1609,17 @@ namespace VoidFall.Runtime
         {
             EnsureMeteorOrderEntries();
             var link = 1;
-            for (var order = 0; order < _meteorOrderCount; order++)
+            for (var order = 0; order < _gameSim.MeteorOrderCount; order++)
             {
-                var index = _meteorOrder[order];
-                var meteor = _meteors[index];
+                var index = _gameSim.MeteorOrder[order];
+                var meteor = _gameSim.Meteors[index];
                 if (!meteor.Active || !meteor.Explosive || meteor.FuseTimer > 0) continue;
                 if ((meteor.Position - origin).sqrMagnitude > (radius + meteor.Radius) * (radius + meteor.Radius)) continue;
                 meteor.Health = 0;
                 meteor.FuseTimer = (float)MeteorRules.ExplosiveChainDelaySeconds(link);
                 PlayFuseWarning(4);
                 _telemetry.RecordMeteorDestroyed(ArenaIdName(_arenaId), true);
-                _meteors[index] = meteor;
+                _gameSim.Meteors[index] = meteor;
                 link++;
             }
         }
@@ -1628,7 +1628,7 @@ namespace VoidFall.Runtime
         {
             var count = 0;
             const float countRadiusSquared = 1400f * 1400f;
-            foreach (var meteor in _meteors)
+            foreach (var meteor in _gameSim.Meteors)
             {
                 if (!meteor.Active || meteor.Explosive != explosive) continue;
                 if ((meteor.Position - _playerPosition).sqrMagnitude <= countRadiusSquared) count++;
@@ -1639,9 +1639,9 @@ namespace VoidFall.Runtime
 
         private void ClearMeteors()
         {
-            for (var index = 0; index < _meteors.Length; index++)
+            for (var index = 0; index < _gameSim.Meteors.Length; index++)
             {
-                _meteors[index].Active = false;
+                _gameSim.Meteors[index].Active = false;
                 Hide(_meteorViews[index]);
                 Hide(_meteorHitViews[index]);
                 Hide(_meteorCoreViews[index]);
@@ -1732,18 +1732,18 @@ namespace VoidFall.Runtime
         private void UpdateBosses(float dt)
         {
             EnsureBossOrderEntries();
-            var initialBossOrderCount = _bossOrderCount;
+            var initialBossOrderCount = _gameSim.BossOrderCount;
             for (var order = 0; order < initialBossOrderCount; order++)
             {
-                var i = _bossOrder[order];
-                var boss = _bosses[i];
+                var i = _gameSim.BossOrder[order];
+                var boss = _gameSim.Bosses[i];
                 if (!boss.Active)
                 {
                     if (boss.DeathTimer > 0)
                     {
                         boss.DeathTimer = Mathf.Max(0, boss.DeathTimer - dt);
                         if (boss.DeathTimer <= 0) Hide(_bossViews[i]);
-                        _bosses[i] = boss;
+                        _gameSim.Bosses[i] = boss;
                     }
                     continue;
                 }
@@ -1759,7 +1759,7 @@ namespace VoidFall.Runtime
                 {
                     boss.StateTimer -= dt;
                     if (boss.StateTimer <= 0) boss.State = 0;
-                    _bosses[i] = boss;
+                    _gameSim.Bosses[i] = boss;
                     continue;
                 }
                 var delta = _playerPosition - boss.Position;
@@ -1866,8 +1866,8 @@ namespace VoidFall.Runtime
                         boss.AttackAngle = Mathf.Atan2(direction.y, direction.x);
                         if (boss.ActiveAttack.Id == "blink")
                         {
-                            var angle = (float)(_rng.Next() * Math.PI * 2);
-                            var blinkDistance = 230f + (float)_rng.Next() * 100f;
+                            var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
+                            var blinkDistance = 230f + (float)_gameSim.Rng.Next() * 100f;
                             boss.TargetPosition = _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * blinkDistance;
                         }
                         else if (boss.ActiveAttack.Id == "beam")
@@ -1876,7 +1876,7 @@ namespace VoidFall.Runtime
                         }
                         else if (boss.ActiveAttack.Id == "burst")
                         {
-                            boss.AttackAngle = (float)(_rng.Next() * Math.PI * 2);
+                            boss.AttackAngle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                         }
                         boss.State = 1;
                         boss.StateTimer = (float)boss.ActiveAttack.TelegraphSeconds;
@@ -1899,7 +1899,7 @@ namespace VoidFall.Runtime
                     DamagePlayer(contactDamage, contactDelta / contactDistance);
                     boss.ContactCooldown = 0.75f;
                 }
-                _bosses[i] = boss;
+                _gameSim.Bosses[i] = boss;
             }
             EnsureBossOrderEntries();
         }
@@ -2085,7 +2085,7 @@ namespace VoidFall.Runtime
                 var count = BossSummonCount(attack.SummonCount ?? 6, encounterCycle);
                 for (var index = 0; index < count; index++)
                 {
-                    var angle = index / (float)count * Mathf.PI * 2 + (float)_rng.Next() * 0.16f;
+                    var angle = index / (float)count * Mathf.PI * 2 + (float)_gameSim.Rng.Next() * 0.16f;
                     SpawnEnemy(
                         index % 3 == 0 ? "runner" : "chaser",
                         boss.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 105,
@@ -2114,35 +2114,35 @@ namespace VoidFall.Runtime
 
         private void ResetEnemyOrder()
         {
-            _enemyOrderCount = 0;
-            for (var index = 0; index < _enemyOrderPosition.Length; index++)
+            _gameSim.EnemyOrderCount = 0;
+            for (var index = 0; index < _gameSim.EnemyOrderPosition.Length; index++)
             {
-                _enemyOrder[index] = -1;
-                _enemyOrderPosition[index] = -1;
+                _gameSim.EnemyOrder[index] = -1;
+                _gameSim.EnemyOrderPosition[index] = -1;
             }
         }
 
         private void AppendEnemyOrder(int slot)
         {
-            if (slot < 0 || slot >= _enemies.Length || _enemyOrderCount >= _enemyOrder.Length) return;
-            _enemyOrderPosition[slot] = _enemyOrderCount;
-            _enemyOrder[_enemyOrderCount++] = slot;
+            if (slot < 0 || slot >= _gameSim.Enemies.Length || _gameSim.EnemyOrderCount >= _gameSim.EnemyOrder.Length) return;
+            _gameSim.EnemyOrderPosition[slot] = _gameSim.EnemyOrderCount;
+            _gameSim.EnemyOrder[_gameSim.EnemyOrderCount++] = slot;
         }
 
         private void RemoveEnemyOrder(int slot)
         {
-            if (slot < 0 || slot >= _enemies.Length) return;
-            var position = _enemyOrderPosition[slot];
-            if (position < 0 || position >= _enemyOrderCount || _enemyOrder[position] != slot) return;
-            var lastPosition = --_enemyOrderCount;
+            if (slot < 0 || slot >= _gameSim.Enemies.Length) return;
+            var position = _gameSim.EnemyOrderPosition[slot];
+            if (position < 0 || position >= _gameSim.EnemyOrderCount || _gameSim.EnemyOrder[position] != slot) return;
+            var lastPosition = --_gameSim.EnemyOrderCount;
             if (position != lastPosition)
             {
-                var replacement = _enemyOrder[lastPosition];
-                _enemyOrder[position] = replacement;
-                _enemyOrderPosition[replacement] = position;
+                var replacement = _gameSim.EnemyOrder[lastPosition];
+                _gameSim.EnemyOrder[position] = replacement;
+                _gameSim.EnemyOrderPosition[replacement] = position;
             }
-            _enemyOrder[lastPosition] = -1;
-            _enemyOrderPosition[slot] = -1;
+            _gameSim.EnemyOrder[lastPosition] = -1;
+            _gameSim.EnemyOrderPosition[slot] = -1;
         }
 
         private void ResetDamageIndicatorOrder() => _damageIndicatorOrder.Reset();
@@ -2165,45 +2165,45 @@ namespace VoidFall.Runtime
             }
         }
 
-        private void ResetBulletOrder() => _bulletOrder.Reset();
+        private void ResetBulletOrder() => _gameSim.BulletOrder.Reset();
 
-        private void AppendBulletOrder(int slot) => _bulletOrder.Append(slot);
+        private void AppendBulletOrder(int slot) => _gameSim.BulletOrder.Append(slot);
 
-        private void RemoveBulletOrder(int slot) => _bulletOrder.Remove(slot);
+        private void RemoveBulletOrder(int slot) => _gameSim.BulletOrder.Remove(slot);
 
         private void EnsureBulletOrderEntries()
         {
-            for (var index = 0; index < _bullets.Length; index++)
+            for (var index = 0; index < _gameSim.Bullets.Length; index++)
             {
-                if (_bullets[index].Active) AppendBulletOrder(index);
+                if (_gameSim.Bullets[index].Active) AppendBulletOrder(index);
             }
-            for (var order = _bulletOrder.Count - 1; order >= 0; order--)
+            for (var order = _gameSim.BulletOrder.Count - 1; order >= 0; order--)
             {
-                var slot = _bulletOrder.SlotAt(order);
-                if (slot < 0 || !_bullets[slot].Active) RemoveBulletOrder(slot);
+                var slot = _gameSim.BulletOrder.SlotAt(order);
+                if (slot < 0 || !_gameSim.Bullets[slot].Active) RemoveBulletOrder(slot);
             }
         }
 
         private void ResetBossOrder()
         {
-            _bossOrderCount = 0;
-            for (var index = 0; index < _bossOrder.Length; index++) _bossOrder[index] = -1;
+            _gameSim.BossOrderCount = 0;
+            for (var index = 0; index < _gameSim.BossOrder.Length; index++) _gameSim.BossOrder[index] = -1;
         }
 
         private void AppendBossOrder(int slot)
         {
-            if (slot < 0 || slot >= _bosses.Length || _bossOrderCount >= _bossOrder.Length) return;
-            if (_bosses[slot].Active && Array.IndexOf(_bossOrder, slot, 0, _bossOrderCount) >= 0) return;
-            _bossOrder[_bossOrderCount++] = slot;
+            if (slot < 0 || slot >= _gameSim.Bosses.Length || _gameSim.BossOrderCount >= _gameSim.BossOrder.Length) return;
+            if (_gameSim.Bosses[slot].Active && Array.IndexOf(_gameSim.BossOrder, slot, 0, _gameSim.BossOrderCount) >= 0) return;
+            _gameSim.BossOrder[_gameSim.BossOrderCount++] = slot;
         }
 
         private void RemoveBossOrder(int slot)
         {
-            if (slot < 0 || slot >= _bosses.Length) return;
+            if (slot < 0 || slot >= _gameSim.Bosses.Length) return;
             var position = -1;
-            for (var index = 0; index < _bossOrderCount; index++)
+            for (var index = 0; index < _gameSim.BossOrderCount; index++)
             {
-                if (_bossOrder[index] != slot) continue;
+                if (_gameSim.BossOrder[index] != slot) continue;
                 position = index;
                 break;
             }
@@ -2211,67 +2211,67 @@ namespace VoidFall.Runtime
             // Source bosses.filter(...) preserves survivor order. Shift rather
             // than swap so removing the first encounter cannot reorder the
             // remaining encounter before a later slot is appended.
-            for (var index = position + 1; index < _bossOrderCount; index++)
-                _bossOrder[index - 1] = _bossOrder[index];
-            _bossOrder[--_bossOrderCount] = -1;
+            for (var index = position + 1; index < _gameSim.BossOrderCount; index++)
+                _gameSim.BossOrder[index - 1] = _gameSim.BossOrder[index];
+            _gameSim.BossOrder[--_gameSim.BossOrderCount] = -1;
         }
 
         private void EnsureBossOrderEntries()
         {
             // Runtime spawns append explicitly. Reconcile active/death-fade
             // fixtures without disturbing the already established order.
-            for (var index = 0; index < _bosses.Length; index++)
+            for (var index = 0; index < _gameSim.Bosses.Length; index++)
             {
-                if (!_bosses[index].Active && _bosses[index].DeathTimer <= 0) continue;
+                if (!_gameSim.Bosses[index].Active && _gameSim.Bosses[index].DeathTimer <= 0) continue;
                 var present = false;
-                for (var order = 0; order < _bossOrderCount; order++)
+                for (var order = 0; order < _gameSim.BossOrderCount; order++)
                 {
-                    if (_bossOrder[order] != index) continue;
+                    if (_gameSim.BossOrder[order] != index) continue;
                     present = true;
                     break;
                 }
                 if (!present) AppendBossOrder(index);
             }
-            for (var order = _bossOrderCount - 1; order >= 0; order--)
+            for (var order = _gameSim.BossOrderCount - 1; order >= 0; order--)
             {
-                var slot = _bossOrder[order];
-                if (slot < 0 || (!_bosses[slot].Active && _bosses[slot].DeathTimer <= 0))
+                var slot = _gameSim.BossOrder[order];
+                if (slot < 0 || (!_gameSim.Bosses[slot].Active && _gameSim.Bosses[slot].DeathTimer <= 0))
                     RemoveBossOrder(slot);
             }
         }
 
         private void ResetMeteorOrder()
         {
-            _meteorOrderCount = 0;
-            for (var index = 0; index < _meteorOrderPosition.Length; index++)
+            _gameSim.MeteorOrderCount = 0;
+            for (var index = 0; index < _gameSim.MeteorOrderPosition.Length; index++)
             {
-                _meteorOrder[index] = -1;
-                _meteorOrderPosition[index] = -1;
+                _gameSim.MeteorOrder[index] = -1;
+                _gameSim.MeteorOrderPosition[index] = -1;
             }
         }
 
         private void AppendMeteorOrder(int slot)
         {
-            if (slot < 0 || slot >= _meteors.Length || _meteorOrderCount >= _meteorOrder.Length) return;
-            if (_meteorOrderPosition[slot] >= 0) return;
-            _meteorOrderPosition[slot] = _meteorOrderCount;
-            _meteorOrder[_meteorOrderCount++] = slot;
+            if (slot < 0 || slot >= _gameSim.Meteors.Length || _gameSim.MeteorOrderCount >= _gameSim.MeteorOrder.Length) return;
+            if (_gameSim.MeteorOrderPosition[slot] >= 0) return;
+            _gameSim.MeteorOrderPosition[slot] = _gameSim.MeteorOrderCount;
+            _gameSim.MeteorOrder[_gameSim.MeteorOrderCount++] = slot;
         }
 
         private void RemoveMeteorOrder(int slot)
         {
-            if (slot < 0 || slot >= _meteors.Length) return;
-            var position = _meteorOrderPosition[slot];
-            if (position < 0 || position >= _meteorOrderCount || _meteorOrder[position] != slot) return;
-            var lastPosition = --_meteorOrderCount;
+            if (slot < 0 || slot >= _gameSim.Meteors.Length) return;
+            var position = _gameSim.MeteorOrderPosition[slot];
+            if (position < 0 || position >= _gameSim.MeteorOrderCount || _gameSim.MeteorOrder[position] != slot) return;
+            var lastPosition = --_gameSim.MeteorOrderCount;
             if (position != lastPosition)
             {
-                var replacement = _meteorOrder[lastPosition];
-                _meteorOrder[position] = replacement;
-                _meteorOrderPosition[replacement] = position;
+                var replacement = _gameSim.MeteorOrder[lastPosition];
+                _gameSim.MeteorOrder[position] = replacement;
+                _gameSim.MeteorOrderPosition[replacement] = position;
             }
-            _meteorOrder[lastPosition] = -1;
-            _meteorOrderPosition[slot] = -1;
+            _gameSim.MeteorOrder[lastPosition] = -1;
+            _gameSim.MeteorOrderPosition[slot] = -1;
         }
 
         private void EnsureMeteorOrderEntries()
@@ -2279,14 +2279,14 @@ namespace VoidFall.Runtime
             // Runtime spawns append explicitly. This small reconciliation also
             // keeps reflection-seeded PlayMode fixtures deterministic without
             // changing the live compact order.
-            for (var index = 0; index < _meteors.Length; index++)
+            for (var index = 0; index < _gameSim.Meteors.Length; index++)
             {
-                if (_meteors[index].Active) AppendMeteorOrder(index);
+                if (_gameSim.Meteors[index].Active) AppendMeteorOrder(index);
             }
-            for (var order = _meteorOrderCount - 1; order >= 0; order--)
+            for (var order = _gameSim.MeteorOrderCount - 1; order >= 0; order--)
             {
-                var slot = _meteorOrder[order];
-                if (slot < 0 || !_meteors[slot].Active) RemoveMeteorOrder(slot);
+                var slot = _gameSim.MeteorOrder[order];
+                if (slot < 0 || !_gameSim.Meteors[slot].Active) RemoveMeteorOrder(slot);
             }
         }
 
@@ -2295,15 +2295,15 @@ namespace VoidFall.Runtime
             // Browser effects iterate over [...this.enemies]. A copied target
             // list is important because damage can remove an enemy, chain an
             // Exploder, or immediately reuse the pooled slot for a fragment.
-            snapshotCount = _enemyOrderCount;
+            snapshotCount = _gameSim.EnemyOrderCount;
             var snapshot = ArrayPool<EnemyEffectTarget>.Shared.Rent(Math.Max(1, snapshotCount));
             for (var order = 0; order < snapshotCount; order++)
             {
-                var slot = _enemyOrder[order];
+                var slot = _gameSim.EnemyOrder[order];
                 snapshot[order] = new EnemyEffectTarget
                 {
                     Slot = slot,
-                    State = _enemies[slot],
+                    State = _gameSim.Enemies[slot],
                 };
             }
             return snapshot;
@@ -2316,30 +2316,30 @@ namespace VoidFall.Runtime
 
         private bool IsLiveEnemyEffectTarget(EnemyEffectTarget target)
         {
-            if (target.Slot < 0 || target.Slot >= _enemies.Length) return false;
-            var live = _enemies[target.Slot];
+            if (target.Slot < 0 || target.Slot >= _gameSim.Enemies.Length) return false;
+            var live = _gameSim.Enemies[target.Slot];
             return live.Active && live.SpawnId == target.State.SpawnId;
         }
 
         private void RebuildEnemyGrid()
         {
-            _enemyGrid.Clear();
-            Array.Clear(_enemyGridSpawnIds, 0, _enemyGridSpawnIds.Length);
-            for (var order = 0; order < _enemyOrderCount; order++)
+            _gameSim.EnemyGrid.Clear();
+            Array.Clear(_gameSim.EnemyGridSpawnIds, 0, _gameSim.EnemyGridSpawnIds.Length);
+            for (var order = 0; order < _gameSim.EnemyOrderCount; order++)
             {
-                var index = _enemyOrder[order];
-                if (_enemies[index].Active)
+                var index = _gameSim.EnemyOrder[order];
+                if (_gameSim.Enemies[index].Active)
                 {
-                    _enemyGridSpawnIds[index] = _enemies[index].SpawnId;
-                    _enemyGrid.Insert(index, _enemies[index].Position.x, _enemies[index].Position.y);
+                    _gameSim.EnemyGridSpawnIds[index] = _gameSim.Enemies[index].SpawnId;
+                    _gameSim.EnemyGrid.Insert(index, _gameSim.Enemies[index].Position.x, _gameSim.Enemies[index].Position.y);
                 }
             }
         }
 
         private bool IsCurrentGridEnemy(int index)
         {
-            return index >= 0 && index < _enemies.Length && _enemies[index].Active &&
-                _enemyGridSpawnIds[index] == _enemies[index].SpawnId;
+            return index >= 0 && index < _gameSim.Enemies.Length && _gameSim.Enemies[index].Active &&
+                _gameSim.EnemyGridSpawnIds[index] == _gameSim.Enemies[index].SpawnId;
         }
 
         /// <summary>
@@ -2370,11 +2370,11 @@ namespace VoidFall.Runtime
         private void UpdateBullets(float dt)
         {
             EnsureBulletOrderEntries();
-            var initialOrderCount = _bulletOrder.Count;
+            var initialOrderCount = _gameSim.BulletOrder.Count;
             for (var order = initialOrderCount - 1; order >= 0; order--)
             {
-                var i = _bulletOrder.SlotAt(order);
-                var bullet = _bullets[i];
+                var i = _gameSim.BulletOrder.SlotAt(order);
+                var bullet = _gameSim.Bullets[i];
                 if (!bullet.Active)
                 {
                     RemoveBulletOrder(i);
@@ -2395,9 +2395,9 @@ namespace VoidFall.Runtime
                     {
                         if (bullet.HomingTargetBoss)
                         {
-                            if (bullet.HomingTargetIndex < _bosses.Length)
+                            if (bullet.HomingTargetIndex < _gameSim.Bosses.Length)
                             {
-                                var boss = _bosses[bullet.HomingTargetIndex];
+                                var boss = _gameSim.Bosses[bullet.HomingTargetIndex];
                                 if (boss.Active && boss.State != 4 &&
                                     BossIdentity(boss, bullet.HomingTargetIndex) == bullet.HomingTargetIdentity)
                                 {
@@ -2413,9 +2413,9 @@ namespace VoidFall.Runtime
                                 }
                             }
                         }
-                        else if (bullet.HomingTargetIndex < _enemies.Length)
+                        else if (bullet.HomingTargetIndex < _gameSim.Enemies.Length)
                         {
-                            var enemy = _enemies[bullet.HomingTargetIndex];
+                            var enemy = _gameSim.Enemies[bullet.HomingTargetIndex];
                             if (enemy.Active && enemy.Age >= 0.15f &&
                                 EnemyIdentity(enemy, bullet.HomingTargetIndex) == bullet.HomingTargetIdentity)
                             {
@@ -2479,20 +2479,20 @@ namespace VoidFall.Runtime
                     bullet.Active = false;
                     Hide(_bulletViews[i]);
                     Hide(_bulletContrastViews[i]);
-                    _bullets[i] = bullet;
+                    _gameSim.Bullets[i] = bullet;
                     RemoveBulletOrder(i);
                     continue;
                 }
                 var hit = false;
-                var enemyCandidateCount = _enemyGrid.QueryNeighborhood(
+                var enemyCandidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
                     bullet.Position.x,
                     bullet.Position.y,
                     1,
-                    _enemyGridBulletCandidates);
+                    _gameSim.EnemyGridBulletCandidates);
                 for (var candidate = 0; candidate < enemyCandidateCount; candidate++)
                 {
-                    var enemyIndex = _enemyGridBulletCandidates[candidate];
-                    var enemy = _enemies[enemyIndex];
+                    var enemyIndex = _gameSim.EnemyGridBulletCandidates[candidate];
+                    var enemy = _gameSim.Enemies[enemyIndex];
                     if (!IsCurrentGridEnemy(enemyIndex) || BulletAlreadyHitEnemy(bullet, enemyIndex)) continue;
                     var radius = bullet.Radius + enemy.Radius;
                     if (enemy.Age < 0.12f ||
@@ -2505,7 +2505,7 @@ namespace VoidFall.Runtime
                     bullet.HitEnemy1 = bullet.HitEnemy0;
                     bullet.HitEnemy0 = EnemyIdentity(enemy, enemyIndex);
                     bullet.Hits++;
-                    var critical = _rng.Next() < _critChance;
+                    var critical = _gameSim.Rng.Next() < _critChance;
                     ApplyEnemyDamage(enemyIndex, bullet.Damage * (critical ? 2.1f : 1),
                         bullet.Velocity, bullet.Knockback, critical, bullet.WeaponIndex);
                     if (railgun) RailgunImpact(enemy.Position, bullet.Hits);
@@ -2528,10 +2528,10 @@ namespace VoidFall.Runtime
                 if (!hit)
                 {
                     EnsureBossOrderEntries();
-                    for (var bossOrder = 0; bossOrder < _bossOrderCount; bossOrder++)
+                    for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
                     {
-                        var bossIndex = _bossOrder[bossOrder];
-                        var boss = _bosses[bossIndex];
+                        var bossIndex = _gameSim.BossOrder[bossOrder];
+                        var boss = _gameSim.Bosses[bossIndex];
                         if (!boss.Active || boss.State == 4 ||
                             BossAlreadyHit(bullet, boss, bossIndex)) continue;
                         var radius = bullet.Radius + boss.Radius;
@@ -2544,7 +2544,7 @@ namespace VoidFall.Runtime
                         // fixtures; gameplay history uses stable IDs above.
                         bullet.BossHitMask |= 1 << bossIndex;
                         bullet.Hits++;
-                        var critical = _rng.Next() < _critChance;
+                        var critical = _gameSim.Rng.Next() < _critChance;
                         ApplyBossDamage(
                             bossIndex,
                             bullet.Damage * (critical ? 2.1f : 1),
@@ -2577,10 +2577,10 @@ namespace VoidFall.Runtime
                 if (!hit)
                 {
                     EnsureMeteorOrderEntries();
-                    for (var meteorOrder = _meteorOrderCount - 1; meteorOrder >= 0; meteorOrder--)
+                    for (var meteorOrder = _gameSim.MeteorOrderCount - 1; meteorOrder >= 0; meteorOrder--)
                     {
-                        var meteorIndex = _meteorOrder[meteorOrder];
-                        var meteor = _meteors[meteorIndex];
+                        var meteorIndex = _gameSim.MeteorOrder[meteorOrder];
+                        var meteor = _gameSim.Meteors[meteorIndex];
                         if (!meteor.Active || meteor.FuseTimer > 0 || meteor.HitTimer > 0) continue;
                         var radius = bullet.Radius + meteor.Radius;
                         if ((meteor.Position - bullet.Position).sqrMagnitude >= radius * radius) continue;
@@ -2620,7 +2620,7 @@ namespace VoidFall.Runtime
                     Hide(_bulletViews[i]);
                     Hide(_bulletContrastViews[i]);
                 }
-                _bullets[i] = bullet;
+                _gameSim.Bullets[i] = bullet;
                 if (!bullet.Active) RemoveBulletOrder(i);
             }
         }
@@ -2632,8 +2632,8 @@ namespace VoidFall.Runtime
 
         private bool BulletAlreadyHitEnemy(BulletState bullet, int enemyIndex)
         {
-            if (enemyIndex < 0 || enemyIndex >= _enemies.Length) return false;
-            var identity = EnemyIdentity(_enemies[enemyIndex], enemyIndex);
+            if (enemyIndex < 0 || enemyIndex >= _gameSim.Enemies.Length) return false;
+            var identity = EnemyIdentity(_gameSim.Enemies[enemyIndex], enemyIndex);
             return bullet.HitEnemy0 == identity || bullet.HitEnemy1 == identity ||
                 bullet.HitEnemy2 == identity || bullet.HitEnemy3 == identity;
         }
@@ -2658,10 +2658,10 @@ namespace VoidFall.Runtime
             var visited = _clusterVisited;
             var visitedCount = 0;
             if (excludedEnemyIdentity >= 0) AddVisited(visited, ref visitedCount, excludedEnemyIdentity);
-            for (var index = 0; index < _bosses.Length; index++)
+            for (var index = 0; index < _gameSim.Bosses.Length; index++)
             {
-                if (BossAlreadyHit(source, _bosses[index], index))
-                    AddVisited(visited, ref visitedCount, -BossIdentity(_bosses[index], index));
+                if (BossAlreadyHit(source, _gameSim.Bosses[index], index))
+                    AddVisited(visited, ref visitedCount, -BossIdentity(_gameSim.Bosses[index], index));
             }
             var sourceAngle = Mathf.Atan2(source.Velocity.y, source.Velocity.x);
             for (var charge = 0; charge < 3; charge++)
@@ -2749,13 +2749,13 @@ namespace VoidFall.Runtime
             // semantics through a slot-order list; pickups spawned by a
             // same-step effect append after the captured range and wait for
             // the next simulation step, just like browser array growth.
-            var initialOrderCount = _pickupOrderCount;
+            var initialOrderCount = _gameSim.PickupOrderCount;
             var pulledXpCount = 0;
             var pulledXpValue = 0f;
             for (var order = initialOrderCount - 1; order >= 0; order--)
             {
-                var i = _pickupOrder[order];
-                var pickup = _pickups[i];
+                var i = _gameSim.PickupOrder[order];
+                var pickup = _gameSim.Pickups[i];
                 if (!pickup.Active) continue;
                 pickup.Age += dt;
                 var delta = _playerPosition - pickup.Position;
@@ -2791,7 +2791,7 @@ namespace VoidFall.Runtime
                     pickup.Pull = false;
                     pickup.Velocity = Vector2.zero;
                     pickup.Speed = 0;
-                    _pickups[i] = pickup;
+                    _gameSim.Pickups[i] = pickup;
                     Hide(_pickupViews[i]);
                     RemovePickupOrderAt(order);
                     if (pickup.Kind == PickupKind.Xp)
@@ -2822,13 +2822,13 @@ namespace VoidFall.Runtime
                     }
                     else if (pickup.Kind == PickupKind.Magnet)
                     {
-                        for (var otherIndex = 0; otherIndex < _pickups.Length; otherIndex++)
+                        for (var otherIndex = 0; otherIndex < _gameSim.Pickups.Length; otherIndex++)
                         {
-                            var other = _pickups[otherIndex];
+                            var other = _gameSim.Pickups[otherIndex];
                             if (other.Active && other.Kind == PickupKind.Xp)
                             {
                                 other.Pull = true;
-                                _pickups[otherIndex] = other;
+                                _gameSim.Pickups[otherIndex] = other;
                             }
                         }
                         _audio?.Play(ProceduralAudio.Cue.Pickup, 1f);
@@ -2878,7 +2878,7 @@ namespace VoidFall.Runtime
                 // A collected effect may reuse the freed pooled slot (Bomb
                 // reward drops do exactly that). Do not restore the stale
                 // collected value over the newly spawned pickup.
-                if (!collected) _pickups[i] = pickup;
+                if (!collected) _gameSim.Pickups[i] = pickup;
             }
             _magnetTarget = MusicReactiveMath.MagnetTarget(pulledXpCount, pulledXpValue);
             _pickupStepTimer = Mathf.Max(0, _pickupStepTimer - dt);
@@ -3012,7 +3012,7 @@ namespace VoidFall.Runtime
                 var angle = (float)angles[index];
                 if (weapon.Id == "scattergun")
                 {
-                    angle += ((float)_rng.Next() - 0.5f) * spread * Mathf.Deg2Rad * 0.12f;
+                    angle += ((float)_gameSim.Rng.Next() - 0.5f) * spread * Mathf.Deg2Rad * 0.12f;
                 }
                 SpawnWeaponProjectile(weaponIndex, stats, angle, rank, 1, 1, null, null,
                     weapon.Id == "seeker" && evolved);
@@ -3129,7 +3129,7 @@ namespace VoidFall.Runtime
             int bossHit3Override = -1)
         {
             if ((float)stats.ProjectileSpeed <= 0) return;
-            var slot = FindInactive(_bullets);
+            var slot = FindInactive(_gameSim.Bullets);
             if (slot < 0) return;
             var weapon = ContentCatalog.Weapons[weaponIndex];
             var direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
@@ -3139,7 +3139,7 @@ namespace VoidFall.Runtime
             var blastRadius = blastRadiusOverride.HasValue
                 ? blastRadiusOverride.Value * _areaMultiplier
                 : (float)stats.BlastRadius * _areaMultiplier;
-            _bullets[slot] = new BulletState
+            _gameSim.Bullets[slot] = new BulletState
             {
                 Active = true,
                 Position = offsetOrigin ? origin + direction * 18 : origin,
@@ -3273,7 +3273,7 @@ namespace VoidFall.Runtime
                 AddVisited(visited, ref visitedCount, key);
                 var previous = points[points.Count - 1];
                 points.Add(current.Position);
-                var critical = _rng.Next() < _critChance;
+                var critical = _gameSim.Rng.Next() < _critChance;
                 var damage = (float)stats.Damage * _damageMultiplier * (critical ? 2.1f : 1);
                 var direction = current.Position - previous;
                 if (current.Boss) ApplyBossDamage(current.Index, damage, weaponIndex, critical);
@@ -3370,21 +3370,21 @@ namespace VoidFall.Runtime
                     new Color(0.2f, 0.85f, 0.65f, 1));
                 view.enabled = true;
 
-                var enemyCandidateCount = _enemyGrid.QueryNeighborhood(
+                var enemyCandidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
                     position.x,
                     position.y,
                     1,
-                    _enemyGridBulletCandidates);
+                    _gameSim.EnemyGridBulletCandidates);
                 for (var candidate = 0; candidate < enemyCandidateCount; candidate++)
                 {
-                    var enemyIndex = _enemyGridBulletCandidates[candidate];
-                    var enemy = _enemies[enemyIndex];
+                    var enemyIndex = _gameSim.EnemyGridBulletCandidates[candidate];
+                    var enemy = _gameSim.Enemies[enemyIndex];
                     if (!IsCurrentGridEnemy(enemyIndex) || enemy.Age < 0.2f || enemy.BladeCooldown > 0) continue;
                     var reach = enemy.Radius + (float)stats.ProjectileRadius;
                     if ((enemy.Position - position).sqrMagnitude > reach * reach) continue;
-                    var critical = _rng.Next() < _critChance;
+                    var critical = _gameSim.Rng.Next() < _critChance;
                     enemy.BladeCooldown = (float)stats.HitCooldown * recoveryScale;
-                    _enemies[enemyIndex] = enemy;
+                    _gameSim.Enemies[enemyIndex] = enemy;
                     ApplyEnemyDamage(enemyIndex,
                         (float)stats.Damage * _damageMultiplier * (critical ? 2.1f : 1),
                         enemy.Position - position,
@@ -3393,16 +3393,16 @@ namespace VoidFall.Runtime
                         3);
                 }
                 EnsureBossOrderEntries();
-                for (var bossOrder = 0; bossOrder < _bossOrderCount; bossOrder++)
+                for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
                 {
-                    var bossIndex = _bossOrder[bossOrder];
-                    var boss = _bosses[bossIndex];
+                    var bossIndex = _gameSim.BossOrder[bossOrder];
+                    var boss = _gameSim.Bosses[bossIndex];
                     if (!boss.Active || boss.State == 4 || boss.BladeCooldown > 0) continue;
                     var reach = boss.Radius + (float)stats.ProjectileRadius;
                     if ((boss.Position - position).sqrMagnitude >= reach * reach) continue;
                     boss.BladeCooldown = (float)stats.HitCooldown * recoveryScale;
-                    _bosses[bossIndex] = boss;
-                    var critical = _rng.Next() < _critChance;
+                    _gameSim.Bosses[bossIndex] = boss;
+                    var critical = _gameSim.Rng.Next() < _critChance;
                     ApplyBossDamage(
                         bossIndex,
                         (float)stats.Damage * _damageMultiplier * (critical ? 2.1f : 1),
@@ -3465,22 +3465,22 @@ namespace VoidFall.Runtime
             var bestPosition = _playerPosition + new Vector2(Mathf.Cos(_bladeAngle), Mathf.Sin(_bladeAngle));
             var bestCount = -1;
             var eligibleCount = 0;
-            for (var order = 0; order < _enemyOrderCount; order++)
+            for (var order = 0; order < _gameSim.EnemyOrderCount; order++)
             {
-                var index = _enemyOrder[order];
-                var candidate = _enemies[index];
+                var index = _gameSim.EnemyOrder[order];
+                var candidate = _gameSim.Enemies[index];
                 if (!candidate.Active || candidate.Age < 0.15f || (candidate.Position - _playerPosition).sqrMagnitude > maximumRangeSquared) continue;
                 eligibleCount++;
                 var count = 0;
-                var neighborCount = _enemyGrid.QueryNeighborhood(
+                var neighborCount = _gameSim.EnemyGrid.QueryNeighborhood(
                     candidate.Position.x,
                     candidate.Position.y,
                     2,
-                    _enemyGridBulletCandidates);
+                    _gameSim.EnemyGridBulletCandidates);
                 for (var n = 0; n < neighborCount; n++)
                 {
-                    var otherIndex = _enemyGridBulletCandidates[n];
-                    var other = _enemies[otherIndex];
+                    var otherIndex = _gameSim.EnemyGridBulletCandidates[n];
+                    var other = _gameSim.Enemies[otherIndex];
                     if (other.Active && (other.Position - candidate.Position).sqrMagnitude < 150f * 150f) count++;
                 }
                 if (count > bestCount)
@@ -3492,10 +3492,10 @@ namespace VoidFall.Runtime
             }
             if (bestCount >= 0) return Mathf.Atan2(bestPosition.y - _playerPosition.y, bestPosition.x - _playerPosition.x);
             EnsureBossOrderEntries();
-            for (var bossOrder = 0; bossOrder < _bossOrderCount; bossOrder++)
+            for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
             {
-                var index = _bossOrder[bossOrder];
-                var boss = _bosses[index];
+                var index = _gameSim.BossOrder[bossOrder];
+                var boss = _gameSim.Bosses[index];
                 if (boss.Active && (boss.Position - _playerPosition).sqrMagnitude <= maximumRangeSquared)
                 {
                     return Mathf.Atan2(boss.Position.y - _playerPosition.y, boss.Position.x - _playerPosition.x);
@@ -3506,21 +3506,21 @@ namespace VoidFall.Runtime
 
         private void UpdateHollowBladeDamage(Vector2 position, WeaponStatsDefinition stats, float recoveryScale)
         {
-            var enemyCandidateCount = _enemyGrid.QueryNeighborhood(
+            var enemyCandidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
                 position.x,
                 position.y,
                 1,
-                _enemyGridBulletCandidates);
+                _gameSim.EnemyGridBulletCandidates);
             for (var candidate = 0; candidate < enemyCandidateCount; candidate++)
             {
-                var enemyIndex = _enemyGridBulletCandidates[candidate];
-                var enemy = _enemies[enemyIndex];
+                var enemyIndex = _gameSim.EnemyGridBulletCandidates[candidate];
+                var enemy = _gameSim.Enemies[enemyIndex];
                 if (!IsCurrentGridEnemy(enemyIndex) || enemy.Age < 0.2f || enemy.HollowCooldown > 0) continue;
                 var reach = enemy.Radius + (float)stats.ProjectileRadius * 1.25f;
                 if ((enemy.Position - position).sqrMagnitude > reach * reach) continue;
-                var critical = _rng.Next() < _critChance;
+                var critical = _gameSim.Rng.Next() < _critChance;
                 enemy.HollowCooldown = (float)stats.HitCooldown * 0.62f * recoveryScale;
-                _enemies[enemyIndex] = enemy;
+                _gameSim.Enemies[enemyIndex] = enemy;
                 ApplyEnemyDamage(
                     enemyIndex,
                     (float)stats.Damage * _damageMultiplier * 1.45f * (critical ? 2.1f : 1),
@@ -3530,16 +3530,16 @@ namespace VoidFall.Runtime
                     3);
             }
             EnsureBossOrderEntries();
-            for (var bossOrder = 0; bossOrder < _bossOrderCount; bossOrder++)
+            for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
             {
-                var bossIndex = _bossOrder[bossOrder];
-                var boss = _bosses[bossIndex];
+                var bossIndex = _gameSim.BossOrder[bossOrder];
+                var boss = _gameSim.Bosses[bossIndex];
                 if (!boss.Active || boss.State == 4 || boss.HollowCooldown > 0) continue;
                 var reach = boss.Radius + (float)stats.ProjectileRadius * 1.25f;
                 if ((boss.Position - position).sqrMagnitude >= reach * reach) continue;
-                var critical = _rng.Next() < _critChance;
+                var critical = _gameSim.Rng.Next() < _critChance;
                 boss.HollowCooldown = (float)stats.HitCooldown * 0.62f * recoveryScale;
-                _bosses[bossIndex] = boss;
+                _gameSim.Bosses[bossIndex] = boss;
                 ApplyBossDamage(
                     bossIndex,
                     (float)stats.Damage * _damageMultiplier * 1.45f * (critical ? 2.1f : 1),
@@ -3628,10 +3628,10 @@ namespace VoidFall.Runtime
                         ReleaseEnemyEffectSnapshot(enemySnapshot);
                     }
                     EnsureBossOrderEntries();
-                    for (var bossOrder = 0; bossOrder < _bossOrderCount; bossOrder++)
+                    for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
                     {
-                        var bossIndex = _bossOrder[bossOrder];
-                        var boss = _bosses[bossIndex];
+                        var bossIndex = _gameSim.BossOrder[bossOrder];
+                        var boss = _gameSim.Bosses[bossIndex];
                         if (!boss.Active || DistanceToSegment(boss.Position, trail.Start, trail.End) >= boss.Radius + 13) continue;
                         ApplyBossDamage(bossIndex, trail.Damage, trail.WeaponIndex);
                     }
@@ -3745,7 +3745,7 @@ namespace VoidFall.Runtime
             EnemyRoster? forcedRoster = null)
         {
             if (id == "harvester" && ActiveEnemyTypeCount(id) >= 3) return false;
-            var slot = FindInactive(_enemies);
+            var slot = FindInactive(_gameSim.Enemies);
             if (slot < 0) return false;
             var standardElite = id == ContentCatalog.Elite.Id;
             var definition = standardElite ? null : FindEnemy(id);
@@ -3768,11 +3768,11 @@ namespace VoidFall.Runtime
                         id,
                         _time,
                         EnemyRosterRules.RosterSpawnRoll(_runSeed, enemyId)));
-            var angle = (float)(_rng.Next() * Math.PI * 2);
+            var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
             var viewportHalf = GameplayViewportHalfExtent();
             var distance = Mathf.Sqrt(
                     Mathf.Pow(viewportHalf.x * 2f, 2) + Mathf.Pow(viewportHalf.y * 2f, 2)) * 0.5f +
-                70f + (float)_rng.Next() * 130f;
+                70f + (float)_gameSim.Rng.Next() * 130f;
             var position = forcedPosition ?? _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
             // Browser carrier drones pass hpScale=0.55 through spawnEnemy;
             // keep that source-specific health reduction coupled to the flag
@@ -3814,7 +3814,7 @@ namespace VoidFall.Runtime
                 Position = position,
                 MaxHealth = (float)baseHealth * healthScale * (float)rosterHealth,
                 Radius = (float)baseRadius * (float)rosterRadius,
-                Speed = (float)baseSpeed * speedScale * (float)rosterSpeed * (0.92f + (float)_rng.Next() * 0.16f),
+                Speed = (float)baseSpeed * speedScale * (float)rosterSpeed * (0.92f + (float)_gameSim.Rng.Next() * 0.16f),
                 Damage = (float)baseDamage * damageScale * (float)rosterDamage,
                 Xp = Mathf.Max(1, SourceRound((float)(baseXp * (roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoXpMultiplier : 1)))),
                 Age = 0,
@@ -3842,20 +3842,20 @@ namespace VoidFall.Runtime
                         id == "mortar" ||
                         id == "carrier" ||
                         (roster == EnemyRoster.Two && id == "guard"))
-                    ? 1.2f + (float)_rng.Next()
+                    ? 1.2f + (float)_gameSim.Rng.Next()
                     : 0,
-                Rotation = (float)(_rng.Next() * Math.PI * 2),
+                Rotation = (float)(_gameSim.Rng.Next() * Math.PI * 2),
                 Spin = !elite && id == "exploder"
-                    ? (_rng.Next() < 0.5 ? -0.48f : 0.48f)
-                    : ((float)_rng.Next() - 0.5f) * 2.2f,
-                Seed = (float)_rng.Next() * 100,
+                    ? (_gameSim.Rng.Next() < 0.5 ? -0.48f : 0.48f)
+                    : ((float)_gameSim.Rng.Next() - 0.5f) * 2.2f,
+                Seed = (float)_gameSim.Rng.Next() * 100,
                 Volley = 0,
                 View = slot,
             };
             if (eliteKind.HasValue && eliteKind.Value == EliteVariantId.Exploder)
-                enemy.Spin = _rng.Next() < 0.5 ? -0.42f : 0.42f;
+                enemy.Spin = _gameSim.Rng.Next() < 0.5 ? -0.42f : 0.42f;
             enemy.Health = enemy.MaxHealth;
-            _enemies[slot] = enemy;
+            _gameSim.Enemies[slot] = enemy;
             AppendEnemyOrder(slot);
             if (elite)
                 _telemetry.RecordEliteSpawn(
@@ -3896,7 +3896,7 @@ namespace VoidFall.Runtime
             _bossCycle = Mathf.Max(_bossCycle, Mathf.Max(0, encounterCycle));
             var activeBeforeSpawn = ActiveBosses();
             DiscoverBestiary(id);
-            var angle = (float)(_rng.Next() * Math.PI * 2) +
+            var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2) +
                 activeBeforeSpawn * (Mathf.PI * 2f / Mathf.Max(2, activeBeforeSpawn + 1));
             var viewportHalf = GameplayViewportHalfExtent();
             var distance = Mathf.Min(
@@ -3927,7 +3927,7 @@ namespace VoidFall.Runtime
                 View = slot,
             };
             boss.Health = boss.MaxHealth;
-            _bosses[slot] = boss;
+            _gameSim.Bosses[slot] = boss;
             AppendBossOrder(slot);
             _telemetry.RecordBossSpawn(
                 id,
@@ -3952,9 +3952,9 @@ namespace VoidFall.Runtime
 
         private int FindInactiveBossSlot()
         {
-            for (var index = 0; index < _bosses.Length; index++)
+            for (var index = 0; index < _gameSim.Bosses.Length; index++)
             {
-                if (!_bosses[index].Active && _bosses[index].DeathTimer <= 0) return index;
+                if (!_gameSim.Bosses[index].Active && _gameSim.Bosses[index].DeathTimer <= 0) return index;
             }
             return -1;
         }
@@ -3968,7 +3968,7 @@ namespace VoidFall.Runtime
             bool meteorOwned = false,
             int visualVariant = -1)
         {
-            var slot = FindInactive(_hostileShots);
+            var slot = FindInactive(_gameSim.HostileShots);
             if (slot < 0) return;
             // Browser spawnHostileShot uses an exact non-zero check for
             // curvature; tiny valid values still consume the curved-shot cap
@@ -3983,7 +3983,7 @@ namespace VoidFall.Runtime
                     Mathf.Cos(angle + Mathf.PI / 2) * curvature * (float)EliteRules.CurvedLateralAcceleration,
                     Mathf.Sin(angle + Mathf.PI / 2) * curvature * (float)EliteRules.CurvedLateralAcceleration)
                 : Vector2.zero;
-            _hostileShots[slot] = new HostileShotState
+            _gameSim.HostileShots[slot] = new HostileShotState
             {
                 Active = true,
                 Position = position,
@@ -4025,11 +4025,11 @@ namespace VoidFall.Runtime
         private void UpdateHostileShots(float dt)
         {
             EnsureHostileShotOrderEntries();
-            var initialOrderCount = _hostileShotOrder.Count;
+            var initialOrderCount = _gameSim.HostileShotOrder.Count;
             for (var order = initialOrderCount - 1; order >= 0; order--)
             {
-                var index = _hostileShotOrder.SlotAt(order);
-                var shot = _hostileShots[index];
+                var index = _gameSim.HostileShotOrder.SlotAt(order);
+                var shot = _gameSim.HostileShots[index];
                 if (!shot.Active)
                 {
                     RemoveHostileShotOrder(index);
@@ -4056,7 +4056,7 @@ namespace VoidFall.Runtime
                     RemoveHostileShotOrder(index);
                 }
 
-                _hostileShots[index] = shot;
+                _gameSim.HostileShots[index] = shot;
             }
         }
 
@@ -4064,30 +4064,30 @@ namespace VoidFall.Runtime
         {
             var drops = PickupRules.XpDropValues(
                 Mathf.Max(0, Mathf.FloorToInt(value)),
-                () => _rng.Next());
+                () => _gameSim.Rng.Next());
             var released = 0;
             for (var index = 0; index < drops.Length; index++)
             {
                 var drop = drops[index];
                 released += drop;
-                var slot = FindInactive(_pickups);
+                var slot = FindInactive(_gameSim.Pickups);
                 if (slot < 0)
                 {
                     var target = FindXpOverflowTarget(position);
                     if (target >= 0)
                     {
-                        var existing = _pickups[target];
+                        var existing = _gameSim.Pickups[target];
                         existing.Value += drop;
                         if ((existing.Position - position).sqrMagnitude < 180f * 180f)
                         {
-                            var mergeAngle = (float)(_rng.Next() * Math.PI * 2);
-                            var mergeSpeed = 40f + (float)_rng.Next() * 60f;
+                            var mergeAngle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
+                            var mergeSpeed = 40f + (float)_gameSim.Rng.Next() * 60f;
                             existing.Velocity = new Vector2(Mathf.Cos(mergeAngle), Mathf.Sin(mergeAngle)) * mergeSpeed;
                         }
                         existing.Age = 0;
                         existing.Pull = false;
                         existing.Speed = 0;
-                        _pickups[target] = existing;
+                        _gameSim.Pickups[target] = existing;
                         RefreshPickupView(target);
                     }
                     // The extra pickup slot preserves one XP gem when a full
@@ -4096,15 +4096,15 @@ namespace VoidFall.Runtime
                     continue;
                 }
 
-                var angle = (float)(_rng.Next() * Math.PI * 2);
-                var speed = 40f + (float)_rng.Next() * 85f;
-                _pickups[slot] = new PickupState
+                var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
+                var speed = 40f + (float)_gameSim.Rng.Next() * 85f;
+                _gameSim.Pickups[slot] = new PickupState
                 {
                     Active = true,
                     Position = position,
                     Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * speed,
                     Value = drop,
-                    Age = (float)_rng.Next() * 5f,
+                    Age = (float)_gameSim.Rng.Next() * 5f,
                     Speed = 0,
                     Kind = PickupKind.Xp,
                     Pull = false,
@@ -4121,15 +4121,15 @@ namespace VoidFall.Runtime
             // MaxPickupSlots includes one overflow slot reserved for XP. Rare
             // and other special drops must never consume that slot, otherwise a
             // full special-pickup set silently prevents later XP from spawning.
-            var slot = FindInactive(_pickups, MaxPickups);
+            var slot = FindInactive(_gameSim.Pickups, MaxPickups);
             if (slot < 0) return false;
-            _pickups[slot] = new PickupState
+            _gameSim.Pickups[slot] = new PickupState
             {
                 Active = true,
                 Position = position,
                 Velocity = new Vector2(
-                    ((float)_rng.Next() - 0.5f) * 90f,
-                    ((float)_rng.Next() - 0.5f) * 90f),
+                    ((float)_gameSim.Rng.Next() - 0.5f) * 90f,
+                    ((float)_gameSim.Rng.Next() - 0.5f) * 90f),
                 Value = value,
                 Age = 0,
                 Speed = 0,
@@ -4144,7 +4144,7 @@ namespace VoidFall.Runtime
 
         private void SpawnRarePickup(Vector2 position)
         {
-            var roll = _rng.Next();
+            var roll = _gameSim.Rng.Next();
             var kind = roll < 0.3
                 ? PickupKind.Magnet
                 : roll < 0.64
@@ -4157,7 +4157,7 @@ namespace VoidFall.Runtime
 
         private void RefreshPickupView(int slot)
         {
-            var pickup = _pickups[slot];
+            var pickup = _gameSim.Pickups[slot];
             var view = EnsurePickupView(slot);
             view.sprite = pickup.Kind == PickupKind.Xp
                 ? ProceduralSpriteFactory.Gem(XpPickupTier(pickup.Value))
@@ -4327,7 +4327,7 @@ namespace VoidFall.Runtime
             bool critical,
             int weaponIndex = -1)
         {
-            var enemy = _enemies[index];
+            var enemy = _gameSim.Enemies[index];
             if (!enemy.Active) return;
             var appliedDamage = Mathf.Max(0, damage);
             if (enemy.Id == "bulwark" && direction.sqrMagnitude > 0.001f)
@@ -4378,7 +4378,7 @@ namespace VoidFall.Runtime
                 var resistance = enemy.Id == "brute" ? 0.28f : enemy.Elite ? 0.1f : 1f;
                 enemy.Knockback += direction / SourceLengthOrOne(direction) * knockback * resistance;
             }
-            _enemies[index] = enemy;
+            _gameSim.Enemies[index] = enemy;
             if (remaining > 0)
             {
                 // Browser damageEnemy creates the damage number before the
@@ -4409,8 +4409,8 @@ namespace VoidFall.Runtime
 
         private void ApplyBossDamage(int index, float damage, int weaponIndex = -1, bool critical = false)
         {
-            if (index < 0 || index >= _bosses.Length) return;
-            var boss = _bosses[index];
+            if (index < 0 || index >= _gameSim.Bosses.Length) return;
+            var boss = _gameSim.Bosses[index];
             if (!boss.Active || boss.State == 4) return;
             if (IsMatriarchShielded(boss))
             {
@@ -4430,7 +4430,7 @@ namespace VoidFall.Runtime
                         0.3f,
                         0.65f);
                 }
-                _bosses[index] = boss;
+                _gameSim.Bosses[index] = boss;
                 return;
             }
             var appliedDamage = Mathf.Min(Mathf.Max(0, damage), boss.Health);
@@ -4438,7 +4438,7 @@ namespace VoidFall.Runtime
             TrackWeaponDamage(weaponIndex, appliedDamage);
             boss.Health -= appliedDamage;
             boss.HitTimer = 0.08f;
-            _bosses[index] = boss;
+            _gameSim.Bosses[index] = boss;
             if (appliedDamage > 0)
             {
                 // Browser damageBoss creates the damage number before the
@@ -4486,10 +4486,10 @@ namespace VoidFall.Runtime
             }
 
             EnsureBossOrderEntries();
-            for (var bossOrder = 0; bossOrder < _bossOrderCount; bossOrder++)
+            for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
             {
-                var index = _bossOrder[bossOrder];
-                var boss = _bosses[index];
+                var index = _gameSim.BossOrder[bossOrder];
+                var boss = _gameSim.Bosses[index];
                 if (!boss.Active || boss.State == 4) continue;
                 var delta = boss.Position - origin;
                 if (delta.sqrMagnitude >= (radius + boss.Radius) * (radius + boss.Radius)) continue;
@@ -4506,11 +4506,11 @@ namespace VoidFall.Runtime
         {
             DamageMeteorsInRadius(origin, radius, damage);
             var cellSpan = Mathf.CeilToInt(radius / CollisionGrid.CellSize) + 1;
-            var candidateCount = _enemyGrid.QueryNeighborhood(
+            var candidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
                 origin.x,
                 origin.y,
                 cellSpan,
-                _enemyGridAreaCandidates);
+                _gameSim.EnemyGridAreaCandidates);
             // The browser grid stores enemy object references. Capture the
             // queried identities before applying damage so recursive effects
             // cannot read a newly spawned enemy from a recycled pooled slot.
@@ -4520,8 +4520,8 @@ namespace VoidFall.Runtime
             {
                 for (var candidate = 0; candidate < candidateCount; candidate++)
                 {
-                    var index = _enemyGridAreaCandidates[candidate];
-                    var enemy = _enemies[index];
+                    var index = _gameSim.EnemyGridAreaCandidates[candidate];
+                    var enemy = _gameSim.Enemies[index];
                     if (!IsCurrentGridEnemy(index) ||
                         EnemyIdentity(enemy, index) == excludedEnemyIdentity) continue;
                     enemySnapshot[enemySnapshotCount++] = new EnemyEffectTarget
@@ -4545,10 +4545,10 @@ namespace VoidFall.Runtime
                 ReleaseEnemyEffectSnapshot(enemySnapshot);
             }
             EnsureBossOrderEntries();
-            for (var bossOrder = 0; bossOrder < _bossOrderCount; bossOrder++)
+            for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
             {
-                var index = _bossOrder[bossOrder];
-                var boss = _bosses[index];
+                var index = _gameSim.BossOrder[bossOrder];
+                var boss = _gameSim.Bosses[index];
                 if (!boss.Active || boss.State == 4) continue;
                 var reach = radius + boss.Radius;
                 if ((boss.Position - origin).sqrMagnitude >= reach * reach) continue;
@@ -4568,10 +4568,10 @@ namespace VoidFall.Runtime
         private void DamageMeteorsInRadius(Vector2 origin, float radius, float damage)
         {
             EnsureMeteorOrderEntries();
-            for (var order = _meteorOrderCount - 1; order >= 0; order--)
+            for (var order = _gameSim.MeteorOrderCount - 1; order >= 0; order--)
             {
-                var index = _meteorOrder[order];
-                var meteor = _meteors[index];
+                var index = _gameSim.MeteorOrder[order];
+                var meteor = _gameSim.Meteors[index];
                 if (!meteor.Active || meteor.FuseTimer > 0) continue;
                 var reach = radius + meteor.Radius;
                 if ((meteor.Position - origin).sqrMagnitude > reach * reach) continue;
@@ -4581,14 +4581,14 @@ namespace VoidFall.Runtime
 
         private bool DamageMeteor(int index, float damage)
         {
-            if (index < 0 || index >= _meteors.Length) return false;
-            var meteor = _meteors[index];
+            if (index < 0 || index >= _gameSim.Meteors.Length) return false;
+            var meteor = _gameSim.Meteors[index];
             if (!meteor.Active || meteor.FuseTimer > 0) return false;
             meteor.Health -= damage;
             meteor.HitTimer = 0.09f;
             if (meteor.Health > 0)
             {
-                _meteors[index] = meteor;
+                _gameSim.Meteors[index] = meteor;
                 return true;
             }
 
@@ -4598,7 +4598,7 @@ namespace VoidFall.Runtime
                 _telemetry.RecordMeteorDestroyed(ArenaIdName(_arenaId), true);
                 meteor.FuseTimer = (float)MeteorRules.ExplosiveFlashSeconds;
                 PlayFuseWarning(5);
-                _meteors[index] = meteor;
+                _gameSim.Meteors[index] = meteor;
                 return true;
             }
 
@@ -4613,9 +4613,9 @@ namespace VoidFall.Runtime
             Hide(_meteorDangerRingViews[index]);
             Hide(_meteorHealthArcViews[index]);
             _audio?.Play(ProceduralAudio.Cue.Die, 0.78f);
-            _meteors[index] = meteor;
+            _gameSim.Meteors[index] = meteor;
             _meteorTarget = MeteorRules.MinOrdinaryMeteors +
-                Mathf.FloorToInt((float)(_rng.Next() *
+                Mathf.FloorToInt((float)(_gameSim.Rng.Next() *
                     (MeteorRules.MaxOrdinaryMeteors - MeteorRules.MinOrdinaryMeteors + 1)));
             return true;
         }
@@ -4633,13 +4633,13 @@ namespace VoidFall.Runtime
 
         private void ResolveEnemyDeath(int index, bool selfDetonated)
         {
-            var enemy = _enemies[index];
+            var enemy = _gameSim.Enemies[index];
             if (!enemy.Active) return;
             // Browser removeEnemy marks the object dead and compacts the
             // dynamic array before resolving death effects. Do the same in
             // the logical order list while retaining the pooled slot.
             enemy.Active = false;
-            _enemies[index] = enemy;
+            _gameSim.Enemies[index] = enemy;
             RemoveEnemyOrder(index);
             var enemyDefinition = FindEnemy(enemy.Id);
             SpawnDeathGhost(enemy, index);
@@ -4796,11 +4796,11 @@ namespace VoidFall.Runtime
 
             if (enemy.Id == "carrier")
             {
-                for (var child = 0; child < _enemies.Length; child++)
+                for (var child = 0; child < _gameSim.Enemies.Length; child++)
                 {
-                    if (_enemies[child].Active &&
-                        _enemies[child].CarrierDrone &&
-                        _enemies[child].SummonedByCarrierSpawnId == enemy.SpawnId)
+                    if (_gameSim.Enemies[child].Active &&
+                        _gameSim.Enemies[child].CarrierDrone &&
+                        _gameSim.Enemies[child].SummonedByCarrierSpawnId == enemy.SpawnId)
                         KillEnemy(child);
                 }
             }
@@ -4812,12 +4812,12 @@ namespace VoidFall.Runtime
 
             // Browser removeEnemy applies the Part roll to every non-Elite
             // enemy, including Carrier Drones and Splitter Fragments.
-            if (!enemy.Elite && _rng.Next() < 0.045)
+            if (!enemy.Elite && _gameSim.Rng.Next() < 0.045)
             {
                 SpawnSpecialPickup(enemy.Position, 1, PickupKind.Part);
             }
             var rareChance = enemy.EliteKind.HasValue ? 0.35 : 0.011;
-            if ((enemy.Elite && !enemy.EliteKind.HasValue) || _rng.Next() < rareChance)
+            if ((enemy.Elite && !enemy.EliteKind.HasValue) || _gameSim.Rng.Next() < rareChance)
             {
                 SpawnRarePickup(enemy.Position);
             }
@@ -4828,7 +4828,7 @@ namespace VoidFall.Runtime
 
         private void KillBoss(int index)
         {
-            var boss = _bosses[index];
+            var boss = _gameSim.Bosses[index];
             if (!boss.Active) return;
             // Browser killBoss marks the encounter dead and schedules the next
             // boss before any reward-drop RNG is consumed. Keep the pooled
@@ -4839,7 +4839,7 @@ namespace VoidFall.Runtime
             boss.DeathTimer = 1.4f;
             boss.Health = 0;
             boss.ActiveAttack = null;
-            _bosses[index] = boss;
+            _gameSim.Bosses[index] = boss;
             var noBossesRemain = ActiveBosses() == 0;
             TriggerFreeze(0.14f);
             AddCameraShake(0.85f);
@@ -4849,7 +4849,7 @@ namespace VoidFall.Runtime
                 var schedule = DirectorRules.BossScheduleAfterClear(
                     _time,
                     _nextBossTime,
-                    _rng.Next());
+                    _gameSim.Rng.Next());
                 _bossRecoveryUntil = (float)schedule.RecoveryUntil;
                 _nextBossTime = (float)schedule.NextBossTime;
                 _bossWarned = false;
@@ -5246,7 +5246,7 @@ namespace VoidFall.Runtime
 
         private void SetEnemyPresentationPriority(int index, int priority)
         {
-            if (index < 0 || index >= _enemies.Length) return;
+            if (index < 0 || index >= _gameSim.Enemies.Length) return;
             SetRendererPriority(_enemyViews[index], priority);
             SetRendererPriority(_enemyHarvesterFullViews[index], priority);
             SetRendererPriority(_enemyExploderWarningViews[index], priority);
@@ -6231,7 +6231,7 @@ namespace VoidFall.Runtime
         private double ActiveEnemyThreat()
         {
             var total = 0.0;
-            foreach (var enemy in _enemies)
+            foreach (var enemy in _gameSim.Enemies)
             {
                 if (!enemy.Active) continue;
                 total += enemy.Elite && !enemy.EliteKind.HasValue
@@ -6248,7 +6248,7 @@ namespace VoidFall.Runtime
         private int ActiveEliteVariantCount(EliteVariantId id)
         {
             var count = 0;
-            foreach (var enemy in _enemies)
+            foreach (var enemy in _gameSim.Enemies)
             {
                 if (enemy.Active && enemy.EliteKind == id) count++;
             }
@@ -6259,7 +6259,7 @@ namespace VoidFall.Runtime
         private int ActiveEliteVariantTotal()
         {
             var count = 0;
-            foreach (var enemy in _enemies)
+            foreach (var enemy in _gameSim.Enemies)
             {
                 if (enemy.Active && enemy.EliteKind.HasValue) count++;
             }
@@ -6270,7 +6270,7 @@ namespace VoidFall.Runtime
         private int ActiveRosterTwoTotal()
         {
             var count = 0;
-            foreach (var enemy in _enemies)
+            foreach (var enemy in _gameSim.Enemies)
             {
                 if (enemy.Active && enemy.Roster == EnemyRoster.Two) count++;
             }
@@ -6281,28 +6281,28 @@ namespace VoidFall.Runtime
         private int ActiveBosses()
         {
             var count = 0;
-            foreach (var boss in _bosses) if (boss.Active) count++;
+            foreach (var boss in _gameSim.Bosses) if (boss.Active) count++;
             return count;
         }
 
         private int ActiveBullets()
         {
             var count = 0;
-            foreach (var bullet in _bullets) if (bullet.Active) count++;
+            foreach (var bullet in _gameSim.Bullets) if (bullet.Active) count++;
             return count;
         }
 
         private int ActivePickups()
         {
             var count = 0;
-            foreach (var pickup in _pickups) if (pickup.Active) count++;
+            foreach (var pickup in _gameSim.Pickups) if (pickup.Active) count++;
             return count;
         }
 
         private float XpOnGround()
         {
             var total = 0f;
-            foreach (var pickup in _pickups)
+            foreach (var pickup in _gameSim.Pickups)
                 if (pickup.Active && pickup.Kind == PickupKind.Xp) total += Mathf.Max(0, pickup.Value);
             return total;
         }
@@ -6310,45 +6310,45 @@ namespace VoidFall.Runtime
         private int ActiveMeteors()
         {
             var count = 0;
-            foreach (var meteor in _meteors) if (meteor.Active) count++;
+            foreach (var meteor in _gameSim.Meteors) if (meteor.Active) count++;
             return count;
         }
 
         private void ResetPickupOrder()
         {
-            _pickupOrderCount = 0;
-            for (var index = 0; index < _pickupOrderPosition.Length; index++)
-                _pickupOrderPosition[index] = -1;
+            _gameSim.PickupOrderCount = 0;
+            for (var index = 0; index < _gameSim.PickupOrderPosition.Length; index++)
+                _gameSim.PickupOrderPosition[index] = -1;
         }
 
         private void AppendPickupOrder(int slot)
         {
-            if (slot < 0 || slot >= _pickups.Length || _pickupOrderCount >= _pickupOrder.Length)
+            if (slot < 0 || slot >= _gameSim.Pickups.Length || _gameSim.PickupOrderCount >= _gameSim.PickupOrder.Length)
                 return;
-            if (_pickupOrderPosition[slot] >= 0) return;
-            _pickupOrderPosition[slot] = _pickupOrderCount;
-            _pickupOrder[_pickupOrderCount++] = slot;
+            if (_gameSim.PickupOrderPosition[slot] >= 0) return;
+            _gameSim.PickupOrderPosition[slot] = _gameSim.PickupOrderCount;
+            _gameSim.PickupOrder[_gameSim.PickupOrderCount++] = slot;
         }
 
         private void RemovePickupOrder(int slot)
         {
-            if (slot < 0 || slot >= _pickupOrderPosition.Length) return;
-            var position = _pickupOrderPosition[slot];
+            if (slot < 0 || slot >= _gameSim.PickupOrderPosition.Length) return;
+            var position = _gameSim.PickupOrderPosition[slot];
             if (position >= 0) RemovePickupOrderAt(position);
         }
 
         private void RemovePickupOrderAt(int position)
         {
-            if (position < 0 || position >= _pickupOrderCount) return;
-            var removedSlot = _pickupOrder[position];
-            var lastPosition = --_pickupOrderCount;
+            if (position < 0 || position >= _gameSim.PickupOrderCount) return;
+            var removedSlot = _gameSim.PickupOrder[position];
+            var lastPosition = --_gameSim.PickupOrderCount;
             if (position < lastPosition)
             {
-                var movedSlot = _pickupOrder[lastPosition];
-                _pickupOrder[position] = movedSlot;
-                _pickupOrderPosition[movedSlot] = position;
+                var movedSlot = _gameSim.PickupOrder[lastPosition];
+                _gameSim.PickupOrder[position] = movedSlot;
+                _gameSim.PickupOrderPosition[movedSlot] = position;
             }
-            _pickupOrderPosition[removedSlot] = -1;
+            _gameSim.PickupOrderPosition[removedSlot] = -1;
         }
     }
 }

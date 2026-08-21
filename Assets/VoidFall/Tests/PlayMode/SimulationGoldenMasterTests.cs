@@ -26,14 +26,15 @@ namespace VoidFall.Tests.PlayMode
         private const int Ticks = 600;
         private const double FixedDt = 1.0 / 60.0;
 
-        private static readonly string[] StateArrayFields =
+        /// <summary>Public fields on the runtime's GameSim instance.</summary>
+        private static readonly string[] GameStateArrayFields =
         {
-            "_enemies",
-            "_bullets",
-            "_hostileShots",
-            "_pickups",
-            "_bosses",
-            "_meteors",
+            "Enemies",
+            "Bullets",
+            "HostileShots",
+            "Pickups",
+            "Bosses",
+            "Meteors",
         };
 
         /// <summary>Public fields on the runtime's FxSim instance.</summary>
@@ -100,15 +101,16 @@ namespace VoidFall.Tests.PlayMode
 
             // Order matters: the hash is a sequence mix. Keep this layout
             // identical to the original field order even as state migrates.
-            foreach (var name in StateArrayFields)
-                HashArray(ref hash, GetField(runtime, type, name));
+            var game = GetField(runtime, type, "_gameSim");
+            foreach (var name in GameStateArrayFields)
+                HashArray(ref hash, GetField(game, game.GetType(), name));
             var fx = GetField(runtime, type, "_fxSim");
             foreach (var name in FxStateArrayFields)
                 HashArray(ref hash, GetField(fx, fx.GetType(), name));
             foreach (var name in ScalarFields)
                 HashValue(ref hash, GetField(runtime, type, name));
 
-            var combatRng = GetField(runtime, type, "_rng");
+            var combatRng = GetField(game, game.GetType(), "Rng");
             HashValue(ref hash, GetField(combatRng, combatRng.GetType(), "_state"));
             HashValue(ref hash, GetMember(combatRng, combatRng.GetType(), "Draws"));
             var fxRng = GetField(fx, fx.GetType(), "FxRng");

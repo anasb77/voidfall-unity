@@ -269,10 +269,10 @@ namespace VoidFall.Runtime
             }
 
             EnsureBossOrderEntries();
-            for (var bossOrder = 0; bossOrder < _bossOrderCount; bossOrder++)
+            for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
             {
-                var index = _bossOrder[bossOrder];
-                var boss = _bosses[index];
+                var index = _gameSim.BossOrder[bossOrder];
+                var boss = _gameSim.Bosses[index];
                 if (!boss.Active || boss.State == 4) continue;
                 var delta = boss.Position - enemy.Position;
                 if (delta.magnitude >= radius + boss.Radius) continue;

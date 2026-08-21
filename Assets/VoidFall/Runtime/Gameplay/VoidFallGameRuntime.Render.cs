@@ -334,17 +334,17 @@ namespace VoidFall.Runtime
             // slots are not that array after swap-removal, so keep the visual
             // refresh in logical source order and mirror that order inside the
             // shared body sorting slot with rendererPriority.
-            for (var i = 0; i < _enemies.Length; i++)
+            for (var i = 0; i < _gameSim.Enemies.Length; i++)
             {
                 Hide(_enemyHarvesterFullViews[i]);
                 Hide(_enemyExploderWarningViews[i]);
-                if (!_enemies[i].Active) Hide(_enemyViews[i]);
+                if (!_gameSim.Enemies[i].Active) Hide(_enemyViews[i]);
             }
-            for (var order = 0; order < _enemyOrderCount; order++)
+            for (var order = 0; order < _gameSim.EnemyOrderCount; order++)
             {
-                var i = _enemyOrder[order];
-                if (i < 0 || i >= _enemies.Length || !_enemies[i].Active || _enemyViews[i] == null) continue;
-                var enemy = _enemies[i];
+                var i = _gameSim.EnemyOrder[order];
+                if (i < 0 || i >= _gameSim.Enemies.Length || !_gameSim.Enemies[i].Active || _enemyViews[i] == null) continue;
+                var enemy = _gameSim.Enemies[i];
                 _enemyViews[i].rendererPriority = order;
                 SetEnemyPresentationPriority(i, order);
                 var rosterTwoVisual = enemy.Roster == EnemyRoster.Two && !enemy.Elite &&
@@ -438,13 +438,13 @@ namespace VoidFall.Runtime
             // Player bullets are also a browser compact array. Keep their
             // shared body sorting slot in source order after pooled reuse.
             EnsureBulletOrderEntries();
-            for (var order = 0; order < _bulletOrder.Count; order++)
+            for (var order = 0; order < _gameSim.BulletOrder.Count; order++)
             {
-                var i = _bulletOrder.SlotAt(order);
-                if (i < 0 || i >= _bullets.Length || !_bullets[i].Active || _bulletViews[i] == null)
+                var i = _gameSim.BulletOrder.SlotAt(order);
+                if (i < 0 || i >= _gameSim.Bullets.Length || !_gameSim.Bullets[i].Active || _bulletViews[i] == null)
                 {
-                    if (i >= 0 && i < _bullets.Length) Hide(_bulletViews[i]);
-                    if (i >= 0 && i < _bullets.Length)
+                    if (i >= 0 && i < _gameSim.Bullets.Length) Hide(_bulletViews[i]);
+                    if (i >= 0 && i < _gameSim.Bullets.Length)
                     {
                         Hide(_railAfterimageFarViews[i]);
                         Hide(_railAfterimageNearViews[i]);
@@ -452,36 +452,36 @@ namespace VoidFall.Runtime
                     continue;
                 }
                 _bulletViews[i].rendererPriority = order;
-                _bulletViews[i].transform.position = _bullets[i].Position;
+                _bulletViews[i].transform.position = _gameSim.Bullets[i].Position;
                 var visualScale = SourceBulletVisualScale(
-                    ContentCatalog.Weapons[_bullets[i].WeaponIndex].Id,
-                    _bullets[i].Radius,
-                    _bullets[i].Rank);
-                var projectileId = ContentCatalog.Weapons[_bullets[i].WeaponIndex].Id;
+                    ContentCatalog.Weapons[_gameSim.Bullets[i].WeaponIndex].Id,
+                    _gameSim.Bullets[i].Radius,
+                    _gameSim.Bullets[i].Rank);
+                var projectileId = ContentCatalog.Weapons[_gameSim.Bullets[i].WeaponIndex].Id;
                 var projectileFrame = ProceduralSpriteFactory.ProjectileFrame(
                     projectileId,
-                    SourceProjectileFrameIndex(_bullets[i].Velocity));
+                    SourceProjectileFrameIndex(_gameSim.Bullets[i].Velocity));
                 _bulletViews[i].sprite = projectileFrame;
                 _bulletViews[i].transform.rotation = Quaternion.identity;
                 var projectileFrameSize = SourceProjectileSpriteWorldSize(projectileId);
                 _bulletViews[i].transform.localScale = Vector3.one * (projectileFrameSize * visualScale);
-                var isRailgun = _bullets[i].WeaponIndex >= 0 &&
-                    _bullets[i].WeaponIndex < ContentCatalog.Weapons.Length &&
-                    ContentCatalog.Weapons[_bullets[i].WeaponIndex].Id == "railgun";
+                var isRailgun = _gameSim.Bullets[i].WeaponIndex >= 0 &&
+                    _gameSim.Bullets[i].WeaponIndex < ContentCatalog.Weapons.Length &&
+                    ContentCatalog.Weapons[_gameSim.Bullets[i].WeaponIndex].Id == "railgun";
                 if (isRailgun)
                 {
-                    var direction = SourceVisualDirection(_bullets[i].Velocity);
+                    var direction = SourceVisualDirection(_gameSim.Bullets[i].Velocity);
                     var scale = Vector3.one * (projectileFrameSize * visualScale);
                     var far = EnsureRailAfterimageView(i, false);
                     far.sprite = projectileFrame;
-                    far.transform.position = _bullets[i].Position - direction * 34f;
+                    far.transform.position = _gameSim.Bullets[i].Position - direction * 34f;
                     far.transform.rotation = Quaternion.identity;
                     far.transform.localScale = scale;
                     far.color = new Color(1f, 1f, 1f, 0.1f);
                     far.enabled = true;
                     var near = EnsureRailAfterimageView(i, true);
                     near.sprite = projectileFrame;
-                    near.transform.position = _bullets[i].Position - direction * 19f;
+                    near.transform.position = _gameSim.Bullets[i].Position - direction * 19f;
                     near.transform.rotation = Quaternion.identity;
                     near.transform.localScale = scale;
                     near.color = new Color(1f, 1f, 1f, 0.22f);
@@ -497,7 +497,7 @@ namespace VoidFall.Runtime
                 {
                     var highContrast = _saveData?.settings != null && _saveData.settings.highContrast;
                     contrast.sprite = projectileFrame;
-                    contrast.transform.position = _bullets[i].Position;
+                    contrast.transform.position = _gameSim.Bullets[i].Position;
                     contrast.transform.rotation = Quaternion.identity;
                     contrast.transform.localScale = Vector3.one *
                         (projectileFrameSize * visualScale * 1.22f);
@@ -507,39 +507,39 @@ namespace VoidFall.Runtime
             // Hostile shots use the same forward draw order as their source
             // array; fixed Unity slots must not decide overlap order.
             EnsureHostileShotOrderEntries();
-            for (var order = 0; order < _hostileShotOrder.Count; order++)
+            for (var order = 0; order < _gameSim.HostileShotOrder.Count; order++)
             {
-                var i = _hostileShotOrder.SlotAt(order);
-                if (i < 0 || i >= _hostileShots.Length || !_hostileShots[i].Active)
+                var i = _gameSim.HostileShotOrder.SlotAt(order);
+                if (i < 0 || i >= _gameSim.HostileShots.Length || !_gameSim.HostileShots[i].Active)
                 {
-                    if (i >= 0 && i < _hostileShots.Length && _hostileShotViews[i] != null) Hide(_hostileShotViews[i]);
+                    if (i >= 0 && i < _gameSim.HostileShots.Length && _hostileShotViews[i] != null) Hide(_hostileShotViews[i]);
                     continue;
                 }
                 var view = EnsureHostileShotView(i);
                 view.rendererPriority = order;
-                view.transform.position = _hostileShots[i].Position;
-                if (!_hostileShots[i].MeteorOwned && !_hostileShots[i].Curved)
+                view.transform.position = _gameSim.HostileShots[i].Position;
+                if (!_gameSim.HostileShots[i].MeteorOwned && !_gameSim.HostileShots[i].Curved)
                 {
                     view.sprite = ProceduralSpriteFactory.ProjectileFrame(
                         "gunner",
-                        SourceProjectileFrameIndex(_hostileShots[i].Velocity));
+                        SourceProjectileFrameIndex(_gameSim.HostileShots[i].Velocity));
                 }
                 view.transform.rotation = Quaternion.identity;
                 view.transform.localScale = Vector3.one *
-                    (_hostileShots[i].MeteorOwned
+                    (_gameSim.HostileShots[i].MeteorOwned
                         ? 18f
-                        : SourceProjectileSpriteWorldSize(_hostileShots[i].Curved ? "curved" : "gunner"));
+                        : SourceProjectileSpriteWorldSize(_gameSim.HostileShots[i].Curved ? "curved" : "gunner"));
                 view.enabled = true;
             }
             // Meteors are rendered from the browser's compact meteor array as
             // well, so keep body order stable when a slot is recycled.
             EnsureMeteorOrderEntries();
-            for (var order = 0; order < _meteorOrderCount; order++)
+            for (var order = 0; order < _gameSim.MeteorOrderCount; order++)
             {
-                var i = _meteorOrder[order];
-                if (i < 0 || i >= _meteors.Length || !_meteors[i].Active)
+                var i = _gameSim.MeteorOrder[order];
+                if (i < 0 || i >= _gameSim.Meteors.Length || !_gameSim.Meteors[i].Active)
                 {
-                    if (i >= 0 && i < _meteors.Length)
+                    if (i >= 0 && i < _gameSim.Meteors.Length)
                     {
                         Hide(_meteorViews[i]);
                         Hide(_meteorHitViews[i]);
@@ -552,39 +552,39 @@ namespace VoidFall.Runtime
                 }
                 var meteorView = EnsureMeteorView(i);
                 meteorView.rendererPriority = order;
-                meteorView.sprite = ProceduralSpriteFactory.Meteor(_meteors[i].Variant, _meteors[i].Explosive);
-                meteorView.transform.position = _meteors[i].Position;
+                meteorView.sprite = ProceduralSpriteFactory.Meteor(_gameSim.Meteors[i].Variant, _gameSim.Meteors[i].Explosive);
+                meteorView.transform.position = _gameSim.Meteors[i].Position;
                 meteorView.transform.rotation = Quaternion.Euler(
                     0,
                     0,
-                    _meteors[i].Rotation * Mathf.Rad2Deg);
+                    _gameSim.Meteors[i].Rotation * Mathf.Rad2Deg);
                 meteorView.transform.localScale = Vector3.one *
-                    SourceMeteorSpriteWorldSize(_meteors[i].Variant, _meteors[i].Explosive);
+                    SourceMeteorSpriteWorldSize(_gameSim.Meteors[i].Variant, _gameSim.Meteors[i].Explosive);
                 // The browser never tints the meteor body while armed; the
                 // warning arcs and seeded core carry the fuse read instead.
                 meteorView.color = Color.white;
                 var hitView = EnsureMeteorHitView(i);
                 hitView.sprite = meteorView.sprite;
-                hitView.transform.position = _meteors[i].Position;
+                hitView.transform.position = _gameSim.Meteors[i].Position;
                 hitView.transform.rotation = meteorView.transform.rotation;
                 hitView.transform.localScale = meteorView.transform.localScale;
                 hitView.color = new Color(1f, 1f, 1f, 0.3f);
-                hitView.enabled = !_meteors[i].Explosive && _meteors[i].HitTimer > 0;
+                hitView.enabled = !_gameSim.Meteors[i].Explosive && _gameSim.Meteors[i].HitTimer > 0;
                 Hide(_meteorHealthArcViews[i]);
                 if (_meteorCoreViews[i] != null)
                 {
-                    _meteorCoreViews[i].transform.position = _meteors[i].Position;
+                    _meteorCoreViews[i].transform.position = _gameSim.Meteors[i].Position;
                     _meteorCoreViews[i].transform.rotation = meteorView.transform.rotation;
-                    _meteorCoreViews[i].enabled = _meteors[i].Explosive;
+                    _meteorCoreViews[i].enabled = _gameSim.Meteors[i].Explosive;
                 }
-                if (_meteors[i].FuseTimer > 0)
+                if (_gameSim.Meteors[i].FuseTimer > 0)
                 {
-                    var fuse = Mathf.Clamp01(1f - _meteors[i].FuseTimer / (float)MeteorRules.ExplosiveFlashSeconds);
+                    var fuse = Mathf.Clamp01(1f - _gameSim.Meteors[i].FuseTimer / (float)MeteorRules.ExplosiveFlashSeconds);
                     var sweep = Mathf.PI * 2f * (0.35f + fuse * 0.65f);
                     var dangerArc = EnsureMeteorDangerArcView(i);
                     SetArcLine(
                         dangerArc,
-                        _meteors[i].Position,
+                        _gameSim.Meteors[i].Position,
                         (float)MeteorRules.ExplosiveBlastRadius,
                         -Mathf.PI * 0.5f,
                         -Mathf.PI * 0.5f + sweep,
@@ -593,19 +593,19 @@ namespace VoidFall.Runtime
                     var dangerRing = EnsureMeteorDangerRingView(i);
                     SetArcLine(
                         dangerRing,
-                        _meteors[i].Position,
+                        _gameSim.Meteors[i].Position,
                         (float)MeteorRules.ExplosiveBlastRadius - 6f,
                         0,
                         Mathf.PI * 2f,
                         1f,
                         new Color(253f / 255f, 230f / 255f, 138f / 255f, 0.18f + fuse * 0.2f));
                     var rate = 6f + fuse * 22f;
-                    var beat = 0.5f + 0.5f * Mathf.Sin(_ambientClock * rate + _meteors[i].Seed);
+                    var beat = 0.5f + 0.5f * Mathf.Sin(_ambientClock * rate + _gameSim.Meteors[i].Seed);
                     var heat = Mathf.Min(0.95f, 0.4f + fuse * 0.5f + beat * 0.22f);
                     if (_meteorCoreViews[i] != null)
                     {
                         _meteorCoreViews[i].color = new Color(1f, 1f, 1f, heat);
-                        _meteorCoreViews[i].transform.localScale = Vector3.one * (_meteors[i].VisibleRadius * (2.1f + fuse * 0.5f));
+                        _meteorCoreViews[i].transform.localScale = Vector3.one * (_gameSim.Meteors[i].VisibleRadius * (2.1f + fuse * 0.5f));
                     }
                 }
                 else
@@ -614,17 +614,17 @@ namespace VoidFall.Runtime
                     Hide(_meteorDangerRingViews[i]);
                     if (_meteorCoreViews[i] != null)
                     {
-                        var heat = 0.12f + (0.5f + 0.5f * Mathf.Sin(_ambientClock * 2.2f + _meteors[i].Seed)) * 0.1f;
+                        var heat = 0.12f + (0.5f + 0.5f * Mathf.Sin(_ambientClock * 2.2f + _gameSim.Meteors[i].Seed)) * 0.1f;
                         _meteorCoreViews[i].color = new Color(1f, 1f, 1f, heat);
-                        _meteorCoreViews[i].transform.localScale = Vector3.one * (_meteors[i].VisibleRadius * 1.7f);
+                        _meteorCoreViews[i].transform.localScale = Vector3.one * (_gameSim.Meteors[i].VisibleRadius * 1.7f);
                     }
-                    if (_meteors[i].Health < _meteors[i].MaxHealth)
+                    if (_gameSim.Meteors[i].Health < _gameSim.Meteors[i].MaxHealth)
                     {
-                        var healthRatio = Mathf.Clamp01(_meteors[i].Health / Mathf.Max(0.001f, _meteors[i].MaxHealth));
+                        var healthRatio = Mathf.Clamp01(_gameSim.Meteors[i].Health / Mathf.Max(0.001f, _gameSim.Meteors[i].MaxHealth));
                         SetArcLine(
                             EnsureMeteorHealthArcView(i),
-                            _meteors[i].Position,
-                            _meteors[i].VisibleRadius + 5f,
+                            _gameSim.Meteors[i].Position,
+                            _gameSim.Meteors[i].VisibleRadius + 5f,
                             -Mathf.PI * 0.5f,
                             -Mathf.PI * 0.5f + Mathf.PI * 2f * healthRatio,
                             2f,
@@ -637,31 +637,31 @@ namespace VoidFall.Runtime
             RenderBlastWaves();
             // Pickups are drawn in their compact forward order. Their slot
             // list already tracks the browser's swap-removal behavior.
-            for (var order = 0; order < _pickupOrderCount; order++)
+            for (var order = 0; order < _gameSim.PickupOrderCount; order++)
             {
-                var i = _pickupOrder[order];
-                if (i < 0 || i >= _pickups.Length || !_pickups[i].Active || _pickupViews[i] == null)
+                var i = _gameSim.PickupOrder[order];
+                if (i < 0 || i >= _gameSim.Pickups.Length || !_gameSim.Pickups[i].Active || _pickupViews[i] == null)
                 {
-                    if (i >= 0 && i < _pickups.Length) Hide(_pickupViews[i]);
+                    if (i >= 0 && i < _gameSim.Pickups.Length) Hide(_pickupViews[i]);
                     continue;
                 }
                 _pickupViews[i].rendererPriority = order;
                 var xpTier = -1;
-                if (_pickups[i].Kind == PickupKind.Xp)
+                if (_gameSim.Pickups[i].Kind == PickupKind.Xp)
                 {
-                    xpTier = XpPickupTier(_pickups[i].Value);
+                    xpTier = XpPickupTier(_gameSim.Pickups[i].Value);
                     _pickupViews[i].sprite = ProceduralSpriteFactory.Gem(xpTier);
                 }
-                _pickupViews[i].transform.position = _pickups[i].Position;
-                var pickupKind = PickupKindName(_pickups[i].Kind);
+                _pickupViews[i].transform.position = _gameSim.Pickups[i].Position;
+                var pickupKind = PickupKindName(_gameSim.Pickups[i].Kind);
                 var pulse = SourcePickupPulseScale(
                     pickupKind,
-                    _pickups[i].Age,
+                    _gameSim.Pickups[i].Age,
                     _qualityPreset.PickupPulse);
                 _pickupViews[i].transform.rotation = Quaternion.Euler(
                     0,
                     0,
-                    SourcePickupRotationRadians(pickupKind, _pickups[i].Age) * Mathf.Rad2Deg);
+                    SourcePickupRotationRadians(pickupKind, _gameSim.Pickups[i].Age) * Mathf.Rad2Deg);
                 var frameSize = pickupKind == "xp"
                     ? SourceXpPickupFrameSize(xpTier)
                     : SourceSpecialPickupFrameSize();
@@ -669,10 +669,10 @@ namespace VoidFall.Runtime
             }
             RenderBossTelegraphs();
             EnsureBossOrderEntries();
-            for (var bossOrder = 0; bossOrder < _bossOrderCount; bossOrder++)
+            for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
             {
-                var i = _bossOrder[bossOrder];
-                var boss = _bosses[i];
+                var i = _gameSim.BossOrder[bossOrder];
+                var boss = _gameSim.Bosses[i];
                 if ((!boss.Active && boss.DeathTimer <= 0) || _bossViews[i] == null) continue;
                 _bossViews[i].sprite = ProceduralSpriteFactory.Boss(
                     boss.Id,
@@ -925,7 +925,7 @@ namespace VoidFall.Runtime
                 $"Pickups {ActivePickups()}",
                 $"Quality {_qualityPreset.Detail:0}",
                 $"Seed {_runSeed}",
-                $"RNG {_rng.Draws}/{_fxSim.FxRng.Draws}",
+                $"RNG {_gameSim.Rng.Draws}/{_fxSim.FxRng.Draws}",
                 $"Boss cycle {_bossSequence}",
                 $"Arena {ArenaName(_arenaId)} · {cycle.CycleId}",
                 $"Shift {_arenaTransitionState.Phase} in {Mathf.Max(0f, (float)(_arenaTransitionState.DueAt - _time)):0}s",
@@ -3574,9 +3574,9 @@ namespace VoidFall.Runtime
         private void RenderEliteTelegraphs()
         {
             var definition = ContentCatalog.Elite;
-            for (var index = 0; index < _enemies.Length; index++)
+            for (var index = 0; index < _gameSim.Enemies.Length; index++)
             {
-                var enemy = _enemies[index];
+                var enemy = _gameSim.Enemies[index];
                 if (!enemy.Active || !enemy.Elite)
                 {
                     Hide(_eliteMarkViews[index]);
@@ -3653,7 +3653,7 @@ namespace VoidFall.Runtime
 
         private void RenderEnemyTelegraphs()
         {
-            for (var index = 0; index < _enemies.Length; index++)
+            for (var index = 0; index < _gameSim.Enemies.Length; index++)
             {
                 Hide(_enemyTelegraphRingViews[index]);
                 Hide(_enemyTelegraphLineViews[index]);
@@ -3669,7 +3669,7 @@ namespace VoidFall.Runtime
                     Hide(_enemyTelegraphMortarSegmentViews[index * MortarTelegraphSegmentCount + segment]);
                 Hide(_enemyTelegraphFillRenderers[index]);
                 Hide(_enemyTelegraphArrowFillRenderers[index]);
-                var enemy = _enemies[index];
+                var enemy = _gameSim.Enemies[index];
                 if (!enemy.Active) continue;
 
                 if (enemy.Id == "mortar" && enemy.State == 1)
@@ -4013,14 +4013,14 @@ namespace VoidFall.Runtime
 
         private void RenderEnemyStatus()
         {
-            for (var index = 0; index < _enemies.Length; index++)
+            for (var index = 0; index < _gameSim.Enemies.Length; index++)
             {
                 Hide(_enemyHealthArcViews[index]);
                 Hide(_enemyShieldArcViews[index]);
                 Hide(_enemyHealthBackgroundViews[index]);
                 Hide(_enemyHealthFillViews[index]);
 
-                var enemy = _enemies[index];
+                var enemy = _gameSim.Enemies[index];
                 if (!enemy.Active) continue;
 
                 if (enemy.EliteKind.HasValue && enemy.Health < enemy.MaxHealth)
@@ -4388,7 +4388,7 @@ namespace VoidFall.Runtime
 
         private void RenderBossTelegraphs()
         {
-            for (var index = 0; index < _bosses.Length; index++)
+            for (var index = 0; index < _gameSim.Bosses.Length; index++)
             {
                 Hide(_bossTelegraphFillRenderers[index]);
                 Hide(_bossTelegraphOutlineViews[index]);
@@ -4396,10 +4396,10 @@ namespace VoidFall.Runtime
             }
 
             EnsureBossOrderEntries();
-            for (var bossOrder = 0; bossOrder < _bossOrderCount; bossOrder++)
+            for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
             {
-                var index = _bossOrder[bossOrder];
-                var boss = _bosses[index];
+                var index = _gameSim.BossOrder[bossOrder];
+                var boss = _gameSim.Bosses[index];
                 if (!boss.Active) continue;
 
                 var attack = boss.ActiveAttack;
