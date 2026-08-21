@@ -1714,64 +1714,19 @@ namespace VoidFall.Runtime
             BurstFx(meteor.Position, SourceDotColor("white"), 2, 90 * force, 0.22f, 0.4f);
         }
 
-        private int FindMeteorShardSlot()
-        {
-            var oldest = -1;
-            var lowestLife = float.MaxValue;
-            for (var index = 0; index < _fxSim.MeteorShards.Length; index++)
-            {
-                if (!_fxSim.MeteorShards[index].Active) return index;
-                if (_fxSim.MeteorShards[index].Life < lowestLife)
-                {
-                    lowestLife = _fxSim.MeteorShards[index].Life;
-                    oldest = index;
-                }
-            }
-            return oldest;
-        }
+        private int FindMeteorShardSlot() => _fxSim.FindMeteorShardSlot();
 
         private void UpdateSourceParticles(float dt)
         {
-            if (dt <= 0) return;
-            var decay = Mathf.Exp(-3.2f * Mathf.Clamp(dt, 0, 0.1f));
-            for (var index = 0; index < _fxSim.SourceParticles.Length; index++)
-            {
-                var particle = _fxSim.SourceParticles[index];
-                if (!particle.Active) continue;
-                particle.Life -= dt;
-                if (particle.Life <= 0)
-                {
-                    particle.Active = false;
-                    RemoveSourceFxOrder(SourceFxKind.Particle, index);
-                    Hide(_sourceParticleViews[index]);
-                }
-                else
-                {
-                    particle.Velocity *= decay;
-                    particle.Position += particle.Velocity * dt;
-                }
-                _fxSim.SourceParticles[index] = particle;
-            }
+            var expired = _fxSim.AdvanceSourceParticles(dt, _fxExpiryScratch);
+            for (var index = 0; index < expired; index++)
+                Hide(_sourceParticleViews[_fxExpiryScratch[index]]);
         }
-
         private void UpdateMeteorShards(float dt)
         {
-            for (var index = 0; index < _fxSim.MeteorShards.Length; index++)
-            {
-                var shard = _fxSim.MeteorShards[index];
-                if (!shard.Active) continue;
-                var decay = Mathf.Exp(-MeteorShardDrag * dt);
-                shard.Velocity *= decay;
-                shard.Position += shard.Velocity * dt;
-                shard.Life -= dt;
-                if (shard.Life <= 0)
-                {
-                    shard.Active = false;
-                    RemoveSourceFxOrder(SourceFxKind.MeteorShard, index);
-                    Hide(_meteorShardViews[index]);
-                }
-                _fxSim.MeteorShards[index] = shard;
-            }
+            var expired = _fxSim.AdvanceMeteorShards(dt, _fxExpiryScratch);
+            for (var index = 0; index < expired; index++)
+                Hide(_meteorShardViews[_fxExpiryScratch[index]]);
         }
 
         private void UpdateBosses(float dt)
@@ -6060,24 +6015,15 @@ namespace VoidFall.Runtime
 
         private void UpdateRingWaves(float dt)
         {
-            for (var index = 0; index < _fxSim.RingWaves.Length; index++)
+            var expired = _fxSim.AdvanceRingWaves(dt, _fxExpiryScratch);
+            for (var index = 0; index < expired; index++)
             {
-                var wave = _fxSim.RingWaves[index];
-                if (!wave.Active) continue;
-                wave.Age += dt;
-                wave.Size += wave.Growth * dt;
-                if (wave.Age >= wave.Life)
-                {
-                    wave.Active = false;
-                    RemoveSourceFxOrder(SourceFxKind.RingWave, index);
-                    Hide(_ringWaveViews[index]);
-                    Hide(_ringWaveGlowViews[index]);
-                    Hide(_ringWaveSpriteViews[index]);
-                }
-                _fxSim.RingWaves[index] = wave;
+                var slot = _fxExpiryScratch[index];
+                Hide(_ringWaveViews[slot]);
+                Hide(_ringWaveGlowViews[slot]);
+                Hide(_ringWaveSpriteViews[slot]);
             }
         }
-
         private void SpawnBlastWave(Vector2 position, float maxRadius, float life, bool bomb)
         {
             var slot = -1;

@@ -310,13 +310,6 @@ namespace VoidFall.Runtime
             public int View;
         }
 
-        private enum SourceFxKind
-        {
-            Particle,
-            MeteorShard,
-            RingWave,
-        }
-
         private enum PickupKind
         {
             Xp,
@@ -1463,6 +1456,23 @@ namespace VoidFall.Runtime
             _music?.SetApplicationActive(true);
         }
 
+        // Cosmetic-FX state lives in FxSim; these keep the historical call
+        // surface while update/spawn bodies migrate there piece by piece.
+        private readonly int[] _fxExpiryScratch =
+            new int[Mathf.Max(MaxSourceParticles, Mathf.Max(MaxMeteorShards, MaxRingWaves))];
+
+        private void ResetSourceFxOrder() => _fxSim.ResetSourceFxOrder();
+
+        private void AppendSourceFxOrder(SourceFxKind kind, int slot) =>
+            _fxSim.AppendSourceFxOrder(kind, slot);
+
+        private void RemoveSourceFxOrder(SourceFxKind kind, int slot) =>
+            _fxSim.RemoveSourceFxOrder(kind, slot);
+
+        private void EnsureSourceFxOrderEntries() => _fxSim.EnsureSourceFxOrderEntries();
+
+        private bool SourceFxEntryActive(SourceFxKind kind, int slot) =>
+            _fxSim.SourceFxEntryActive(kind, slot);
         private void RestartQualitySession()
         {
             _qualityController?.BeginSession();
@@ -2767,143 +2777,6 @@ namespace VoidFall.Runtime
             _audio?.PlayFuseWarning(Mathf.Clamp(stage, 0, 5));
         }
 
-        private void ResetSourceFxOrder()
-        {
-            _fxSim.SourceFxOrderCount = 0;
-            for (var index = 0; index < _fxSim.SourceFxOrderKind.Length; index++)
-            {
-                _fxSim.SourceFxOrderKind[index] = -1;
-                _fxSim.SourceFxOrderSlot[index] = -1;
-            }
-            for (var index = 0; index < _fxSim.SourceParticleOrderPosition.Length; index++)
-                _fxSim.SourceParticleOrderPosition[index] = -1;
-            for (var index = 0; index < _fxSim.MeteorShardOrderPosition.Length; index++)
-                _fxSim.MeteorShardOrderPosition[index] = -1;
-            for (var index = 0; index < _fxSim.RingWaveOrderPosition.Length; index++)
-                _fxSim.RingWaveOrderPosition[index] = -1;
-        }
-
-        private int SourceFxOrderPosition(SourceFxKind kind, int slot)
-        {
-            if (slot < 0) return -1;
-            switch (kind)
-            {
-                case SourceFxKind.Particle:
-                    return slot < _fxSim.SourceParticleOrderPosition.Length
-                        ? _fxSim.SourceParticleOrderPosition[slot]
-                        : -1;
-                case SourceFxKind.MeteorShard:
-                    return slot < _fxSim.MeteorShardOrderPosition.Length
-                        ? _fxSim.MeteorShardOrderPosition[slot]
-                        : -1;
-                case SourceFxKind.RingWave:
-                    return slot < _fxSim.RingWaveOrderPosition.Length
-                        ? _fxSim.RingWaveOrderPosition[slot]
-                        : -1;
-                default:
-                    return -1;
-            }
-        }
-
-        private void SetSourceFxOrderPosition(SourceFxKind kind, int slot, int position)
-        {
-            if (slot < 0) return;
-            switch (kind)
-            {
-                case SourceFxKind.Particle:
-                    if (slot < _fxSim.SourceParticleOrderPosition.Length)
-                        _fxSim.SourceParticleOrderPosition[slot] = position;
-                    break;
-                case SourceFxKind.MeteorShard:
-                    if (slot < _fxSim.MeteorShardOrderPosition.Length)
-                        _fxSim.MeteorShardOrderPosition[slot] = position;
-                    break;
-                case SourceFxKind.RingWave:
-                    if (slot < _fxSim.RingWaveOrderPosition.Length)
-                        _fxSim.RingWaveOrderPosition[slot] = position;
-                    break;
-            }
-        }
-
-        private void AppendSourceFxOrder(SourceFxKind kind, int slot)
-        {
-            if (slot < 0 || _fxSim.SourceFxOrderCount >= _fxSim.SourceFxOrderKind.Length) return;
-            var position = SourceFxOrderPosition(kind, slot);
-            if (position >= 0 && position < _fxSim.SourceFxOrderCount &&
-                _fxSim.SourceFxOrderKind[position] == (int)kind &&
-                _fxSim.SourceFxOrderSlot[position] == slot)
-            {
-                return;
-            }
-            var order = _fxSim.SourceFxOrderCount++;
-            _fxSim.SourceFxOrderKind[order] = (int)kind;
-            _fxSim.SourceFxOrderSlot[order] = slot;
-            SetSourceFxOrderPosition(kind, slot, order);
-        }
-
-        private void RemoveSourceFxOrder(SourceFxKind kind, int slot)
-        {
-            var position = SourceFxOrderPosition(kind, slot);
-            if (position < 0 || position >= _fxSim.SourceFxOrderCount ||
-                _fxSim.SourceFxOrderKind[position] != (int)kind ||
-                _fxSim.SourceFxOrderSlot[position] != slot)
-            {
-                SetSourceFxOrderPosition(kind, slot, -1);
-                return;
-            }
-
-            var lastPosition = --_fxSim.SourceFxOrderCount;
-            if (position != lastPosition)
-            {
-                var replacementKind = (SourceFxKind)_fxSim.SourceFxOrderKind[lastPosition];
-                var replacementSlot = _fxSim.SourceFxOrderSlot[lastPosition];
-                _fxSim.SourceFxOrderKind[position] = (int)replacementKind;
-                _fxSim.SourceFxOrderSlot[position] = replacementSlot;
-                SetSourceFxOrderPosition(replacementKind, replacementSlot, position);
-            }
-            _fxSim.SourceFxOrderKind[lastPosition] = -1;
-            _fxSim.SourceFxOrderSlot[lastPosition] = -1;
-            SetSourceFxOrderPosition(kind, slot, -1);
-        }
-
-        private bool SourceFxEntryActive(SourceFxKind kind, int slot)
-        {
-            switch (kind)
-            {
-                case SourceFxKind.Particle:
-                    return slot >= 0 && slot < _fxSim.SourceParticles.Length && _fxSim.SourceParticles[slot].Active;
-                case SourceFxKind.MeteorShard:
-                    return slot >= 0 && slot < _fxSim.MeteorShards.Length && _fxSim.MeteorShards[slot].Active;
-                case SourceFxKind.RingWave:
-                    return slot >= 0 && slot < _fxSim.RingWaves.Length && _fxSim.RingWaves[slot].Active;
-                default:
-                    return false;
-            }
-        }
-
-        private void EnsureSourceFxOrderEntries()
-        {
-            // Runtime spawns append explicitly. Reconcile active reflection
-            // fixtures without disturbing entries that already have source
-            // insertion order.
-            for (var index = 0; index < _fxSim.SourceParticles.Length; index++)
-                if (_fxSim.SourceParticles[index].Active)
-                    AppendSourceFxOrder(SourceFxKind.Particle, index);
-            for (var index = 0; index < _fxSim.MeteorShards.Length; index++)
-                if (_fxSim.MeteorShards[index].Active)
-                    AppendSourceFxOrder(SourceFxKind.MeteorShard, index);
-            for (var index = 0; index < _fxSim.RingWaves.Length; index++)
-                if (_fxSim.RingWaves[index].Active)
-                    AppendSourceFxOrder(SourceFxKind.RingWave, index);
-
-            for (var order = _fxSim.SourceFxOrderCount - 1; order >= 0; order--)
-            {
-                var kind = (SourceFxKind)_fxSim.SourceFxOrderKind[order];
-                var slot = _fxSim.SourceFxOrderSlot[order];
-                if (!SourceFxEntryActive(kind, slot))
-                    RemoveSourceFxOrder(kind, slot);
-            }
-        }
 
         private void ResetHostileShotOrder() => _hostileShotOrder.Reset();
 

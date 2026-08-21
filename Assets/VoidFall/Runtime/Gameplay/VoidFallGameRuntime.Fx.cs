@@ -383,12 +383,7 @@ namespace VoidFall.Runtime
             return DefaultBurstParticleSize;
         }
 
-        private int FindSourceParticleSlot()
-        {
-            for (var index = 0; index < _fxSim.SourceParticles.Length; index++)
-                if (!_fxSim.SourceParticles[index].Active) return index;
-            return -1;
-        }
+        private int FindSourceParticleSlot() => _fxSim.FindSourceParticleSlot();
 
         private void BurstFx(
             Vector2 position,
