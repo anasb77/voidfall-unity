@@ -928,6 +928,15 @@ namespace VoidFall.Runtime
         private float _overclockVisualSurge;
         private int _lastOverclockHudStreak = -1;
         private int _lastOverclockHudSecond = -1;
+        // Per-frame HUD text is only rewritten when its source value changes,
+        // so dense runs do not allocate formatted strings every frame.
+        private float _lastHudHealth = -1f;
+        private float _lastHudMaxHealth = -1f;
+        private int _lastHudSeconds = -1;
+        private int _lastHudLevel = -1;
+        private int _lastHudKills = -1;
+        private int _lastHudParts = -1;
+        private int _lastHudScore = -1;
         private float _magnetIntensity;
         private float _magnetTarget;
         private float _adrenalTimer;

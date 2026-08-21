@@ -5361,8 +5361,7 @@ namespace VoidFall.Runtime
 
         private void UpdateHud()
         {
-            var hudVisible = ShouldShowHud();
-            if (_hudGroup != null)
+            var hudVisible = ShouldShowHud();            if (_hudGroup != null)
             {
                 _hudGroup.alpha = Mathf.MoveTowards(
                     _hudGroup.alpha,
@@ -5391,22 +5390,42 @@ namespace VoidFall.Runtime
                 _xpBarFill.fillAmount = _xpNeed > 0 ? Mathf.Clamp01(_xp / _xpNeed) : 0;
             if (_healthBarFill != null) _healthBarFill.fillAmount = hpFraction;
             if (_healthBarGhost != null) _healthBarGhost.fillAmount = Mathf.Clamp01(_healthGhostFraction);
-            if (_healthText != null)
+            if (_healthText != null && (_lastHudHealth != _playerHealth || _lastHudMaxHealth != _playerMaxHealth))
+            {
+                _lastHudHealth = _playerHealth;
+                _lastHudMaxHealth = _playerMaxHealth;
                 _healthText.text = $"INTEGRITY   {Mathf.CeilToInt(Mathf.Max(0, _playerHealth))}/{Mathf.CeilToInt(_playerMaxHealth)}";
+            }
             if (_healthLabelText != null) _healthLabelText.text = "INTEGRITY";
-            if (_healthValueText != null)
+            if (_healthValueText != null && (_lastHudHealth != _playerHealth || _lastHudMaxHealth != _playerMaxHealth))
                 _healthValueText.text = $"{Mathf.CeilToInt(Mathf.Max(0, _playerHealth))}/{Mathf.CeilToInt(_playerMaxHealth)}";
             if (_timeText != null)
             {
                 var seconds = Mathf.Max(0, Mathf.FloorToInt(_time));
-                _timeText.text = $"{seconds / 60}:{seconds % 60:00}";
+                if (seconds != _lastHudSeconds)
+                {
+                    _lastHudSeconds = seconds;
+                    _timeText.text = $"{seconds / 60}:{seconds % 60:00}";
+                }
             }
-            if (_levelText != null) _levelText.text = $"LV {_level}";
-            if (_metricsText != null)
-                _metricsText.text = $"K {_kills}   P {_partsEarned}   SCORE {CurrentScore():N0}";
-            if (_metricValues[0] != null) _metricValues[0].text = _kills.ToString();
-            if (_metricValues[1] != null) _metricValues[1].text = _partsEarned.ToString();
-            if (_metricValues[2] != null) _metricValues[2].text = CurrentScore().ToString("N0");
+            if (_levelText != null && _lastHudLevel != _level)
+            {
+                _lastHudLevel = _level;
+                _levelText.text = $"LV {_level}";
+            }
+            var hudScore = CurrentScore();
+            if ((_metricsText != null || _metricValues[0] != null) &&
+                (_lastHudKills != _kills || _lastHudParts != _partsEarned || _lastHudScore != hudScore))
+            {
+                _lastHudKills = _kills;
+                _lastHudParts = _partsEarned;
+                _lastHudScore = hudScore;
+                if (_metricsText != null)
+                    _metricsText.text = $"K {_kills}   P {_partsEarned}   SCORE {hudScore:N0}";
+                if (_metricValues[0] != null) _metricValues[0].text = _kills.ToString();
+                if (_metricValues[1] != null) _metricValues[1].text = _partsEarned.ToString();
+                if (_metricValues[2] != null) _metricValues[2].text = hudScore.ToString("N0");
+            }
             if (_pauseButton != null)
             {
                 _pauseButton.gameObject.SetActive(hudVisible);
