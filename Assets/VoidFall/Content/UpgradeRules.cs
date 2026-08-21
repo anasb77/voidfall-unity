@@ -64,7 +64,18 @@ namespace VoidFall.Core
             {
                 if (progress.WeaponRanks[index] <= 0) continue;
                 owned++;
-                if (progress.WeaponRanks[index] < ProgressionRules.MaxWeaponRank || !progress.Evolved[index]) return false;
+                
+                var requiresEvolution = false;
+                for (var i = 0; i < ContentCatalog.Evolutions.Length; i++)
+                {
+                    if (Array.IndexOf(ContentOrder.Weapons, WeaponIdFromName(ContentCatalog.Evolutions[i].WeaponId)) == index)
+                    {
+                        requiresEvolution = true;
+                        break;
+                    }
+                }
+
+                if (progress.WeaponRanks[index] < ProgressionRules.MaxWeaponRank || (requiresEvolution && !progress.Evolved[index])) return false;
             }
 
             if (owned < WeaponSlotLimit(progress)) return false;
@@ -91,10 +102,13 @@ namespace VoidFall.Core
             var slotLimit = WeaponSlotLimit(progress);
             for (var index = 0; index < ContentCatalog.Weapons.Length; index++)
             {
-                var current = progress.WeaponRanks[index];
+                var weapon = ContentCatalog.Weapons[index];
+                var rankIndex = Array.IndexOf(ContentOrder.Weapons, WeaponIdFromName(weapon.Id));
+                if (rankIndex < 0) continue;
+
+                var current = progress.WeaponRanks[rankIndex];
                 if (current == 0 && slots >= slotLimit) continue;
                 if (current >= ProgressionRules.MaxWeaponRank) continue;
-                var weapon = ContentCatalog.Weapons[index];
                 var next = current + 1;
                 pool.Add(new UpgradeOptionDefinition
                 {
@@ -310,8 +324,9 @@ namespace VoidFall.Core
             foreach (var evolution in ContentCatalog.Evolutions)
             {
                 var weaponIndex = WeaponIndex(evolution.WeaponId);
+                var rankIndex = Array.IndexOf(ContentOrder.Weapons, WeaponIdFromName(evolution.WeaponId));
                 var supportIndex = SupportIndex(evolution.SupportId);
-                if (!IsEvolutionReady(progress, weaponIndex, supportIndex)) continue;
+                if (!IsEvolutionReady(progress, rankIndex, supportIndex)) continue;
                 var weapon = ContentCatalog.Weapons[weaponIndex];
                 var support = ContentCatalog.Supports[supportIndex];
                 ready.Add(new UpgradeOptionDefinition
@@ -332,14 +347,14 @@ namespace VoidFall.Core
             return ready;
         }
 
-        private static bool IsEvolutionReady(UpgradeProgress progress, int weaponIndex, int supportIndex = -1)
+        private static bool IsEvolutionReady(UpgradeProgress progress, int rankIndex, int supportIndex = -1)
         {
-            if (weaponIndex < 0) return false;
+            if (rankIndex < 0) return false;
             if (supportIndex < 0)
             {
                 foreach (var evolution in ContentCatalog.Evolutions)
                 {
-                    if (WeaponIndex(evolution.WeaponId) == weaponIndex)
+                    if (Array.IndexOf(ContentOrder.Weapons, WeaponIdFromName(evolution.WeaponId)) == rankIndex)
                     {
                         supportIndex = SupportIndex(evolution.SupportId);
                         break;
@@ -347,9 +362,9 @@ namespace VoidFall.Core
                 }
             }
 
-            return supportIndex >= 0 && progress.WeaponRanks[weaponIndex] >= ProgressionRules.MaxWeaponRank &&
+            return supportIndex >= 0 && progress.WeaponRanks[rankIndex] >= ProgressionRules.MaxWeaponRank &&
                 progress.SupportRanks[supportIndex] >= ContentCatalog.Supports[supportIndex].MaxRank &&
-                !progress.Evolved[weaponIndex];
+                !progress.Evolved[rankIndex];
         }
 
         private static int WeaponIndex(string id)
@@ -360,11 +375,7 @@ namespace VoidFall.Core
 
         private static WeaponId WeaponIdFromName(string id)
         {
-            for (var index = 0; index < ContentCatalog.Weapons.Length; index++)
-            {
-                if (ContentCatalog.Weapons[index].Id == id) return ContentOrder.Weapons[index];
-            }
-
+            if (Enum.TryParse<WeaponId>(id, true, out var wId)) return wId;
             return (WeaponId)(-1);
         }
 

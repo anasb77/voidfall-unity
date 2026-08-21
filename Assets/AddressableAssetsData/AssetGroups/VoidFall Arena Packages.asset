@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: VoidFall Arena Packages
+  m_EditorClassIdentifier: Unity.Addressables.Editor::UnityEditor.AddressableAssets.Settings.AddressableAssetGroup
+  m_GroupName: VoidFall Arena Packages
+  m_GUID: 292631cfa717ecd4f815f40de95d1890
+  m_SerializeEntries:
+  - m_GUID: 116c2f4d520671f4fa4a398ea2fb3563
+    m_Address: VoidFall/Arenas/red-nebula/recipe-1
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-red-nebula
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3ea316517b0097c40bd3e81cc9190224
+    m_Address: VoidFall/Arenas/red-nebula/recipe-2
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-red-nebula
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6ef852366d404d24695422ec88cc45cc
+    m_Address: VoidFall/Arenas/abyss/recipe-1
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-abyss
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 76fd8d123647e7e42a0661e2b0f0e12e
+    m_Address: VoidFall/Arenas/red-nebula/recipe-3
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-red-nebula
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8f3ec5f105ebda84fbdfc1d3bcfe33fa
+    m_Address: VoidFall/Arenas/white-sakura/recipe-3
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-white-sakura
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 97543f6da37c6c84a8042962e4dc8064
+    m_Address: VoidFall/Arenas/white-sakura/recipe-2
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-white-sakura
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 98cd658cb0620e74f8389705e06901b5
+    m_Address: VoidFall/Arenas/white-sakura/recipe-1
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-white-sakura
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a22ada07c4e497745901b47e0e796593
+    m_Address: VoidFall/Arenas/abyss/recipe-2
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-abyss
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c4660644e75c4f04da40e7a7af46b069
+    m_Address: VoidFall/Arenas/abyss/recipe-3
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-abyss
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: c0d6df4ff4e485d40ab0d40784fe82f8, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 9378cc9963f1a3043aa75cc4ed5e9e74, type: 2}
+    - {fileID: 11400000, guid: 700191ae80819a04e82499905ae349af, type: 2}

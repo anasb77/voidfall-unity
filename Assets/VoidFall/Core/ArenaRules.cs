@@ -84,7 +84,11 @@ public static class ArenaRules
         var cursor = 0;
         foreach (var arena in ContentOrder.Arenas)
         {
-            if (arena != current) candidates[cursor++] = arena;
+            if (arena != current)
+            {
+                if (cursor >= candidates.Length) return ContentOrder.Arenas[0];
+                candidates[cursor++] = arena;
+            }
         }
 
         if (candidates.Length == 0) return current;

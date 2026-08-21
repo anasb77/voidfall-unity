@@ -125,13 +125,31 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
-        public void Urp_default_volume_profile_is_empty()
+        public void Urp_default_volume_profile_is_complete_and_visually_neutral()
         {
             var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(
                 "Assets/VoidFall/Rendering/URP/VoidFallDefaultVolumeProfile.asset");
 
             Assert.That(profile, Is.Not.Null);
-            Assert.That(profile.components, Is.Empty);
+            Assert.That(profile.components, Is.Not.Empty,
+                "URP will rewrite an empty default profile during a build.");
+            Assert.That(profile.TryGet(out Bloom bloom), Is.True);
+            Assert.That(bloom.intensity.value, Is.Zero);
+            Assert.That(profile.TryGet(out ChromaticAberration chromatic), Is.True);
+            Assert.That(chromatic.intensity.value, Is.Zero);
+            Assert.That(profile.TryGet(out ColorAdjustments color), Is.True);
+            Assert.That(color.postExposure.value, Is.Zero);
+            Assert.That(color.contrast.value, Is.Zero);
+            Assert.That(color.colorFilter.value, Is.EqualTo(Color.white));
+            Assert.That(color.hueShift.value, Is.Zero);
+            Assert.That(color.saturation.value, Is.Zero);
+            Assert.That(profile.TryGet(out Tonemapping tonemapping), Is.True);
+            Assert.That(tonemapping.mode.value, Is.EqualTo(TonemappingMode.None));
+            Assert.That(profile.TryGet(out Vignette vignette), Is.True);
+            Assert.That(vignette.intensity.value, Is.Zero);
+            Assert.That(profile.TryGet(out WhiteBalance whiteBalance), Is.True);
+            Assert.That(whiteBalance.temperature.value, Is.Zero);
+            Assert.That(whiteBalance.tint.value, Is.Zero);
         }
 
         [Test]

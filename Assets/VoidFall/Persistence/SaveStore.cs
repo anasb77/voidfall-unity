@@ -364,7 +364,7 @@ namespace VoidFall.Persistence
                     "Refusing to overwrite the save file because it could not be read this session.");
             }
 
-            var sanitized = Sanitize(data);
+            var sanitized = Sanitize(Clone(data));
             var directory = System.IO.Path.GetDirectoryName(_path);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
             var temporaryPath = _path + ".tmp";
@@ -401,6 +401,13 @@ namespace VoidFall.Persistence
                 catch { /* the stale temp file is harmless; the next Save truncates it */ }
                 throw;
             }
+        }
+
+        private static SaveData Clone(SaveData value)
+        {
+            if (value == null) return CreateDefault();
+            var copy = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(value));
+            return copy ?? CreateDefault();
         }
 
         public static SaveData CreateDefault()
@@ -541,6 +548,13 @@ namespace VoidFall.Persistence
         {
             var source = runs ?? Array.Empty<RunRecordEntry>();
             var result = new List<RunRecordEntry>(Math.Min(MaxRecentRuns, source.Length));
+            var weaponIds = WeaponIds();
+            var weaponMaxRanks = WeaponMaxRanks();
+            var supportIds = SupportIds();
+            var supportMaxRanks = SupportMaxRanks();
+            var lateIds = LateIds();
+            var lateMaxRanks = LateMaxRanks();
+            var evolvedMaxRanks = Ones(weaponIds.Length);
             for (var i = 0; i < source.Length; i++)
             {
                 var value = source[i];
@@ -548,11 +562,11 @@ namespace VoidFall.Persistence
                 SanitizeHighScore(value);
                 value.damageDealt = ClampLong(value.damageDealt, 0, MaxDamageCounter);
                 value.damageTaken = ClampLong(value.damageTaken, 0, MaxDamageCounter);
-                value.weapons = SanitizeKnownEntries(value.weapons, WeaponIds(), WeaponMaxRanks());
-                value.weaponDamage = SanitizeKnownWeaponDamage(value.weaponDamage);
-                value.supports = SanitizeKnownEntries(value.supports, SupportIds(), SupportMaxRanks());
-                value.late = SanitizeKnownEntries(value.late, LateIds(), LateMaxRanks());
-                value.evolved = SanitizeKnownEntries(value.evolved, WeaponIds(), Ones(WeaponIds().Length));
+                value.weapons = SanitizeKnownEntries(value.weapons, weaponIds, weaponMaxRanks);
+                value.weaponDamage = SanitizeKnownWeaponDamage(value.weaponDamage, weaponIds);
+                value.supports = SanitizeKnownEntries(value.supports, supportIds, supportMaxRanks);
+                value.late = SanitizeKnownEntries(value.late, lateIds, lateMaxRanks);
+                value.evolved = SanitizeKnownEntries(value.evolved, weaponIds, evolvedMaxRanks);
                 result.Add(value);
             }
             result.Sort((left, right) => right.date.CompareTo(left.date));
@@ -671,10 +685,9 @@ namespace VoidFall.Persistence
             return result;
         }
 
-        private static WeaponDamageEntry[] SanitizeKnownWeaponDamage(WeaponDamageEntry[] entries)
+        private static WeaponDamageEntry[] SanitizeKnownWeaponDamage(WeaponDamageEntry[] entries, string[] ids)
         {
             var result = new List<WeaponDamageEntry>();
-            var ids = WeaponIds();
             foreach (var entry in entries ?? Array.Empty<WeaponDamageEntry>())
             {
                 if (entry == null || Array.IndexOf(ids, entry.id) < 0) continue;

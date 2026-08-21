@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using UnityEngine;
 
 namespace VoidFall.Runtime
@@ -65,11 +66,32 @@ namespace VoidFall.Runtime
         private AudioSource _musicSource;
         private AudioClip _musicClip;
         private bool _muted;
+        // Headroom reserved on top of the master setting. The browser used 0.58;
+        // raised 35% because the port's SFX bed sat too quietly against the
+        // authored soundtrack, then a further 20% on top of that (0.783 -> 0.9396).
+        //
+        // Per-voice output is now 0.9396 * master(0.8) * effects(0.9) = 0.677.
+        // A single voice has headroom, but sixteen can sound at once, so dense
+        // fights now sum much closer to the ceiling. If that starts to crunch the
+        // answer is a limiter on the effect bus rather than pulling this back
+        // down, since lowering it just undoes the requested loudness.
+        private const float EffectsMasterGain = 0.9396f;
+
+        // The gain the procedural ambience pad was balanced against, before the
+        // latest boost.
+        private const float PadReferenceGain = 0.783f;
+
+        // The pad hangs off the same master as the effect voices, so raising the
+        // effects bed would drag the ambience up with it. Scaling the pad's own
+        // coefficient by the pre-boost gain holds it exactly where it was, which
+        // is what "louder game, same music" asks for.
+        private const float MusicPadGain = 0.024f * PadReferenceGain / EffectsMasterGain;
+
         private float _effectsVolume = 0.9f;
         private float _effectsTargetVolume = 0.9f;
         private float _masterSettingVolume = 0.8f;
-        private float _masterVolume = 0.58f * 0.8f;
-        private float _masterTargetVolume = 0.58f * 0.8f;
+        private float _masterVolume = EffectsMasterGain * 0.8f;
+        private float _masterTargetVolume = EffectsMasterGain * 0.8f;
         private float _musicVolume = 0.7f;
         private float _musicTargetVolume;
         private float _musicBlendTimeConstant = 1.6f;
@@ -77,6 +99,7 @@ namespace VoidFall.Runtime
         // The browser keeps the pad as live oscillators -> low-pass filter ->
         // gain nodes. A baked looping clip would reset those phases every
         // loop, so the streaming reader carries them continuously instead.
+        private int _musicPadResetRequested;
         private long _musicPadSampleCursor;
         private float _musicPadFilterX1;
         private float _musicPadFilterX2;
@@ -120,7 +143,7 @@ namespace VoidFall.Runtime
             BuildParameterizedClips();
             _musicClip = BuildMusicPad("vf_music_pad", 8f);
             _masterVolume = _muted ? 0 : _masterTargetVolume;
-            _masterTargetVolume = _muted ? 0 : 0.58f * _masterSettingVolume;
+            _masterTargetVolume = _muted ? 0 : EffectsMasterGain * _masterSettingVolume;
             _musicTargetVolume = _muted ? 0 : MusicVolume();
             _musicSource.volume = 0;
         }
@@ -128,7 +151,7 @@ namespace VoidFall.Runtime
         public void SetVolumes(float master, float effects, float music = 0.7f)
         {
             _masterSettingVolume = Mathf.Clamp01(master);
-            _masterTargetVolume = _muted ? 0 : 0.58f * _masterSettingVolume;
+            _masterTargetVolume = _muted ? 0 : EffectsMasterGain * _masterSettingVolume;
             _effectsTargetVolume = Mathf.Clamp01(effects);
             _musicVolume = Mathf.Clamp01(music);
             if (_musicStopAt < 0)
@@ -145,7 +168,7 @@ namespace VoidFall.Runtime
             _muted = muted;
             PlayerPrefs.SetInt("voidfall_muted", muted ? 1 : 0);
             PlayerPrefs.Save();
-            _masterTargetVolume = muted ? 0 : 0.58f * _masterSettingVolume;
+            _masterTargetVolume = muted ? 0 : EffectsMasterGain * _masterSettingVolume;
             if (_musicStopAt < 0)
                 _musicTargetVolume = muted ? 0 : MusicVolume(_masterTargetVolume);
         }
@@ -226,7 +249,7 @@ namespace VoidFall.Runtime
 
         private float MusicVolume(float master = -1f)
         {
-            return (_muted ? 0 : master >= 0 ? master : _masterVolume) * _musicVolume * 0.024f;
+            return (_muted ? 0 : master >= 0 ? master : _masterVolume) * _musicVolume * MusicPadGain;
         }
 
         public void Play(Cue cue, float pitch = 1f)
@@ -814,6 +837,15 @@ namespace VoidFall.Runtime
 
         private void ReadMusicPad(float[] data)
         {
+            if (Interlocked.Exchange(ref _musicPadResetRequested, 0) == 1)
+            {
+                _musicPadSampleCursor = 0;
+                _musicPadFilterX1 = 0;
+                _musicPadFilterX2 = 0;
+                _musicPadFilterY1 = 0;
+                _musicPadFilterY2 = 0;
+            }
+
             for (var index = 0; index < data.Length; index++)
             {
                 var time = _musicPadSampleCursor / (double)SampleRate;
@@ -858,11 +890,7 @@ namespace VoidFall.Runtime
 
         private void ResetMusicPadState()
         {
-            _musicPadSampleCursor = 0;
-            _musicPadFilterX1 = 0;
-            _musicPadFilterX2 = 0;
-            _musicPadFilterY1 = 0;
-            _musicPadFilterY2 = 0;
+            _musicPadResetRequested = 1;
         }
 
         private static float Envelope(float t)
@@ -902,7 +930,7 @@ namespace VoidFall.Runtime
                 : waveform == Waveform.Triangle
                     ? 2f * Mathf.Abs(2f * (phase / (2f * Mathf.PI) - Mathf.Floor(phase / (2f * Mathf.PI) + 0.5f))) - 1f
                     : waveform == Waveform.Square
-                        ? Mathf.Sign(Mathf.Sin(phase))
+                        ? Mathf.Sin(phase) >= 0f ? 1f : -1f
                         : 2f * (phase / (2f * Mathf.PI) - Mathf.Floor(phase / (2f * Mathf.PI) + 0.5f));
         }
 

@@ -128,7 +128,6 @@ namespace VoidFall.Runtime
             }
 
             _sampleElapsed += frameSeconds;
-            _phaseElapsed += frameSeconds;
             if (_sampleElapsed >= SampleIntervalSeconds)
             {
                 _sampleElapsed -= SampleIntervalSeconds;

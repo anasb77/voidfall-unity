@@ -6,7 +6,10 @@
     "VoidFall.Content",
     "VoidFall.Persistence",
     "VoidFall.Audio",
-    "Unity.InputSystem"
+    "VoidFall.UI",
+    "Unity.InputSystem",
+    "Unity.Addressables",
+    "Unity.ResourceManager"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

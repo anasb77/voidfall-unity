@@ -37,7 +37,7 @@ public sealed class FixedStepClock
 
         if (steps >= SimulationRules.MaxCatchUpSteps)
         {
-            _accumulator = 0;
+            _accumulator %= SimulationRules.FixedStepSeconds;
         }
 
         return steps;

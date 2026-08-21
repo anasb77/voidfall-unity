@@ -1,0 +1,94 @@
+Assets/VoidFall\Audio\ProceduralAudio.cs:122:            var savedMute = PlayerPrefs.GetInt(
+Assets/VoidFall\Audio\ProceduralAudio.cs:124:                PlayerPrefs.GetInt("service_yard_muted", 0));
+Assets/VoidFall\Audio\ProceduralAudio.cs:169:            PlayerPrefs.SetInt("voidfall_muted", muted ? 1 : 0);
+Assets/VoidFall\Audio\ProceduralAudio.cs:170:            PlayerPrefs.Save();
+Assets/VoidFall\Audio\ProceduralAudio.cs:223:        private void Update()
+Assets/VoidFall\Audio\MusicDirector.cs:231:            var loaded = Resources.LoadAll<AudioClip>(resourcePath);
+Assets/VoidFall\Audio\MusicDirector.cs:240:            // Resources.LoadAll order is not specified. Sort so the shuffle bag
+Assets/VoidFall\Audio\MusicDirector.cs:481:        private void Update()
+Assets/VoidFall\UI\Views\DebugOverlayView.cs:95:        private void Update()
+Assets/VoidFall\UI\Views\EvolutionRevealView.cs:213:        private void Update()
+Assets/VoidFall\UI\Core\UIManager.cs:143:            DontDestroyOnLoad(go);
+Assets/VoidFall\UI\Core\UIManager.cs:150:                Destroy(go);
+Assets/VoidFall\UI\Core\UIManager.cs:162:                Destroy(gameObject);
+Assets/VoidFall\UI\Core\UIManager.cs:168:        private void OnDestroy()
+Assets/VoidFall\UI\Core\UIBuilder.cs:425:            var existing = UnityEngine.Object.FindObjectOfType<EventSystem>();
+Assets/VoidFall\UI\Core\UIBuilder.cs:1691:        private void Update()
+Assets/VoidFall\UI\Core\UIBuilder.cs:1730:        private void Update()
+Assets/VoidFall\UI\Core\UIBuilder.cs:1758:        private void Update()
+Assets/VoidFall\UI\Core\UIBuilder.cs:1783:        private void Update()
+Assets/VoidFall\UI\Core\UIBuilder.cs:1833:        private void Update()
+Assets/VoidFall\UI\Core\UIBuilder.cs:1979:                Destroy(child.gameObject);
+Assets/VoidFall\UI\Core\UIBuilder.cs:2021:                _home = Resources.Load<Texture2D>("VoidFall/HomeIconsRaster");
+Assets/VoidFall\UI\Core\UIBuilder.cs:2023:                var sprite = Resources.Load<Sprite>("VoidFall/HomeIcons");
+Assets/VoidFall\UI\Core\UIBuilder.cs:2024:                _home = sprite != null ? sprite.texture : Resources.Load<Texture2D>("VoidFall/HomeIcons");
+Assets/VoidFall\UI\Core\UIBuilder.cs:2035:                _control = Resources.Load<Texture2D>("VoidFall/ControlIconsRaster");
+Assets/VoidFall\UI\Core\UIBuilder.cs:2037:                var sprite = Resources.Load<Sprite>("VoidFall/ControlIcons");
+Assets/VoidFall\UI\Core\UIBuilder.cs:2038:                _control = sprite != null ? sprite.texture : Resources.Load<Texture2D>("VoidFall/ControlIcons");
+Assets/VoidFall\Runtime\FixedGameLoop.cs:16:    private void Update()
+Assets/VoidFall\Runtime\ParityFixtureProbe.cs:42:    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+Assets/VoidFall\Runtime\ParityFixtureProbe.cs:46:        DontDestroyOnLoad(root);
+Assets/VoidFall\Runtime\StressBenchmarkProbe.cs:62:        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+Assets/VoidFall\Runtime\StressBenchmarkProbe.cs:67:            DontDestroyOnLoad(root);
+Assets/VoidFall\Runtime\StressBenchmarkProbe.cs:82:        private void Update()
+Assets/VoidFall\Runtime\Gameplay\ArenaPlateFactory.cs:27:                if (sprite != null) UnityEngine.Object.Destroy(sprite);
+Assets/VoidFall\Runtime\Gameplay\ArenaPlateFactory.cs:33:                if (texture != null) UnityEngine.Object.Destroy(texture);
+Assets/VoidFall\UI\Views\SettingsView.cs:472:        private void Update()
+Assets/VoidFall\UI\Views\ToastView.cs:82:                if (oldest.Root != null) Destroy(oldest.Root.gameObject);
+Assets/VoidFall\UI\Views\ToastView.cs:151:        private void Update()
+Assets/VoidFall\UI\Views\ToastView.cs:170:                Destroy(notice.Root.gameObject);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1241:                if (kvp.Value != null) Destroy(kvp.Value);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1259:                        Destroy(oldTex);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1299:                Destroy(gameObject);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1305:            DontDestroyOnLoad(gameObject);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1373:        private void OnApplicationQuit()
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1379:        private void OnDestroy()
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1390:                    Destroy(_arenaFilamentGroupNotchMasks[group]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1392:                    Destroy(_arenaFilamentPlateSprites[group]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1394:                    Destroy(_arenaFilamentPlateTextures[group]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1399:                    Destroy(_arenaNearFilamentNotchMasks[index]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1401:                    Destroy(_arenaNearFilamentMaterials[index]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1408:                    Destroy(_arenaPlateSprites[index]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1409:                    if (texture != null) Destroy(texture);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1414:                    Destroy(_arenaPlateDetailSprites[index]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1415:                    if (detailTexture != null) Destroy(detailTexture);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1420:                if (_dynamicMeshes[i] != null) Destroy(_dynamicMeshes[i]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1426:                if (_dynamicMaterials[i] != null) Destroy(_dynamicMaterials[i]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1430:            if (_blastWaveScreenMaterial != null) { Destroy(_blastWaveScreenMaterial); _blastWaveScreenMaterial = null; }
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1431:            if (_defaultSpriteMaterial != null) { Destroy(_defaultSpriteMaterial); _defaultSpriteMaterial = null; }
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1432:            if (_additiveSpriteMaterial != null) { Destroy(_additiveSpriteMaterial); _additiveSpriteMaterial = null; }
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1440:        private void OnApplicationPause(bool pauseStatus)
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1445:        private void OnApplicationFocus(bool hasFocus)
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1479:        private void Update()
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:1660:        private void LateUpdate()
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:12113:            // Mute lives in ProceduralAudio (it owns the PlayerPrefs key), so
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:14598:            _buildChipIconTexture = Resources.Load<Texture2D>("VoidFall/BuildChipIconsRaster");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:14601:            var sprite = Resources.Load<Sprite>("VoidFall/BuildChipIcons");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:14608:            _buildChipIconTexture = Resources.Load<Texture2D>("VoidFall/BuildChipIcons");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:15034:            _rerollIconTexture = Resources.Load<Texture2D>("VoidFall/RerollRotateCcwRaster");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:15036:            var sprite = Resources.Load<Sprite>("VoidFall/RerollRotateCcw");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:15039:                : Resources.Load<Texture2D>("VoidFall/RerollRotateCcw");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:15630:            _upgradeHeartIconTexture = Resources.Load<Texture2D>("VoidFall/UpgradeHeartRaster");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:15632:            var sprite = Resources.Load<Sprite>("VoidFall/UpgradeHeart");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:15635:                : Resources.Load<Texture2D>("VoidFall/UpgradeHeart");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:16363:            _homeIconTexture = Resources.Load<Texture2D>("VoidFall/HomeIconsRaster");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:16365:            var sprite = Resources.Load<Sprite>("VoidFall/HomeIcons");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:16368:                : Resources.Load<Texture2D>("VoidFall/HomeIcons");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:16454:            _controlIconTexture = Resources.Load<Texture2D>("VoidFall/ControlIconsRaster");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:16456:            var sprite = Resources.Load<Sprite>("VoidFall/ControlIcons");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:16459:                : Resources.Load<Texture2D>("VoidFall/ControlIcons");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:16875:            _workshopCoinsTexture = Resources.Load<Texture2D>("VoidFall/WorkshopCoinsRaster");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:16877:                _workshopCoinsTexture = Resources.Load<Texture2D>("VoidFall/WorkshopCoins");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:17242:                _workshopIconTexture = Resources.Load<Texture2D>("VoidFall/WorkshopIconsRaster");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:17244:                var sprite = Resources.Load<Sprite>("VoidFall/WorkshopIcons");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:17247:                    : Resources.Load<Texture2D>("VoidFall/WorkshopIcons");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:19974:            _camera = Camera.main;
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:20054:                Destroy(_arenaPlateSprites[index]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:20055:                if (texture != null) Destroy(texture);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:20061:                Destroy(_arenaPlateDetailSprites[index]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:20062:                if (detailTexture != null) Destroy(detailTexture);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:23024:            _blastWaveScreenMaterial = Resources.Load<Material>("VoidFall/BlastWaveScreen");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:23065:            _additiveSpriteMaterial = Resources.Load<Material>("VoidFall/AdditiveSprite");
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:24838:                Destroy(_arenaFilamentPlateSprites[group]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:24840:                Destroy(_arenaFilamentPlateTextures[group]);
+Assets/VoidFall\Runtime\Gameplay\VoidFallGameRuntime.cs:24968:                Destroy(_arenaFilamentGroupNotchMasks[group]);

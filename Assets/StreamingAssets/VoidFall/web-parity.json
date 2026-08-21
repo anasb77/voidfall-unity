@@ -6,19 +6,25 @@
           "flashRate": 0.04,
           "id": "quiet",
           "name": "Quiet clouds",
-          "seconds": 48
+          "seconds": 42
         },
         {
           "flashRate": 0.1,
           "id": "ionized",
           "name": "Ionized filaments",
-          "seconds": 34
+          "seconds": 30
         },
         {
           "flashRate": 0.7,
           "id": "flare",
           "name": "Stellar flare",
-          "seconds": 10
+          "seconds": 12
+        },
+        {
+          "flashRate": 0.25,
+          "id": "corona",
+          "name": "Corona surge",
+          "seconds": 18
         }
       ],
       "description": "Emission clouds under a cropped red giant.",
@@ -33,7 +39,25 @@
     },
     "void": {
       "cycles": [
-        { "flashRate": 0, "id": "steady", "name": "Steady", "seconds": 60 }
+        { "flashRate": 0, "id": "steady", "name": "Steady", "seconds": 54 },
+        {
+          "flashRate": 0.025,
+          "id": "drift",
+          "name": "Abyssal drift",
+          "seconds": 38
+        },
+        {
+          "flashRate": 0.08,
+          "id": "eclipse",
+          "name": "Deep eclipse",
+          "seconds": 28
+        },
+        {
+          "flashRate": 0.2,
+          "id": "rupture",
+          "name": "Abyssal rupture",
+          "seconds": 16
+        }
       ],
       "description": "Open ground with clear sightlines.",
       "eliteCadenceMultiplier": 1,
@@ -41,7 +65,7 @@
       "features": [],
       "id": "void",
       "modifier": "No modifiers",
-      "name": "The Void",
+      "name": "Abyss",
       "starTint": "#dbe4f4",
       "weightMultipliers": {}
     },
@@ -51,15 +75,21 @@
           "flashRate": 0.03,
           "id": "still",
           "name": "Still drift",
-          "seconds": 46
+          "seconds": 42
         },
         {
           "flashRate": 0.06,
           "id": "cross",
           "name": "Cross current",
-          "seconds": 32
+          "seconds": 28
         },
-        { "flashRate": 0.05, "id": "bloom", "name": "Bloom", "seconds": 20 }
+        { "flashRate": 0.05, "id": "bloom", "name": "Bloom", "seconds": 18 },
+        {
+          "flashRate": 0.12,
+          "id": "afterglow",
+          "name": "Petal afterglow",
+          "seconds": 22
+        }
       ],
       "description": "Ivory drift under a fractured orbital ring.",
       "eliteCadenceMultiplier": 1.5,

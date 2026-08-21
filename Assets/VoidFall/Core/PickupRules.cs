@@ -5,7 +5,9 @@ namespace VoidFall.Core
 {
     public static class PickupRules
     {
-        public const double OverdriveDurationSeconds = 15;
+        // Compatibility aliases for existing telemetry/tests. New gameplay
+        // must query OverclockRules by tier so every cadence path agrees.
+        public const double OverdriveDurationSeconds = OverclockRules.StackDurationSeconds;
         public const double OverdriveSpeedMultiplier = 2;
         public const double OverdriveFireRateMultiplier = 1.35;
         public const int MaxActiveHarvesters = 3;
@@ -45,7 +47,7 @@ namespace VoidFall.Core
 
         public static double OverdriveCooldownMultiplier(bool active)
         {
-            return active ? 1 / OverdriveFireRateMultiplier : 1;
+            return OverclockRules.CooldownMultiplier(active ? 1 : 0);
         }
 
         public static int[] XpDropValues(int total, Func<double> random, int maxDrops = 20)

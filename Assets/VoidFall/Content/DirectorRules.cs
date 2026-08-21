@@ -68,6 +68,34 @@ namespace VoidFall.Core
             return populationCap * (bossActive ? 1.45 : 1.6);
         }
 
+        /// <summary>
+        /// Remaps run time onto the clock used to pick an ambient spawn band.
+        /// </summary>
+        /// <remarks>
+        /// The spawn timeline and every enemy's NaturalStartSeconds are generated
+        /// parity content and must not be edited, but the browser schedule is
+        /// front-loaded: seven of fourteen types are eligible by t=120, then the
+        /// 120-240 band is a two-minute plateau that introduces nothing new. So
+        /// the data stays untouched and the clock reading it is reshaped instead.
+        ///
+        /// Piecewise-linear and monotonic, anchored at (real -> roster):
+        ///   0 -> 0, 120 -> 70, 240 -> 240, 360 -> 420, then +60 offset.
+        /// Early time runs slow, which stretches the opening reveal to five types
+        /// by t=120 instead of seven; time then runs fast, which fills the dead
+        /// plateau and lands the full roster around a minute sooner than before.
+        /// Deliberate divergence from the browser engine, not a parity bug.
+        /// </remarks>
+        public static double RosterRevealTime(double elapsedSeconds)
+        {
+            var time = !double.IsNaN(elapsedSeconds) && !double.IsInfinity(elapsedSeconds)
+                ? Math.Max(0, elapsedSeconds)
+                : 0;
+            if (time <= 120) return time * (70.0 / 120.0);
+            if (time <= 240) return 70 + (time - 120) * ((240.0 - 70.0) / 120.0);
+            if (time <= 360) return 240 + (time - 240) * ((420.0 - 240.0) / 120.0);
+            return time + 60;
+        }
+
         public static int SwarmEnemyCount(double elapsedSeconds)
         {
             var original = 12 + (int)Math.Floor(Math.Max(0, elapsedSeconds) / 15);

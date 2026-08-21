@@ -10,6 +10,7 @@ using UnityEngine.UI;
 using VoidFall.Core;
 using VoidFall.Persistence;
 using VoidFall.Runtime.Rendering;
+using VoidFall.UI;
 
 namespace VoidFall.Runtime
 {
@@ -21,6 +22,7 @@ namespace VoidFall.Runtime
     [DefaultExecutionOrder(-800)]
     public sealed class VoidFallGameRuntime : MonoBehaviour
     {
+        private UIManager _ui;
         private const uint FixtureRunSeed = 0x5f1dc0deu;
         [SerializeField] private uint runSeedOverride;
         private static uint _runSeedCounter;
@@ -53,7 +55,7 @@ namespace VoidFall.Runtime
         private const int ArenaFilamentPlateCount = 3;
         private const int MaxArenaRocks = 10;
         private const int MaxArenaLandmarkSegments = 11;
-        private const int MaxArenaStellarRimSegments = 30;
+        private const int MaxArenaStellarRimSegments = 48;
         private const int MaxArenaRingDebris = 11;
         private const int ArenaRingSlabSteps = 6;
         private const int ArenaRingSlabVertexCount = (ArenaRingSlabSteps + 1) * 2;
@@ -98,6 +100,11 @@ namespace VoidFall.Runtime
             "exploder",
             "guard",
         };
+        // Pre-allocated spread/side arrays used in hot combat loops to avoid
+        // per-frame heap allocations (audit #19).
+        private static readonly float[] GunnerRosterTwoSpreads = { -0.23f, 0f, 0.2f };
+        private static readonly float[] TwinGunnerSides = { -1f, 1f };
+        private static readonly float[] BossPressureSpreads = { -0.58f, -0.38f, -0.2f, 0.2f, 0.38f, 0.58f };
         // Source burst calls carry a final size argument. Every current
         // source-mapped call site passes that value explicitly; keep tuple
         // lookup only as a safe fallback for internal/default calls.
@@ -111,6 +118,23 @@ namespace VoidFall.Runtime
         private const float AttackPlayerRadius = 14f;
         private const float WorldHalfWidth = 640f;
         private const float WorldHalfHeight = 360f;
+
+        // Approach fan. See ApproachBias. Full bias beyond FullDistance, tapering
+        // to none by CommitDistance so the kill is still a straight line.
+        private const float ApproachBiasMaxRadians = 0.55f;
+        private const float ApproachBiasCommitDistance = 165f;
+        private const float ApproachBiasFullDistance = 520f;
+
+        // Boss commitment. Inside StartDistance nothing changes; past it the
+        // pursuit floor and the ambient penalty both ramp to full by
+        // FullDistance. FloorSpeed sits above the 235 player base so a fleeing
+        // player loses ground except while overdrive is up.
+        private const float BossPursuitStartDistance = 620f;
+        private const float BossPursuitFullDistance = 1500f;
+        private const float BossPursuitFloorSpeed = 300f;
+        private const float BossEngagementDistance = 900f;
+        private const float BossEngagedIntensity = 0.55f;
+        private const float BossAbandonedIntensity = 1.25f;
         private const float ArenaSkyParallax = 0.05f;
         private const float ArenaNearParallax = 0.14f;
         private const float ArenaNearOverscan = 1.34f;
@@ -490,6 +514,7 @@ namespace VoidFall.Runtime
         }
 
         private static VoidFallGameRuntime _instance;
+        private bool _ownsGlobalResources;
         private readonly FixedStepClock _clock = new FixedStepClock();
         private readonly EnemyState[] _enemies = new EnemyState[MaxEnemies];
         private readonly BulletState[] _bullets = new BulletState[MaxBullets];
@@ -610,6 +635,8 @@ namespace VoidFall.Runtime
         private static Material _additiveSpriteMaterial;
         private static Material _defaultSpriteMaterial;
         private Material _fxMaterial;
+        private readonly List<Mesh> _dynamicMeshes = new List<Mesh>();
+        private readonly List<Material> _dynamicMaterials = new List<Material>();
         private readonly Text[] _floaterViews = new Text[MaxFloaters];
         private readonly Image[] _damageIndicatorViews = new Image[MaxDamageIndicators];
         private readonly SpriteRenderer[] _deathGhostViews = new SpriteRenderer[MaxDeathGhosts];
@@ -707,20 +734,11 @@ namespace VoidFall.Runtime
         private bool _arenaFarFilamentSeedsReady;
         private readonly Sprite[] _arenaPlateSprites = new Sprite[3];
         private readonly Sprite[] _arenaPlateDetailSprites = new Sprite[3];
-        private int _arenaPlateViewportWidth = -1;
-        private int _arenaPlateViewportHeight = -1;
-        private int _arenaPlateDetail = -1;
+        private readonly ArenaPlateAsset[] _preparedArenaPlateAssets = new ArenaPlateAsset[3];
+        private readonly ArenaPackageKey[] _preparedArenaPlateKeys = new ArenaPackageKey[3];
+        private ArenaResidencyManager _arenaResidency;
         private int _arenaPlateBakeWidth = ArenaPlateFactory.DefaultWidth;
         private int _arenaPlateBakeHeight = ArenaPlateFactory.DefaultHeight;
-        private sealed class ArenaPlatePrebake
-        {
-            public Color32[] BasePixels;
-            public Color32[] DetailPixels;
-        }
-        private System.Threading.Tasks.Task<ArenaPlatePrebake> _arenaPlatePrebakeTask;
-        private ArenaId _arenaPlatePrebakeArena;
-        private int _arenaPlatePrebakeWidth;
-        private int _arenaPlatePrebakeHeight;
         private readonly LineRenderer[] _arenaRockRimViews = new LineRenderer[MaxArenaRocks];
         private readonly LineRenderer[] _arenaStellarRimViews = new LineRenderer[MaxArenaStellarRimSegments];
         private readonly LineRenderer[] _arenaLandmarkViews = new LineRenderer[MaxArenaLandmarkSegments];
@@ -790,13 +808,22 @@ namespace VoidFall.Runtime
         private float _arenaFlash;
         private float _arenaFlashT = 1.5f;
         private const float HudFadeSeconds = 0.18f;
+        // Menu motion is intentionally faster than gameplay ambient motion so
+        // the live Void reads as animated behind the home UI. This clock is
+        // separate from _ambientClock and never changes gameplay FX timing.
+        private const float MenuVoidMotionSpeed = 18f;
+        private const float MenuCyclePreviewRate = 0.2f;
+        private const float MenuOrbitPhaseRate = 0.095f;
+        private const float GameplayOrbitPhaseRate = 0.018f;
+        private const float MenuRingPhaseRate = 0.04f;
+        private const float GameplayRingPhaseRate = 0.008f;
         private float _arenaDecorClock;
         private float _ambientClock;
         private Vector2 _arenaDecorDrift;
         private ProceduralAudio _audio;
         private MusicDirector _music;
-        // Non-null while procedural sprites are still being warmed in the
-        // background. See PumpSpriteWarm.
+        // Development fallback only. Shipping builds hydrate the factory from
+        // the prepared catalog before any view asks for a sprite.
         private IEnumerator<int> _spriteWarmSteps;
 
         // Wall-time slice given to the background sprite warm each frame. Small
@@ -836,6 +863,8 @@ namespace VoidFall.Runtime
         private RawImage _boostIcon;
         private Text _boostText;
         private Text _boostSecondsText;
+        private Text _boostGhostA;
+        private Text _boostGhostB;
         private Text _loadoutText;
         private Text _supportStripText;
         private Text _lateStripText;
@@ -874,15 +903,14 @@ namespace VoidFall.Runtime
         private Image _redFlashOverlay;
         private Image _cyanFlashOverlay;
         private Image _amberFlashOverlay;
-        private Image _arenaVignetteOverlay;
+        private SpriteRenderer _arenaVignetteView;
+        private MusicPerimeterGraphic _musicPerimeter;
         private Image _arenaBannerPanel;
         private Outline _arenaBannerOutline;
         private Text _arenaBannerTitle;
         private Text _arenaBannerDetail;
         private SpriteRenderer _backdropView;
         private SpriteRenderer _arenaBakedDetailView;
-        private Canvas _arenaGrainCameraCanvas;
-        private RawImage _arenaGrainCameraView;
         private MeshFilter _arenaGridView;
         private MeshRenderer _arenaGridRenderer;
         private Mesh _arenaGridMesh;
@@ -892,7 +920,6 @@ namespace VoidFall.Runtime
         private float _arenaGridHeight = float.NaN;
         private int _arenaGridVerticalCount;
         private int _arenaGridHorizontalCount;
-        private readonly Sprite[] _arenaGrainSprites = new Sprite[3];
         private SpriteRenderer _arenaLandmarkBodyView;
         private ArenaTransitionGraphic _transitionOverlay;
         private Image _touchBaseImage;
@@ -901,13 +928,20 @@ namespace VoidFall.Runtime
         private float _arenaBannerRemaining;
         private ArenaId _arenaBannerIncoming;
         private ArenaId _arenaId;
+        private int _arenaRecipeIndex;
         private Vector2 _playerPosition;
         private Vector2 _playerVelocity;
         private float _playerHealth;
         private float _playerMaxHealth;
         private float _healthGhostFraction = 1f;
         private float _playerIframes;
-        private float _overdriveTimer;
+        private OverclockState _overclock;
+        private float _overclockHudPunch;
+        private float _overclockVisualSurge;
+        private int _lastOverclockHudStreak = -1;
+        private int _lastOverclockHudSecond = -1;
+        private float _magnetIntensity;
+        private float _magnetTarget;
         private float _adrenalTimer;
         private float _playerTrailTimer;
         private float _dyingTimer;
@@ -1021,6 +1055,8 @@ namespace VoidFall.Runtime
         private string _workshopFocusedId;
         private bool _workshopFocusVisible;
         private bool _settingsDirty;
+        private float _settingsDirtyTimer;
+        private SaveSettings _settingsDirtyPrevious;
         private bool _settingsQualityMenuOpen;
         private static readonly string[] SettingsQualityOptions =
         {
@@ -1043,6 +1079,13 @@ namespace VoidFall.Runtime
         private GUISkin _menuSkin;
         private bool _debugOverlay;
         private float _debugFrameEmaMs = 16f;
+        private double _startupMenuReadyRealtime;
+        private double _startupMenuSampleSeconds;
+        private float _startupMenuWorstFrameSeconds;
+        private double _startupMenuWorstFrameElapsed;
+        private int _startupMenuFrameCount;
+        private bool _startupMenuSkipNextFrame;
+        private bool _startupMenuReportLogged;
         private GUIStyle _debugReadoutStyle;
         private GUIStyle _debugButtonStyle;
         private string _visualCapturePath;
@@ -1054,6 +1097,10 @@ namespace VoidFall.Runtime
         private bool _visualCaptureQuit;
         private bool _visualCaptureNoGrid;
         private bool _visualCaptureIssued;
+        private int _visualCaptureOverclockStreak;
+        private float _visualCaptureRunSeconds;
+        private bool _visualCaptureCritical;
+        private string _visualCaptureArena;
         private GUIStyle _menuPanelShadowStyle;
         private static Texture2D _rusherChevronTexture;
         private GUIStyle _profilePageHeaderStyle;
@@ -1184,6 +1231,49 @@ namespace VoidFall.Runtime
             new Dictionary<string, Texture2D>();
         private static readonly Dictionary<string, Texture2D> _menuStartInsetShadowCache =
             new Dictionary<string, Texture2D>();
+
+        private static void ClearStaticTextureCaches()
+        {
+            DestroyTextureCache(_evolutionMarkRingCache);
+            DestroyTextureCache(_evolutionMarkGlowCache);
+            DestroyTextureCache(_evolutionCrossLineCache);
+            DestroyTextureCache(_overlayCardShadowCache);
+            DestroyTextureCache(_primaryActionOuterShadowCache);
+            DestroyTextureCache(_primaryActionInsetShadowCache);
+            DestroyTextureCache(_menuStartOuterShadowCache);
+            DestroyTextureCache(_menuStartInsetShadowCache);
+        }
+
+        private static void DestroyTextureCache(Dictionary<string, Texture2D> cache)
+        {
+            if (cache == null) return;
+            foreach (var kvp in cache)
+            {
+                if (kvp.Value != null) Destroy(kvp.Value);
+            }
+            cache.Clear();
+        }
+
+        private static void CacheTextureBounded(Dictionary<string, Texture2D> cache, string key, Texture2D texture, int maxEntries = 12)
+        {
+            if (cache.Count >= maxEntries)
+            {
+                string oldestKey = null;
+                foreach (var k in cache.Keys)
+                {
+                    oldestKey = k;
+                    break;
+                }
+                if (oldestKey != null)
+                {
+                    if (cache.TryGetValue(oldestKey, out var oldTex) && oldTex != null)
+                        Destroy(oldTex);
+                    cache.Remove(oldestKey);
+                }
+            }
+            cache[key] = texture;
+        }
+
         private static Font _browserBodyFont;
         private static Font _browserDisplayFont;
         private static Texture2D _homeBackdropTexture;
@@ -1222,33 +1312,142 @@ namespace VoidFall.Runtime
             }
 
             _instance = this;
+            _ownsGlobalResources = true;
+            _arenaResidency = new ArenaResidencyManager();
             DontDestroyOnLoad(gameObject);
             _worldRoot = new GameObject("VoidFall World").transform;
             _worldRoot.SetParent(transform, false);
+            ConfigurePreparedSpritesForStartup();
             SetupCamera();
             SetupBackdrop();
             SetupHud();
             SetupPlayer();
             SetupAudio();
             SetupFx();
-            // Pre-bake all procedural enemy, boss, pickup, projectile, and
-            // weapon sprites so gameplay never pays rasterization cost on first
-            // sighting. This used to run to completion here, which put the whole
-            // set (~230 sprites, heavily supersampled) between the Unity splash
-            // and the main menu. Every sprite is lazily cached anyway, so the
-            // warm is purely pre-emptive and can be spread across menu frames
-            // instead. DrainSpriteWarm() forces the remainder before a run
-            // starts, which keeps the original no-hitch-in-gameplay guarantee.
-            _spriteWarmSteps = ProceduralSpriteFactory.WarmAllSpritesSteps();
             _saveStore = new SaveStore();
             _saveData = _saveStore.Load();
             ApplySettings();
+            // Resolve the saved arena while the application is still composing
+            // its first scene. Imported textures replace the old multi-million-
+            // pixel first-render bake and are ready before the menu is shown.
+            _arenaId = ArenaIdFromName(_saveData?.arena);
+            SelectRecipeForCurrentArena();
+            PrepareArenaNeighborhood();
+            TryInstallPreparedArenaPlate(_arenaId);
+            _ui = UIManager.Create(new UICallbacks
+            {
+                StartRun = StartRun,
+                RestartRun = StartRun,
+                ResumeRun = ResumeRunFromUi,
+                AbortToMenu = EnterMainMenu,
+
+                OpenWorkshop = () => OpenMenuPageFromUi(MenuPage.Workshop),
+                OpenRecords = () => OpenMenuPageFromUi(MenuPage.Records),
+                OpenSettings = () => OpenMenuPageFromUi(MenuPage.Settings),
+                CloseMenuPage = CloseMenu,
+
+                PrevArena = CyclePrevArenaFromUi,
+                NextArena = CycleNextArenaFromUi,
+
+                BuyWorkshop = TryBuyWorkshopFromUi,
+                PreviewWorkshop = id => _workshopPreviewId = id,
+                RefundWorkshop = RefundAllWorkshopFromUi,
+
+                SetMasterVolume = v => ApplySettingFromUi(s => s.masterVolume = v, false),
+                SetEffectsVolume = v => ApplySettingFromUi(s => s.effectsVolume = v, false),
+                SetMusicVolume = v => ApplySettingFromUi(s => s.musicVolume = v, false),
+                SetScreenShake = v => ApplySettingFromUi(s => s.shake = v, false),
+                SetTouchSize = v => ApplySettingFromUi(s => s.touchSize = QuantizeTouchSize(v), false),
+                SetQuality = v => ApplySettingFromUi(s => s.quality = v, true),
+                SetReducedMotion = v => ApplySettingFromUi(s => s.reducedMotion = v, true),
+                SetHighContrast = v => ApplySettingFromUi(s => s.highContrast = v, true),
+
+                ToggleMute = ToggleMute,
+                IsMuted = () => _audio != null && _audio.Muted,
+
+                ResetProgress = ResetLocalProgress,
+                ExportSave = ExportBrowserSave,
+                ExportTelemetry = () => ExportTelemetrySnapshot(_gameOver ? "gameover" : "active"),
+
+                AcceptRevive = AcceptRevive,
+                DeclineRevive = DeclineRevive,
+                RerollUpgrades = RerollLevelOptions
+            });
             ConfigureVisualCapture();
             EnterMainMenu();
             if (_visualCaptureWorkshop) _menuPage = MenuPage.Workshop;
             if (_visualCaptureSettings) _menuPage = MenuPage.Settings;
             if (_visualCaptureRecords) _menuPage = MenuPage.Records;
-            if (_visualCaptureRun) StartRunInternal(false);
+            if (_visualCaptureRun)
+            {
+                StartRunInternal(false);
+                for (var stack = 0; stack < _visualCaptureOverclockStreak; stack++)
+                    _overclock.ApplyPickup();
+                if (_visualCaptureOverclockStreak > 0)
+                {
+                    _overclockHudPunch = 1f;
+                    _overclockVisualSurge = 1f;
+                }
+                if (_visualCaptureRunSeconds > 0f) _time = _visualCaptureRunSeconds;
+                if (_visualCaptureCritical) _playerHealth = _playerMaxHealth * 0.15f;
+                if (!string.IsNullOrEmpty(_visualCaptureArena))
+                {
+                    _arenaId = ArenaIdFromName(_visualCaptureArena);
+                    SelectRecipeForCurrentArena();
+                    TryInstallPreparedArenaPlate(_arenaId);
+                }
+            }
+            _startupMenuReadyRealtime = Time.realtimeSinceStartupAsDouble;
+            _startupMenuSkipNextFrame = true;
+            Debug.Log(
+                "VOIDFALL_STARTUP_READY engineSeconds=" +
+                _startupMenuReadyRealtime.ToString("F3") +
+                " preparedSprites=" + (_spriteWarmSteps == null) +
+                " arena=" + _arenaId);
+        }
+
+        private bool ConfigurePreparedSpritesForStartup()
+        {
+            var catalog = Resources.Load<ProceduralSpriteCatalog>(
+                "VoidFall/Generated/ProceduralSpriteCatalog");
+            var installed = ProceduralSpriteFactory.InstallBakedCatalog(catalog);
+            _spriteWarmSteps = installed
+                ? null
+                : ProceduralSpriteFactory.WarmAllSpritesSteps();
+            return installed;
+        }
+
+        private void RecordStartupMenuFrame()
+        {
+            if (_startupMenuReportLogged || _startupMenuReadyRealtime <= 0 || !_mainMenuBrowsing) return;
+            if (_startupMenuSkipNextFrame)
+            {
+                _startupMenuSkipNextFrame = false;
+                return;
+            }
+
+            var frameSeconds = Mathf.Max(0, Time.unscaledDeltaTime);
+            _startupMenuSampleSeconds += frameSeconds;
+            _startupMenuFrameCount++;
+            if (frameSeconds > _startupMenuWorstFrameSeconds)
+            {
+                _startupMenuWorstFrameSeconds = frameSeconds;
+                _startupMenuWorstFrameElapsed =
+                    Time.realtimeSinceStartupAsDouble - _startupMenuReadyRealtime;
+            }
+            if (Time.realtimeSinceStartupAsDouble - _startupMenuReadyRealtime < 10.0) return;
+
+            _startupMenuReportLogged = true;
+            var averageFps = _startupMenuSampleSeconds > 0
+                ? _startupMenuFrameCount / _startupMenuSampleSeconds
+                : 0;
+            Debug.Log(
+                "VOIDFALL_MENU_STABILITY seconds=10" +
+                " frames=" + _startupMenuFrameCount +
+                " averageFps=" + averageFps.ToString("F1") +
+                " worstFrameMs=" + (_startupMenuWorstFrameSeconds * 1000f).ToString("F1") +
+                " worstAtSeconds=" + _startupMenuWorstFrameElapsed.ToString("F2") +
+                " emaFrameMs=" + _debugFrameEmaMs.ToString("F1"));
         }
 
         private void OnApplicationQuit()
@@ -1259,6 +1458,14 @@ namespace VoidFall.Runtime
 
         private void OnDestroy()
         {
+            // A duplicate runtime is destroyed by Awake before it owns any
+            // shared/static resources. Only the singleton owner may perform
+            // cleanup that also belongs to the surviving runtime.
+            if (!_ownsGlobalResources || _instance != this) return;
+            _ownsGlobalResources = false;
+            _arenaResidency?.Dispose();
+            _arenaResidency = null;
+
             for (var group = 0; group < _arenaFilamentGroupNotchMasks.Length; group++)
             {
                 if (_arenaFilamentGroupNotchMasks[group] != null)
@@ -1270,11 +1477,21 @@ namespace VoidFall.Runtime
             }
             for (var index = 0; index < _arenaNearFilamentNotchMasks.Length; index++)
             {
-                if (_arenaNearFilamentMaterials[index] != null)
+                if (_arenaNearFilamentNotchMasks[index] != null)
+                    Destroy(_arenaNearFilamentNotchMasks[index]);
+                if (index < _arenaNearFilamentMaterials.Length && _arenaNearFilamentMaterials[index] != null)
                     Destroy(_arenaNearFilamentMaterials[index]);
             }
             for (var index = 0; index < _arenaPlateSprites.Length; index++)
             {
+                if (_preparedArenaPlateAssets[index] != null)
+                {
+                    _preparedArenaPlateAssets[index] = null;
+                    _preparedArenaPlateKeys[index] = default;
+                    _arenaPlateSprites[index] = null;
+                    _arenaPlateDetailSprites[index] = null;
+                    continue;
+                }
                 if (_arenaPlateSprites[index] != null)
                 {
                     var texture = _arenaPlateSprites[index].texture;
@@ -1288,8 +1505,27 @@ namespace VoidFall.Runtime
                     if (detailTexture != null) Destroy(detailTexture);
                 }
             }
-            if (_instance == this) _instance = null;
+            for (var i = 0; i < _dynamicMeshes.Count; i++)
+            {
+                if (_dynamicMeshes[i] != null) Destroy(_dynamicMeshes[i]);
+            }
+            _dynamicMeshes.Clear();
+
+            for (var i = 0; i < _dynamicMaterials.Count; i++)
+            {
+                if (_dynamicMaterials[i] != null) Destroy(_dynamicMaterials[i]);
+            }
+            _dynamicMaterials.Clear();
+
+            if (_blastWaveScreenMaterial != null) { Destroy(_blastWaveScreenMaterial); _blastWaveScreenMaterial = null; }
+            if (_defaultSpriteMaterial != null) { Destroy(_defaultSpriteMaterial); _defaultSpriteMaterial = null; }
+            if (_additiveSpriteMaterial != null) { Destroy(_additiveSpriteMaterial); _additiveSpriteMaterial = null; }
             if (_fxMaterial != null) { Destroy(_fxMaterial); _fxMaterial = null; }
+
+            ArenaPlateFactory.Cleanup();
+            ClearStaticTextureCaches();
+
+            if (_instance == this) _instance = null;
         }
 
         private void OnApplicationPause(bool pauseStatus)
@@ -1333,6 +1569,15 @@ namespace VoidFall.Runtime
 
         private void Update()
         {
+            RecordStartupMenuFrame();
+            var startupUpdateStarted = Time.realtimeSinceStartupAsDouble;
+            // Debounce settings disk write so slider drags don't save every pixel (audit #14).
+            if (_settingsDirtyTimer > 0)
+            {
+                _settingsDirtyTimer -= Time.unscaledDeltaTime;
+                if (_settingsDirtyTimer <= 0) CommitSettings();
+            }
+
             var keyboard = Keyboard.current;
             if (keyboard != null)
             {
@@ -1450,16 +1695,72 @@ namespace VoidFall.Runtime
             // is actually alive and in a run, so the drag does not persist into
             // the death sequence or the game-over screen.
             var playerAliveInRun = !_gameOver && !_mainMenuBrowsing && _playerHealth > 0;
-            _music?.SetReactiveState(
-                _levelUpActive,
-                _overdriveTimer > 0,
-                playerAliveInRun && _playerMaxHealth > 0 &&
-                    _playerHealth / _playerMaxHealth <= 0.2f);
-
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
+            var criticalHealth = playerAliveInRun && _playerMaxHealth > 0 &&
+                _playerHealth / _playerMaxHealth <= 0.2f;
+            var magnetTime = _magnetTarget > _magnetIntensity ? 0.10f : 0.36f;
+            _magnetIntensity = Mathf.Lerp(
+                _magnetIntensity,
+                playerAliveInRun ? _magnetTarget : 0f,
+                1f - Mathf.Exp(-frameDt / magnetTime));
+            _overclockVisualSurge = Mathf.MoveTowards(_overclockVisualSurge, 0f, frameDt * 1.7f);
+            var musicState = new MusicReactiveState(
+                playerAliveInRun ? _overclock.PowerTier : 0,
+                playerAliveInRun ? _overclock.Streak : 0,
+                criticalHealth,
+                _levelUpActive,
+                _magnetIntensity,
+                playerAliveInRun);
+            _music?.SetReactiveState(musicState);
+            if (_musicPerimeter != null)
+            {
+                var analysis = _music != null ? _music.AnalysisFrame : MusicAnalysisFrame.Zero;
+                _musicPerimeter.SetPresentation(
+                    analysis.Bass,
+                    analysis.Mids,
+                    analysis.Treble,
+                    playerAliveInRun ? MusicPerimeterRules.AmbientIntensity(_time) : 0f,
+                    playerAliveInRun ? _overclock.PowerTier : 0,
+                    playerAliveInRun ? _overclock.Streak : 0,
+                    _overclockVisualSurge,
+                    criticalHealth,
+                    _magnetIntensity,
+                    _music != null ? _music.CurrentMixTargets.VisualDamping : 1f,
+                    frameDt);
+            }
+
+            var startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
             UpdateArenaDecor(frameDt, reducedMotion);
+            LogSlowStartupPhase("arena-decor", startupPhaseStarted);
+            startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
             Render();
+            LogSlowStartupPhase("render", startupPhaseStarted);
+            startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
             UpdateHud();
+            LogSlowStartupPhase("hud", startupPhaseStarted);
+            startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
+            if (_ui != null)
+            {
+                if (!_mainMenuBrowsing && !_gameOver)
+                {
+                    _ui.HUD?.UpdateHealth(_playerHealth, _playerMaxHealth);
+                    _ui.HUD?.UpdateShield(0f, 0f);
+                    _ui.HUD?.UpdateXP((int)_xp, _xpNeed, _level);
+                    _ui.HUD?.UpdateStats(CurrentScore(), _kills, _time);
+                    _ui.HUD?.SetBossWarning(_bossWarned);
+                    _ui.HUD?.SetRusherWarning(_directorWarned && _nextDirectorEvent.Id == "rushers");
+                }
+                _ui.DebugOverlay?.UpdateDiagnostics(ActiveEnemies(), ActiveBullets(), ActivePickups());
+                // The plate for a newly selected arena is baked lazily by the
+                // render path, so refresh the handoff while browsing rather than
+                // once on entry.
+                if (_mainMenuBrowsing) PushUiBackdrop();
+                // Reconcile once per frame rather than at every mutation site:
+                // pause, level-up, revive and game-over are set from a dozen
+                // places, and a single reconciliation cannot fall out of step.
+                SyncUiScreen();
+            }
+            LogSlowStartupPhase("ui-reconcile", startupPhaseStarted);
             ObserveTelemetryFrame(frameDt);
             if (!_paused && !_gameOver)
             {
@@ -1482,6 +1783,19 @@ namespace VoidFall.Runtime
                     _resetProgressTimer = 0;
                 }
             }
+            LogSlowStartupPhase("update-total", startupUpdateStarted);
+        }
+
+        private void LogSlowStartupPhase(string phase, double started)
+        {
+            if (_startupMenuReportLogged || _startupMenuReadyRealtime <= 0) return;
+            var milliseconds = (Time.realtimeSinceStartupAsDouble - started) * 1000.0;
+            if (milliseconds < 20.0) return;
+            Debug.Log(
+                "VOIDFALL_STARTUP_PHASE phase=" + phase +
+                " atSeconds=" +
+                (Time.realtimeSinceStartupAsDouble - _startupMenuReadyRealtime).ToString("F2") +
+                " milliseconds=" + milliseconds.ToString("F1"));
         }
 
         private void LateUpdate()
@@ -1528,6 +1842,323 @@ namespace VoidFall.Runtime
         private void ToggleDebugOverlay()
         {
             _debugOverlay = !_debugOverlay;
+            _ui?.DebugOverlay?.Toggle();
+        }
+
+        private void ResumeRunFromUi()
+        {
+            if (_paused && !_gameOver)
+            {
+                _paused = false;
+                RestartQualitySession();
+                _audio?.Resume();
+                _ui?.SwitchToGameplay();
+            }
+        }
+
+        private void CycleNextArenaFromUi()
+        {
+            var arenas = ContentOrder.Arenas;
+            var currentIdx = Array.IndexOf(arenas, _arenaId);
+            if (currentIdx < 0) currentIdx = 0;
+            var nextIdx = (currentIdx + 1) % arenas.Length;
+            _arenaId = arenas[nextIdx];
+            SelectRecipeForCurrentArena();
+            PrepareArenaNeighborhood();
+            if (_saveData != null) _saveData.arena = ArenaIdName(_arenaId);
+            RefreshMenuProfileUi();
+            _audio?.Play(ProceduralAudio.Cue.Ui, 1f);
+        }
+
+        private void CyclePrevArenaFromUi()
+        {
+            var arenas = ContentOrder.Arenas;
+            var currentIdx = Array.IndexOf(arenas, _arenaId);
+            if (currentIdx < 0) currentIdx = 0;
+            var prevIdx = (currentIdx - 1 + arenas.Length) % arenas.Length;
+            _arenaId = arenas[prevIdx];
+            SelectRecipeForCurrentArena();
+            PrepareArenaNeighborhood();
+            if (_saveData != null) _saveData.arena = ArenaIdName(_arenaId);
+            RefreshMenuProfileUi();
+            _audio?.Play(ProceduralAudio.Cue.Ui, 1f);
+        }
+
+        private void TryBuyWorkshopFromUi(string id)
+        {
+            TryBuyWorkshop(id);
+            RefreshWorkshopUi();
+            // Parts changed, so the home screen's balance and the Workshop nav
+            // card's detail line are both stale now.
+            RefreshMenuProfileUi();
+        }
+
+        private void RefundAllWorkshopFromUi()
+        {
+            RefundAllWorkshop();
+            RefreshWorkshopUi();
+            RefreshMenuProfileUi();
+        }
+
+        private void RefreshWorkshopUi()
+        {
+            if (_ui?.Workshop == null) return;
+            var list = new List<WorkshopItemData>();
+            foreach (var id in WorkshopOrder)
+            {
+                var rank = WorkshopRank(id);
+                var maxRank = id == "protocol" ? 1 : SaveStore.WorkshopMaxRank;
+                var cost = WorkshopCost(id, rank);
+                list.Add(new WorkshopItemData
+                {
+                    Id = id,
+                    Name = WorkshopName(id),
+                    Description = WorkshopDescription(id),
+                    CurrentRank = rank,
+                    MaxRank = maxRank,
+                    Cost = cost,
+                    CanAfford = (_saveData?.parts ?? 0) >= cost && cost >= 0
+                });
+            }
+            _ui.Workshop.Populate(_saveData?.parts ?? 0, list);
+        }
+
+        private void RefreshRecordsUi()
+        {
+            if (_ui?.Records == null) return;
+            var scores = new List<HighScoreRow>();
+            if (_saveData?.highScores != null)
+            {
+                foreach (var entry in _saveData.highScores)
+                {
+                    if (entry == null) continue;
+                    scores.Add(new HighScoreRow
+                    {
+                        Score = entry.score,
+                        Time = entry.time,
+                        Level = entry.level,
+                        Kills = entry.kills,
+                        BossKills = entry.bossKills
+                    });
+                }
+            }
+            _ui.Records.PopulateHighScores(scores);
+
+            var stats = _saveData?.stats;
+            if (stats == null) return;
+            _ui.Records.PopulateLifetime(new UILifetimeStats
+            {
+                TotalRuns = stats.totalRuns,
+                TotalKills = stats.totalKills,
+                BestScore = stats.bestScore,
+                BestTime = stats.bestTime,
+                TotalBossKills = stats.totalBossKills,
+                TotalEliteKills = stats.totalEliteKills,
+                TotalPlaySeconds = stats.totalPlaySeconds,
+                TotalPartsEarned = stats.totalPartsEarned,
+                BestKills = stats.bestKills,
+                HighestLevel = stats.highestLevel,
+                TotalDamageDealt = stats.totalDamageDealt,
+                TotalDamageTaken = stats.totalDamageTaken
+            });
+        }
+
+        /// <summary>
+        /// Collects the run's final loadout for the result screen's build recap:
+        /// owned weapons (evolutions carrying their evolved name and accent),
+        /// supports, then late upgrades, in the browser build's order.
+        /// </summary>
+        private List<UIBuildChip> BuildRecapChips()
+        {
+            var chips = new List<UIBuildChip>();
+            if (_upgradeProgress == null) return chips;
+
+            var weaponCount = Mathf.Min(ContentCatalog.Weapons.Length, _upgradeProgress.WeaponRanks.Length);
+            for (var index = 0; index < weaponCount; index++)
+            {
+                var rank = _upgradeProgress.WeaponRanks[index];
+                if (rank <= 0) continue;
+                var evolved = index < _upgradeProgress.Evolved.Length && _upgradeProgress.Evolved[index];
+                chips.Add(new UIBuildChip
+                {
+                    Name = WeaponDisplayName(index, evolved),
+                    Rank = rank,
+                    Accent = ParseColor(WeaponDisplayAccent(index, evolved), UITheme.CyanLight),
+                    Evolved = evolved
+                });
+            }
+
+            var supportCount = Mathf.Min(ContentCatalog.Supports.Length, _upgradeProgress.SupportRanks.Length);
+            for (var index = 0; index < supportCount; index++)
+            {
+                var rank = _upgradeProgress.SupportRanks[index];
+                if (rank <= 0) continue;
+                chips.Add(new UIBuildChip
+                {
+                    Name = ContentCatalog.Supports[index].Name,
+                    Rank = rank,
+                    Accent = ParseColor(ContentCatalog.Supports[index].Accent, UITheme.CyanLight)
+                });
+            }
+
+            var lateCount = Mathf.Min(ContentCatalog.LateUpgrades.Length, _upgradeProgress.LateRanks.Length);
+            for (var index = 0; index < lateCount; index++)
+            {
+                var rank = _upgradeProgress.LateRanks[index];
+                if (rank <= 0) continue;
+                chips.Add(new UIBuildChip
+                {
+                    Name = ContentCatalog.LateUpgrades[index].Name,
+                    Rank = rank,
+                    Accent = ParseColor(ContentCatalog.LateUpgrades[index].Accent, UITheme.CyanLight)
+                });
+            }
+
+            return chips;
+        }
+
+        private void RefreshSettingsUi()
+        {
+            var settings = _saveData?.settings;
+            if (_ui?.Settings == null || settings == null) return;
+            _ui.Settings.Apply(new UISettingsState
+            {
+                MasterVolume = settings.masterVolume,
+                EffectsVolume = settings.effectsVolume,
+                MusicVolume = settings.musicVolume,
+                ScreenShake = settings.shake,
+                TouchSize = settings.touchSize,
+                Quality = settings.quality,
+                ReducedMotion = settings.reducedMotion,
+                HighContrast = settings.highContrast
+            });
+        }
+
+        private void RefreshMenuProfileUi()
+        {
+            if (_ui?.MainMenu == null) return;
+            _ui.MainMenu.UpdateProfile(new UIProfileState
+            {
+                Parts = _saveData?.parts ?? 0,
+                BestScore = CurrentBestScore(),
+                TotalRuns = _saveData?.stats?.totalRuns ?? 0,
+                ArenaName = ArenaName(_arenaId)
+            });
+        }
+
+        /// <summary>
+        /// Leaves the UI backdrop transparent so the live arena renderer remains
+        /// visible behind the menus. The old baked RawImage hid the actual Void
+        /// decor, making the home background appear static.
+        /// </summary>
+        private void PushUiBackdrop()
+        {
+            _ui?.SetBackdrop(null);
+        }
+
+        private void OpenMenuPageFromUi(MenuPage page)
+        {
+            _menuPage = page;
+            _menuScroll = Vector2.zero;
+            if (page == MenuPage.Workshop) RefreshWorkshopUi();
+            if (page == MenuPage.Records) RefreshRecordsUi();
+            if (page == MenuPage.Settings) RefreshSettingsUi();
+            _audio?.Play(ProceduralAudio.Cue.Ui, 1f);
+            SyncUiScreen();
+        }
+
+        /// <summary>
+        /// Applies a preference change coming from the interface.
+        ///
+        /// Continuous controls debounce through the existing dirty timer so a
+        /// slider drag does not write the profile every frame; discrete controls
+        /// commit immediately and revert themselves if the write fails, which is
+        /// the contract the browser build's updateSettings has.
+        /// </summary>
+        private void ApplySettingFromUi(Action<SaveSettings> mutate, bool immediate)
+        {
+            var settings = _saveData?.settings;
+            if (settings == null || mutate == null) return;
+
+            if (immediate)
+            {
+                var previous = CloneSettings(settings);
+                mutate(settings);
+                ApplyAndCommitSettings(previous);
+                return;
+            }
+
+            _settingsDirtyPrevious = CloneSettings(settings);
+            mutate(settings);
+            ApplySettings();
+            _settingsDirty = true;
+            _settingsDirtyTimer = 0.5f;
+        }
+
+        /// <summary>
+        /// Maps the runtime's own state onto the single screen the interface
+        /// should be showing. The runtime stays the owner of that state, so
+        /// keyboard shortcuts, focus loss and gameplay events all keep working
+        /// without the UI holding a second copy that could disagree.
+        /// </summary>
+        private void SyncUiScreen()
+        {
+            if (_ui == null) return;
+
+            UIScreen screen;
+            if (_menuPage == MenuPage.Home) screen = UIScreen.Home;
+            else if (_menuPage == MenuPage.Workshop) screen = UIScreen.Workshop;
+            else if (_menuPage == MenuPage.Records) screen = UIScreen.Records;
+            else if (_menuPage == MenuPage.Settings) screen = UIScreen.Settings;
+            // MenuPage.Main was an in-run summary page with no counterpart in the
+            // browser build. Its figures now ride along on the pause overlay.
+            else if (_menuPage == MenuPage.Main) screen = UIScreen.Pause;
+            else if (_levelUpActive) screen = UIScreen.LevelUp;
+            else if (_revivePending) screen = UIScreen.Revive;
+            else if (_gameOver) screen = UIScreen.GameOver;
+            else if (_paused) screen = UIScreen.Pause;
+            else screen = UIScreen.None;
+
+            if (screen == UIScreen.Pause && _ui.CurrentScreen != UIScreen.Pause)
+            {
+                _ui.Pause?.UpdateSnapshot(new UIRunSnapshot
+                {
+                    Score = CurrentScore(),
+                    ElapsedSeconds = _time,
+                    Kills = _kills,
+                    Level = _level,
+                    PartsEarned = _partsEarned,
+                    BossKills = _bossKills
+                });
+            }
+
+            if (screen != _ui.CurrentScreen) _ui.SetScreen(screen);
+        }
+
+        private int CurrentBestScore()
+        {
+            return _saveData?.highScores != null && _saveData.highScores.Length > 0 && _saveData.highScores[0] != null
+                ? _saveData.highScores[0].score
+                : 0;
+        }
+
+        private void RefundAllWorkshop()
+        {
+            if (_saveData?.workshop == null) return;
+            var refundedParts = 0;
+            foreach (var entry in _saveData.workshop)
+            {
+                if (entry == null) continue;
+                for (var r = 0; r < entry.rank; r++)
+                {
+                    var cost = WorkshopCost(entry.id, r);
+                    if (cost > 0) refundedParts += cost;
+                }
+                entry.rank = 0;
+            }
+            _saveData.parts = AddCounter(_saveData.parts, refundedParts);
+            _saveStore?.Save(_saveData);
+            EnqueueToast("Workshop refunded", $"+{refundedParts} Parts", 2.5f, ToastKind.Reward);
         }
 
         private void ConfigureVisualCapture()
@@ -1569,6 +2200,28 @@ namespace VoidFall.Runtime
                 else if (string.Equals(argument, "-vfcapture-quit", StringComparison.OrdinalIgnoreCase))
                 {
                     _visualCaptureQuit = true;
+                }
+                else if (argument.StartsWith("-vfoverclock=", StringComparison.OrdinalIgnoreCase) &&
+                         int.TryParse(argument.Substring("-vfoverclock=".Length), out var streak))
+                {
+                    _visualCaptureOverclockStreak = Mathf.Clamp(streak, 0, 99);
+                }
+                else if (argument.StartsWith("-vftime=", StringComparison.OrdinalIgnoreCase) &&
+                         float.TryParse(
+                             argument.Substring("-vftime=".Length),
+                             System.Globalization.NumberStyles.Float,
+                             System.Globalization.CultureInfo.InvariantCulture,
+                             out var runSeconds))
+                {
+                    _visualCaptureRunSeconds = Mathf.Max(0f, runSeconds);
+                }
+                else if (string.Equals(argument, "-vfcritical", StringComparison.OrdinalIgnoreCase))
+                {
+                    _visualCaptureCritical = true;
+                }
+                else if (argument.StartsWith("-vfarena=", StringComparison.OrdinalIgnoreCase))
+                {
+                    _visualCaptureArena = argument.Substring("-vfarena=".Length);
                 }
                 // -vfno-grain was removed with the film grain itself. Grain is
                 // now permanently off, so the flag had nothing left to suppress
@@ -1633,16 +2286,20 @@ namespace VoidFall.Runtime
             StartRunInternal(true);
         }
 
-        private void StartRunInternal(bool playStartCue)
+        private void StartRunInternal(bool playStartCue, bool ensureSpritesWarmed = true)
         {
             // Anything the menu-time warm has not reached yet is finished here,
             // so a run never rasterizes a sprite on first sighting.
-            DrainSpriteWarm();
+            if (ensureSpritesWarmed) DrainSpriteWarm();
             _stressScenario = null;
             _stressTopUpTimer = 0;
             _runSeed = SelectRunSeed();
             _rng = new Rng(_runSeed);
             _fxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
+            _musicPerimeter?.Configure(
+                unchecked((int)_runSeed),
+                _qualityPreset.Detail,
+                _saveData?.settings != null && _saveData.settings.reducedMotion);
             _mainMenuBrowsing = false;
             if (_worldRoot != null) _worldRoot.gameObject.SetActive(true);
             if (_canvas != null) _canvas.enabled = true;
@@ -1804,7 +2461,14 @@ namespace VoidFall.Runtime
             _playerHealth = _playerMaxHealth;
             _healthGhostFraction = 1f;
             _playerIframes = 0;
-            _overdriveTimer = 0;
+            _overclock.Reset();
+            _overclockHudPunch = 0f;
+            _overclockVisualSurge = 0f;
+            _lastOverclockHudStreak = -1;
+            _lastOverclockHudSecond = -1;
+            _magnetIntensity = 0f;
+            _magnetTarget = 0f;
+            _music?.ResetReactiveState();
             _adrenalTimer = 0;
             _playerTrailTimer = 0;
             _dyingTimer = 0;
@@ -1932,6 +2596,8 @@ namespace VoidFall.Runtime
             _menuNoticeTimer = 0;
             EnqueueToast("Run started", null, 2.2f, ToastKind.Info);
             _arenaId = ArenaIdFromName(_saveData?.arena);
+            SelectRecipeForCurrentArena();
+            PrepareArenaNeighborhood();
             _arenaTransitionState = ArenaRules.CreateTransitionState(_runSeed);
             _telemetry.RecordLevel(0, _level, _xpNeed, 0);
 
@@ -1940,6 +2606,14 @@ namespace VoidFall.Runtime
             // Browser reset() records the initial six-enemy snapshot before the
             // first presented frame; keep that sample in the Unity report too.
             RecordTelemetrySample(Mathf.Max(0.0001f, _debugFrameEmaMs / 1000f));
+            if (_ui != null && !_mainMenuBrowsing)
+            {
+                _ui.SwitchToGameplay();
+                _ui.HUD?.UpdateHealth(_playerHealth, _playerMaxHealth);
+                _ui.HUD?.UpdateShield(0f, 0f);
+                _ui.HUD?.UpdateXP((int)_xp, _xpNeed, _level);
+                _ui.HUD?.UpdateStats(_score, _kills, 0);
+            }
         }
 
         /// <summary>
@@ -1968,6 +2642,8 @@ namespace VoidFall.Runtime
             if (_arenaId != stressArena)
             {
                 _arenaId = stressArena;
+                SelectRecipeForCurrentArena();
+                PrepareArenaNeighborhood();
                 ClearMeteors();
                 _meteorSpawnTimer = 2.2f;
                 _meteorTarget = MeteorRules.MinOrdinaryMeteors;
@@ -2144,7 +2820,10 @@ namespace VoidFall.Runtime
 
         private void EnterMainMenu()
         {
-            StartRunInternal(false);
+            // Entering the menu is not gameplay. Let the existing incremental
+            // warm continue across menu frames instead of blocking the first
+            // visible screen on every procedural combat sprite.
+            StartRunInternal(false, false);
             _mainMenuBrowsing = true;
             _touchActive = false;
             _touchBlockedByUi = false;
@@ -2160,6 +2839,16 @@ namespace VoidFall.Runtime
             // Menu tracks are exclusive to the menu, so this cross-fades away
             // from whatever the last run was playing.
             _music?.PlayMainMenu();
+            if (_ui != null)
+            {
+                RefreshMenuProfileUi();
+                RefreshSettingsUi();
+                PushUiBackdrop();
+                _ui.RefreshMuteGlyph();
+                _ui.SwitchToMainMenu();
+                RefreshWorkshopUi();
+                RefreshRecordsUi();
+            }
         }
 
         private static Vector2 MainMenuCameraPosition(float ambientClock)
@@ -2187,7 +2876,7 @@ namespace VoidFall.Runtime
             // The browser applies current-step movement/iframes/boost effects
             // first, then expires their timers before the remaining systems run.
             _playerIframes = Mathf.Max(0, _playerIframes - dt);
-            _overdriveTimer = Mathf.Max(0, _overdriveTimer - dt);
+            _overclock.Step(dt);
             _adrenalTimer = Mathf.Max(0, _adrenalTimer - dt);
             UpdateCameraFollow(dt);
             UpdateWeapons(dt);
@@ -2208,9 +2897,9 @@ namespace VoidFall.Runtime
                 ShowArenaToast("ARENA SHIFT IN 6s", 6f);
                 _arenaBannerRemaining = (float)ArenaRules.WarningSeconds;
                 _arenaBannerIncoming = arenaStep.State.Incoming ?? previousArena;
-                // Six seconds of lead time is enough to bake the incoming plate
-                // off-thread, so the swap itself only pays the texture upload.
-                BeginArenaPlatePrebake(_arenaBannerIncoming);
+                // The warning lead starts/continues the asynchronous package
+                // load. Runtime never generates arena pixels.
+                BeginArenaPackageLoad(_arenaBannerIncoming);
                 _telemetry.RecordArenaWarning(
                     arenaStep.State.Index,
                     ArenaIdName(previousArena),
@@ -2220,6 +2909,8 @@ namespace VoidFall.Runtime
             if (arenaStep.Event == ArenaTransitionEvent.Swap && arenaStep.State.Incoming.HasValue)
             {
                 _arenaId = arenaStep.State.Incoming.Value;
+                SelectRecipeForCurrentArena();
+                PrepareArenaNeighborhood();
                 ClearMeteors();
                 _meteorSpawnTimer = 2.2f;
                 _meteorTarget = MeteorRules.MinOrdinaryMeteors;
@@ -2253,8 +2944,14 @@ namespace VoidFall.Runtime
             _telemetry.RecordArenaTime(ArenaIdName(_arenaId), dt);
             UpdateSpawns(dt);
             UpdateEnemies(dt);
-            RebuildEnemyGrid();
-            SeparateEnemies();
+            // Relax separation over several passes, rebuilding the grid between
+            // each so a body that moved cells is still paired correctly. One
+            // pass (the browser behavior) cannot unpack a dense clump.
+            for (var pass = 0; pass < SeparationRules.Passes; pass++)
+            {
+                RebuildEnemyGrid();
+                SeparateEnemies();
+            }
             RebuildEnemyGrid();
             UpdateMeteors(dt);
             UpdateBlades(dt);
@@ -2318,6 +3015,13 @@ namespace VoidFall.Runtime
                         _levelUpScroll = Vector2.zero;
                         _levelUpActive = true;
                         _paused = true;
+                        if (_ui != null && _levelOptions != null)
+                        {
+                            _ui.LevelUp?.ShowUpgrades(
+                                BuildUpgradeCards(_levelOptions),
+                                _rerollsRemaining,
+                                SelectLevelOption);
+                        }
                     }
                 }
             }
@@ -2335,6 +3039,7 @@ namespace VoidFall.Runtime
                     {
                         _revivePending = true;
                         _paused = true;
+                        _ui?.Revive?.Show(_revivesRemaining);
                     }
                     else
                     {
@@ -2412,7 +3117,7 @@ namespace VoidFall.Runtime
             var adrenal = SupportRank("adrenal");
             var speed = (float)ContentCatalog.Operative.MoveSpeed *
                 _moveSpeedMultiplier * (1 + (_adrenalTimer > 0 ? adrenal * 0.06f : 0)) *
-                (_overdriveTimer > 0 ? (float)PickupRules.OverdriveSpeedMultiplier : 1);
+                (float)OverclockRules.MovementMultiplier(_overclock.PowerTier);
             if (_playerHealth <= 0) input = Vector2.zero;
             var targetVelocity = input * speed;
             var movementBlend = 1 - Mathf.Exp(-14f * dt);
@@ -2429,7 +3134,7 @@ namespace VoidFall.Runtime
                     ((float)_fxRng.Next() - 0.5f) * 20f,
                     ((float)_fxRng.Next() - 0.5f) * 20f);
                 var trailColor = PlayerTrailDotColor(
-                    _overdriveTimer > 0,
+                    _overclock.Active,
                     _adrenalTimer > 0);
                 EmitTrailParticle(
                     _playerPosition,
@@ -2463,6 +3168,19 @@ namespace VoidFall.Runtime
                     : SourceDotColor("cyan");
         }
 
+        private static readonly Color DotCyan = ParseColor("#22d3ee", Color.white);
+        private static readonly Color DotPink = ParseColor("#fb7185", Color.white);
+        private static readonly Color DotViolet = ParseColor("#a78bfa", Color.white);
+        private static readonly Color DotFuchsia = ParseColor("#e879f9", Color.white);
+        private static readonly Color DotOrange = ParseColor("#fb923c", Color.white);
+        private static readonly Color DotRed = ParseColor("#ef4444", Color.white);
+        private static readonly Color DotEmerald = ParseColor("#34d399", Color.white);
+        private static readonly Color DotLime = ParseColor("#a3e635", Color.white);
+        private static readonly Color DotBlue = ParseColor("#60a5fa", Color.white);
+        private static readonly Color DotAmber = ParseColor("#f59e0b", Color.white);
+        private static readonly Color DotWhite = ParseColor("#e2e8f0", Color.white);
+        private static readonly Color DotYellow = ParseColor("#facc15", Color.white);
+
         private static Color SourceDotColor(string dot)
         {
             // These are the browser sprites.dot palette entries. Burst and
@@ -2470,18 +3188,18 @@ namespace VoidFall.Runtime
             // mapping centralized prevents hand-tuned RGB drift at call sites.
             switch (dot)
             {
-                case "cyan": return ParseColor("#22d3ee", Color.white);
-                case "pink": return ParseColor("#fb7185", Color.white);
-                case "violet": return ParseColor("#a78bfa", Color.white);
-                case "fuchsia": return ParseColor("#e879f9", Color.white);
-                case "orange": return ParseColor("#fb923c", Color.white);
-                case "red": return ParseColor("#ef4444", Color.white);
-                case "emerald": return ParseColor("#34d399", Color.white);
-                case "lime": return ParseColor("#a3e635", Color.white);
-                case "blue": return ParseColor("#60a5fa", Color.white);
-                case "amber": return ParseColor("#f59e0b", Color.white);
-                case "white": return ParseColor("#e2e8f0", Color.white);
-                case "yellow": return ParseColor("#facc15", Color.white);
+                case "cyan": return DotCyan;
+                case "pink": return DotPink;
+                case "violet": return DotViolet;
+                case "fuchsia": return DotFuchsia;
+                case "orange": return DotOrange;
+                case "red": return DotRed;
+                case "emerald": return DotEmerald;
+                case "lime": return DotLime;
+                case "blue": return DotBlue;
+                case "amber": return DotAmber;
+                case "white": return DotWhite;
+                case "yellow": return DotYellow;
                 default: return Color.white;
             }
         }
@@ -2559,6 +3277,54 @@ namespace VoidFall.Runtime
             return length > 6f ? delta / maximum : Vector2.zero;
         }
 
+        /// <summary>
+        /// Distance from the player to the closest live boss, or -1 when none is
+        /// active.
+        /// </summary>
+        private float NearestActiveBossDistance()
+        {
+            var nearest = -1f;
+            for (var order = 0; order < _bossOrderCount; order++)
+            {
+                var boss = _bosses[_bossOrder[order]];
+                if (!boss.Active) continue;
+                var distance = (boss.Position - _playerPosition).magnitude;
+                if (nearest < 0 || distance < nearest) nearest = distance;
+            }
+            return nearest;
+        }
+
+        /// <summary>
+        /// Ambient spawn intensity while a boss is alive, scaled by how far the
+        /// player has run from it. Staying in the fight keeps the browser's calm
+        /// 0.55; abandoning it ramps toward a level above a normal run so there
+        /// is no quiet corner to farm.
+        /// </summary>
+        private float BossProximityIntensity()
+        {
+            var distance = NearestActiveBossDistance();
+            if (distance < 0) return BossEngagedIntensity;
+            var taper = Mathf.InverseLerp(
+                BossPursuitStartDistance,
+                BossPursuitFullDistance,
+                distance);
+            return Mathf.Lerp(BossEngagedIntensity, BossAbandonedIntensity, taper);
+        }
+
+        /// <summary>
+        /// Absolute pursuit speed floor for a boss, ramping in with separation.
+        /// Zero inside <see cref="BossPursuitStartDistance"/> so ordinary fighting
+        /// range is untouched by design.
+        /// </summary>
+        private static float BossPursuitSpeed(float distance)
+        {
+            var taper = Mathf.InverseLerp(
+                BossPursuitStartDistance,
+                BossPursuitFullDistance,
+                distance);
+            return BossPursuitFloorSpeed * Mathf.SmoothStep(0f, 1f, taper);
+        }
+
         private void UpdateSpawns(float dt)
         {
             UpdateDirector(dt);
@@ -2586,8 +3352,13 @@ namespace VoidFall.Runtime
                 }
             }
 
+            // A live boss quiets the ambient spawner, freezes arena cycling and
+            // holds _nextBossTime, so disengaging used to buy a calmer run with
+            // no timer pressure. Scale the quiet by how close the player stays:
+            // fight it and the arena stays clear, leave and the ambient pressure
+            // climbs past its normal level to fill the space.
             var intensity = bossActive
-                ? 0.55f
+                ? BossProximityIntensity()
                 : eventId == "surge"
                     ? 1.75f
                     : eventId == "rushers"
@@ -2813,8 +3584,14 @@ namespace VoidFall.Runtime
             var safeGapWidth = encircle ? Mathf.PI / 4f : Mathf.PI / 3.25f;
             var occupiedArc = Mathf.PI * 2f - safeGapWidth;
             var viewportHalf = GameplayViewportHalfExtent();
-            var radius = Mathf.Sqrt(viewportHalf.x * viewportHalf.x + viewportHalf.y * viewportHalf.y) * 0.5f +
-                (encircle ? 20f : 45f);
+            // Legacy hypots the *full* viewport then halves it:
+            //   radius = Math.hypot(w, h) / 2 + (encircle ? 20 : 45)
+            // Hypotting the half extents already yields hypot(w, h) / 2, so the
+            // extra * 0.5f that used to sit here halved the ring again and made
+            // swarm/encircle waves materialise inside the visible frame instead
+            // of walking in from off-screen. Keep this as the plain magnitude of
+            // the half extents.
+            var radius = viewportHalf.magnitude + (encircle ? 20f : 45f);
             var useRunners = _time >= 180 && _rng.Next() < (encircle ? 0.6 : 0.35);
             var safeGapAngle = SafestEscapeAngle((float)_nextDirectorEvent.SafeGapAngle);
             for (var index = 0; index < count; index++)
@@ -3013,10 +3790,14 @@ namespace VoidFall.Runtime
 
         private string ChooseAmbientEnemy()
         {
+            // Bands are matched against the paced roster clock, not raw run time,
+            // so the reveal order stays exactly as authored while the spacing
+            // between reveals is reshaped. See DirectorRules.RosterRevealTime.
+            var rosterTime = DirectorRules.RosterRevealTime(_time);
             for (var bandIndex = 0; bandIndex < ContentCatalog.SpawnTimeline.Length; bandIndex++)
             {
                 var band = ContentCatalog.SpawnTimeline[bandIndex];
-                if (_time < band.StartSeconds || _time >= band.EndSeconds) continue;
+                if (rosterTime < band.StartSeconds || rosterTime >= band.EndSeconds) continue;
                 var roll = _rng.Next();
                 var cursor = 0.0;
                 foreach (var weight in band.Weights)
@@ -3032,6 +3813,7 @@ namespace VoidFall.Runtime
 
         private void UpdateEnemies(float dt)
         {
+            var globalHarvesterXp = XpHeldByHarvesters();
             // Browser updateEnemies walks its compact array backwards. The
             // logical order list preserves that behavior across pooled slots.
             for (var order = _enemyOrderCount - 1; order >= 0; order--)
@@ -3085,7 +3867,7 @@ namespace VoidFall.Runtime
                 }
                 else if (enemy.Id == "harvester")
                 {
-                    UpdateHarvester(ref enemy, dt, direction);
+                    UpdateHarvester(ref enemy, dt, direction, ref globalHarvesterXp);
                 }
                 else if (enemy.Id == "carrier")
                 {
@@ -3105,8 +3887,16 @@ namespace VoidFall.Runtime
                 }
                 else
                 {
+                    // The browser only ever adds a small symmetric wobble here,
+                    // so every body in this branch drives at the player along a
+                    // near-radial line. Distant spawns therefore arrive on the
+                    // same bearing and compact into a shell the player can just
+                    // orbit. A persistent per-enemy angular offset makes each
+                    // approach an arc with its own handedness, which fans the
+                    // population out across the arena instead.
                     var wobble = Mathf.Sin(_time * 2.2f + enemy.Seed) *
-                        (enemy.Id == "runner" ? 0.45f : 0.18f);
+                        (enemy.Id == "runner" ? 0.45f : 0.18f) +
+                        ApproachBias(enemy.Seed, distance);
                     var rotated = new Vector2(
                         direction.x * Mathf.Cos(wobble) - direction.y * Mathf.Sin(wobble),
                         direction.x * Mathf.Sin(wobble) + direction.y * Mathf.Cos(wobble));
@@ -3210,9 +4000,8 @@ namespace VoidFall.Runtime
             enemy.Velocity = enemy.Facing * enemy.Speed;
         }
 
-        private void UpdateHarvester(ref EnemyState enemy, float dt, Vector2 fallbackDirection)
+        private void UpdateHarvester(ref EnemyState enemy, float dt, Vector2 fallbackDirection, ref float globalStoredXp)
         {
-            var globalStoredXp = XpHeldByHarvesters();
             var limits = PickupRules.HarvesterXpLimits(_xpNeed);
             if (enemy.StoredXp >= limits.Individual || globalStoredXp >= limits.Global)
             {
@@ -3283,6 +4072,7 @@ namespace VoidFall.Runtime
             }
 
             enemy.StoredXp += absorbed;
+            globalStoredXp += absorbed;
             _telemetry.RecordXpAbsorbedByHarvester(absorbed);
             _audio?.Play(ProceduralAudio.Cue.Harvest, 0.82f);
             var healthGain = absorbed * 1.25f;
@@ -3404,7 +4194,7 @@ namespace VoidFall.Runtime
                     }
                     else if (enemy.Roster == EnemyRoster.Two && enemy.Id == "gunner")
                     {
-                        var spreads = new[] { -0.23f, 0f, 0.2f };
+                        var spreads = GunnerRosterTwoSpreads;
                         if (MaxHostileShots - ActiveHostileShots() >= spreads.Length)
                         {
                             foreach (var spread in spreads)
@@ -3427,7 +4217,7 @@ namespace VoidFall.Runtime
                     }
                     else if (enemy.Id == "twinGunner")
                     {
-                        foreach (var side in new[] { -1f, 1f })
+                        foreach (var side in TwinGunnerSides)
                         {
                             var angle = baseAngle + side * 0.13f;
                             var muzzle = enemy.Position + new Vector2(-enemy.DashDirection.y, enemy.DashDirection.x) * side * 7;
@@ -4303,6 +5093,15 @@ namespace VoidFall.Runtime
 
                 var speed = boss.Speed * (phaseTwo ? (float)definition.PhaseTwoSpeedMultiplier : 1f) *
                     (1 + Mathf.Min(0.18f, boss.PressureTier * 0.06f));
+                // Boss.Speed is fixed at spawn and never scales, and even the
+                // fastest boss at full phase-two pressure tops out around 85
+                // against a 235 base player. Walking away therefore beats every
+                // encounter outright. Apply an absolute pursuit floor that ramps
+                // in with separation: identical inside fighting range, but a
+                // fleeing player is always run down. Expressed as a floor rather
+                // than a multiplier so slow and fast bosses converge on the same
+                // chase speed instead of the slow ones staying uncatchable.
+                speed = Mathf.Max(speed, BossPursuitSpeed(distance));
                 var cooldownScale = (phaseTwo ? (float)definition.PhaseTwoCooldownMultiplier : 1f) *
                     (1 - Mathf.Min(0.24f, boss.PressureTier * 0.08f));
                 if (boss.State == 1)
@@ -4343,7 +5142,12 @@ namespace VoidFall.Runtime
                 {
                     boss.Position += direction * speed * dt;
                     boss.AttackCooldown -= dt;
-                    if (boss.AttackCooldown <= 0 && definition.Attacks != null && definition.Attacks.Length > 0)
+                    // Attack states 1-3 hold the boss still. Committing to one at
+                    // long range would hand a fleeing player free distance and
+                    // undo the pursuit floor above, so only engage once the
+                    // player is close enough for the attack to mean anything.
+                    if (boss.AttackCooldown <= 0 && distance <= BossEngagementDistance &&
+                        definition.Attacks != null && definition.Attacks.Length > 0)
                     {
                         boss.ActiveAttack = definition.Attacks[boss.AttackIndex % definition.Attacks.Length];
                         boss.AttackIndex++;
@@ -4445,7 +5249,7 @@ namespace VoidFall.Runtime
             }
             else
             {
-                foreach (var spread in new[] { -0.58f, -0.38f, -0.2f, 0.2f, 0.38f, 0.58f })
+                foreach (var spread in BossPressureSpreads)
                 {
                     var angle = towardPlayer + spread;
                     SpawnHostileShot(
@@ -5319,6 +6123,31 @@ namespace VoidFall.Runtime
                 _enemyGridSpawnIds[index] == _enemies[index].SpawnId;
         }
 
+        /// <summary>
+        /// Persistent per-enemy angular offset applied to a beeline approach.
+        /// Seed is a stable per-spawn value in [0, 100), so mapping it to a
+        /// signed fraction gives each body its own bias and its own handedness
+        /// while staying deterministic for a given run seed. Roughly half the
+        /// population curves each way, which splits an incoming crowd into two
+        /// counter-rotating streams rather than one packed arc.
+        ///
+        /// The bias tapers to zero as the body closes, so the fan shapes the
+        /// long approach but the endgame still commits straight at the player
+        /// and close-quarters fights stay readable.
+        /// </summary>
+        private static float ApproachBias(float seed, float distance)
+        {
+            var handed = Mathf.Repeat(seed, 100f) * 0.01f * 2f - 1f;
+            var taper = Mathf.SmoothStep(
+                0f,
+                1f,
+                Mathf.InverseLerp(
+                    ApproachBiasCommitDistance,
+                    ApproachBiasFullDistance,
+                    distance));
+            return handed * ApproachBiasMaxRadians * taper;
+        }
+
         private void SeparateEnemies()
         {
             // The browser runs one bounded grid-backed pair pass after enemy
@@ -5841,6 +6670,8 @@ namespace VoidFall.Runtime
             // same-step effect append after the captured range and wait for
             // the next simulation step, just like browser array growth.
             var initialOrderCount = _pickupOrderCount;
+            var pulledXpCount = 0;
+            var pulledXpValue = 0f;
             for (var order = initialOrderCount - 1; order >= 0; order--)
             {
                 var i = _pickupOrder[order];
@@ -5862,8 +6693,14 @@ namespace VoidFall.Runtime
                     var decay = Mathf.Exp(-5 * dt);
                     pickup.Velocity *= decay;
                 }
+                if (pickup.Kind == PickupKind.Xp && pickup.Pull)
+                {
+                    pulledXpCount++;
+                    pulledXpValue += Mathf.Max(0f, pickup.Value);
+                }
                 pickup.Position += pickup.Velocity * dt;
                 var collected = false;
+                var collectedFromPull = pickup.Pull;
                 if (playerAlive && distanceSquared < (PlayerRadius + 7) * (PlayerRadius + 7))
                 {
                     // Browser updatePickups removes the collected item before
@@ -5883,7 +6720,12 @@ namespace VoidFall.Runtime
                         _telemetry.RecordXpCollected(pickup.Value);
                         _pickupStep = _pickupStepTimer > 0 ? _pickupStep + 1 : 0;
                         _pickupStepTimer = 0.9f;
-                        _audio?.PlayGem(_pickupStep);
+                        // A magnet pull can collect most of the 280-entry pool
+                        // in a moment. Keep the pitch climb, but coalesce the
+                        // individual ticks while the aggregate music effect is
+                        // doing the heavy lifting.
+                        if (!collectedFromPull || (_pickupStep & 3) == 0)
+                            _audio?.PlayGem(_pickupStep);
                         BurstFx(_playerPosition, SourceDotColor("emerald"), 2, 120, 0.25f, 0.6f);
                     }
                     else if (pickup.Kind == PickupKind.Part)
@@ -5933,14 +6775,23 @@ namespace VoidFall.Runtime
                     }
                     else if (pickup.Kind == PickupKind.Overdrive)
                     {
-                        _overdriveTimer = (float)PickupRules.OverdriveDurationSeconds;
+                        var previousStreak = _overclock.Streak;
+                        _overclock.ApplyPickup();
+                        _overclockHudPunch = 1f;
+                        _overclockVisualSurge = _overclock.Streak >= 4 ? 1f : 0.72f;
+                        _music?.NotifyOverclockStreak(previousStreak, _overclock.Streak);
                         _cyanFlash = Mathf.Max(_cyanFlash, 0.3f);
                         _audio?.Play(ProceduralAudio.Cue.Pickup, 1f);
                         SpawnRingWave(_playerPosition, 14f, 250f, 0.4f,
                             new Color(0.35f, 0.95f, 1f, 0.72f));
                         BurstFx(_playerPosition, SourceDotColor("yellow"), 16, 260, 0.5f, 0.8f);
                         BurstFx(_playerPosition, SourceDotColor("white"), 7, 180, 0.3f, 0.65f);
-                        ShowArenaToast("Overclock  2x movement  1.35x fire rate  15s", 2.5f, ToastKind.Reward);
+                        ShowArenaToast(
+                            _overclock.Streak > 1
+                                ? "OVERCLOCKED ×" + _overclock.Streak
+                                : "OVERCLOCKED",
+                            2.5f,
+                            ToastKind.Reward);
                     }
                     _telemetry.RecordPickup(PickupKindName(pickup.Kind), pickup.Value);
                 }
@@ -5949,6 +6800,7 @@ namespace VoidFall.Runtime
                 // collected value over the newly spawned pickup.
                 if (!collected) _pickups[i] = pickup;
             }
+            _magnetTarget = MusicReactiveMath.MagnetTarget(pulledXpCount, pulledXpValue);
             _pickupStepTimer = Mathf.Max(0, _pickupStepTimer - dt);
             if (_pickupStepTimer <= 0) _pickupStep = 0;
         }
@@ -5958,7 +6810,10 @@ namespace VoidFall.Runtime
             if (_upgradeProgress == null || _playerHealth <= 0 || _gameOver || _revivePending) return;
             UpdatePulseBurst(dt);
             var recoveryScale = WeaponRecoveryScale();
-            for (var weaponIndex = 0; weaponIndex < ContentCatalog.Weapons.Length; weaponIndex++)
+            var weaponCount = Mathf.Min(
+                ContentCatalog.Weapons.Length,
+                Mathf.Min(_upgradeProgress.WeaponRanks.Length, _weaponCooldowns.Length));
+            for (var weaponIndex = 0; weaponIndex < weaponCount; weaponIndex++)
             {
                 var weapon = ContentCatalog.Weapons[weaponIndex];
                 var rank = _upgradeProgress.WeaponRanks[weaponIndex];
@@ -6039,7 +6894,7 @@ namespace VoidFall.Runtime
                 0.55f);
             _pulseBurstShots--;
             _pulseBurstTimer = 0.085f *
-                (float)PickupRules.OverdriveCooldownMultiplier(_overdriveTimer > 0);
+                (float)OverclockRules.CooldownMultiplier(_overclock.PowerTier);
         }
 
         private float WeaponRecoveryScale()
@@ -6047,7 +6902,7 @@ namespace VoidFall.Runtime
             return (float)CombatRules.WeaponRecoveryMultiplier(
                 _cooldownMultiplier,
                 _adrenalTimer > 0 ? SupportRank("adrenal") : 0,
-                (float)PickupRules.OverdriveCooldownMultiplier(_overdriveTimer > 0));
+                (float)OverclockRules.CooldownMultiplier(_overclock.PowerTier));
         }
 
         private HostileTarget FindNearestHostile(float range)
@@ -6526,18 +7381,22 @@ namespace VoidFall.Runtime
                 Hide(_hollowBladeFarView);
                 Hide(_hollowBladeNearView);
             }
-            for (var bladeIndex = 0; bladeIndex < _bladeViews.Length; bladeIndex++)
+            var activeBladeCount = Mathf.Min((int)stats.OrbitCount, _bladeViews.Length);
+            HideBlades(activeBladeCount);
+            for (var bladeIndex = 0; bladeIndex < activeBladeCount; bladeIndex++)
             {
-                if (bladeIndex >= stats.OrbitCount)
-                {
-                    Hide(_bladeViews[bladeIndex]);
-                    continue;
-                }
                 var angle = _bladeAngle + bladeIndex / Mathf.Max(1f, stats.OrbitCount) * Mathf.PI * 2;
                 var position = _playerPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) *
                     (float)stats.OrbitRadius * _areaMultiplier;
                 var view = EnsureBladeView(bladeIndex);
                 view.transform.position = position;
+                // The blade sprite is authored horizontally; rotate it a
+                // quarter-turn so its long axis is tangent to the orbit, as in
+                // the browser renderer's angle + PI/2 draw path.
+                view.transform.rotation = Quaternion.Euler(
+                    0f,
+                    0f,
+                    angle * Mathf.Rad2Deg + 90f);
                 view.transform.localScale = Vector3.one * SourceBladeSpriteWorldSize(false);
                 view.color = ParseColor(
                     _upgradeProgress.Evolved[3] ? "#5eead4" : weapon.Accent,
@@ -6604,7 +7463,10 @@ namespace VoidFall.Runtime
                 Mathf.Cos(_hollowBladeAngle), Mathf.Sin(_hollowBladeAngle)) * hollowDistance;
             var hollowView = EnsureHollowBladeView();
             hollowView.transform.position = hollowPosition;
-            hollowView.transform.rotation = Quaternion.Euler(0, 0, _hollowBladeAngle * Mathf.Rad2Deg);
+            hollowView.transform.rotation = Quaternion.Euler(
+                0f,
+                0f,
+                _hollowBladeAngle * Mathf.Rad2Deg + 90f);
             hollowView.transform.localScale = Vector3.one * SourceBladeSpriteWorldSize(true);
             hollowView.color = new Color(0.37f, 0.9f, 0.82f, 1f);
             hollowView.enabled = true;
@@ -6648,9 +7510,14 @@ namespace VoidFall.Runtime
                 if (!candidate.Active || candidate.Age < 0.15f || (candidate.Position - _playerPosition).sqrMagnitude > maximumRangeSquared) continue;
                 eligibleCount++;
                 var count = 0;
-                for (var otherOrder = 0; otherOrder < _enemyOrderCount; otherOrder++)
+                var neighborCount = _enemyGrid.QueryNeighborhood(
+                    candidate.Position.x,
+                    candidate.Position.y,
+                    2,
+                    _enemyGridBulletCandidates);
+                for (var n = 0; n < neighborCount; n++)
                 {
-                    var otherIndex = _enemyOrder[otherOrder];
+                    var otherIndex = _enemyGridBulletCandidates[n];
                     var other = _enemies[otherIndex];
                     if (other.Active && (other.Position - candidate.Position).sqrMagnitude < 150f * 150f) count++;
                 }
@@ -6891,14 +7758,14 @@ namespace VoidFall.Runtime
             // Browser railTrails is an append-ordered list updated newest first.
             // Slots are reusable, so array index is not insertion order after
             // the first oldest-trail replacement. Select by sequence instead.
-            var processedMask = 0;
+            var processedMask = 0L;
             for (var order = 0; order < _railTrails.Length; order++)
             {
                 var index = -1;
                 var newestSequence = int.MinValue;
                 for (var candidate = 0; candidate < _railTrails.Length; candidate++)
                 {
-                    var bit = 1 << candidate;
+                    var bit = 1L << candidate;
                     var candidateTrail = _railTrails[candidate];
                     if ((processedMask & bit) != 0 || !candidateTrail.Active ||
                         candidateTrail.Sequence <= newestSequence) continue;
@@ -6906,7 +7773,7 @@ namespace VoidFall.Runtime
                     index = candidate;
                 }
                 if (index < 0) break;
-                processedMask |= 1 << index;
+                processedMask |= 1L << index;
                 var trail = _railTrails[index];
                 trail.Life -= dt;
                 trail.DamageLife -= dt;
@@ -7148,12 +8015,16 @@ namespace VoidFall.Runtime
                 ? EliteRules.EliteVariantStatsFor(eliteKind.Value)
                 : default(EliteVariantStats);
             var enemyId = _nextEnemyId++;
-            var roster = forcedRoster ?? (elite || carrierDrone || splitterFragment
-                ? EnemyRoster.One
-                : EnemyRosterRules.EnemyRosterForSpawn(
-                    id,
-                    _time,
-                    EnemyRosterRules.RosterSpawnRoll(_runSeed, enemyId)));
+            // Browser spawnEnemy only selects time-based Roster II for ordinary
+            // world spawns. Boss summons stay in Roster I unless a pressure
+            // tier explicitly supplies forcedRoster.
+            var roster = forcedRoster ?? (
+                elite || carrierDrone || splitterFragment || summonedByBossTelemetryId != 0
+                    ? EnemyRoster.One
+                    : EnemyRosterRules.EnemyRosterForSpawn(
+                        id,
+                        _time,
+                        EnemyRosterRules.RosterSpawnRoll(_runSeed, enemyId)));
             var angle = (float)(_rng.Next() * Math.PI * 2);
             var viewportHalf = GameplayViewportHalfExtent();
             var distance = Mathf.Sqrt(
@@ -7464,10 +8335,12 @@ namespace VoidFall.Runtime
                     {
                         var existing = _pickups[target];
                         existing.Value += drop;
-                        existing.Position = position;
-                        var mergeAngle = (float)(_rng.Next() * Math.PI * 2);
-                        var mergeSpeed = 40f + (float)_rng.Next() * 60f;
-                        existing.Velocity = new Vector2(Mathf.Cos(mergeAngle), Mathf.Sin(mergeAngle)) * mergeSpeed;
+                        if ((existing.Position - position).sqrMagnitude < 180f * 180f)
+                        {
+                            var mergeAngle = (float)(_rng.Next() * Math.PI * 2);
+                            var mergeSpeed = 40f + (float)_rng.Next() * 60f;
+                            existing.Velocity = new Vector2(Mathf.Cos(mergeAngle), Mathf.Sin(mergeAngle)) * mergeSpeed;
+                        }
                         existing.Age = 0;
                         existing.Pull = false;
                         existing.Speed = 0;
@@ -7502,7 +8375,10 @@ namespace VoidFall.Runtime
 
         private bool SpawnSpecialPickup(Vector2 position, float value, PickupKind kind)
         {
-            var slot = FindInactive(_pickups);
+            // MaxPickupSlots includes one overflow slot reserved for XP. Rare
+            // and other special drops must never consume that slot, otherwise a
+            // full special-pickup set silently prevents later XP from spawning.
+            var slot = FindInactive(_pickups, MaxPickups);
             if (slot < 0) return false;
             _pickups[slot] = new PickupState
             {
@@ -7756,6 +8632,9 @@ namespace VoidFall.Runtime
             // health, pressure timer, and invulnerability window immediately.
             _damageTaken += appliedDamage;
             _playerHealth -= appliedDamage;
+            _music?.NotifyPlayerDamage(
+                _playerMaxHealth > 0f ? appliedDamage / _playerMaxHealth : 1f,
+                _playerHealth <= 0f);
             _pressureReliefTimer = Mathf.Max(
                 _pressureReliefTimer,
                 _playerHealth < _playerMaxHealth * 0.35f ? 5f : 2.5f);
@@ -8182,6 +9061,9 @@ namespace VoidFall.Runtime
             AddCameraShake(0.96f);
             TriggerFreeze(0.12f);
             _audio?.Play(ProceduralAudio.Cue.Bomb, 0.9f);
+            // Pull the track out from under the blast so the detonation lands in
+            // the music as well as the SFX.
+            _music?.DuckForBomb();
             ShowArenaToast("Bomb detonated", 2.5f);
         }
 
@@ -8510,11 +9392,52 @@ namespace VoidFall.Runtime
             _gameOver = true;
             _gameOverScroll = Vector2.zero;
             _paused = true;
+            _overclock.Reset();
+            _magnetTarget = 0f;
+            _magnetIntensity = 0f;
+            _music?.ResetReactiveState();
             _audio?.StopPad();
             // Browser endRun() records the terminal state before exporting the
             // game-over report, including the final frame sample.
             RecordTelemetrySample(Mathf.Max(0.0001f, _debugFrameEmaMs / 1000f));
             SaveRun();
+            if (_ui != null)
+            {
+                var summary = new GameOverSummary
+                {
+                    Victory = false,
+                    Score = CurrentScore(),
+                    ElapsedSeconds = _time,
+                    Kills = _kills,
+                    EliteKills = _eliteKills,
+                    BossKills = _bossKills,
+                    Level = _level,
+                    PartsEarned = _partsEarned,
+                    IsBest = _lastRunIsBest,
+                    Saved = _lastRunSaved,
+                    Weapons = new List<WeaponStatSummary>(),
+                    BuildChips = BuildRecapChips()
+                };
+                if (_upgradeProgress != null)
+                {
+                    var totalDamage = (float)Math.Max(1L, _damageDealt);
+                    for (var i = 0; i < ContentCatalog.Weapons.Length; i++)
+                    {
+                        var rank = _upgradeProgress.WeaponRanks[i];
+                        if (rank <= 0) continue;
+                        var weapon = ContentCatalog.Weapons[i];
+                        var dmg = _weaponDamage != null && i < _weaponDamage.Length ? (long)_weaponDamage[i] : 0L;
+                        summary.Weapons.Add(new WeaponStatSummary
+                        {
+                            Name = weapon.Name,
+                            Rank = rank,
+                            Damage = dmg,
+                            DamagePercent = Mathf.Clamp01((float)dmg / totalDamage)
+                        });
+                    }
+                }
+                _ui.GameOver?.Show(summary);
+            }
         }
 
         private static ProceduralAudio.Cue DefeatCueFor(int revivesRemaining)
@@ -8606,14 +9529,48 @@ namespace VoidFall.Runtime
             return Mathf.FloorToInt(_score + _time * 5f + (_level - 1) * 35f + 0.5f);
         }
 
+        private static SaveData CloneSaveData(SaveData data)
+        {
+            if (data == null) return null;
+            return JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(data));
+        }
+
+        private void RestoreFailedRunSave(
+            SaveData previousSaveData,
+            bool previousLastRunIsBest,
+            int previousLastRunRank)
+        {
+            _saveData = previousSaveData;
+            _lastRunIsBest = previousLastRunIsBest;
+            _lastRunRank = previousLastRunRank;
+            // Keep the terminal run eligible for a later SaveRun call. The
+            // profile snapshot above prevents a failed attempt from being
+            // applied again when that retry happens.
+            _runSaved = false;
+            _lastRunSaved = false;
+        }
+
         private void SaveRun()
         {
             // Browser recordRun runs only after the terminal Game Over path. Do
             // not turn an application close during a live run into a fake score.
             if (_runSaved || _mainMenuBrowsing || !_gameOver) return;
-            _runSaved = true;
+            // Snapshot the complete profile before mutating it. SaveStore.Save
+            // serializes its own clone, but this runtime object is updated in
+            // place below; restore it if the disk transaction fails.
+            var previousSaveData = CloneSaveData(_saveData);
+            var previousLastRunIsBest = _lastRunIsBest;
+            var previousLastRunRank = _lastRunRank;
             _lastRunSaved = false;
-            if (_saveStore == null || _saveData == null) return;
+            if (_saveStore == null || _saveData == null)
+            {
+                RestoreFailedRunSave(
+                    previousSaveData,
+                    previousLastRunIsBest,
+                    previousLastRunRank);
+                SetMenuNotice("Progress was not saved.");
+                return;
+            }
             var savedDamageDealt = RoundedDamageCounter(_damageDealt);
             var savedDamageTaken = RoundedDamageCounter(_damageTaken);
             var previousBestScore = _saveData.highScores != null && _saveData.highScores.Length > 0 && _saveData.highScores[0] != null
@@ -8693,10 +9650,15 @@ namespace VoidFall.Runtime
             try
             {
                 _saveStore.Save(_saveData);
+                _runSaved = true;
                 _lastRunSaved = true;
             }
             catch (Exception exception)
             {
+                RestoreFailedRunSave(
+                    previousSaveData,
+                    previousLastRunIsBest,
+                    previousLastRunRank);
                 Debug.LogError("VoidFall run save failed: " + exception.Message);
             }
             ExportTelemetrySnapshot(_gameOver ? "gameover" : "active");
@@ -8985,6 +9947,42 @@ namespace VoidFall.Runtime
             _evolutionRevealWeaponId = option.TargetId;
             _evolutionRevealAccent = ParseColor(option.Accent, new Color(0.35f, 0.9f, 1f, 1f));
             _evolutionRevealTimer = 2.6f;
+            // The reveal reads as a replacement, so it shows the weapon being
+            // superseded struck through above its evolved name, tinted by the
+            // evolution's own accent.
+            _ui?.Evolution?.ShowEvolution(
+                option.Name,
+                _evolutionRevealPreviousName,
+                _evolutionRevealAccent,
+                2.6f);
+        }
+
+        private List<UpgradeCardData> BuildUpgradeCards(UpgradeOptionDefinition[] options)
+        {
+            var cards = new List<UpgradeCardData>();
+            if (options == null) return cards;
+
+            for (var index = 0; index < options.Length; index++)
+            {
+                var option = options[index];
+                var showsRanks = option.Kind == UpgradeOptionKind.Weapon ||
+                    option.Kind == UpgradeOptionKind.Support;
+                cards.Add(new UpgradeCardData
+                {
+                    Title = option.Name,
+                    Category = option.Kind.ToString(),
+                    Description = option.Description,
+                    LevelText = UpgradeOptionLabel(option),
+                    // Each option carries its own accent in content data; the
+                    // browser build tints the whole card from it rather than
+                    // using a fixed palette.
+                    AccentColor = ParseColor(option.Accent, UITheme.CyanLight),
+                    CurrentRank = option.CurrentRank,
+                    MaxRank = showsRanks ? option.MaxRank : 0,
+                    IsEvolution = option.Kind == UpgradeOptionKind.Evolution
+                });
+            }
+            return cards;
         }
 
         private void RerollLevelOptions()
@@ -9002,6 +10000,13 @@ namespace VoidFall.Runtime
                 next = RollLevelOptions();
             }
             _levelOptions = next;
+            // The screen remains on UIScreen.LevelUp during a reroll, so the
+            // normal screen reconciliation does not rebuild its cards. Push the
+            // newly rolled options directly to the visible view instead.
+            _ui?.LevelUp?.ShowUpgrades(
+                BuildUpgradeCards(_levelOptions),
+                _rerollsRemaining,
+                SelectLevelOption);
             _levelUpPromptOpenedAt = Time.realtimeSinceStartup;
             _audio?.Play(ProceduralAudio.Cue.Ui, 0.95f);
             SetMenuNotice(_rerollsRemaining > 0 ? "Upgrade options rerolled." : "Upgrade options rerolled. No rerolls left.");
@@ -10101,10 +11106,44 @@ namespace VoidFall.Runtime
             return clamped * clamped * 14f;
         }
 
+        private void UpdateOverclockHudAnimation(bool active)
+        {
+            _overclockHudPunch = Mathf.MoveTowards(
+                _overclockHudPunch,
+                0f,
+                Mathf.Max(0f, Time.unscaledDeltaTime) * 4.8f);
+            if (_boostText != null)
+            {
+                var scale = active ? 1f + _overclockHudPunch * 0.28f : 1f;
+                _boostText.rectTransform.localScale = new Vector3(scale, scale, 1f);
+                _boostText.color = _overclock.PowerTier >= 3
+                    ? Color.Lerp(new Color(0.28f, 0.94f, 1f), new Color(1f, 0.32f, 0.84f), _overclockHudPunch)
+                    : new Color(0.45f, 0.94f, 1f, 1f);
+            }
+
+            var ghostsVisible = active && _overclock.Streak >= 2 && _overclockHudPunch > 0.01f;
+            if (_boostGhostA != null)
+            {
+                _boostGhostA.enabled = ghostsVisible;
+                _boostGhostA.rectTransform.anchoredPosition = new Vector2(-24f - 5f * _overclockHudPunch, 34f);
+                _boostGhostA.color = new Color(0.08f, 0.9f, 1f, _overclockHudPunch * 0.65f);
+            }
+            if (_boostGhostB != null)
+            {
+                _boostGhostB.enabled = ghostsVisible && _overclock.Streak >= 3;
+                _boostGhostB.rectTransform.anchoredPosition = new Vector2(-24f + 5f * _overclockHudPunch, 34f);
+                _boostGhostB.color = new Color(1f, 0.05f, 0.68f, _overclockHudPunch * 0.58f);
+            }
+            if (!active)
+            {
+                _lastOverclockHudStreak = -1;
+                _lastOverclockHudSecond = -1;
+            }
+        }
+
         private void UpdateHud()
         {
             var hudVisible = ShouldShowHud();
-            if (_canvas != null) _canvas.enabled = true;
             if (_hudGroup != null)
             {
                 _hudGroup.alpha = Mathf.MoveTowards(
@@ -10114,6 +11153,12 @@ namespace VoidFall.Runtime
                 _hudGroup.interactable = hudVisible;
                 _hudGroup.blocksRaycasts = hudVisible;
             }
+            // EnterMainMenu disables this canvas so the menus do not pay for HUD
+            // batching. Re-enabling unconditionally here undid that every frame,
+            // and also let a fully faded HUD keep submitting geometry. Stay
+            // enabled only while something is actually visible.
+            if (_canvas != null)
+                _canvas.enabled = hudVisible || _hudGroup == null || _hudGroup.alpha > 0.001f;
             UpdateHudResponsiveLayout();
             UpdateDamageOverlays();
             UpdateArenaBanner();
@@ -10150,28 +11195,59 @@ namespace VoidFall.Runtime
                 _pauseButton.interactable =
                     !_paused && !_revivePending && !_levelUpActive && _menuPage == MenuPage.None;
             }
-            if (_pauseButtonText != null) _pauseButtonText.text = "||";
-            var overdriveActive = _overdriveTimer > 0 && !_gameOver;
+            // Only the glyph fallback carries text. When the icon atlas resolved,
+            // writing "||" here as well drew both on top of each other.
+            if (_pauseButtonText != null)
+                _pauseButtonText.text = ControlIconTexture() == null ? "||" : string.Empty;
+            var overdriveActive = _overclock.Active && !_gameOver;
             if (_boostPanel != null) _boostPanel.enabled = overdriveActive;
-            if (_boostIcon != null) _boostIcon.enabled = overdriveActive;
+            if (_boostIcon != null)
+            {
+                _boostIcon.enabled = overdriveActive;
+                _boostIcon.color = _overclock.PowerTier >= 3
+                    ? new Color(1f, 0.24f, 0.78f, 1f)
+                    : new Color(0.12f, 0.9f, 1f, 1f);
+            }
             if (_boostText != null)
             {
                 _boostText.enabled = overdriveActive;
-                if (overdriveActive)
-                    _boostText.text = "OVERCLOCK";
+                if (overdriveActive && _lastOverclockHudStreak != _overclock.Streak)
+                {
+                    _lastOverclockHudStreak = _overclock.Streak;
+                    var label = _overclock.Streak > 1
+                        ? "OVERCLOCKED ×" + _overclock.Streak
+                        : "OVERCLOCKED";
+                    _boostText.text = label;
+                    if (_boostGhostA != null) _boostGhostA.text = label;
+                    if (_boostGhostB != null) _boostGhostB.text = label;
+                }
             }
             if (_boostSecondsText != null)
             {
                 _boostSecondsText.enabled = overdriveActive;
                 if (overdriveActive)
-                    _boostSecondsText.text = $"{Mathf.CeilToInt(_overdriveTimer)}s";
+                {
+                    var seconds = Mathf.CeilToInt(_overclock.RemainingSeconds);
+                    if (_lastOverclockHudSecond != seconds)
+                    {
+                        _lastOverclockHudSecond = seconds;
+                        _boostSecondsText.text = seconds + "s";
+                    }
+                }
             }
             if (_boostBar != null)
             {
                 _boostBar.enabled = overdriveActive;
+                _boostBar.color = _overclock.PowerTier >= 3
+                    ? new Color(1f, 0.15f, 0.68f, 0.96f)
+                    : _overclock.PowerTier == 2
+                        ? new Color(0.58f, 0.24f, 1f, 0.95f)
+                        : new Color(0.08f, 0.86f, 1f, 0.94f);
                 _boostBar.fillAmount = Mathf.Clamp01(
-                    _overdriveTimer / (float)PickupRules.OverdriveDurationSeconds);
+                    _overclock.RemainingSeconds /
+                    Mathf.Max(OverclockRules.StackDurationSeconds, _overclock.Streak * OverclockRules.StackDurationSeconds));
             }
+            UpdateOverclockHudAnimation(overdriveActive);
             if (_loadoutText != null && Time.unscaledTime >= _nextLoadoutHudRefresh)
             {
                 _nextLoadoutHudRefresh = Time.unscaledTime + 0.25f;
@@ -10193,7 +11269,11 @@ namespace VoidFall.Runtime
                     UpdateBuildChipHud();
                 }
             }
-            if (_hudText != null)
+            // This early bring-up readout is disabled at setup and has no
+            // counterpart in the browser HUD, but it was still formatting five
+            // interpolated lines every frame for an invisible component. Keep the
+            // path for diagnostics, and only pay for it when it is on screen.
+            if (_hudText != null && _hudText.enabled)
             {
                 var phase = _gameOver
                     ? "GAME OVER — press R"
@@ -10205,7 +11285,7 @@ namespace VoidFall.Runtime
                 _hudText.text = $"{phase}\nTime {_time:0.0}s   Level {_level}   XP {_xp:0}/{_xpNeed}\n" +
                     $"Integrity {_playerHealth:0}/{_playerMaxHealth:0}   Kills {_kills}   Score {CurrentScore()}\n" +
                     $"Pistol rank {_pistolRank}/6   Calibration {_calibrationRank}/4\n" +
-                    $"Arena {ArenaName(_arenaId)}   Cycle {ArenaCycleRules.At(ArenaIdName(_arenaId), _time).CycleId}";
+                    $"Arena {ArenaName(_arenaId)}   Cycle {ArenaCycleRules.At(ArenaIdName(_arenaId), ArenaCycleElapsedSeconds()).CycleId}";
             }
 
             if (_helpText != null)
@@ -10853,11 +11933,15 @@ namespace VoidFall.Runtime
                 // Browser togglePause() resumes the context and then plays the
                 // gated UI cue; the pause cue is only for entering pause.
                 _audio?.Play(ProceduralAudio.Cue.Ui, 1f);
+                // Overlay visibility is reconciled from _paused by SyncUiScreen,
+                // so this only needs to move the game state.
+                SyncUiScreen();
             }
             else
             {
                 _paused = true;
                 _audio?.Play(ProceduralAudio.Cue.Pause, 0.86f);
+                SyncUiScreen();
             }
         }
 
@@ -10999,9 +12083,24 @@ namespace VoidFall.Runtime
 
         private void EnqueueToast(string text, string detail, float seconds, ToastKind kind)
         {
-            for (var index = 1; index < _toastStates.Length; index++)
-                _toastStates[index - 1] = _toastStates[index];
-            _toastStates[_toastStates.Length - 1] = new ToastState
+            // Find an inactive slot first; only evict the oldest if all are full.
+            var targetSlot = -1;
+            for (var index = 0; index < _toastStates.Length; index++)
+            {
+                if (!_toastStates[index].Active)
+                {
+                    targetSlot = index;
+                    break;
+                }
+            }
+            if (targetSlot < 0)
+            {
+                // All slots full — shift left to evict the oldest (index 0).
+                for (var index = 1; index < _toastStates.Length; index++)
+                    _toastStates[index - 1] = _toastStates[index];
+                targetSlot = _toastStates.Length - 1;
+            }
+            _toastStates[targetSlot] = new ToastState
             {
                 Active = true,
                 Text = (text ?? string.Empty).ToUpperInvariant(),
@@ -11010,6 +12109,9 @@ namespace VoidFall.Runtime
                 Duration = Mathf.Max(0.1f, seconds),
                 Kind = kind,
             };
+            // Combat toasts stay on the runtime's own canvas, which already
+            // renders this queue. Routing them through the menu layer as well
+            // would show every notice twice.
         }
 
         private void UpdateToastTimers(float frameDt)
@@ -11217,6 +12319,9 @@ namespace VoidFall.Runtime
             _music?.SetMuted(_audio.Muted);
             _audio.Play(ProceduralAudio.Cue.Ui, _audio.Muted ? 0.86f : 1.02f);
             SetMenuNotice(_audio.Muted ? "Audio muted." : "Audio unmuted.");
+            // Keeps the corner control and the settings row in step when mute is
+            // toggled from the keyboard rather than from either control.
+            _ui?.RefreshMuteGlyph();
         }
 
         private void CloseMenu()
@@ -11227,11 +12332,14 @@ namespace VoidFall.Runtime
                 _menuPage = MenuPage.Home;
                 _menuScroll = Vector2.zero;
                 _paused = true;
+                RefreshMenuProfileUi();
+                SyncUiScreen();
                 return;
             }
             _menuPage = MenuPage.None;
             if (!_gameOver) _paused = false;
             if (!_gameOver) RestartQualitySession();
+            SyncUiScreen();
         }
 
         private bool CommitSettings()
@@ -11310,6 +12418,10 @@ namespace VoidFall.Runtime
         private void ApplyQualityPreset(QualityPreset preset)
         {
             _qualityPreset = preset;
+            _musicPerimeter?.Configure(
+                unchecked((int)_runSeed),
+                preset.Detail,
+                _saveData?.settings != null && _saveData.settings.reducedMotion);
             ApplyRenderResolution();
             var particleLimit = SourceParticleLimit(preset.ParticleScale);
             if (_fx != null)
@@ -11454,6 +12566,11 @@ namespace VoidFall.Runtime
         {
             _menuNotice = message;
             _menuNoticeTimer = 3f;
+            // These notices had no renderer at all: the IMGUI screens set the
+            // string but never drew it, so purchase confirmations, save failures,
+            // import results and mute changes were silently discarded. The uGUI
+            // notice stack is their first actual output.
+            _ui?.Toasts?.ShowNotice(message);
         }
 
         private string ActiveOverlayAnimationKey()
@@ -11536,172 +12653,44 @@ namespace VoidFall.Runtime
             return CubicBezierEase(elapsed / 0.30f, 0.25f, 0.1f, 0.25f, 1f);
         }
 
-        private void OnGUI()
+        private GUISkin MenuSkin()
         {
             if (_menuSkin == null)
             {
                 _menuSkin = CreateMenuSkin(GUI.skin);
             }
-            if (_menuSkin != null)
-            {
-                GUI.skin = _menuSkin;
-            }
+            return _menuSkin ?? GUI.skin;
+        }
 
-            if (_menuPage == MenuPage.Home)
-            {
-                DrawHomeBackdrop();
-            }
-
-            DrawMuteControl();
-
-            SyncOverlayAnimation();
-            SyncMainMenuAnimation();
-
-            if (_evolutionRevealTimer > 0 && _menuPage == MenuPage.None &&
-                !_gameOver && !_levelUpActive && !_revivePending)
-            {
-                DrawEvolutionReveal();
-            }
-
-            if (_menuPage == MenuPage.Home)
-            {
-                DrawMainMenu();
-                DrawDebugOverlay();
-                return;
-            }
-
-            if (_revivePending)
-            {
-                DrawRevivePrompt();
-                DrawDebugOverlay();
-                return;
-            }
-            if (_levelUpActive)
-            {
-                DrawLevelUpPrompt();
-                DrawDebugOverlay();
-                return;
-            }
-            if (_gameOver && _menuPage == MenuPage.None)
-            {
-                DrawGameOverOverlay();
-                DrawDebugOverlay();
-                return;
-            }
-            if (_paused && _menuPage == MenuPage.None)
-            {
-                DrawPausePrompt();
-                DrawDebugOverlay();
-                return;
-            }
-            if (_menuPage == MenuPage.None)
-            {
-                DrawScreenWarnings();
-                DrawDebugOverlay();
-                return;
-            }
+        private void DrawProfileModal()
+        {
+            var safeArea = Screen.safeArea;
+            var panelWidth = MenuPanelWidth(safeArea.width, _menuPage);
+            var panelHeight = MenuPanelMaxHeight(safeArea.height);
+            var x = safeArea.xMin + (safeArea.width - panelWidth) * 0.5f;
+            var y = safeArea.yMin + (safeArea.height - panelHeight) * 0.5f;
+            var panelRect = new Rect(x, y, panelWidth, panelHeight);
 
             var oldColor = GUI.color;
-            var safeArea = Screen.safeArea;
-            var width = MenuPanelWidth(safeArea.width, _menuPage);
-            var height = MenuPanelMaxHeight(safeArea.height);
-            var x = safeArea.xMin + (safeArea.width - width) * 0.5f;
-            var y = safeArea.yMin + (safeArea.height - height) * 0.5f;
-            var menuAlpha = CurrentMainMenuAlpha();
-            DrawOverlayCardBackdropBlur(new Rect(x, y, width, height), menuAlpha);
-            DrawOverlayCardShadow(new Rect(x, y, width, height), menuAlpha);
-            GUI.color = Color.white;
-            GUI.Box(new Rect(x, y, width, height), GUIContent.none);
-            var insetRect = MenuPanelInsetHighlightRect(x, y, width);
-            GUI.color = new Color(1f, 1f, 1f, 0.05f);
-            GUI.DrawTexture(
-                insetRect,
-                Texture2D.whiteTexture,
-                ScaleMode.StretchToFill,
-                true);
-            var accentRect = MenuPanelAccentRect(x, y, width);
-            GUI.color = new Color(0.133f, 0.827f, 0.933f, 0.16f);
-            GUI.DrawTexture(
-                new Rect(accentRect.x, accentRect.y, accentRect.width, 6f),
-                Texture2D.whiteTexture,
-                ScaleMode.StretchToFill,
-                true);
-            GUI.color = new Color(0.133f, 0.827f, 0.933f, 1f);
-            GUI.DrawTexture(accentRect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true);
-            GUI.color = Color.white;
+            GUI.color = new Color(0f, 0f, 0f, 0.65f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = oldColor;
 
-            var profilePage = ProfilePageHeaderVisible(_mainMenuBrowsing, _menuPage);
-            var contentInset = profilePage ? 22f : 24f;
-            var contentTopInset = profilePage ? 22f : 18f;
-            GUILayout.BeginArea(new Rect(
-                x + contentInset,
-                y + contentTopInset,
-                width - contentInset * 2f,
-                height - contentTopInset - (profilePage ? 22f : 18f)));
-            if (profilePage)
-            {
-                DrawProfilePageHeader();
-            }
-            else
-            {
-                GUILayout.Label("VOIDFALL // " + MenuPageName(), MenuTitleStyle());
-                GUILayout.Label(
-                    _mainMenuBrowsing
-                        ? "Local profile. Changes are saved immediately."
-                        : _gameOver
-                        ? "Run ended. Press R or choose New run to launch again."
-                        : "Run paused. Changes to the workshop apply on the next run.",
-                    MenuBodyStyle());
+            DrawOverlayCardBackdropBlur(panelRect, 1f);
+            DrawOverlayCardShadow(panelRect, 1f);
 
-                var compactMenu = width < 560f;
-                var navigationHeight = compactMenu ? 36f : 30f;
-                GUILayout.BeginHorizontal();
-                if (_mainMenuBrowsing)
-                {
-                    if (DrawIconTextButton("Main menu", "arrow-left", navigationHeight)) _menuPage = MenuPage.Home;
-                    if (DrawIconTextButton("Workshop", "wrench", navigationHeight, true)) _menuPage = MenuPage.Workshop;
-                    if (!compactMenu)
-                    {
-                        if (DrawIconTextButton("Records", "trophy", navigationHeight, true)) _menuPage = MenuPage.Records;
-                        if (DrawIconTextButton("Settings", "settings", navigationHeight, true)) _menuPage = MenuPage.Settings;
-                    }
-                }
-                else
-                {
-                    if (DrawIconTextButton("Resume", "play", navigationHeight)) CloseMenu();
-                    if (GUILayout.Button("Overview", GUILayout.Height(navigationHeight))) _menuPage = MenuPage.Main;
-                    if (DrawIconTextButton("Workshop", "wrench", navigationHeight, true)) _menuPage = MenuPage.Workshop;
-                    if (!compactMenu)
-                    {
-                        if (DrawIconTextButton("Records", "trophy", navigationHeight, true)) _menuPage = MenuPage.Records;
-                        if (DrawIconTextButton("Settings", "settings", navigationHeight, true)) _menuPage = MenuPage.Settings;
-                    }
-                }
-                GUILayout.EndHorizontal();
-                if (compactMenu)
-                {
-                    GUILayout.BeginHorizontal();
-                    if (DrawIconTextButton("Records", "trophy", navigationHeight, true)) _menuPage = MenuPage.Records;
-                    if (DrawIconTextButton("Settings", "settings", navigationHeight, true)) _menuPage = MenuPage.Settings;
-                    GUILayout.EndHorizontal();
-                }
-                if (!_mainMenuBrowsing)
-                {
-                    GUILayout.BeginHorizontal();
-                    if (DrawIconTextButton("Restart", "rotate-ccw", navigationHeight)) StartRun();
-                    if (DrawIconTextButton("Main menu", "house", navigationHeight)) EnterMainMenu();
-                    GUILayout.EndHorizontal();
-                }
-            }
+            GUI.Box(panelRect, GUIContent.none, MenuSkin().box);
 
-            if (_menuNoticeTimer > 0 && !string.IsNullOrEmpty(_menuNotice))
-                GUILayout.Label(_menuNotice, MenuSectionStyle());
+            var accentRect = MenuPanelAccentRect(x, y, panelWidth);
+            GUI.color = new Color(0.133f, 0.827f, 0.933f, 0.9f);
+            GUI.DrawTexture(accentRect, Texture2D.whiteTexture);
+            GUI.color = oldColor;
 
-            _menuScroll = GUILayout.BeginScrollView(
-                _menuScroll,
-                GUIStyle.none,
-                GUI.skin.verticalScrollbar,
-                GUILayout.ExpandHeight(true));
+            GUILayout.BeginArea(new Rect(x + 18f, y + 16f, panelWidth - 36f, panelHeight - 32f));
+            DrawProfilePageHeader();
+            GUILayout.Space(8f);
+
+            _menuScroll = GUILayout.BeginScrollView(_menuScroll, false, false);
             switch (_menuPage)
             {
                 case MenuPage.Workshop:
@@ -11713,14 +12702,39 @@ namespace VoidFall.Runtime
                 case MenuPage.Settings:
                     DrawSettingsMenu();
                     break;
-                default:
+                case MenuPage.Main:
                     DrawOverviewMenu();
                     break;
             }
             GUILayout.EndScrollView();
             GUILayout.EndArea();
-            GUI.color = oldColor;
-            DrawDebugOverlay();
+        }
+
+        private void OnGUI()
+        {
+            var oldSkin = GUI.skin;
+            var oldColor = GUI.color;
+            var oldMatrix = GUI.matrix;
+
+            try
+            {
+                // Every menu, overlay, notice and diagnostic panel now lives in the
+                // retained-mode uGUI layer (VoidFall.UI), driven from SyncUiScreen.
+                // What stays here is the in-run director telegraph: chevrons and an
+                // edge pulse that are screen-space gameplay feedback rather than
+                // interface chrome, and which have to draw over the world without
+                // participating in menu navigation.
+                //
+                // IMGUI always composites after screen-space canvases, so nothing
+                // else may be drawn here or it would cover the interface.
+                if (_menuPage == MenuPage.None) DrawScreenWarnings();
+            }
+            finally
+            {
+                GUI.skin = oldSkin;
+                GUI.color = oldColor;
+                GUI.matrix = oldMatrix;
+            }
         }
 
         private static bool RusherWarningVisible(
@@ -11912,7 +12926,7 @@ namespace VoidFall.Runtime
 
             GUILayout.BeginArea(new Rect(x + 8f, y + 7f, width - 16f, height - 14f));
             var fps = Mathf.RoundToInt(1000f / Mathf.Max(0.1f, _debugFrameEmaMs));
-            var cycle = ArenaCycleRules.At(ArenaIdName(_arenaId), _time);
+            var cycle = ArenaCycleRules.At(ArenaIdName(_arenaId), ArenaCycleElapsedSeconds());
             var lines = new[]
             {
                 $"FPS {fps}  {_debugFrameEmaMs:0.0} ms",
@@ -12848,20 +13862,23 @@ namespace VoidFall.Runtime
             if (_upgradeProgress == null) return;
 
             var chips = new List<BuildChipRecord>();
-            for (var index = 0; index < ContentCatalog.Weapons.Length; index++)
+            var weaponCount = Mathf.Min(ContentCatalog.Weapons.Length, _upgradeProgress.WeaponRanks.Length);
+            for (var index = 0; index < weaponCount; index++)
             {
                 var rank = _upgradeProgress.WeaponRanks[index];
                 if (rank <= 0) continue;
+                var isEvolved = index < _upgradeProgress.Evolved.Length && _upgradeProgress.Evolved[index];
                 chips.Add(new BuildChipRecord
                 {
                     Id = ContentCatalog.Weapons[index].Id,
-                    Name = WeaponDisplayName(index, _upgradeProgress.Evolved[index]),
+                    Name = WeaponDisplayName(index, isEvolved),
                     Rank = rank,
-                    Accent = WeaponDisplayAccent(index, _upgradeProgress.Evolved[index]),
-                    Evolved = _upgradeProgress.Evolved[index],
+                    Accent = WeaponDisplayAccent(index, isEvolved),
+                    Evolved = isEvolved,
                 });
             }
-            for (var index = 0; index < ContentCatalog.Supports.Length; index++)
+            var supportCount = Mathf.Min(ContentCatalog.Supports.Length, _upgradeProgress.SupportRanks.Length);
+            for (var index = 0; index < supportCount; index++)
             {
                 var rank = _upgradeProgress.SupportRanks[index];
                 if (rank <= 0) continue;
@@ -12873,7 +13890,8 @@ namespace VoidFall.Runtime
                     Accent = ContentCatalog.Supports[index].Accent,
                 });
             }
-            for (var index = 0; index < ContentCatalog.LateUpgrades.Length; index++)
+            var lateCount = Mathf.Min(ContentCatalog.LateUpgrades.Length, _upgradeProgress.LateRanks.Length);
+            for (var index = 0; index < lateCount; index++)
             {
                 var rank = _upgradeProgress.LateRanks[index];
                 if (rank <= 0) continue;
@@ -13355,6 +14373,8 @@ namespace VoidFall.Runtime
             bool hovered,
             float breathe)
         {
+            buttonWidth = Mathf.Max(16, Mathf.RoundToInt(buttonWidth / 16f) * 16);
+            buttonHeight = Mathf.Max(16, Mathf.RoundToInt(buttonHeight / 16f) * 16);
             var state = MenuStartShadowState(hovered, breathe);
             var bucket = Mathf.RoundToInt(state * 8f);
             var key = buttonWidth + "x" + buttonHeight + "-" + (hovered ? "hover" : "b" + bucket);
@@ -13397,7 +14417,7 @@ namespace VoidFall.Runtime
             }
             texture.SetPixels(pixels);
             texture.Apply(false, true);
-            _menuStartOuterShadowCache[key] = texture;
+            CacheTextureBounded(_menuStartOuterShadowCache, key, texture);
             return texture;
         }
 
@@ -13407,6 +14427,8 @@ namespace VoidFall.Runtime
             bool hovered,
             float breathe)
         {
+            buttonWidth = Mathf.Max(16, Mathf.RoundToInt(buttonWidth / 16f) * 16);
+            buttonHeight = Mathf.Max(16, Mathf.RoundToInt(buttonHeight / 16f) * 16);
             var state = MenuStartShadowState(hovered, breathe);
             var bucket = Mathf.RoundToInt(state * 8f);
             var key = buttonWidth + "x" + buttonHeight + "-" + (hovered ? "hover" : "b" + bucket);
@@ -13445,7 +14467,7 @@ namespace VoidFall.Runtime
             }
             texture.SetPixels(pixels);
             texture.Apply(false, true);
-            _menuStartInsetShadowCache[key] = texture;
+            CacheTextureBounded(_menuStartInsetShadowCache, key, texture);
             return texture;
         }
 
@@ -13546,6 +14568,8 @@ namespace VoidFall.Runtime
             int buttonHeight,
             bool hovered)
         {
+            buttonWidth = Mathf.Max(16, Mathf.RoundToInt(buttonWidth / 16f) * 16);
+            buttonHeight = Mathf.Max(16, Mathf.RoundToInt(buttonHeight / 16f) * 16);
             var margin = PrimaryActionShadowTextureMargin(hovered);
             var key = buttonWidth + "x" + buttonHeight + "-" + (hovered ? "hover" : "normal");
             if (_primaryActionOuterShadowCache.TryGetValue(key, out var cached)) return cached;
@@ -13586,7 +14610,7 @@ namespace VoidFall.Runtime
             }
             texture.SetPixels(pixels);
             texture.Apply(false, true);
-            _primaryActionOuterShadowCache[key] = texture;
+            CacheTextureBounded(_primaryActionOuterShadowCache, key, texture);
             return texture;
         }
 
@@ -13595,6 +14619,8 @@ namespace VoidFall.Runtime
             int buttonHeight,
             bool hovered)
         {
+            buttonWidth = Mathf.Max(16, Mathf.RoundToInt(buttonWidth / 16f) * 16);
+            buttonHeight = Mathf.Max(16, Mathf.RoundToInt(buttonHeight / 16f) * 16);
             var key = buttonWidth + "x" + buttonHeight + "-" + (hovered ? "hover" : "normal");
             if (_primaryActionInsetShadowCache.TryGetValue(key, out var cached)) return cached;
 
@@ -13632,7 +14658,7 @@ namespace VoidFall.Runtime
             }
             texture.SetPixels(pixels);
             texture.Apply(false, true);
-            _primaryActionInsetShadowCache[key] = texture;
+            CacheTextureBounded(_primaryActionInsetShadowCache, key, texture);
             return texture;
         }
 
@@ -15862,22 +16888,26 @@ namespace VoidFall.Runtime
                 GUILayout.Label(
                     $"Weapons {ownedWeapons}/{UpgradeRules.WeaponSlotLimit(_upgradeProgress)}  \u2022  Supports and late systems below",
                     MenuBodyStyle());
-                for (var index = 0; index < ContentCatalog.Weapons.Length; index++)
+                var weaponCount = Mathf.Min(ContentCatalog.Weapons.Length, _upgradeProgress.WeaponRanks.Length);
+                for (var index = 0; index < weaponCount; index++)
                 {
                     var rank = _upgradeProgress.WeaponRanks[index];
                     if (rank <= 0) continue;
                     var weapon = ContentCatalog.Weapons[index];
-                    var evolution = _upgradeProgress.Evolved[index] ? "  \u2014 EVOLVED" : "";
+                    var isEvolved = index < _upgradeProgress.Evolved.Length && _upgradeProgress.Evolved[index];
+                    var evolution = isEvolved ? "  \u2014 EVOLVED" : "";
                     GUILayout.Label($"{weapon.Name}  Rank {rank}/6{evolution}", MenuBodyStyle());
                 }
-                for (var index = 0; index < ContentCatalog.Supports.Length; index++)
+                var supportCount = Mathf.Min(ContentCatalog.Supports.Length, _upgradeProgress.SupportRanks.Length);
+                for (var index = 0; index < supportCount; index++)
                 {
                     var rank = _upgradeProgress.SupportRanks[index];
                     if (rank <= 0) continue;
                     var support = ContentCatalog.Supports[index];
                     GUILayout.Label($"{support.Name}  Rank {rank}/{support.MaxRank}", MenuBodyStyle());
                 }
-                for (var index = 0; index < ContentCatalog.LateUpgrades.Length; index++)
+                var lateCount = Mathf.Min(ContentCatalog.LateUpgrades.Length, _upgradeProgress.LateRanks.Length);
+                for (var index = 0; index < lateCount; index++)
                 {
                     var rank = _upgradeProgress.LateRanks[index];
                     if (rank <= 0) continue;
@@ -17218,9 +18248,11 @@ namespace VoidFall.Runtime
             var quantized = quantizer != null ? quantizer(next) : QuantizeUnitSetting(next);
             if (Mathf.Abs(quantized - value) > 0.001f)
             {
-                var previousSettings = CloneSettings(_saveData?.settings);
+                _settingsDirtyPrevious = CloneSettings(_saveData?.settings);
                 setter(quantized);
-                ApplyAndCommitSettings(previousSettings);
+                ApplySettings();
+                _settingsDirty = true;
+                _settingsDirtyTimer = 0.5f;
             }
         }
 
@@ -18254,6 +19286,8 @@ namespace VoidFall.Runtime
 
         private static Texture2D OverlayCardShadowTexture(int cardWidth, int cardHeight)
         {
+            cardWidth = Mathf.Max(16, Mathf.RoundToInt(cardWidth / 16f) * 16);
+            cardHeight = Mathf.Max(16, Mathf.RoundToInt(cardHeight / 16f) * 16);
             var key = cardWidth + "x" + cardHeight;
             if (_overlayCardShadowCache.TryGetValue(key, out var cached)) return cached;
 
@@ -18299,7 +19333,7 @@ namespace VoidFall.Runtime
             }
             texture.SetPixels(pixels);
             texture.Apply(false, true);
-            _overlayCardShadowCache[key] = texture;
+            CacheTextureBounded(_overlayCardShadowCache, key, texture);
             return texture;
         }
 
@@ -19209,6 +20243,7 @@ namespace VoidFall.Runtime
         private static Font TryCreateSystemFont(string family)
         {
             if (string.IsNullOrEmpty(family)) return null;
+            if (HasCommandLineArgument("-vfno-system-fonts")) return null;
             try
             {
                 return Font.CreateDynamicFontFromOSFont(family, 32);
@@ -19261,180 +20296,48 @@ namespace VoidFall.Runtime
                 Mathf.Max(1f, viewportHeight) * 0.5f);
         }
 
-        /// <summary>
-        /// Drops every cached plate when the bake dimensions change. Plates are
-        /// rebuilt on demand for the arena actually on screen rather than for all
-        /// three up front: at 1080p a single base plate is ~2.23M pixels whose
-        /// inner loop runs trig per pixel, so baking the full set eagerly cost
-        /// roughly three times that before the menu could appear.
-        /// </summary>
-        private void InvalidateArenaPlatesIfBakeChanged(int viewportWidth, int viewportHeight, int detail)
+        private bool TryInstallPreparedArenaPlate(ArenaId arena)
         {
-            viewportWidth = Mathf.Max(64, viewportWidth);
-            viewportHeight = Mathf.Max(64, viewportHeight);
-            detail = Mathf.Clamp(detail, 0, 2);
-            if (_arenaPlateViewportWidth == viewportWidth &&
-                _arenaPlateViewportHeight == viewportHeight &&
-                _arenaPlateDetail == detail)
-                return;
+            var index = (int)arena;
+            if (index < 0 || index >= _arenaPlateSprites.Length) return false;
 
-            var dimensions = ArenaPlateFactory.SkyBakeDimensions(
-                viewportWidth,
-                viewportHeight,
-                detail);
+            ArenaPlateAsset asset = null;
+            var key = ArenaPackageFor(arena);
+            if (_arenaResidency != null &&
+                _arenaResidency.TryGet(key, out var recipe) &&
+                recipe != null)
+            {
+                asset = recipe.Plate;
+            }
 
-            // Any in-flight pre-bake was sized for the old dimensions.
-            DiscardArenaPlatePrebake();
-            for (var index = 0; index < _arenaPlateSprites.Length; index++)
-                ReleaseArenaPlate(index);
+            if (asset == null) return false;
 
-            _arenaPlateViewportWidth = viewportWidth;
-            _arenaPlateViewportHeight = viewportHeight;
-            _arenaPlateDetail = detail;
-            _arenaPlateBakeWidth = dimensions.x;
-            _arenaPlateBakeHeight = dimensions.y;
+            _preparedArenaPlateAssets[index] = asset;
+            _preparedArenaPlateKeys[index] = key;
+            _arenaPlateSprites[index] = asset.BaseSprite;
+            _arenaPlateDetailSprites[index] = asset.DetailSprite;
+            _arenaPlateBakeWidth = asset.Width;
+            _arenaPlateBakeHeight = asset.Height;
+            return true;
         }
 
-        private void ReleaseArenaPlate(int index)
-        {
-            if (index < 0 || index >= _arenaPlateSprites.Length) return;
-            if (_arenaPlateSprites[index] != null)
-            {
-                var texture = _arenaPlateSprites[index].texture;
-                Destroy(_arenaPlateSprites[index]);
-                if (texture != null) Destroy(texture);
-                _arenaPlateSprites[index] = null;
-            }
-            if (_arenaPlateDetailSprites[index] != null)
-            {
-                var detailTexture = _arenaPlateDetailSprites[index].texture;
-                Destroy(_arenaPlateDetailSprites[index]);
-                if (detailTexture != null) Destroy(detailTexture);
-                _arenaPlateDetailSprites[index] = null;
-            }
-        }
-
-        /// <summary>
-        /// Publishes the plate for one arena, using a completed background bake
-        /// when one is available and falling back to a synchronous bake when it
-        /// is not. Callers must treat this as potentially expensive.
-        /// </summary>
         private void EnsureArenaPlate(ArenaId arena)
         {
             var index = (int)arena;
             if (index < 0 || index >= _arenaPlateSprites.Length) return;
             if (_arenaPlateSprites[index] != null && _arenaPlateDetailSprites[index] != null) return;
 
-            TryPublishArenaPlatePrebake();
-            if (_arenaPlateSprites[index] != null && _arenaPlateDetailSprites[index] != null) return;
-
-            if (_arenaPlateSprites[index] == null)
-            {
-                _arenaPlateSprites[index] = ArenaPlateFactory.CreateBase(
-                    arena,
-                    _arenaPlateBakeWidth,
-                    _arenaPlateBakeHeight);
-            }
-            if (_arenaPlateDetailSprites[index] == null)
-            {
-                _arenaPlateDetailSprites[index] = ArenaPlateFactory.CreateBakedDetails(
-                    arena,
-                    _arenaPlateBakeWidth,
-                    _arenaPlateBakeHeight);
-            }
+            TryInstallPreparedArenaPlate(arena);
         }
 
-        /// <summary>
-        /// Starts a background bake for an arena that is not on screen yet. The
-        /// arena-shift warning fires six seconds before the swap, which is ample
-        /// lead time, so a swap still costs only the texture upload.
-        /// </summary>
-        private void BeginArenaPlatePrebake(ArenaId arena)
+        private void BeginArenaPackageLoad(ArenaId arena)
         {
-            var index = (int)arena;
-            if (index < 0 || index >= _arenaPlateSprites.Length) return;
-            if (_arenaPlateSprites[index] != null && _arenaPlateDetailSprites[index] != null) return;
-            if (_arenaPlatePrebakeTask != null) return;
-
-            // ColorUtility is not documented as thread-safe, so prime the spec
-            // cache here on the main thread; the bake itself is pure math.
-            ArenaPlateFactory.WarmSpecs();
-            var width = _arenaPlateBakeWidth;
-            var height = _arenaPlateBakeHeight;
-            _arenaPlatePrebakeArena = arena;
-            _arenaPlatePrebakeWidth = width;
-            _arenaPlatePrebakeHeight = height;
-            _arenaPlatePrebakeTask = System.Threading.Tasks.Task.Run(() =>
-                new ArenaPlatePrebake
-                {
-                    BasePixels = ArenaPlateFactory.BuildBasePixels(arena, width, height),
-                    DetailPixels = ArenaPlateFactory.BuildDetailPixels(arena, width, height),
-                });
-        }
-
-        private void TryPublishArenaPlatePrebake()
-        {
-            var task = _arenaPlatePrebakeTask;
-            if (task == null || !task.IsCompleted) return;
-
-            _arenaPlatePrebakeTask = null;
-            var index = (int)_arenaPlatePrebakeArena;
-            var stale = _arenaPlatePrebakeWidth != _arenaPlateBakeWidth ||
-                _arenaPlatePrebakeHeight != _arenaPlateBakeHeight;
-
-            if (task.IsFaulted || task.Result == null || stale ||
-                index < 0 || index >= _arenaPlateSprites.Length)
-            {
-                if (task.IsFaulted)
-                {
-                    Debug.LogWarning(
-                        "VoidFall arena plate pre-bake failed; falling back to a synchronous bake: " +
-                        task.Exception?.GetBaseException().Message);
-                }
-                return;
-            }
-
-            var result = task.Result;
-            if (_arenaPlateSprites[index] == null)
-            {
-                _arenaPlateSprites[index] = ArenaPlateFactory.SpriteFromPixels(
-                    result.BasePixels,
-                    _arenaPlatePrebakeWidth,
-                    _arenaPlatePrebakeHeight,
-                    "VoidFall Arena Plate Base " + _arenaPlatePrebakeArena);
-            }
-            if (_arenaPlateDetailSprites[index] == null)
-            {
-                _arenaPlateDetailSprites[index] = ArenaPlateFactory.SpriteFromPixels(
-                    result.DetailPixels,
-                    _arenaPlatePrebakeWidth,
-                    _arenaPlatePrebakeHeight,
-                    "VoidFall Arena Baked Details " + _arenaPlatePrebakeArena);
-            }
-        }
-
-        private void DiscardArenaPlatePrebake()
-        {
-            // The task is pure computation with no Unity handles, so abandoning
-            // it leaks nothing; its buffers are collected once it finishes.
-            _arenaPlatePrebakeTask = null;
+            _arenaResidency?.Acquire(ArenaPackageFor(arena));
         }
 
         private void EnsureArenaPlateViewport()
         {
-            InvalidateArenaPlatesIfBakeChanged(
-                Mathf.Max(64, Screen.width),
-                Mathf.Max(64, Screen.height),
-                _qualityPreset.Detail);
-            TryPublishArenaPlatePrebake();
             EnsureArenaPlate(_arenaId);
-            // The home page draws the Void plate as its backdrop regardless of
-            // which arena the save resumed into, so it has to be baked too while
-            // the menu is up. Before plates became lazy, SetupBackdrop baked all
-            // three eagerly and this was always satisfied; without it the menu
-            // silently falls back to the small 256px procedural gradient
-            // whenever the saved arena is not Void.
-            if (_mainMenuBrowsing) EnsureArenaPlate(ArenaId.Void);
         }
 
         private void SetupBackdrop()
@@ -19443,12 +20346,9 @@ namespace VoidFall.Runtime
             backdrop.transform.SetParent(_worldRoot, false);
             var renderer = backdrop.AddComponent<SpriteRenderer>();
             _backdropView = renderer;
-            // No bake happens here. Awake runs before ApplySettings resolves the
-            // real quality preset, so baking now used the default High detail and
-            // then EnsureArenaPlateViewport re-baked everything on the first
-            // rendered frame whenever the saved quality differed. RenderArena
-            // owns the bake instead, with the settled preset and only for the
-            // arena on screen.
+            // The sprite arrives from the arena package asynchronously. Until
+            // then the camera's clear color is the intentional lightweight
+            // fallback; player builds never generate arena pixels here.
             renderer.color = Color.white;
             var viewportHalf = GameplayViewportHalfExtent();
             renderer.transform.localScale = new Vector3(
@@ -19470,32 +20370,14 @@ namespace VoidFall.Runtime
                 viewportHalf.y * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateBakeHeight),
                 1);
 
-            for (var index = 0; index < _arenaGrainSprites.Length; index++)
-                _arenaGrainSprites[index] = ArenaPlateFactory.CreateGrainTile((ArenaId)index);
-
-            var grainCameraObject = new GameObject("Arena Screen Grain Camera Canvas");
-            grainCameraObject.transform.SetParent(_worldRoot, false);
-            _arenaGrainCameraCanvas = grainCameraObject.AddComponent<Canvas>();
-            _arenaGrainCameraCanvas.renderMode = RenderMode.ScreenSpaceCamera;
-            _arenaGrainCameraCanvas.worldCamera = _camera;
-            _arenaGrainCameraCanvas.planeDistance = 1f;
-            _arenaGrainCameraCanvas.overrideSorting = true;
-            _arenaGrainCameraCanvas.sortingOrder = -105;
-            var grainCameraRect = grainCameraObject.GetComponent<RectTransform>();
-            grainCameraRect.anchorMin = Vector2.zero;
-            grainCameraRect.anchorMax = Vector2.one;
-            grainCameraRect.pivot = new Vector2(0.5f, 0.5f);
-            grainCameraRect.offsetMin = Vector2.zero;
-            grainCameraRect.offsetMax = Vector2.zero;
-            var grainCameraViewObject = new GameObject("Arena Screen Grain Camera View");
-            grainCameraViewObject.transform.SetParent(grainCameraObject.transform, false);
-            _arenaGrainCameraView = grainCameraViewObject.AddComponent<RawImage>();
-            _arenaGrainCameraView.raycastTarget = false;
-            _arenaGrainCameraView.rectTransform.anchorMin = Vector2.zero;
-            _arenaGrainCameraView.rectTransform.anchorMax = Vector2.one;
-            _arenaGrainCameraView.rectTransform.offsetMin = Vector2.zero;
-            _arenaGrainCameraView.rectTransform.offsetMax = Vector2.zero;
-            _arenaGrainCameraView.enabled = false;
+            // Arena colour grading belongs to the arena, not to the player.
+            // The old fullscreen overlay lived on the HUD canvas and therefore
+            // tinted the operative, projectiles and UI—most visibly in Sakura.
+            _arenaVignetteView = CreateView(
+                "Arena World Vignette",
+                ProceduralSpriteFactory.ArenaVignette(ArenaId.Void),
+                -90);
+            _arenaVignetteView.color = Color.white;
 
             _arenaGridView = CreateMeshView("Arena Void Grid", -95, out _arenaGridRenderer);
             _arenaGridMesh = _arenaGridView.sharedMesh;
@@ -19545,7 +20427,10 @@ namespace VoidFall.Runtime
                 ProceduralSpriteFactory.Circle(),
                 -108);
             for (var index = 0; index < MaxArenaStellarRimSegments; index++)
+            {
                 _arenaStellarRimViews[index] = CreateLineView("Arena Stellar Rim_" + index, -107);
+                ConfigureRoundLine(_arenaStellarRimViews[index]);
+            }
             for (var index = 0; index < MaxArenaLandmarkSegments; index++)
             {
                 _arenaLandmarkViews[index] = CreateLineView("Arena Landmark Slab_" + index, -108);
@@ -19612,7 +20497,8 @@ namespace VoidFall.Runtime
                     strandOrder,
                     out _arenaNearFilamentStrandRenderers[index]);
             }
-            BuildArenaNearFilamentData();
+            // Filament geometry depends on the settled viewport and selected
+            // arena. Build it lazily from RenderArena instead of blocking Awake.
         }
 
         private void SetupPlayer()
@@ -19640,6 +20526,7 @@ namespace VoidFall.Runtime
             canvasObject.transform.SetParent(transform, false);
             _canvas = canvasObject.AddComponent<Canvas>();
             _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.additionalShaderChannels |= AdditionalCanvasShaderChannels.TexCoord1;
             _hudGroup = canvasObject.AddComponent<CanvasGroup>();
             _hudGroup.alpha = 0f;
             _hudGroup.interactable = false;
@@ -19662,6 +20549,19 @@ namespace VoidFall.Runtime
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             scaler.matchWidthOrHeight = 1f;
             canvasObject.AddComponent<GraphicRaycaster>();
+            var perimeterObject = new GameObject("Music Reactive Perimeter");
+            perimeterObject.transform.SetParent(canvasObject.transform, false);
+            _musicPerimeter = perimeterObject.AddComponent<MusicPerimeterGraphic>();
+            var perimeterRect = _musicPerimeter.rectTransform;
+            perimeterRect.anchorMin = Vector2.zero;
+            perimeterRect.anchorMax = Vector2.one;
+            perimeterRect.offsetMin = Vector2.zero;
+            perimeterRect.offsetMax = Vector2.zero;
+            _musicPerimeter.Configure(
+                unchecked((int)_runSeed),
+                _qualityPreset.Detail,
+                _saveData?.settings != null && _saveData.settings.reducedMotion);
+            _musicPerimeter.transform.SetAsFirstSibling();
             var eventSystem = EventSystem.current;
             if (eventSystem == null)
             {
@@ -19889,7 +20789,7 @@ namespace VoidFall.Runtime
             _boostPanel.rectTransform.anchorMax = new Vector2(0.5f, 0);
             _boostPanel.rectTransform.pivot = new Vector2(0.5f, 0);
             _boostPanel.rectTransform.anchoredPosition = new Vector2(0, 13);
-            _boostPanel.rectTransform.sizeDelta = new Vector2(190, 42);
+            _boostPanel.rectTransform.sizeDelta = new Vector2(226, 44);
             _boostPanel.enabled = false;
             var boostIconObject = new GameObject("Overclock Icon");
             boostIconObject.transform.SetParent(canvasObject.transform, false);
@@ -19902,14 +20802,27 @@ namespace VoidFall.Runtime
             boostIconRect.anchorMin = new Vector2(0.5f, 0);
             boostIconRect.anchorMax = new Vector2(0.5f, 0);
             boostIconRect.pivot = new Vector2(0.5f, 0.5f);
-            boostIconRect.anchoredPosition = new Vector2(-84, 43);
+            boostIconRect.anchoredPosition = new Vector2(-101, 43);
             boostIconRect.sizeDelta = new Vector2(13, 13);
             _boostIcon.enabled = false;
-            _boostText = CreateText(canvasObject.transform, new Vector2(-16, 34), new Vector2(0.5f, 0), 9, new Color(0.996f, 0.976f, 0.765f));
+            _boostText = CreateText(canvasObject.transform, new Vector2(-24, 34), new Vector2(0.5f, 0), 11, new Color(0.42f, 0.94f, 1f));
             _boostText.alignment = TextAnchor.MiddleLeft;
-            _boostText.rectTransform.sizeDelta = new Vector2(120, 20);
+            _boostText.fontStyle = FontStyle.Bold;
+            _boostText.rectTransform.sizeDelta = new Vector2(158, 20);
             _boostText.enabled = false;
-            _boostSecondsText = CreateText(canvasObject.transform, new Vector2(74, 34), new Vector2(0.5f, 0), 9, new Color(0.996f, 0.976f, 0.765f));
+            _boostGhostA = CreateText(canvasObject.transform, new Vector2(-24, 34), new Vector2(0.5f, 0), 11, new Color(0.1f, 0.9f, 1f, 0f));
+            _boostGhostA.alignment = TextAnchor.MiddleLeft;
+            _boostGhostA.fontStyle = FontStyle.Bold;
+            _boostGhostA.rectTransform.sizeDelta = new Vector2(158, 20);
+            _boostGhostA.raycastTarget = false;
+            _boostGhostA.enabled = false;
+            _boostGhostB = CreateText(canvasObject.transform, new Vector2(-24, 34), new Vector2(0.5f, 0), 11, new Color(1f, 0.08f, 0.7f, 0f));
+            _boostGhostB.alignment = TextAnchor.MiddleLeft;
+            _boostGhostB.fontStyle = FontStyle.Bold;
+            _boostGhostB.rectTransform.sizeDelta = new Vector2(158, 20);
+            _boostGhostB.raycastTarget = false;
+            _boostGhostB.enabled = false;
+            _boostSecondsText = CreateText(canvasObject.transform, new Vector2(91, 34), new Vector2(0.5f, 0), 10, new Color(0.82f, 0.94f, 1f));
             _boostSecondsText.alignment = TextAnchor.MiddleRight;
             _boostSecondsText.rectTransform.sizeDelta = new Vector2(30, 20);
             _boostSecondsText.enabled = false;
@@ -19923,7 +20836,7 @@ namespace VoidFall.Runtime
             _boostBar.rectTransform.anchorMax = new Vector2(0.5f, 0);
             _boostBar.rectTransform.pivot = new Vector2(0.5f, 0);
             _boostBar.rectTransform.anchoredPosition = new Vector2(0, 18);
-            _boostBar.rectTransform.sizeDelta = new Vector2(164, 3);
+            _boostBar.rectTransform.sizeDelta = new Vector2(198, 3);
             _boostBar.enabled = false;
 
             _loadoutText = CreateText(canvasObject.transform, new Vector2(-18, 18), new Vector2(1, 0), 10, new Color(0.72f, 0.79f, 0.88f));
@@ -19944,15 +20857,6 @@ namespace VoidFall.Runtime
             _lateStripText.raycastTarget = false;
             _lateStripText.enabled = false;
 
-            _arenaVignetteOverlay = CreateFullscreenOverlay(
-                canvasObject.transform,
-                "Arena Vignette Overlay",
-                Color.white);
-            _arenaVignetteOverlay.sprite = ProceduralSpriteFactory.ArenaVignette(ArenaId.Void);
-            // React draws the arena vignette after the world canvas and before
-            // GameUI. Keep that same boundary so edge darkening never changes
-            // the health/clock/action chrome.
-            _arenaVignetteOverlay.transform.SetSiblingIndex(1);
             var arenaBannerObject = new GameObject("Arena Shift Banner");
             arenaBannerObject.transform.SetParent(canvasObject.transform, false);
             _arenaBannerPanel = arenaBannerObject.AddComponent<Image>();
@@ -19984,7 +20888,7 @@ namespace VoidFall.Runtime
             _arenaBannerTitle.fontStyle = FontStyle.Bold;
             _arenaBannerTitle.alignment = TextAnchor.MiddleCenter;
             _arenaBannerTitle.rectTransform.sizeDelta = new Vector2(286, 24);
-            _arenaBannerTitle.text = "THE VOID DEEPENS..";
+            _arenaBannerTitle.text = "THE ABYSS DEEPENS..";
             _arenaBannerTitle.raycastTarget = false;
             _arenaBannerDetail = CreateText(
                 arenaBannerObject.transform,
@@ -20090,7 +20994,17 @@ namespace VoidFall.Runtime
         private void SetupAudio()
         {
             _audio = gameObject.AddComponent<ProceduralAudio>();
-            _music = gameObject.AddComponent<MusicDirector>();
+            if (!HasCommandLineArgument("-vfno-music"))
+                _music = gameObject.AddComponent<MusicDirector>();
+        }
+
+        private static bool HasCommandLineArgument(string expected)
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var index = 0; index < args.Length; index++)
+                if (string.Equals(args[index], expected, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
         }
 
         private void SetupFx()
@@ -22403,6 +23317,7 @@ namespace VoidFall.Runtime
             var mesh = new Mesh { name = name + " Mesh" };
             mesh.MarkDynamic();
             filter.sharedMesh = mesh;
+            _dynamicMeshes.Add(mesh);
             renderer = objectRoot.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = VoidFallRenderMaterials.DefaultUnlit;
             renderer.sortingOrder = sortingOrder;
@@ -22422,6 +23337,7 @@ namespace VoidFall.Runtime
             material.SetFloat("_PassCount", ArenaNearFilamentPasses);
             renderer.sharedMaterial = material;
             _arenaNearFilamentMaterials[slot] = material;
+            _dynamicMaterials.Add(material);
         }
 
         private static AnimationCurve CreateFilamentStrandWidthCurve()
@@ -22788,20 +23704,32 @@ namespace VoidFall.Runtime
             EnsureArenaPlateViewport();
             var cameraCentre = RenderCameraCentre();
             var viewportHalf = RenderViewportHalfExtent();
-            if (_arenaVignetteOverlay != null)
+            if (_arenaVignetteView != null)
             {
-                _arenaVignetteOverlay.sprite = ProceduralSpriteFactory.ArenaVignette(_arenaId);
-                _arenaVignetteOverlay.color = Color.white;
-                _arenaVignetteOverlay.enabled = true;
+                var vignetteSprite = ProceduralSpriteFactory.ArenaVignette(_arenaId);
+                _arenaVignetteView.sprite = vignetteSprite;
+                _arenaVignetteView.color = Color.white;
+                _arenaVignetteView.transform.position = new Vector3(cameraCentre.x, cameraCentre.y, 0f);
+                if (vignetteSprite != null)
+                {
+                    var size = vignetteSprite.bounds.size;
+                    _arenaVignetteView.transform.localScale = new Vector3(
+                        viewportHalf.x * 2f / Mathf.Max(0.01f, size.x),
+                        viewportHalf.y * 2f / Mathf.Max(0.01f, size.y),
+                        1f);
+                }
+                _arenaVignetteView.enabled = true;
             }
             _backdropView.sprite = _arenaPlateSprites[(int)_arenaId];
             _backdropView.color = Color.white;
+            var recipe = ArenaCatalogRules.RecipeLayout(_arenaRecipeIndex);
             var skyOffset = ArenaParallaxOffsetForViewport(
                 cameraCentre,
                 ArenaSkyParallax,
                 ArenaSkyOverscan);
             _backdropView.transform.localScale = new Vector3(
-                viewportHalf.x * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateBakeWidth),
+                (recipe.MirrorX ? -1f : 1f) *
+                    viewportHalf.x * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateBakeWidth),
                 viewportHalf.y * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateBakeHeight),
                 1);
             _backdropView.transform.position = new Vector3(
@@ -22812,24 +23740,20 @@ namespace VoidFall.Runtime
             {
                 _arenaBakedDetailView.sprite = _arenaPlateDetailSprites[(int)_arenaId];
                 _arenaBakedDetailView.color = Color.white;
-                _arenaBakedDetailView.transform.localScale = _backdropView.transform.localScale;
-                _arenaBakedDetailView.transform.position = _backdropView.transform.position;
+                _arenaBakedDetailView.transform.localScale =
+                    _backdropView.transform.localScale * recipe.DetailScale;
+                _arenaBakedDetailView.transform.position = _backdropView.transform.position +
+                    new Vector3(
+                        viewportHalf.x * recipe.DetailOffsetX,
+                        viewportHalf.y * recipe.DetailOffsetY,
+                        0f);
                 _arenaBakedDetailView.enabled = _arenaBakedDetailView.sprite != null;
-            }
-
-            if (_arenaGrainCameraCanvas != null)
-            {
-                _arenaGrainCameraCanvas.gameObject.SetActive(false);
-            }
-            if (_arenaGrainCameraView != null)
-            {
-                _arenaGrainCameraView.enabled = false;
             }
 
             RenderArenaGrid();
 
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
-            var cycle = ArenaCycleRules.At(ArenaIdName(_arenaId), _time);
+            var cycle = ArenaCycleRules.At(ArenaIdName(_arenaId), ArenaCycleElapsedSeconds());
             var cycleVisual = ArenaCycleVisual(cycle.CycleId, (float)cycle.Progress);
             if (!_arenaMoteSeedsReady ||
                 _arenaMoteSeedArena != _arenaId ||
@@ -22946,7 +23870,8 @@ namespace VoidFall.Runtime
                 MaxArenaMotes,
                 SourceRound(sourceBudget * moteScale * (reducedMotion ? 0.45f : 1f)));
             var petal = _arenaId == ArenaId.WhiteSakura;
-            var stream = _runSeed ^ 0x5bf03635u ^ (uint)ArenaRockNoiseSeed(_arenaId);
+            var stream = _runSeed ^ 0x5bf03635u ^ (uint)ArenaRockNoiseSeed(_arenaId) ^
+                ArenaCatalogRules.RecipeLayout(_arenaRecipeIndex).DecorSalt;
             for (var index = 0; index < _arenaMoteSeedCount; index++)
             {
                 var roll = ArenaDecorStreamNext(ref stream);
@@ -22987,8 +23912,8 @@ namespace VoidFall.Runtime
 
         private static float WrapArenaMote(float value, float span, float margin)
         {
-            var wrapped = value % span;
-            if (wrapped < 0) wrapped += span;
+            if (span <= 0f) return value - margin;
+            var wrapped = ((value % span) + span) % span;
             return wrapped - margin;
         }
 
@@ -23054,17 +23979,19 @@ namespace VoidFall.Runtime
             var top = cameraCentre.y + halfHeight;
             var firstX = Mathf.Floor(left / ArenaGridSpacing) * ArenaGridSpacing;
             var firstY = Mathf.Floor(bottom / ArenaGridSpacing) * ArenaGridSpacing;
-            var verticalCount = Mathf.Max(
+            var verticalCount = Mathf.Clamp(
+                Mathf.CeilToInt((right + ArenaGridSpacing - firstX) / ArenaGridSpacing),
                 1,
-                Mathf.CeilToInt((right + ArenaGridSpacing - firstX) / ArenaGridSpacing));
-            var horizontalCount = Mathf.Max(
+                200);
+            var horizontalCount = Mathf.Clamp(
+                Mathf.CeilToInt((top + ArenaGridSpacing - firstY) / ArenaGridSpacing),
                 1,
-                Mathf.CeilToInt((top + ArenaGridSpacing - firstY) / ArenaGridSpacing));
+                200);
 
-            if (Mathf.Approximately(_arenaGridFirstX, firstX) &&
-                Mathf.Approximately(_arenaGridFirstY, firstY) &&
-                Mathf.Approximately(_arenaGridWidth, worldWidth) &&
-                Mathf.Approximately(_arenaGridHeight, worldHeight) &&
+            if (Mathf.Abs(_arenaGridFirstX - firstX) < 0.1f &&
+                Mathf.Abs(_arenaGridFirstY - firstY) < 0.1f &&
+                Mathf.Abs(_arenaGridWidth - worldWidth) < 0.1f &&
+                Mathf.Abs(_arenaGridHeight - worldHeight) < 0.1f &&
                 _arenaGridVerticalCount == verticalCount &&
                 _arenaGridHorizontalCount == horizontalCount)
                 return;
@@ -23229,7 +24156,8 @@ namespace VoidFall.Runtime
             _arenaRockTotalCount = _arenaRockFarCount +
                 SourceRound(sourceMidCount * rockScale);
 
-            var stream = _runSeed ^ 0x5bf03635u ^ (uint)ArenaRockNoiseSeed(_arenaId);
+            var stream = _runSeed ^ 0x5bf03635u ^ (uint)ArenaRockNoiseSeed(_arenaId) ^
+                ArenaCatalogRules.RecipeLayout(_arenaRecipeIndex).DecorSalt;
             // React's createArenaDecor keeps one stream alive: all mote
             // records are consumed before makeRocks starts reading it. Unity
             // used to restart here, which was deterministic but not source
@@ -23421,7 +24349,7 @@ namespace VoidFall.Runtime
                 ArenaSkyOverscan);
 
             var plateView = _arenaFilamentPlateViews[2];
-            if (plateView != null)
+            if (plateView != null && plateView.sprite != null)
             {
                 plateView.transform.position = layerCentre;
                 plateView.color = Color.white;
@@ -23551,9 +24479,9 @@ namespace VoidFall.Runtime
                 return;
             }
             var plateView = plateGroup >= 0 ? _arenaFilamentPlateViews[plateGroup] : null;
-            if (plateView != null)
+            if (plateView != null && plateView.sprite != null)
             {
-                var plateCycle = ArenaCycleRules.At(ArenaIdName(_arenaId), _time);
+                var plateCycle = ArenaCycleRules.At(ArenaIdName(_arenaId), ArenaCycleElapsedSeconds());
                 var plateCycleVisual = ArenaCycleVisual(plateCycle.CycleId, (float)plateCycle.Progress);
                 var plateAlphaScale = 0.4f + plateCycleVisual.Definition * 0.6f;
                 var plateCameraCentre = RenderCameraCentre();
@@ -23572,7 +24500,7 @@ namespace VoidFall.Runtime
                 return;
             }
 
-            var cycle = ArenaCycleRules.At(ArenaIdName(_arenaId), _time);
+            var cycle = ArenaCycleRules.At(ArenaIdName(_arenaId), ArenaCycleElapsedSeconds());
             var cycleVisual = ArenaCycleVisual(cycle.CycleId, (float)cycle.Progress);
             var alphaScale = 0.4f + cycleVisual.Definition * 0.6f;
             var cameraCentre = RenderCameraCentre();
@@ -23718,22 +24646,6 @@ namespace VoidFall.Runtime
                 2,
                 viewportHalf.x * 2f * ArenaNearOverscan,
                 viewportHalf.y * 2f * ArenaNearOverscan);
-            BuildArenaFilamentPlate(
-                0,
-                0,
-                2,
-                viewportHalf.x * 2f * ArenaNearOverscan,
-                viewportHalf.y * 2f * ArenaNearOverscan,
-                _arenaNearFilamentCoreColors[0],
-                0.95f);
-            BuildArenaFilamentPlate(
-                1,
-                2,
-                2,
-                viewportHalf.x * 2f * ArenaNearOverscan,
-                viewportHalf.y * 2f * ArenaNearOverscan,
-                _arenaNearFilamentCoreColors[2],
-                0.95f);
             _arenaFilamentViewportWidth = viewportHalf.x * 2f;
             _arenaFilamentViewportHeight = viewportHalf.y * 2f;
         }
@@ -23747,8 +24659,16 @@ namespace VoidFall.Runtime
                 Mathf.Approximately(_arenaFilamentViewportHeight, height))
                 return;
 
+            var started = Time.realtimeSinceStartupAsDouble;
             BuildArenaNearFilamentData();
             ConfigureArenaFarFilaments();
+            var elapsedMs = (Time.realtimeSinceStartupAsDouble - started) * 1000.0;
+            if (elapsedMs >= 10.0)
+                Debug.Log(
+                    "VOIDFALL_ARENA_FILAMENT_BUILD arena=" + _arenaId +
+                    " width=" + width.ToString("F0") +
+                    " height=" + height.ToString("F0") +
+                    " milliseconds=" + elapsedMs.ToString("F1"));
         }
 
         private void ConfigureArenaFarFilaments()
@@ -23758,7 +24678,8 @@ namespace VoidFall.Runtime
             var count = isRed ? 4 : isWhite ? 3 : 0;
             var angle = isRed ? -0.62f : 0.5f;
             var widthFraction = isRed ? 0.17f : 0.13f;
-            var seed = isRed ? 0x7c1f : 0x2ad9;
+            var seed = (isRed ? 0x7c1f : 0x2ad9) ^
+                unchecked((int)ArenaCatalogRules.RecipeLayout(_arenaRecipeIndex).DecorSalt);
             var alpha = isRed ? 0.5f : 0.3f;
             var breakTint = isWhite ? ParseColor("#efe6ea", Color.white) : ParseColor("#c9713f", Color.white);
             var colors = isRed
@@ -23796,14 +24717,6 @@ namespace VoidFall.Runtime
                 4,
                 viewportHalf.x * 2f * ArenaSkyOverscan,
                 viewportHalf.y * 2f * ArenaSkyOverscan);
-            BuildArenaFilamentPlate(
-                2,
-                4,
-                count,
-                viewportHalf.x * 2f * ArenaSkyOverscan,
-                viewportHalf.y * 2f * ArenaSkyOverscan,
-                count > 0 ? _arenaNearFilamentCoreColors[4] : Color.clear,
-                1f);
             _arenaFarFilamentCount = count;
             _arenaFarFilamentSeedArena = _arenaId;
             _arenaFarFilamentSeedsReady = true;
@@ -24561,12 +25474,25 @@ namespace VoidFall.Runtime
             public float EdgeBias;
         }
 
+        private float ArenaOrbitPhase()
+        {
+            var rate = _mainMenuBrowsing ? MenuOrbitPhaseRate : GameplayOrbitPhaseRate;
+            return _arenaDecorClock * rate;
+        }
+
+        private float ArenaRingPhase()
+        {
+            var rate = _mainMenuBrowsing ? MenuRingPhaseRate : GameplayRingPhaseRate;
+            return _arenaDecorClock * rate;
+        }
+
         private void UpdateArenaDecor(float dt, bool reducedMotion)
         {
-            var cycle = ArenaCycleRules.At(ArenaIdName(_arenaId), _time);
+            var cycle = ArenaCycleRules.At(ArenaIdName(_arenaId), ArenaCycleElapsedSeconds());
             var visual = ArenaCycleVisual(cycle.CycleId, (float)cycle.Progress);
             var step = Mathf.Clamp(dt, 0, 0.1f);
             var motion = reducedMotion ? 0.25f : 1f;
+            if (_mainMenuBrowsing && !reducedMotion) motion *= MenuVoidMotionSpeed;
             _arenaDecorClock += step * motion;
 
             var angle = ArenaMoteAngle(_arenaId) + visual.Current * 0.35f;
@@ -24576,11 +25502,40 @@ namespace VoidFall.Runtime
             _arenaDecorDrift.y = Mathf.Repeat(_arenaDecorDrift.y, ArenaDecorField);
         }
 
+        private double ArenaCycleElapsedSeconds()
+        {
+            // Gameplay cycles follow simulation time. The paused menu uses the
+            // render clock so browsing an arena previews the same loop without
+            // advancing a saved run.
+            return _mainMenuBrowsing ? _arenaDecorClock * MenuCyclePreviewRate : _time;
+        }
+
         private static ArenaCycleVisualState ArenaCycleVisual(string cycleId, float progress)
         {
             var eased = Mathf.Sin(Mathf.Clamp01(progress) * Mathf.PI);
             switch (cycleId)
             {
+                case "steady":
+                    return new ArenaCycleVisualState
+                    {
+                        Definition = 0.22f, Current = 0.03f, Rim = 0.24f, Density = 0.78f, EdgeBias = 0,
+                    };
+                case "drift":
+                    return new ArenaCycleVisualState
+                    {
+                        Definition = 0.34f, Current = 0.2f, Rim = 0.32f, Density = 0.88f, EdgeBias = 0.05f,
+                    };
+                case "eclipse":
+                    return new ArenaCycleVisualState
+                    {
+                        Definition = 0.52f, Current = 0.45f, Rim = 0.48f, Density = 0.94f, EdgeBias = 0.14f,
+                    };
+                case "rupture":
+                    return new ArenaCycleVisualState
+                    {
+                        Definition = 0.78f, Current = 0.72f, Rim = 0.66f + eased * 0.25f,
+                        Density = 1f, EdgeBias = 0.28f,
+                    };
                 case "quiet":
                     return new ArenaCycleVisualState
                     {
@@ -24597,6 +25552,12 @@ namespace VoidFall.Runtime
                         Definition = 0.6f, Current = 0.45f, Rim = 0.55f + eased * 0.45f,
                         Density = 1f, EdgeBias = 0.1f,
                     };
+                case "corona":
+                    return new ArenaCycleVisualState
+                    {
+                        Definition = 0.72f, Current = 0.68f, Rim = 0.65f + eased * 0.35f,
+                        Density = 1f, EdgeBias = 0.24f,
+                    };
                 case "still":
                     return new ArenaCycleVisualState
                     {
@@ -24612,6 +25573,12 @@ namespace VoidFall.Runtime
                     {
                         Definition = 0.45f, Current = 0.4f, Rim = 0.5f, Density = 1f,
                         EdgeBias = 0.55f + eased * 0.45f,
+                    };
+                case "afterglow":
+                    return new ArenaCycleVisualState
+                    {
+                        Definition = 0.66f, Current = 0.62f, Rim = 0.58f + eased * 0.32f,
+                        Density = 0.94f, EdgeBias = 0.38f,
                     };
                 default:
                     return new ArenaCycleVisualState
@@ -24648,7 +25615,7 @@ namespace VoidFall.Runtime
 
         private void UpdateArenaCycleFlash(float dt)
         {
-            var cycle = ArenaCycleRules.At(ArenaIdName(_arenaId), _time);
+            var cycle = ArenaCycleRules.At(ArenaIdName(_arenaId), ArenaCycleElapsedSeconds());
             var flashRate = ArenaCycleFlashRate(cycle.ArenaId, cycle.CycleId);
             _arenaFlash = Mathf.Max(0, _arenaFlash - dt * 1.9f);
             if (flashRate <= 0) return;
@@ -24771,7 +25738,8 @@ namespace VoidFall.Runtime
                 _arenaLandmarkBodyView.color = Color.white;
                 _arenaLandmarkBodyView.enabled = true;
 
-                var light = Mathf.PI * 0.86f;
+                var stellarPhase = ArenaOrbitPhase() * 0.72f;
+                var light = Mathf.PI * 0.86f + stellarPhase;
                 for (var segment = 0; segment < MaxArenaStellarRimSegments; segment++)
                 {
                     var t0 = segment / (float)MaxArenaStellarRimSegments;
@@ -24779,7 +25747,7 @@ namespace VoidFall.Runtime
                     var a0 = light - Mathf.PI * 0.52f + t0 * Mathf.PI * 1.04f;
                     var a1 = light - Mathf.PI * 0.52f + t1 * Mathf.PI * 1.04f;
                     var rim = _arenaStellarRimViews[segment];
-                    var ripple = StellarRimRipple(t0);
+                    var ripple = StellarRimRipple(Mathf.Repeat(t0 + stellarPhase * 0.08f, 1f));
                     rim.positionCount = 2;
                     rim.SetPosition(0, centre + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * radius * 0.995f);
                     rim.SetPosition(1, centre + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * radius * 0.995f);
@@ -24804,7 +25772,7 @@ namespace VoidFall.Runtime
             var ringCentre = cameraCentre - skyRingOffset + ArenaScreenPoint(0.83f, -0.16f);
             var angleCursor = -0.35f;
             var inner = ringRadius * 0.74f;
-            const float ringRotation = -0.34f;
+            var ringRotation = -0.34f + ArenaRingPhase();
             const float ringLightAngle = -0.72f;
             var landmarkStream = (uint)ArenaRockNoiseSeed(_arenaId) ^ 0x4f21u;
             for (var slab = 0; slab < MaxArenaLandmarkSegments; slab++)
@@ -24849,7 +25817,7 @@ namespace VoidFall.Runtime
                 slabMesh.vertices = slabVertices;
                 slabMesh.RecalculateBounds();
                 _arenaRingSlabFillRenderers[slab].enabled = true;
-                var lit = Mathf.Cos(angleCursor + span * 0.5f - ringLightAngle);
+                var lit = Mathf.Cos(angleCursor + ringRotation + span * 0.5f - ringLightAngle);
                 var rimStartAngle = angleCursor + ringRotation + 0.01f;
                 var rimEndAngle = angleCursor + ringRotation + span - 0.01f;
                 var rimRadius = r1 - thickness * 0.15f;
@@ -24900,6 +25868,7 @@ namespace VoidFall.Runtime
                 ArenaOrbitalParallax,
                 ArenaOrbitalOverscan);
             var orbitalShorterAxis = shorterAxis;
+            var orbitPhase = ArenaOrbitPhase();
             var orbitalState = 0x2ad9u ^ 0x33b7u;
             var runViewIndex = 0;
             for (var arc = 0; arc < 7; arc++)
@@ -24907,9 +25876,14 @@ namespace VoidFall.Runtime
                 var centre = cameraCentre - orbitalOffset + ArenaScreenPoint(
                     0.1f + NearStreamNext(ref orbitalState) * 0.9f,
                     0.05f + NearStreamNext(ref orbitalState) * 0.95f);
+                var centrePhase = orbitPhase * (0.28f + arc * 0.035f) + arc * 1.37f;
+                centre += new Vector2(Mathf.Cos(centrePhase), Mathf.Sin(centrePhase)) *
+                    orbitalShorterAxis * 0.018f;
                 var radius = orbitalShorterAxis * (0.22f + NearStreamNext(ref orbitalState) * 0.7f);
                 var width = 1f + NearStreamNext(ref orbitalState) * 2.6f;
                 var runs = 2 + Mathf.FloorToInt(NearStreamNext(ref orbitalState) * 2f);
+                var arcPhase = orbitPhase * (0.78f + (arc % 3) * 0.18f);
+                if ((arc & 1) != 0) arcPhase = -arcPhase;
                 var angle = NearStreamNext(ref orbitalState) * Mathf.PI * 2f;
                 for (var run = 0; run < runs; run++)
                 {
@@ -24919,7 +25893,7 @@ namespace VoidFall.Runtime
                     for (var point = 0; point < view.positionCount; point++)
                     {
                         var t = point / (float)(view.positionCount - 1);
-                        var pointAngle = angle + span * t;
+                        var pointAngle = angle + span * t + arcPhase;
                         view.SetPosition(
                             point,
                             centre + new Vector2(Mathf.Cos(pointAngle), -Mathf.Sin(pointAngle)) * radius);
@@ -24937,10 +25911,15 @@ namespace VoidFall.Runtime
 
             for (var line = 0; line < MaxArenaOrbitFractures; line++)
             {
-                var angle = NearStreamNext(ref orbitalState) * Mathf.PI;
+                var fracturePhase = orbitPhase *
+                    (((line & 1) == 0 ? 1f : -1f) * (1.05f + (line % 3) * 0.14f));
+                var angle = NearStreamNext(ref orbitalState) * Mathf.PI + fracturePhase;
                 var start = cameraCentre - orbitalOffset + ArenaScreenPoint(
                     NearStreamNext(ref orbitalState),
                     NearStreamNext(ref orbitalState));
+                var startPhase = fracturePhase * 0.32f + line * 1.11f;
+                start += new Vector2(Mathf.Cos(startPhase), Mathf.Sin(startPhase)) *
+                    orbitalShorterAxis * 0.014f;
                 var length = orbitalShorterAxis * (0.18f + NearStreamNext(ref orbitalState) * 0.5f);
                 var end = start + new Vector2(Mathf.Cos(angle), -Mathf.Sin(angle)) * length;
                 var view = _arenaOrbitFractureViews[line];
@@ -25015,6 +25994,53 @@ namespace VoidFall.Runtime
             return Mathf.Repeat(value, 1f);
         }
 
+        private void SelectRecipeForCurrentArena()
+        {
+            _arenaRecipeIndex = ArenaCatalogRules.RecipeIndex(
+                _runSeed,
+                ArenaCatalogRules.StableId(_arenaId));
+            _arenaMoteSeedsReady = false;
+            _arenaRockSeedsReady = false;
+            _arenaFarFilamentSeedsReady = false;
+        }
+
+        private ArenaPackageKey ArenaPackageFor(ArenaId arena)
+        {
+            var stableId = ArenaCatalogRules.StableId(arena);
+            return new ArenaPackageKey(
+                stableId,
+                ArenaCatalogRules.RecipeIndex(_runSeed, stableId));
+        }
+
+        private void PrepareArenaNeighborhood()
+        {
+            if (_arenaResidency == null) return;
+            var current = ArenaPackageFor(_arenaId);
+            var exitA = default(ArenaPackageKey);
+            var exitB = default(ArenaPackageKey);
+            var exitCount = 0;
+            var arenas = ContentOrder.Arenas;
+            for (var index = 0; index < arenas.Length && exitCount < 2; index++)
+            {
+                if (arenas[index] == _arenaId) continue;
+                if (exitCount++ == 0) exitA = ArenaPackageFor(arenas[index]);
+                else exitB = ArenaPackageFor(arenas[index]);
+            }
+
+            var target = ArenaResidencyPlanner.Steady(current, exitA, exitB);
+            if (!_arenaResidency.Reconcile(target))
+                Debug.LogWarning(_arenaResidency.LastFailure);
+            for (var index = 0; index < _preparedArenaPlateKeys.Length; index++)
+            {
+                var installed = _preparedArenaPlateKeys[index];
+                if (!installed.IsValid || target.Contains(installed)) continue;
+                _preparedArenaPlateAssets[index] = null;
+                _preparedArenaPlateKeys[index] = default;
+                _arenaPlateSprites[index] = null;
+                _arenaPlateDetailSprites[index] = null;
+            }
+        }
+
         private static string ArenaIdName(ArenaId arena)
         {
             switch (arena)
@@ -25041,7 +26067,7 @@ namespace VoidFall.Runtime
             {
                 case ArenaId.RedNebula: return "Red Nebula";
                 case ArenaId.WhiteSakura: return "White Sakura";
-                default: return "The Void";
+                default: return "Abyss";
             }
         }
 
@@ -25194,7 +26220,14 @@ namespace VoidFall.Runtime
 
         private static int FindInactive(PickupState[] states)
         {
-            for (var i = 0; i < states.Length; i++) if (!states[i].Active) return i;
+            return FindInactive(states, states != null ? states.Length : 0);
+        }
+
+        private static int FindInactive(PickupState[] states, int count)
+        {
+            if (states == null) return -1;
+            var limit = Mathf.Min(states.Length, Mathf.Max(0, count));
+            for (var i = 0; i < limit; i++) if (!states[i].Active) return i;
             return -1;
         }
 

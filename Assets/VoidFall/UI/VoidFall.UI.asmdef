@@ -1,0 +1,21 @@
+{
+  "name": "VoidFall.UI",
+  "rootNamespace": "VoidFall.UI",
+  "references": [
+    "UnityEngine.UI",
+    "Unity.TextMeshPro",
+    "Unity.InputSystem",
+    "VoidFall.Core",
+    "VoidFall.Content",
+    "VoidFall.Persistence"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

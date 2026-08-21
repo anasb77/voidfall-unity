@@ -43,16 +43,26 @@ namespace VoidFall.Runtime
         // Final gain applied on top of master x music. ProceduralAudio's pad
         // uses 0.024 because it is meant to sit almost below hearing; authored
         // tracks need real level. Started at 0.55, cut 40% to 0.33 after the
-        // first playtest, then 25% to 0.2475, then a further 15% because the
-        // track still sat over the SFX bed.
-        private const float MusicGain = 0.2104f;
+        // first playtest, then 25% to 0.2475, then 15% to 0.2104 once the SFX
+        // bed was raised, then back up 10% to keep the track present.
+        private const float MusicGain = 0.2314f;
+
+        // Bomb duck. The pickup drops the track out and lets it swell back, so
+        // the detonation reads in the music and not just the SFX. Fast attack
+        // so the drop lands on the blast, short hold so it reads as a stumble
+        // rather than a stop, and a longer eased release so the return feels
+        // like the track picking itself back up.
+        private const float DuckAttackSeconds = 0.045f;
+        private const float DuckHoldSeconds = 0.10f;
+        private const float DuckReleaseSeconds = 0.40f;
+        // Not fully silent: leaving a little through keeps it a duck rather
+        // than a gap, which is what stops it sounding like a bug.
+        private const float DuckFloor = 0.12f;
 
         // Reactive playback rates. AudioSource.pitch resamples, so these shift
         // tempo and pitch together like a tape speed change, which is the effect
         // being asked for rather than a tempo-only stretch.
         private const float NormalRate = 1f;
-        private const float OverclockRate = 1.4f;
-        private const float CriticalRate = 0.5f;
 
         // Low-pass cutoffs for the submerged upgrade-screen effect. 22 kHz is
         // effectively bypassed. 390 Hz leaves only the bass and the very low
@@ -93,17 +103,30 @@ namespace VoidFall.Runtime
         private float _musicVolume = 0.7f;
 
         private AudioLowPassFilter _lowPass;
+        // The cross-faded level, kept separate from _source.volume so the duck
+        // can multiply on top of it without the fade chasing the ducked value
+        // back up and flattening the envelope.
+        private float _fadeVolume;
+        // Seconds into the current duck, or -1 when idle.
+        private float _duckElapsed = -1f;
         // Eased 0..1 submersion. Driving one scalar and deriving cutoff and
         // resonance from it keeps the two in lockstep through the sweep.
         private float _submersion;
-        private bool _upgradeScreenOpen;
-        private bool _overclocked;
-        private bool _criticalHealth;
+        private MusicReactiveState _reactiveState;
+        private MusicMixTargets _mixTargets = MusicStateComposer.Compose(default, 0f);
+        private MusicSpectrumAnalyzer _spectrumAnalyzer;
+        private MusicDspFilter _dspFilter;
+        private float _criticalPulseClock;
+        private float _rateSurge;
 
         public bool HasGameplayTracks => _gameplayClips.Length > 0;
         public bool HasMenuTracks => _menuClips.Length > 0;
         public Channel CurrentChannel => _channel;
         public string CurrentTrackName => _current != null ? _current.name : null;
+        public MusicAnalysisFrame AnalysisFrame => _spectrumAnalyzer != null
+            ? _spectrumAnalyzer.Current
+            : MusicAnalysisFrame.Zero;
+        public MusicMixTargets CurrentMixTargets => _mixTargets;
 
         private void Awake()
         {
@@ -127,6 +150,8 @@ namespace VoidFall.Runtime
             _lowPass = host.AddComponent<AudioLowPassFilter>();
             _lowPass.cutoffFrequency = FilterOpenHz;
             _lowPass.lowpassResonanceQ = FilterOpenResonance;
+            _dspFilter = host.AddComponent<MusicDspFilter>();
+            _spectrumAnalyzer = new MusicSpectrumAnalyzer(_source);
 
             _gameplayClips = LoadSorted(GameplayResourcePath);
             _menuClips = LoadSorted(MainMenuResourcePath);
@@ -140,36 +165,68 @@ namespace VoidFall.Runtime
         /// </param>
         /// <param name="overclocked">Runs the track at 1.5x.</param>
         /// <param name="criticalHealth">Drags the track to 0.5x.</param>
-        public void SetReactiveState(bool upgradeScreenOpen, bool overclocked, bool criticalHealth)
+        public void SetReactiveState(in MusicReactiveState state)
         {
-            _upgradeScreenOpen = upgradeScreenOpen;
-            _overclocked = overclocked;
-            _criticalHealth = criticalHealth;
+            _reactiveState = state;
         }
 
-        private float TargetRate()
+        public void NotifyOverclockStreak(int previousStreak, int currentStreak)
         {
-            // Menu music is never modulated.
-            if (_channel != Channel.Gameplay) return NormalRate;
-
-            // The upgrade screen is a deliberate lull, so it settles the rate to
-            // neutral and lets the filter carry the whole effect. Without this a
-            // player who levels up mid-overclock would get 1.5x and submerged at
-            // once, which just sounds broken.
-            if (_upgradeScreenOpen) return NormalRate;
-
-            // Overclock outranks critical health on purpose: it is the short-lived
-            // state the player just triggered, so it has to feel responsive.
-            // Critical health is a sustained condition and reads fine once the
-            // burst ends. Swap these two lines to invert that.
-            if (_overclocked) return OverclockRate;
-            if (_criticalHealth) return CriticalRate;
-            return NormalRate;
+            if (currentStreak <= previousStreak) return;
+            _rateSurge = Mathf.Max(_rateSurge, currentStreak >= 4 ? 0.09f : 0.045f);
         }
 
-        private float TargetSubmersion()
+        public void NotifyPlayerDamage(float healthFraction, bool lethal)
         {
-            return _channel == Channel.Gameplay && _upgradeScreenOpen ? 1f : 0f;
+            if (_channel != Channel.Gameplay || _dspFilter == null) return;
+            _dspFilter.RequestBackspin(MusicReactiveMath.DamageScratchSeconds(healthFraction, lethal));
+        }
+
+        public void ResetReactiveState()
+        {
+            _reactiveState = default;
+            _mixTargets = MusicStateComposer.Compose(default, 0f);
+            _criticalPulseClock = 0f;
+            _rateSurge = 0f;
+            _dspFilter?.SetStereoWidth(1f);
+            _dspFilter?.ResetHistory();
+            _spectrumAnalyzer?.Reset();
+        }
+
+        /// <summary>
+        /// Drops the track out briefly so a bomb detonation lands in the music.
+        /// Retriggerable: a second bomb restarts the envelope rather than
+        /// stacking, so chained pickups cannot hold the music down.
+        /// </summary>
+        public void DuckForBomb()
+        {
+            _duckElapsed = 0f;
+        }
+
+        /// <summary>
+        /// Advances the duck envelope and returns the gain multiplier. Must be
+        /// called exactly once per frame.
+        /// </summary>
+        private float AdvanceDuck(float dt)
+        {
+            if (_duckElapsed < 0f) return 1f;
+
+            _duckElapsed += dt;
+            const float total = DuckAttackSeconds + DuckHoldSeconds + DuckReleaseSeconds;
+            if (_duckElapsed >= total)
+            {
+                _duckElapsed = -1f;
+                return 1f;
+            }
+
+            if (_duckElapsed < DuckAttackSeconds)
+                return Mathf.Lerp(1f, DuckFloor, _duckElapsed / DuckAttackSeconds);
+
+            if (_duckElapsed < DuckAttackSeconds + DuckHoldSeconds) return DuckFloor;
+
+            var released = (_duckElapsed - DuckAttackSeconds - DuckHoldSeconds) / DuckReleaseSeconds;
+            // Ease out, so the track swells back rather than ramping linearly.
+            return Mathf.Lerp(DuckFloor, 1f, 1f - (1f - released) * (1f - released));
         }
 
         private static AudioClip[] LoadSorted(string resourcePath)
@@ -267,6 +324,8 @@ namespace VoidFall.Runtime
             _pendingChannel = Channel.None;
             _switching = false;
             _channel = channel;
+            _dspFilter?.ResetHistory();
+            _spectrumAnalyzer?.Reset();
 
             if (channel == Channel.None)
             {
@@ -276,6 +335,7 @@ namespace VoidFall.Runtime
                     _source.Stop();
                     _source.clip = null;
                     _source.volume = 0f;
+                    _fadeVolume = 0f;
                 }
                 return;
             }
@@ -309,6 +369,9 @@ namespace VoidFall.Runtime
             _source.loop = _startOffset <= 0.01f;
             var latestStart = Mathf.Max(0f, _current.length - 1f);
             _source.time = Mathf.Clamp(_startOffset, 0f, latestStart);
+            // initialVolume is the pre-duck level. Update re-applies the duck
+            // multiplier next frame, so seeding both with it is correct.
+            _fadeVolume = initialVolume;
             _source.volume = initialVolume;
             _source.Play();
             if (_suspended) _source.Pause();
@@ -321,8 +384,11 @@ namespace VoidFall.Runtime
             if (_channel == Channel.MainMenu && _current != null)
                 _startOffset = PickStartOffset(_current.name);
 
-            // Preserve level so a loop boundary is not audible as a dip.
-            StartCurrent(_source != null ? _source.volume : 0f);
+            // Preserve level so a loop boundary is not audible as a dip. Reads
+            // the pre-duck level, not _source.volume: restarting mid-duck would
+            // otherwise capture the ducked value as the new base and leave the
+            // track quiet for good.
+            StartCurrent(_fadeVolume);
         }
 
         private float PickStartOffset(string clipName)
@@ -392,16 +458,24 @@ namespace VoidFall.Runtime
         private void ApplyReactiveState()
         {
             var dt = Time.unscaledDeltaTime;
+            _criticalPulseClock += dt * 1.6f;
+            var pulse = _reactiveState.CriticalHealth
+                ? 0.5f + Mathf.Sin(_criticalPulseClock * Mathf.PI * 2f) * 0.5f
+                : 0f;
+            _mixTargets = MusicStateComposer.Compose(_reactiveState, pulse);
+            _rateSurge = Mathf.MoveTowards(_rateSurge, 0f, dt * 0.22f);
             _source.pitch = Mathf.Lerp(
                 _source.pitch,
-                TargetRate(),
+                _mixTargets.PlaybackRate + _rateSurge,
                 1f - Mathf.Exp(-dt / RateTimeConstant));
+
+            _dspFilter?.SetStereoWidth(_mixTargets.StereoWidth);
 
             if (_lowPass == null) return;
 
             _submersion = Mathf.Lerp(
                 _submersion,
-                TargetSubmersion(),
+                _mixTargets.Submersion,
                 1f - Mathf.Exp(-dt / FilterTimeConstant));
 
             // Swept in log space. Hearing maps frequency logarithmically, so a
@@ -409,12 +483,14 @@ namespace VoidFall.Runtime
             // where nothing audible changes, then lurches through the low end
             // at the finish. Interpolating the exponent instead spreads the
             // dive evenly across the octaves you can actually hear it in.
-            _lowPass.cutoffFrequency = Mathf.Exp(
-                Mathf.Lerp(Mathf.Log(FilterOpenHz), Mathf.Log(FilterSubmergedHz), _submersion));
+            _lowPass.cutoffFrequency = Mathf.Lerp(
+                _lowPass.cutoffFrequency,
+                _mixTargets.LowPassHz,
+                1f - Mathf.Exp(-dt / FilterTimeConstant));
             _lowPass.lowpassResonanceQ = Mathf.Lerp(
-                FilterOpenResonance,
-                FilterSubmergedResonance,
-                _submersion);
+                _lowPass.lowpassResonanceQ,
+                _mixTargets.LowPassResonance,
+                1f - Mathf.Exp(-dt / FilterTimeConstant));
         }
 
         private void Update()
@@ -424,18 +500,24 @@ namespace VoidFall.Runtime
             // Runs before the switching early-out so the filter and rate keep
             // settling through a cross-fade.
             ApplyReactiveState();
+            _spectrumAnalyzer?.Update(Time.unscaledDeltaTime);
 
             var blend = 1f - Mathf.Exp(-Time.unscaledDeltaTime / FadeTimeConstant);
+            // Advanced once per frame regardless of branch, so a duck that
+            // overlaps a channel switch still resolves instead of sticking.
+            var duck = AdvanceDuck(Time.unscaledDeltaTime);
 
             if (_switching)
             {
-                _source.volume = Mathf.Lerp(_source.volume, 0f, blend);
-                if (_source.volume <= 0.005f || !_source.isPlaying)
+                _fadeVolume = Mathf.Lerp(_fadeVolume, 0f, blend);
+                _source.volume = _fadeVolume * duck;
+                if (_fadeVolume <= 0.005f || !_source.isPlaying)
                     BeginChannel(_pendingChannel);
                 return;
             }
 
-            _source.volume = Mathf.Lerp(_source.volume, ResolveVolume(), blend);
+            _fadeVolume = Mathf.Lerp(_fadeVolume, ResolveVolume(), blend);
+            _source.volume = _fadeVolume * duck;
 
             if (_channel == Channel.None || _source.loop || _suspended) return;
 

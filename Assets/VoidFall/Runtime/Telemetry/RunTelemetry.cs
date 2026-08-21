@@ -230,7 +230,9 @@ namespace VoidFall.Runtime
     {
         private const int MaxSamples = 2160;
         private const int MaxEvents = 2048;
-        private readonly List<UnityTelemetrySample> _samples = new List<UnityTelemetrySample>(216);
+        private readonly UnityTelemetrySample[] _samples = new UnityTelemetrySample[MaxSamples];
+        private int _sampleHead;
+        private int _sampleCount;
         private readonly List<UnityTelemetryEvent> _levels = new List<UnityTelemetryEvent>(64);
         private readonly List<UnityTelemetryEvent> _upgrades = new List<UnityTelemetryEvent>(128);
         private readonly List<UnityTelemetryEvent> _milestones = new List<UnityTelemetryEvent>(128);
@@ -260,7 +262,8 @@ namespace VoidFall.Runtime
         {
             _seed = seed;
             _startedAt = DateTime.UtcNow.ToString("O");
-            _samples.Clear();
+            _sampleHead = 0;
+            _sampleCount = 0;
             _levels.Clear();
             _upgrades.Clear();
             _milestones.Clear();
@@ -481,15 +484,20 @@ namespace VoidFall.Runtime
             _maximumEnemies = Mathf.Max(_maximumEnemies, sample.enemies);
             _maximumProjectiles = Mathf.Max(_maximumProjectiles, sample.projectiles);
             _maximumPickups = Mathf.Max(_maximumPickups, sample.pickups);
-            if (_samples.Count >= MaxSamples)
+            if (_sampleCount >= MaxSamples)
             {
                 // Browser RunTelemetry.shift() drops the oldest sample so the
                 // exported window always contains the newest observations.
-                _samples.RemoveAt(0);
+                _samples[_sampleHead] = NormalizeSample(sample);
+                _sampleHead = (_sampleHead + 1) % MaxSamples;
                 _droppedRecords++;
                 _droppedSamples++;
             }
-            _samples.Add(NormalizeSample(sample));
+            else
+            {
+                _samples[(_sampleHead + _sampleCount) % MaxSamples] = NormalizeSample(sample);
+                _sampleCount++;
+            }
         }
 
         public void RecordLevel(float timeSeconds, int level, int nextXp, int bufferedXp)
@@ -625,7 +633,7 @@ namespace VoidFall.Runtime
                     maximumProjectiles = _maximumProjectiles,
                     maximumPickups = _maximumPickups,
                 },
-                samples = _samples.ToArray(),
+                samples = GetSamplesArray(),
                 droppedRecords = new UnityTelemetryDroppedRecords
                 {
                     samples = _droppedSamples,
@@ -649,6 +657,16 @@ namespace VoidFall.Runtime
                 Debug.LogWarning("VoidFall telemetry export skipped: " + exception.Message);
                 return null;
             }
+        }
+
+        private UnityTelemetrySample[] GetSamplesArray()
+        {
+            var result = new UnityTelemetrySample[_sampleCount];
+            for (int i = 0; i < _sampleCount; i++)
+            {
+                result[i] = _samples[(_sampleHead + i) % MaxSamples];
+            }
+            return result;
         }
 
         private void AddEvent(List<UnityTelemetryEvent> destination, UnityTelemetryEvent value)

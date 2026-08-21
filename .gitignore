@@ -76,3 +76,6 @@ Desktop.ini
 *.log.*
 TestResults/
 [Tt]est[Rr]esults/
+
+# Kiro local tool config
+.kiro/

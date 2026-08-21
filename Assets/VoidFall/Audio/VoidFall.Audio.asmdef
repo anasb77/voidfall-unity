@@ -1,7 +1,9 @@
 {
   "name": "VoidFall.Audio",
   "rootNamespace": "VoidFall.Runtime",
-  "references": [],
+  "references": [
+    "VoidFall.Core"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

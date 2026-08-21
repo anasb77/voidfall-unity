@@ -243,7 +243,10 @@ namespace VoidFall.Core
                 // buffer; runtime spawning always supplies one.
                 projected = new CircleDefinition[meteorCount + 1];
             }
-            Array.Copy(context.Meteors, projected, meteorCount);
+            if (meteorCount > 0)
+            {
+                Array.Copy(context.Meteors, projected, meteorCount);
+            }
             projected[meteorCount] = candidate;
             return OpenEscapeDirections(
                     context.PlayerX,

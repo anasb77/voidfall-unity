@@ -22,7 +22,7 @@ namespace VoidFall.Core
             {
                 Id = "void",
 
-                Name = "The Void",
+                Name = "Abyss",
 
                 Description = "Open ground with clear sightlines.",
 
@@ -42,8 +42,29 @@ namespace VoidFall.Core
                     {
                         Id = "steady",
                         Name = "Steady",
-                        Seconds = 60,
+                        Seconds = 54,
                         FlashRate = 0,
+                    },
+                    new ArenaCycleDefinition
+                    {
+                        Id = "drift",
+                        Name = "Abyssal drift",
+                        Seconds = 38,
+                        FlashRate = 0.025,
+                    },
+                    new ArenaCycleDefinition
+                    {
+                        Id = "eclipse",
+                        Name = "Deep eclipse",
+                        Seconds = 28,
+                        FlashRate = 0.08,
+                    },
+                    new ArenaCycleDefinition
+                    {
+                        Id = "rupture",
+                        Name = "Abyssal rupture",
+                        Seconds = 16,
+                        FlashRate = 0.2,
                     }
                 },
                 EliteCadenceMultiplier = 1,
@@ -75,22 +96,29 @@ namespace VoidFall.Core
                     {
                         Id = "quiet",
                         Name = "Quiet clouds",
-                        Seconds = 48,
+                        Seconds = 42,
                         FlashRate = 0.040000000000000001,
                     },
                     new ArenaCycleDefinition
                     {
                         Id = "ionized",
                         Name = "Ionized filaments",
-                        Seconds = 34,
+                        Seconds = 30,
                         FlashRate = 0.10000000000000001,
                     },
                     new ArenaCycleDefinition
                     {
                         Id = "flare",
                         Name = "Stellar flare",
-                        Seconds = 10,
+                        Seconds = 12,
                         FlashRate = 0.69999999999999996,
+                    },
+                    new ArenaCycleDefinition
+                    {
+                        Id = "corona",
+                        Name = "Corona surge",
+                        Seconds = 18,
+                        FlashRate = 0.25,
                     }
                 },
                 EliteCadenceMultiplier = 1,
@@ -122,22 +150,29 @@ namespace VoidFall.Core
                     {
                         Id = "still",
                         Name = "Still drift",
-                        Seconds = 46,
+                        Seconds = 42,
                         FlashRate = 0.029999999999999999,
                     },
                     new ArenaCycleDefinition
                     {
                         Id = "cross",
                         Name = "Cross current",
-                        Seconds = 32,
+                        Seconds = 28,
                         FlashRate = 0.059999999999999998,
                     },
                     new ArenaCycleDefinition
                     {
                         Id = "bloom",
                         Name = "Bloom",
-                        Seconds = 20,
+                        Seconds = 18,
                         FlashRate = 0.050000000000000003,
+                    },
+                    new ArenaCycleDefinition
+                    {
+                        Id = "afterglow",
+                        Name = "Petal afterglow",
+                        Seconds = 22,
+                        FlashRate = 0.12,
                     }
                 },
                 EliteCadenceMultiplier = 1.5000000000000000,

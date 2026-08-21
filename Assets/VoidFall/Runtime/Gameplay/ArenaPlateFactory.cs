@@ -9,9 +9,32 @@ namespace VoidFall.Runtime
     /// palette, off-centre falloff, cloud tint, and sweeps. Grain is emitted as
     /// a separate tiled sprite because the browser anchors that pass to the
     /// screen after drawing the moving backdrop.
+    /// 
+    /// Callers are responsible for calling <see cref="Cleanup"/> to release created native objects.
     /// </summary>
     public static class ArenaPlateFactory
     {
+        private static readonly System.Collections.Generic.List<Texture2D> _createdTextures = new System.Collections.Generic.List<Texture2D>();
+        private static readonly System.Collections.Generic.List<Sprite> _createdSprites = new System.Collections.Generic.List<Sprite>();
+
+        /// <summary>
+        /// Cleans up all tracked native textures and sprites. Callers must invoke this when they are done with the created assets.
+        /// </summary>
+        public static void Cleanup()
+        {
+            foreach (var sprite in _createdSprites)
+            {
+                if (sprite != null) UnityEngine.Object.Destroy(sprite);
+            }
+            _createdSprites.Clear();
+
+            foreach (var texture in _createdTextures)
+            {
+                if (texture != null) UnityEngine.Object.Destroy(texture);
+            }
+            _createdTextures.Clear();
+        }
+
         // At the browser's 1600x900 high-quality reference, bakeSize caps the
         // viewport at 1366x769 and buildArenaLayers applies the 1.18x sky
         // overscan before drawing. Keep that same overscanned backing size so
@@ -173,6 +196,8 @@ namespace VoidFall.Runtime
             texture.Apply(false, false);
             var sprite = Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 1f);
             sprite.name = texture.name + " Sprite";
+            _createdTextures.Add(texture);
+            _createdSprites.Add(sprite);
             return sprite;
         }
 
@@ -334,6 +359,8 @@ namespace VoidFall.Runtime
                 Vector4.zero,
                 false);
             sprite.name = texture.name + " Sprite";
+            _createdTextures.Add(texture);
+            _createdSprites.Add(sprite);
             return sprite;
         }
 

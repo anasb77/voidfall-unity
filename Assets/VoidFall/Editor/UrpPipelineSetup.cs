@@ -24,8 +24,9 @@ namespace VoidFall.Editor
             changed |= EnsureGlobalSettings();
 
             bool defaultProfileChanged;
-            MoveOrCreateDefaultVolumeProfile(out defaultProfileChanged);
+            var defaultProfile = MoveOrCreateDefaultVolumeProfile(out defaultProfileChanged);
             changed |= defaultProfileChanged;
+            changed |= EnsureNeutralDefaultVolumeProfile(defaultProfile);
 
             bool rendererDataChanged;
             var rendererData = EnsureRendererData(out rendererDataChanged);
@@ -108,6 +109,44 @@ namespace VoidFall.Editor
             }
 
             return profile;
+        }
+
+        private static bool EnsureNeutralDefaultVolumeProfile(VolumeProfile profile)
+        {
+            // URP requires its global default profile to contain every supported
+            // component with overrides enabled. An empty profile is not stable:
+            // Unity repopulates it during a player build. Populate it explicitly
+            // and lock every image-changing default to its neutral value.
+            VolumeProfileUtils.EnsureAllOverridesForDefaultProfile(profile);
+
+            if (profile.TryGet(out Bloom bloom)) bloom.intensity.value = 0f;
+            if (profile.TryGet(out ChromaticAberration chromatic)) chromatic.intensity.value = 0f;
+            if (profile.TryGet(out ColorAdjustments color))
+            {
+                color.postExposure.value = 0f;
+                color.contrast.value = 0f;
+                color.colorFilter.value = Color.white;
+                color.hueShift.value = 0f;
+                color.saturation.value = 0f;
+            }
+            if (profile.TryGet(out ColorLookup lookup)) lookup.contribution.value = 0f;
+            if (profile.TryGet(out DepthOfField depthOfField)) depthOfField.mode.value = DepthOfFieldMode.Off;
+            if (profile.TryGet(out FilmGrain grain)) grain.intensity.value = 0f;
+            if (profile.TryGet(out LensDistortion lens)) lens.intensity.value = 0f;
+            if (profile.TryGet(out MotionBlur motionBlur)) motionBlur.intensity.value = 0f;
+            if (profile.TryGet(out PaniniProjection panini)) panini.distance.value = 0f;
+            if (profile.TryGet(out ScreenSpaceLensFlare lensFlare)) lensFlare.intensity.value = 0f;
+            if (profile.TryGet(out Tonemapping tonemapping)) tonemapping.mode.value = TonemappingMode.None;
+            if (profile.TryGet(out Vignette vignette)) vignette.intensity.value = 0f;
+            if (profile.TryGet(out WhiteBalance whiteBalance))
+            {
+                whiteBalance.temperature.value = 0f;
+                whiteBalance.tint.value = 0f;
+            }
+
+            EditorUtility.SetDirty(profile);
+            foreach (var component in profile.components) EditorUtility.SetDirty(component);
+            return true;
         }
 
         private static UniversalRendererData EnsureRendererData(out bool changed)

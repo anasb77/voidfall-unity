@@ -7,6 +7,379 @@ namespace VoidFall.Runtime
 {
     internal static class ProceduralSpriteFactory
     {
+        public static bool InstallBakedCatalog(ProceduralSpriteCatalog catalog)
+        {
+            if (catalog == null || !catalog.IsUsable()) return false;
+
+            ClearSpriteCachesForCatalogInstall();
+            var installed = 0;
+            for (var index = 0; index < catalog.Entries.Count; index++)
+            {
+                var entry = catalog.Entries[index];
+                if (InstallBakedEntry(entry.Key, entry.Sprite)) installed++;
+            }
+            return installed == catalog.Entries.Count;
+        }
+
+        private static void ClearSpriteCachesForCatalogInstall()
+        {
+            _circle = null;
+            _touchJoystickBase = null;
+            _blastWaveDisc = null;
+            _arenaStellarLimb = null;
+            _diamond = null;
+            _square = null;
+            _operative = null;
+            _playerAura = null;
+            _playerAuraAdrenal = null;
+            _playerRing = null;
+            _ring = null;
+            _rock = null;
+            _petal = null;
+            _gemSmall = null;
+            _gemMedium = null;
+            _gemLarge = null;
+            _blade = null;
+            _hollowBlade = null;
+            _eliteRing = null;
+            _eliteMark = null;
+            _workshopPreviewBackdrop = null;
+            _workshopPreviewWideBackdrop = null;
+            _workshopPreviewMobilityTrail = null;
+            _meteorCore = null;
+            _impactMark = null;
+            _damageIndicator = null;
+            _dot = null;
+            _particleDot = null;
+            _arenaCurrentGlow = null;
+            _redHealthVignette = null;
+
+            Array.Clear(WorkshopPreviewCoreSprites, 0, WorkshopPreviewCoreSprites.Length);
+            Array.Clear(MeteorShardSprites, 0, MeteorShardSprites.Length);
+            Array.Clear(ArenaVignettes, 0, ArenaVignettes.Length);
+            Array.Clear(ArenaRockVariants, 0, ArenaRockVariants.Length);
+            EnemySprites.Clear();
+            RosterTwoEnemySprites.Clear();
+            BossSprites.Clear();
+            PickupSprites.Clear();
+            ProjectileSprites.Clear();
+            ProjectileFrameSets.Clear();
+            MeteorSprites.Clear();
+            WorkshopPreviewSprites.Clear();
+            WorkshopPreviewLayerSprites.Clear();
+            ArenaDotSprites.Clear();
+        }
+
+        private static bool InstallBakedEntry(string key, Sprite sprite)
+        {
+            if (string.IsNullOrEmpty(key) || sprite == null) return false;
+            var parts = key.Split('|');
+            if (parts.Length < 2) return false;
+
+            switch (parts[0])
+            {
+                case "fixed":
+                    return InstallFixedSprite(parts[1], sprite);
+                case "gem":
+                    if (!TryIndex(parts, 1, 3, out var gem)) return false;
+                    if (gem == 0) _gemSmall = sprite;
+                    else if (gem == 1) _gemMedium = sprite;
+                    else _gemLarge = sprite;
+                    return true;
+                case "arena-rock":
+                    return InstallArraySprite(parts, ArenaRockVariants, sprite);
+                case "meteor-shard":
+                    return InstallArraySprite(parts, MeteorShardSprites, sprite);
+                case "arena-vignette":
+                    return InstallArraySprite(parts, ArenaVignettes, sprite);
+                case "workshop-core":
+                    return InstallArraySprite(parts, WorkshopPreviewCoreSprites, sprite);
+                case "pickup":
+                    PickupSprites[parts[1]] = sprite;
+                    return true;
+                case "projectile":
+                    ProjectileSprites[parts[1]] = sprite;
+                    return true;
+                case "projectile-frame":
+                    if (parts.Length != 3 || !int.TryParse(parts[2], out var frame) ||
+                        frame < 0 || frame >= ProjectileFrameCount)
+                        return false;
+                    if (!ProjectileFrameSets.TryGetValue(parts[1], out var frames))
+                    {
+                        frames = new Sprite[ProjectileFrameCount];
+                        ProjectileFrameSets[parts[1]] = frames;
+                    }
+                    frames[frame] = sprite;
+                    return true;
+                case "roster":
+                    if (parts.Length != 3) return false;
+                    RosterTwoEnemySprites[new RosterTwoCacheKey(parts[1], parts[2] == "1")] = sprite;
+                    return true;
+                case "enemy":
+                case "boss":
+                    if (parts.Length != 7 ||
+                        !byte.TryParse(parts[2], out var r) ||
+                        !byte.TryParse(parts[3], out var g) ||
+                        !byte.TryParse(parts[4], out var b) ||
+                        !byte.TryParse(parts[5], out var a))
+                        return false;
+                    var enemyKey = new EnemyCacheKey(
+                        parts[1],
+                        new Color32(r, g, b, a),
+                        parts[6] == "1");
+                    if (parts[0] == "enemy") EnemySprites[enemyKey] = sprite;
+                    else BossSprites[enemyKey] = sprite;
+                    return true;
+                case "meteor":
+                    MeteorSprites[parts[1]] = sprite;
+                    return true;
+                case "workshop-preview":
+                    WorkshopPreviewSprites[parts[1]] = sprite;
+                    return true;
+                case "workshop-layer":
+                    WorkshopPreviewLayerSprites[parts[1]] = sprite;
+                    return true;
+                case "arena-dot":
+                    if (parts.Length != 5 ||
+                        !byte.TryParse(parts[1], out var dotR) ||
+                        !byte.TryParse(parts[2], out var dotG) ||
+                        !byte.TryParse(parts[3], out var dotB) ||
+                        !byte.TryParse(parts[4], out var dotA))
+                        return false;
+                    ArenaDotSprites[new Color32(dotR, dotG, dotB, dotA)] = sprite;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool InstallFixedSprite(string id, Sprite sprite)
+        {
+            switch (id)
+            {
+                case "circle": _circle = sprite; return true;
+                case "touch-base": _touchJoystickBase = sprite; return true;
+                case "blast-wave": _blastWaveDisc = sprite; return true;
+                case "stellar-limb": _arenaStellarLimb = sprite; return true;
+                case "diamond": _diamond = sprite; return true;
+                case "square": _square = sprite; return true;
+                case "rock": _rock = sprite; return true;
+                case "petal": _petal = sprite; return true;
+                case "blade": _blade = sprite; return true;
+                case "hollow-blade": _hollowBlade = sprite; return true;
+                case "elite-ring": _eliteRing = sprite; return true;
+                case "elite-mark": _eliteMark = sprite; return true;
+                case "operative": _operative = sprite; return true;
+                case "ring": _ring = sprite; return true;
+                case "player-ring": _playerRing = sprite; return true;
+                case "player-aura": _playerAura = sprite; return true;
+                case "player-aura-adrenal": _playerAuraAdrenal = sprite; return true;
+                case "workshop-backdrop": _workshopPreviewBackdrop = sprite; return true;
+                case "workshop-wide-backdrop": _workshopPreviewWideBackdrop = sprite; return true;
+                case "workshop-mobility-trail": _workshopPreviewMobilityTrail = sprite; return true;
+                case "meteor-core": _meteorCore = sprite; return true;
+                case "impact-mark": _impactMark = sprite; return true;
+                case "damage-indicator": _damageIndicator = sprite; return true;
+                case "dot": _dot = sprite; return true;
+                case "particle-dot": _particleDot = sprite; return true;
+                case "arena-current-glow": _arenaCurrentGlow = sprite; return true;
+                case "red-health-vignette": _redHealthVignette = sprite; return true;
+                default: return false;
+            }
+        }
+
+        private static bool InstallArraySprite(string[] parts, Sprite[] target, Sprite sprite)
+        {
+            if (!TryIndex(parts, 1, target.Length, out var index)) return false;
+            target[index] = sprite;
+            return true;
+        }
+
+        private static bool TryIndex(string[] parts, int part, int length, out int index)
+        {
+            index = -1;
+            return parts.Length > part &&
+                   int.TryParse(parts[part], out index) &&
+                   index >= 0 && index < length;
+        }
+
+#if UNITY_EDITOR
+        public static ProceduralSpriteCatalog BuildCatalogSnapshot()
+        {
+            ClearSpriteCachesForCatalogInstall();
+            SpriteAtlasPacker.ResetForBake();
+            WarmCatalogSprites();
+            FlushAtlas();
+
+            var entries = new List<ProceduralSpriteCatalogEntry>();
+            AddFixedCatalogEntries(entries);
+            AddArrayEntries(entries, "arena-rock", ArenaRockVariants);
+            AddArrayEntries(entries, "meteor-shard", MeteorShardSprites);
+            AddArrayEntries(entries, "arena-vignette", ArenaVignettes);
+            AddArrayEntries(entries, "workshop-core", WorkshopPreviewCoreSprites);
+            AddCatalogEntry(entries, "gem|0", _gemSmall);
+            AddCatalogEntry(entries, "gem|1", _gemMedium);
+            AddCatalogEntry(entries, "gem|2", _gemLarge);
+
+            foreach (var pair in EnemySprites)
+                AddCatalogEntry(entries, EnemyCatalogKey("enemy", pair.Key), pair.Value);
+            foreach (var pair in BossSprites)
+                AddCatalogEntry(entries, EnemyCatalogKey("boss", pair.Key), pair.Value);
+            foreach (var pair in RosterTwoEnemySprites)
+                AddCatalogEntry(entries, "roster|" + pair.Key.Id + "|" + (pair.Key.Hit ? "1" : "0"), pair.Value);
+            foreach (var pair in PickupSprites)
+                AddCatalogEntry(entries, "pickup|" + pair.Key, pair.Value);
+            foreach (var pair in ProjectileSprites)
+                AddCatalogEntry(entries, "projectile|" + pair.Key, pair.Value);
+            foreach (var pair in ProjectileFrameSets)
+            {
+                for (var frame = 0; frame < pair.Value.Length; frame++)
+                    AddCatalogEntry(entries, "projectile-frame|" + pair.Key + "|" + frame, pair.Value[frame]);
+            }
+            foreach (var pair in MeteorSprites)
+                AddCatalogEntry(entries, "meteor|" + pair.Key, pair.Value);
+            foreach (var pair in WorkshopPreviewSprites)
+                AddCatalogEntry(entries, "workshop-preview|" + pair.Key, pair.Value);
+            foreach (var pair in WorkshopPreviewLayerSprites)
+                AddCatalogEntry(entries, "workshop-layer|" + pair.Key, pair.Value);
+            foreach (var pair in ArenaDotSprites)
+            {
+                var color = pair.Key;
+                AddCatalogEntry(
+                    entries,
+                    "arena-dot|" + color.r + "|" + color.g + "|" + color.b + "|" + color.a,
+                    pair.Value);
+            }
+
+            entries.Sort((left, right) => string.CompareOrdinal(left.Key, right.Key));
+            var catalog = ScriptableObject.CreateInstance<ProceduralSpriteCatalog>();
+            catalog.name = "VoidFall Prepared Procedural Sprites";
+            catalog.ReplaceEntries(entries);
+            return catalog;
+        }
+
+        public static void ReleaseCatalogSnapshot(ProceduralSpriteCatalog catalog)
+        {
+            var sprites = new HashSet<Sprite>();
+            var textures = new HashSet<Texture2D>();
+            if (catalog != null)
+            {
+                foreach (var entry in catalog.Entries)
+                {
+                    if (entry == null || entry.Sprite == null) continue;
+                    sprites.Add(entry.Sprite);
+                    if (entry.Sprite.texture != null) textures.Add(entry.Sprite.texture);
+                }
+            }
+
+            ClearSpriteCachesForCatalogInstall();
+            foreach (var sprite in sprites) UnityEngine.Object.DestroyImmediate(sprite);
+            foreach (var texture in textures) UnityEngine.Object.DestroyImmediate(texture);
+            SpriteAtlasPacker.ForgetAfterBakeCleanup();
+            if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+        }
+
+        private static void WarmCatalogSprites()
+        {
+            Circle();
+            TouchJoystickBase();
+            BlastWaveDisc();
+            ArenaStellarLimb();
+            Diamond();
+            Square();
+            Rock();
+            for (var index = 0; index < ArenaRockVariants.Length; index++) ArenaRock(index);
+            Petal();
+            for (var tier = 0; tier < 3; tier++) Gem(tier);
+            Blade(false);
+            Blade(true);
+            EliteRing();
+            EliteMark();
+            Operative();
+            Ring();
+            PlayerRing();
+            PlayerAura(false);
+            PlayerAura(true);
+            WorkshopPreviewBackdrop();
+            WorkshopPreviewWideBackdrop();
+            WorkshopPreviewMobilityTrail();
+            foreach (var id in new[] { "magnet", "integrity", "recovery", "power", "precision", "arsenal" })
+                for (var rank = 1; rank <= 3; rank++) WorkshopPreviewLayer(id, rank);
+            WorkshopPreviewLayer("protocol", 1);
+            for (var power = 0; power < WorkshopPreviewCoreSprites.Length; power++)
+                WorkshopPreviewCore(power);
+            MeteorCore();
+            Dot();
+            ArenaDot(Color.white);
+            ArenaDot(ParseColor("#fb923c"));
+            ArenaDot(ParseColor("#e2e8f0"));
+            ParticleDot();
+            ArenaCurrentGlow();
+            for (var arena = 0; arena < ArenaVignettes.Length; arena++)
+                ArenaVignette((ArenaId)arena);
+            RedHealthVignette();
+            ImpactMark();
+            DamageIndicator();
+            WarmAllSprites();
+        }
+
+        private static void AddFixedCatalogEntries(List<ProceduralSpriteCatalogEntry> entries)
+        {
+            AddCatalogEntry(entries, "fixed|circle", _circle);
+            AddCatalogEntry(entries, "fixed|touch-base", _touchJoystickBase);
+            AddCatalogEntry(entries, "fixed|blast-wave", _blastWaveDisc);
+            AddCatalogEntry(entries, "fixed|stellar-limb", _arenaStellarLimb);
+            AddCatalogEntry(entries, "fixed|diamond", _diamond);
+            AddCatalogEntry(entries, "fixed|square", _square);
+            AddCatalogEntry(entries, "fixed|rock", _rock);
+            AddCatalogEntry(entries, "fixed|petal", _petal);
+            AddCatalogEntry(entries, "fixed|blade", _blade);
+            AddCatalogEntry(entries, "fixed|hollow-blade", _hollowBlade);
+            AddCatalogEntry(entries, "fixed|elite-ring", _eliteRing);
+            AddCatalogEntry(entries, "fixed|elite-mark", _eliteMark);
+            AddCatalogEntry(entries, "fixed|operative", _operative);
+            AddCatalogEntry(entries, "fixed|ring", _ring);
+            AddCatalogEntry(entries, "fixed|player-ring", _playerRing);
+            AddCatalogEntry(entries, "fixed|player-aura", _playerAura);
+            AddCatalogEntry(entries, "fixed|player-aura-adrenal", _playerAuraAdrenal);
+            AddCatalogEntry(entries, "fixed|workshop-backdrop", _workshopPreviewBackdrop);
+            AddCatalogEntry(entries, "fixed|workshop-wide-backdrop", _workshopPreviewWideBackdrop);
+            AddCatalogEntry(entries, "fixed|workshop-mobility-trail", _workshopPreviewMobilityTrail);
+            AddCatalogEntry(entries, "fixed|meteor-core", _meteorCore);
+            AddCatalogEntry(entries, "fixed|impact-mark", _impactMark);
+            AddCatalogEntry(entries, "fixed|damage-indicator", _damageIndicator);
+            AddCatalogEntry(entries, "fixed|dot", _dot);
+            AddCatalogEntry(entries, "fixed|particle-dot", _particleDot);
+            AddCatalogEntry(entries, "fixed|arena-current-glow", _arenaCurrentGlow);
+            AddCatalogEntry(entries, "fixed|red-health-vignette", _redHealthVignette);
+        }
+
+        private static void AddArrayEntries(
+            List<ProceduralSpriteCatalogEntry> entries,
+            string family,
+            Sprite[] sprites)
+        {
+            for (var index = 0; index < sprites.Length; index++)
+                AddCatalogEntry(entries, family + "|" + index, sprites[index]);
+        }
+
+        private static void AddCatalogEntry(
+            List<ProceduralSpriteCatalogEntry> entries,
+            string key,
+            Sprite sprite)
+        {
+            if (sprite == null)
+                throw new InvalidOperationException("Procedural sprite bake produced no sprite for " + key + ".");
+            entries.Add(new ProceduralSpriteCatalogEntry(key, sprite));
+        }
+
+        private static string EnemyCatalogKey(string family, EnemyCacheKey key)
+        {
+            return family + "|" + key.Id + "|" + key.Accent.r + "|" + key.Accent.g + "|" +
+                   key.Accent.b + "|" + key.Accent.a + "|" + (key.Hit ? "1" : "0");
+        }
+#endif
+
         private static Sprite _circle;
         private static Sprite _touchJoystickBase;
         private static Sprite _blastWaveDisc;
@@ -27,9 +400,84 @@ namespace VoidFall.Runtime
         private static Sprite _hollowBlade;
         private static Sprite _eliteRing;
         private static Sprite _eliteMark;
-        private static readonly Dictionary<string, Sprite> EnemySprites = new Dictionary<string, Sprite>();
-        private static readonly Dictionary<string, Sprite> RosterTwoEnemySprites = new Dictionary<string, Sprite>();
-        private static readonly Dictionary<string, Sprite> BossSprites = new Dictionary<string, Sprite>();
+        private struct EnemyCacheKey : IEquatable<EnemyCacheKey>
+        {
+            public readonly string Id;
+            public readonly Color32 Accent;
+            public readonly bool Hit;
+
+            public EnemyCacheKey(string id, Color32 accent, bool hit)
+            {
+                Id = id;
+                Accent = accent;
+                Hit = hit;
+            }
+
+            public bool Equals(EnemyCacheKey other)
+            {
+                return string.Equals(Id, other.Id, StringComparison.Ordinal) &&
+                       Accent.r == other.Accent.r &&
+                       Accent.g == other.Accent.g &&
+                       Accent.b == other.Accent.b &&
+                       Accent.a == other.Accent.a &&
+                       Hit == other.Hit;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is EnemyCacheKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    var hash = Id != null ? StringComparer.Ordinal.GetHashCode(Id) : 0;
+                    hash = (hash * 397) ^ (int)Accent.r;
+                    hash = (hash * 397) ^ (int)Accent.g;
+                    hash = (hash * 397) ^ (int)Accent.b;
+                    hash = (hash * 397) ^ (int)Accent.a;
+                    hash = (hash * 397) ^ (Hit ? 1 : 0);
+                    return hash;
+                }
+            }
+        }
+
+        private struct RosterTwoCacheKey : IEquatable<RosterTwoCacheKey>
+        {
+            public readonly string Id;
+            public readonly bool Hit;
+
+            public RosterTwoCacheKey(string id, bool hit)
+            {
+                Id = id;
+                Hit = hit;
+            }
+
+            public bool Equals(RosterTwoCacheKey other)
+            {
+                return string.Equals(Id, other.Id, StringComparison.Ordinal) && Hit == other.Hit;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is RosterTwoCacheKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    var hash = Id != null ? StringComparer.Ordinal.GetHashCode(Id) : 0;
+                    hash = (hash * 397) ^ (Hit ? 1 : 0);
+                    return hash;
+                }
+            }
+        }
+
+        private static readonly Dictionary<EnemyCacheKey, Sprite> EnemySprites = new Dictionary<EnemyCacheKey, Sprite>();
+        private static readonly Dictionary<RosterTwoCacheKey, Sprite> RosterTwoEnemySprites = new Dictionary<RosterTwoCacheKey, Sprite>();
+        private static readonly Dictionary<EnemyCacheKey, Sprite> BossSprites = new Dictionary<EnemyCacheKey, Sprite>();
         private static readonly Dictionary<string, Sprite> PickupSprites = new Dictionary<string, Sprite>();
         private static readonly Dictionary<string, Sprite> ProjectileSprites = new Dictionary<string, Sprite>();
         private static readonly Dictionary<string, Sprite[]> ProjectileFrameSets =
@@ -121,7 +569,9 @@ namespace VoidFall.Runtime
             if (_arenaStellarLimb != null) return _arenaStellarLimb;
 
             const float radius = 1f;
-            var canvas = new RasterCanvas(radius, 0.04f, 256);
+            // The limb is enlarged to most of the viewport, so a 256px mask
+            // exposes stepped alpha coverage along the planet silhouette.
+            var canvas = new RasterCanvas(radius, 0.04f, 1024);
             canvas.FillCircle(Vector2.zero, radius, ParseColor("#12060a"));
 
             // Match the browser's bounded 26-patch stellar surface stream.
@@ -143,7 +593,7 @@ namespace VoidFall.Runtime
                     warm ? 0.24f : 0.4f);
             }
             canvas.MaskCircle(Vector2.zero, radius);
-            _arenaStellarLimb = canvas.ToSprite("VoidFall_Arena_Stellar_Limb", true);
+            _arenaStellarLimb = canvas.ToSprite("VoidFall_Arena_Stellar_Limb_1024", true);
             return _arenaStellarLimb;
         }
 
@@ -1037,7 +1487,7 @@ namespace VoidFall.Runtime
         public static Sprite Enemy(string id, Color accent, bool hit)
         {
             var safeId = string.IsNullOrEmpty(id) ? "unknown" : id;
-            var key = safeId + "/" + ColorUtility.ToHtmlStringRGBA(accent) + "/" + hit;
+            var key = new EnemyCacheKey(safeId, (Color32)accent, hit);
             if (EnemySprites.TryGetValue(key, out var sprite)) return sprite;
             sprite = BuildEnemy(safeId, accent, hit);
             EnemySprites[key] = sprite;
@@ -1047,7 +1497,7 @@ namespace VoidFall.Runtime
         public static Sprite RosterTwoEnemy(string id, bool hit)
         {
             var safeId = string.IsNullOrEmpty(id) ? "unknown" : id;
-            var key = safeId + "/" + hit;
+            var key = new RosterTwoCacheKey(safeId, hit);
             if (RosterTwoEnemySprites.TryGetValue(key, out var sprite)) return sprite;
             sprite = BuildRosterTwoEnemy(safeId, hit);
             RosterTwoEnemySprites[key] = sprite;
@@ -1113,7 +1563,7 @@ namespace VoidFall.Runtime
         public static Sprite Boss(string id, Color accent, bool hit)
         {
             var safeId = string.IsNullOrEmpty(id) ? "unknown" : id;
-            var key = safeId + "/" + ColorUtility.ToHtmlStringRGBA(accent) + "/" + hit;
+            var key = new EnemyCacheKey(safeId, (Color32)accent, hit);
             if (BossSprites.TryGetValue(key, out var sprite)) return sprite;
             sprite = BuildBoss(safeId, accent, hit);
             BossSprites[key] = sprite;
@@ -1787,26 +2237,43 @@ namespace VoidFall.Runtime
             }
         }
 
+        private static readonly Color EnemyColorChaser = ParseColor("#fb7185");
+        private static readonly Color EnemyColorRunner = ParseColor("#a78bfa");
+        private static readonly Color EnemyColorDasher = ParseColor("#e879f9");
+        private static readonly Color EnemyColorBrute = ParseColor("#fb923c");
+        private static readonly Color EnemyColorGunner = ParseColor("#f87171");
+        private static readonly Color EnemyColorTwinGunner = ParseColor("#dc5a45");
+        private static readonly Color EnemyColorGuard = ParseColor("#60a5fa");
+        private static readonly Color EnemyColorExploder = ParseColor("#f59e0b");
+        private static readonly Color EnemyColorTechnician = ParseColor("#2dd4bf");
+        private static readonly Color EnemyColorMortar = ParseColor("#f97316");
+        private static readonly Color EnemyColorSplitter = ParseColor("#f472b6");
+        private static readonly Color EnemyColorBulwark = ParseColor("#38bdf8");
+        private static readonly Color EnemyColorHarvester = ParseColor("#34d399");
+        private static readonly Color EnemyColorCarrier = ParseColor("#eab308");
+        private static readonly Color EnemyColorElite = ParseColor("#ef4444");
+        private static readonly Color EnemyColorDefault = ParseColor("#e879f9");
+
         private static Color SourceEnemyColor(string id)
         {
             switch (id)
             {
-                case "chaser": return ParseColor("#fb7185");
-                case "runner": return ParseColor("#a78bfa");
-                case "dasher": return ParseColor("#e879f9");
-                case "brute": return ParseColor("#fb923c");
-                case "gunner": return ParseColor("#f87171");
-                case "twinGunner": return ParseColor("#dc5a45");
-                case "guard": return ParseColor("#60a5fa");
-                case "exploder": return ParseColor("#f59e0b");
-                case "technician": return ParseColor("#2dd4bf");
-                case "mortar": return ParseColor("#f97316");
-                case "splitter": return ParseColor("#f472b6");
-                case "bulwark": return ParseColor("#38bdf8");
-                case "harvester": return ParseColor("#34d399");
-                case "carrier": return ParseColor("#eab308");
-                case "elite": return ParseColor("#ef4444");
-                default: return ParseColor("#e879f9");
+                case "chaser": return EnemyColorChaser;
+                case "runner": return EnemyColorRunner;
+                case "dasher": return EnemyColorDasher;
+                case "brute": return EnemyColorBrute;
+                case "gunner": return EnemyColorGunner;
+                case "twinGunner": return EnemyColorTwinGunner;
+                case "guard": return EnemyColorGuard;
+                case "exploder": return EnemyColorExploder;
+                case "technician": return EnemyColorTechnician;
+                case "mortar": return EnemyColorMortar;
+                case "splitter": return EnemyColorSplitter;
+                case "bulwark": return EnemyColorBulwark;
+                case "harvester": return EnemyColorHarvester;
+                case "carrier": return EnemyColorCarrier;
+                case "elite": return EnemyColorElite;
+                default: return EnemyColorDefault;
             }
         }
 
@@ -2143,15 +2610,21 @@ namespace VoidFall.Runtime
             }
         }
 
+        private static readonly Color BossColorWarden = ParseColor("#ef4444");
+        private static readonly Color BossColorHerald = ParseColor("#a78bfa");
+        private static readonly Color BossColorMatriarch = ParseColor("#34d399");
+        private static readonly Color BossColorReaver = ParseColor("#60a5fa");
+        private static readonly Color BossColorDefault = ParseColor("#e879f9");
+
         private static Color SourceBossColor(string id)
         {
             switch (id)
             {
-                case "warden": return ParseColor("#ef4444");
-                case "herald": return ParseColor("#a78bfa");
-                case "matriarch": return ParseColor("#34d399");
-                case "reaver": return ParseColor("#60a5fa");
-                default: return ParseColor("#e879f9");
+                case "warden": return BossColorWarden;
+                case "herald": return BossColorHerald;
+                case "matriarch": return BossColorMatriarch;
+                case "reaver": return BossColorReaver;
+                default: return BossColorDefault;
             }
         }
 
@@ -2769,6 +3242,23 @@ namespace VoidFall.Runtime
             }
 
             private static readonly List<Page> Pages = new List<Page>();
+
+#if UNITY_EDITOR
+            public static void ResetForBake()
+            {
+                for (var index = 0; index < Pages.Count; index++)
+                {
+                    var texture = Pages[index].Texture;
+                    if (texture != null) UnityEngine.Object.DestroyImmediate(texture);
+                }
+                Pages.Clear();
+            }
+
+            public static void ForgetAfterBakeCleanup()
+            {
+                Pages.Clear();
+            }
+#endif
 
             public static Sprite Add(
                 Color32[] pixels,
