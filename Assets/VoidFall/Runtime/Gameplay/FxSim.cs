@@ -190,6 +190,98 @@ namespace VoidFall.Runtime
             return oldest;
         }
 
+        /// <summary>
+        /// Source-particle insertion: budget check against
+        /// <paramref name="maxActive"/>, slot allocation, state write, and
+        /// order append. Returns false when the cosmetic budget or slots are
+        /// exhausted; the caller performs any view work only on success.
+        /// </summary>
+        public bool TrySpawnSourceParticle(
+            Vector2 position,
+            Vector2 velocity,
+            float life,
+            float size,
+            Color color,
+            int maxActive,
+            out int slot)
+        {
+            slot = -1;
+            if (SourceFxOrderCount >= maxActive) return false;
+            slot = FindSourceParticleSlot();
+            if (slot < 0) return false;
+            SourceParticles[slot] = new SourceParticleState
+            {
+                Active = true,
+                Position = position,
+                Velocity = velocity,
+                Life = Mathf.Max(0.001f, life),
+                MaxLife = Mathf.Max(0.001f, life),
+                Size = size,
+                Color = color,
+                View = slot,
+            };
+            AppendSourceFxOrder(SourceFxKind.Particle, slot);
+            return true;
+        }
+
+        /// <summary>
+        /// Ring-wave slot selection: first inactive slot; otherwise the oldest
+        /// wave's slot, which is then evicted.
+        /// </summary>
+        private int FindRingWaveSlot(out bool evicted)
+        {
+            evicted = false;
+            var slot = -1;
+            var oldestAge = -1f;
+            for (var index = 0; index < RingWaves.Length; index++)
+            {
+                if (!RingWaves[index].Active)
+                {
+                    return index;
+                }
+                if (RingWaves[index].Age > oldestAge)
+                {
+                    oldestAge = RingWaves[index].Age;
+                    slot = index;
+                }
+            }
+            evicted = slot >= 0 && RingWaves[slot].Active;
+            return slot;
+        }
+
+        /// <summary>
+        /// Ring-wave insertion: slot selection (with oldest-age eviction),
+        /// state write, and order append. Budget/motion guards belong to the
+        /// caller because they read presentation settings.
+        /// </summary>
+        public void TrySpawnRingWave(
+            Vector2 position,
+            float startRadius,
+            float growth,
+            float life,
+            Color color,
+            out int slot)
+        {
+            var evicted = false;
+            slot = FindRingWaveSlot(out evicted);
+            if (slot < 0) return;
+            if (evicted)
+                RemoveSourceFxOrder(SourceFxKind.RingWave, slot);
+            RingWaves[slot] = new RingWaveState
+            {
+                Active = true,
+                Position = position,
+                StartRadius = startRadius,
+                Size = startRadius,
+                Growth = growth,
+                Age = 0,
+                Life = Mathf.Max(0.05f, life),
+                Color = color,
+                View = slot,
+            };
+            AppendSourceFxOrder(SourceFxKind.RingWave, slot);
+        }
+
         public void ResetSourceFxOrder()
         {
             SourceFxOrderCount = 0;

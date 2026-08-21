@@ -5692,22 +5692,17 @@ namespace VoidFall.Runtime
             float size,
             Color color)
         {
-            if (_fxSim.SourceFxOrderCount >= SourceParticleLimit(_qualityPreset.ParticleScale)) return false;
-            var slot = FindSourceParticleSlot();
-            if (slot < 0) return false;
-            var particle = new SourceParticleState
+            if (!_fxSim.TrySpawnSourceParticle(
+                    position,
+                    velocity,
+                    life,
+                    size,
+                    color,
+                    SourceParticleLimit(_qualityPreset.ParticleScale),
+                    out var slot))
             {
-                Active = true,
-                Position = position,
-                Velocity = velocity,
-                Life = Mathf.Max(0.001f, life),
-                MaxLife = Mathf.Max(0.001f, life),
-                Size = size,
-                Color = color,
-                View = slot,
-            };
-            _fxSim.SourceParticles[slot] = particle;
-            AppendSourceFxOrder(SourceFxKind.Particle, slot);
+                return false;
+            }
             var view = EnsureSourceParticleView(slot);
             view.transform.position = position;
             view.color = color;
@@ -5978,38 +5973,8 @@ namespace VoidFall.Runtime
             if (_saveData?.settings != null && _saveData.settings.reducedMotion) return;
             if (_qualityPreset.ParticleScale <= 0.01f) return;
             if (ActiveFxVisualCount() >= SourceParticleLimit(_qualityPreset.ParticleScale)) return;
-
-            var slot = -1;
-            var oldestAge = -1f;
-            for (var index = 0; index < _fxSim.RingWaves.Length; index++)
-            {
-                if (!_fxSim.RingWaves[index].Active)
-                {
-                    slot = index;
-                    break;
-                }
-                if (_fxSim.RingWaves[index].Age > oldestAge)
-                {
-                    oldestAge = _fxSim.RingWaves[index].Age;
-                    slot = index;
-                }
-            }
+            _fxSim.TrySpawnRingWave(position, startRadius, growth, life, color, out var slot);
             if (slot < 0) return;
-            if (_fxSim.RingWaves[slot].Active)
-                RemoveSourceFxOrder(SourceFxKind.RingWave, slot);
-            _fxSim.RingWaves[slot] = new RingWaveState
-            {
-                Active = true,
-                Position = position,
-                StartRadius = startRadius,
-                Size = startRadius,
-                Growth = growth,
-                Age = 0,
-                Life = Mathf.Max(0.05f, life),
-                Color = color,
-                View = slot,
-            };
-            AppendSourceFxOrder(SourceFxKind.RingWave, slot);
             EnsureRingWaveSpriteView(slot).enabled = true;
         }
 
