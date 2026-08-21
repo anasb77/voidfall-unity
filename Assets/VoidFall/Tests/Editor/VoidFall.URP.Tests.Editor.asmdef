@@ -3,6 +3,7 @@
   "rootNamespace": "VoidFall.Tests.Editor",
   "references": [
     "VoidFall.Core",
+    "VoidFall.Content",
     "VoidFall.Runtime",
     "VoidFall.Audio",
     "VoidFall.UI",
