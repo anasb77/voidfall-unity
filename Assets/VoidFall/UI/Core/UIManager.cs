@@ -20,7 +20,8 @@ namespace VoidFall.UI
         LevelUp,
         Pause,
         Revive,
-        GameOver
+        GameOver,
+        Roulette
     }
 
     /// <summary>
@@ -113,6 +114,13 @@ namespace VoidFall.UI
         public EvolutionRevealView Evolution { get; private set; }
         public RevivePromptView Revive { get; private set; }
         public DebugOverlayView DebugOverlay { get; private set; }
+
+        /// <summary>
+        /// Boss Roulette ceremony. Opened by the runtime after a boss kill;
+        /// not part of the per-frame screen sweep because it owns a modal
+        /// session rather than a navigation state.
+        /// </summary>
+        public RouletteView Roulette { get; private set; }
 
         public UICallbacks Callbacks { get; private set; }
 
@@ -212,6 +220,9 @@ namespace VoidFall.UI
 
             GameOver = CreateView<GameOverView>(_overlayLayerRect, "Game Over");
             GameOver.Initialize(this);
+
+            Roulette = CreateView<RouletteView>(_overlayLayerRect, "Boss Roulette");
+            Roulette.Initialize(this);
 
             Evolution = CreateView<EvolutionRevealView>(effectLayer, "Evolution Reveal");
             Evolution.Initialize(this);
@@ -341,8 +352,10 @@ namespace VoidFall.UI
             // stack for every screen except gameplay silently suppressed the
             // messages on precisely the pages that produce them.
             var decisionOverlay = screen == UIScreen.LevelUp || screen == UIScreen.Revive ||
-                screen == UIScreen.Pause || screen == UIScreen.GameOver;
+                screen == UIScreen.Pause || screen == UIScreen.GameOver ||
+                screen == UIScreen.Roulette;
             Toasts?.SetObscured(decisionOverlay);
+            Roulette?.SetVisible(screen == UIScreen.Roulette);
         }
 
         public UIScreen CurrentScreen => _screen;
