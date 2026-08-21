@@ -29,9 +29,19 @@ What changed since 2026-08-16, all verified from this checkout:
   below remains until extraction completes — but it is navigable again.
 - **Extraction started**: gameplay device polling now lives in
   `Runtime/Input/InputReader.cs`; the six byte-identical slot-order field
-  trios are unified into `Runtime/Gameplay/SlotOrder.cs`. Both changes were
-  verified behavior-neutral: rebuild 0 errors, EditMode 57/57, and the
-  PlayMode golden-master hash (`15261090775683682834`) unchanged.
+  trios are unified into `Runtime/Gameplay/SlotOrder.cs`; all fourteen HUD
+  methods are consolidated into `Runtime/Gameplay/VoidFallGameRuntime.Hud.cs`
+  as the seam for a future HudPresenter. All three changes were verified
+  behavior-neutral: rebuild 0 errors, EditMode 57/57, and the PlayMode
+  golden-master hash (`15261090775683682834`) unchanged.
+- **VF-002 and VF-006 from `Docs/AI/UnityProjectHealth.md` are fixed**:
+  vertical layouts now honor child preferred heights, and main-menu status
+  dividers keep their 1px contract. Verified with committed player captures
+  (home/settings/workshop/records at 1280x720 and 1920x1080) under
+  `semantic-review/captures-20260821-ui-layout-fix/`, EditMode 57/57.
+  **VF-009 is fixed**: HUD labels only rewrite when their source value
+  changes, removing per-frame string allocations. The PlayMode test asmdef is
+  constrained to `UNITY_INCLUDE_TESTS` so player builds exclude it.
 - **The golden master is the regression net for further extraction.** It boots
   the real runtime, applies `productionMax` with seed `0x5f1dc0de`, steps
   `Simulate` 600 fixed ticks, and hashes all gameplay state bit-exactly. Any
