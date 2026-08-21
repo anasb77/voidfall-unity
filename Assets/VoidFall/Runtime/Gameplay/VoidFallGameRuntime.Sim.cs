@@ -2112,39 +2112,27 @@ namespace VoidFall.Runtime
             }
         }
 
-        private void ResetEnemyOrder()
-        {
-            _gameSim.EnemyOrderCount = 0;
-            for (var index = 0; index < _gameSim.EnemyOrderPosition.Length; index++)
-            {
-                _gameSim.EnemyOrder[index] = -1;
-                _gameSim.EnemyOrderPosition[index] = -1;
-            }
-        }
+        private void ResetEnemyOrder() => _gameSim.ResetEnemyOrder();
+        private void AppendEnemyOrder(int slot) => _gameSim.AppendEnemyOrder(slot);
+        private void RemoveEnemyOrder(int slot) => _gameSim.RemoveEnemyOrder(slot);
 
-        private void AppendEnemyOrder(int slot)
-        {
-            if (slot < 0 || slot >= _gameSim.Enemies.Length || _gameSim.EnemyOrderCount >= _gameSim.EnemyOrder.Length) return;
-            _gameSim.EnemyOrderPosition[slot] = _gameSim.EnemyOrderCount;
-            _gameSim.EnemyOrder[_gameSim.EnemyOrderCount++] = slot;
-        }
+        private void ResetBossOrder() => _gameSim.ResetBossOrder();
+        private void AppendBossOrder(int slot) => _gameSim.AppendBossOrder(slot);
+        private void RemoveBossOrder(int slot) => _gameSim.RemoveBossOrder(slot);
+        private void EnsureBossOrderEntries() => _gameSim.EnsureBossOrderEntries();
 
-        private void RemoveEnemyOrder(int slot)
-        {
-            if (slot < 0 || slot >= _gameSim.Enemies.Length) return;
-            var position = _gameSim.EnemyOrderPosition[slot];
-            if (position < 0 || position >= _gameSim.EnemyOrderCount || _gameSim.EnemyOrder[position] != slot) return;
-            var lastPosition = --_gameSim.EnemyOrderCount;
-            if (position != lastPosition)
-            {
-                var replacement = _gameSim.EnemyOrder[lastPosition];
-                _gameSim.EnemyOrder[position] = replacement;
-                _gameSim.EnemyOrderPosition[replacement] = position;
-            }
-            _gameSim.EnemyOrder[lastPosition] = -1;
-            _gameSim.EnemyOrderPosition[slot] = -1;
-        }
+        private void RebuildEnemyGrid() => _gameSim.RebuildEnemyGrid();
+        private bool IsCurrentGridEnemy(int index) => _gameSim.IsCurrentGridEnemy(index);
 
+        private void ResetMeteorOrder() => _gameSim.ResetMeteorOrder();
+        private void AppendMeteorOrder(int slot) => _gameSim.AppendMeteorOrder(slot);
+        private void RemoveMeteorOrder(int slot) => _gameSim.RemoveMeteorOrder(slot);
+        private void EnsureMeteorOrderEntries() => _gameSim.EnsureMeteorOrderEntries();
+
+        private void ResetPickupOrder() => _gameSim.ResetPickupOrder();
+        private void AppendPickupOrder(int slot) => _gameSim.AppendPickupOrder(slot);
+        private void RemovePickupOrder(int slot) => _gameSim.RemovePickupOrder(slot);
+        private void RemovePickupOrderAt(int position) => _gameSim.RemovePickupOrderAt(position);
         private void ResetDamageIndicatorOrder() => _damageIndicatorOrder.Reset();
 
         private void AppendDamageIndicatorOrder(int slot) => _damageIndicatorOrder.Append(slot);
@@ -2184,112 +2172,6 @@ namespace VoidFall.Runtime
             }
         }
 
-        private void ResetBossOrder()
-        {
-            _gameSim.BossOrderCount = 0;
-            for (var index = 0; index < _gameSim.BossOrder.Length; index++) _gameSim.BossOrder[index] = -1;
-        }
-
-        private void AppendBossOrder(int slot)
-        {
-            if (slot < 0 || slot >= _gameSim.Bosses.Length || _gameSim.BossOrderCount >= _gameSim.BossOrder.Length) return;
-            if (_gameSim.Bosses[slot].Active && Array.IndexOf(_gameSim.BossOrder, slot, 0, _gameSim.BossOrderCount) >= 0) return;
-            _gameSim.BossOrder[_gameSim.BossOrderCount++] = slot;
-        }
-
-        private void RemoveBossOrder(int slot)
-        {
-            if (slot < 0 || slot >= _gameSim.Bosses.Length) return;
-            var position = -1;
-            for (var index = 0; index < _gameSim.BossOrderCount; index++)
-            {
-                if (_gameSim.BossOrder[index] != slot) continue;
-                position = index;
-                break;
-            }
-            if (position < 0) return;
-            // Source bosses.filter(...) preserves survivor order. Shift rather
-            // than swap so removing the first encounter cannot reorder the
-            // remaining encounter before a later slot is appended.
-            for (var index = position + 1; index < _gameSim.BossOrderCount; index++)
-                _gameSim.BossOrder[index - 1] = _gameSim.BossOrder[index];
-            _gameSim.BossOrder[--_gameSim.BossOrderCount] = -1;
-        }
-
-        private void EnsureBossOrderEntries()
-        {
-            // Runtime spawns append explicitly. Reconcile active/death-fade
-            // fixtures without disturbing the already established order.
-            for (var index = 0; index < _gameSim.Bosses.Length; index++)
-            {
-                if (!_gameSim.Bosses[index].Active && _gameSim.Bosses[index].DeathTimer <= 0) continue;
-                var present = false;
-                for (var order = 0; order < _gameSim.BossOrderCount; order++)
-                {
-                    if (_gameSim.BossOrder[order] != index) continue;
-                    present = true;
-                    break;
-                }
-                if (!present) AppendBossOrder(index);
-            }
-            for (var order = _gameSim.BossOrderCount - 1; order >= 0; order--)
-            {
-                var slot = _gameSim.BossOrder[order];
-                if (slot < 0 || (!_gameSim.Bosses[slot].Active && _gameSim.Bosses[slot].DeathTimer <= 0))
-                    RemoveBossOrder(slot);
-            }
-        }
-
-        private void ResetMeteorOrder()
-        {
-            _gameSim.MeteorOrderCount = 0;
-            for (var index = 0; index < _gameSim.MeteorOrderPosition.Length; index++)
-            {
-                _gameSim.MeteorOrder[index] = -1;
-                _gameSim.MeteorOrderPosition[index] = -1;
-            }
-        }
-
-        private void AppendMeteorOrder(int slot)
-        {
-            if (slot < 0 || slot >= _gameSim.Meteors.Length || _gameSim.MeteorOrderCount >= _gameSim.MeteorOrder.Length) return;
-            if (_gameSim.MeteorOrderPosition[slot] >= 0) return;
-            _gameSim.MeteorOrderPosition[slot] = _gameSim.MeteorOrderCount;
-            _gameSim.MeteorOrder[_gameSim.MeteorOrderCount++] = slot;
-        }
-
-        private void RemoveMeteorOrder(int slot)
-        {
-            if (slot < 0 || slot >= _gameSim.Meteors.Length) return;
-            var position = _gameSim.MeteorOrderPosition[slot];
-            if (position < 0 || position >= _gameSim.MeteorOrderCount || _gameSim.MeteorOrder[position] != slot) return;
-            var lastPosition = --_gameSim.MeteorOrderCount;
-            if (position != lastPosition)
-            {
-                var replacement = _gameSim.MeteorOrder[lastPosition];
-                _gameSim.MeteorOrder[position] = replacement;
-                _gameSim.MeteorOrderPosition[replacement] = position;
-            }
-            _gameSim.MeteorOrder[lastPosition] = -1;
-            _gameSim.MeteorOrderPosition[slot] = -1;
-        }
-
-        private void EnsureMeteorOrderEntries()
-        {
-            // Runtime spawns append explicitly. This small reconciliation also
-            // keeps reflection-seeded PlayMode fixtures deterministic without
-            // changing the live compact order.
-            for (var index = 0; index < _gameSim.Meteors.Length; index++)
-            {
-                if (_gameSim.Meteors[index].Active) AppendMeteorOrder(index);
-            }
-            for (var order = _gameSim.MeteorOrderCount - 1; order >= 0; order--)
-            {
-                var slot = _gameSim.MeteorOrder[order];
-                if (slot < 0 || !_gameSim.Meteors[slot].Active) RemoveMeteorOrder(slot);
-            }
-        }
-
         private EnemyEffectTarget[] CaptureEnemyEffectSnapshot(out int snapshotCount)
         {
             // Browser effects iterate over [...this.enemies]. A copied target
@@ -2319,27 +2201,6 @@ namespace VoidFall.Runtime
             if (target.Slot < 0 || target.Slot >= _gameSim.Enemies.Length) return false;
             var live = _gameSim.Enemies[target.Slot];
             return live.Active && live.SpawnId == target.State.SpawnId;
-        }
-
-        private void RebuildEnemyGrid()
-        {
-            _gameSim.EnemyGrid.Clear();
-            Array.Clear(_gameSim.EnemyGridSpawnIds, 0, _gameSim.EnemyGridSpawnIds.Length);
-            for (var order = 0; order < _gameSim.EnemyOrderCount; order++)
-            {
-                var index = _gameSim.EnemyOrder[order];
-                if (_gameSim.Enemies[index].Active)
-                {
-                    _gameSim.EnemyGridSpawnIds[index] = _gameSim.Enemies[index].SpawnId;
-                    _gameSim.EnemyGrid.Insert(index, _gameSim.Enemies[index].Position.x, _gameSim.Enemies[index].Position.y);
-                }
-            }
-        }
-
-        private bool IsCurrentGridEnemy(int index)
-        {
-            return index >= 0 && index < _gameSim.Enemies.Length && _gameSim.Enemies[index].Active &&
-                _gameSim.EnemyGridSpawnIds[index] == _gameSim.Enemies[index].SpawnId;
         }
 
         /// <summary>
@@ -6314,41 +6175,5 @@ namespace VoidFall.Runtime
             return count;
         }
 
-        private void ResetPickupOrder()
-        {
-            _gameSim.PickupOrderCount = 0;
-            for (var index = 0; index < _gameSim.PickupOrderPosition.Length; index++)
-                _gameSim.PickupOrderPosition[index] = -1;
-        }
-
-        private void AppendPickupOrder(int slot)
-        {
-            if (slot < 0 || slot >= _gameSim.Pickups.Length || _gameSim.PickupOrderCount >= _gameSim.PickupOrder.Length)
-                return;
-            if (_gameSim.PickupOrderPosition[slot] >= 0) return;
-            _gameSim.PickupOrderPosition[slot] = _gameSim.PickupOrderCount;
-            _gameSim.PickupOrder[_gameSim.PickupOrderCount++] = slot;
-        }
-
-        private void RemovePickupOrder(int slot)
-        {
-            if (slot < 0 || slot >= _gameSim.PickupOrderPosition.Length) return;
-            var position = _gameSim.PickupOrderPosition[slot];
-            if (position >= 0) RemovePickupOrderAt(position);
-        }
-
-        private void RemovePickupOrderAt(int position)
-        {
-            if (position < 0 || position >= _gameSim.PickupOrderCount) return;
-            var removedSlot = _gameSim.PickupOrder[position];
-            var lastPosition = --_gameSim.PickupOrderCount;
-            if (position < lastPosition)
-            {
-                var movedSlot = _gameSim.PickupOrder[lastPosition];
-                _gameSim.PickupOrder[position] = movedSlot;
-                _gameSim.PickupOrderPosition[movedSlot] = position;
-            }
-            _gameSim.PickupOrderPosition[removedSlot] = -1;
-        }
     }
 }

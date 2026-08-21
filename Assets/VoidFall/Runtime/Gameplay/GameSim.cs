@@ -1,3 +1,4 @@
+using System;
 using VoidFall.Core;
 
 namespace VoidFall.Runtime
@@ -87,6 +88,187 @@ namespace VoidFall.Runtime
             EnemyGridSeparationCandidates = new int[maxEnemies];
 
             Rng = new Rng(seed);
+        }
+
+        public void ResetEnemyOrder()
+        {
+            EnemyOrderCount = 0;
+            for (var index = 0; index < EnemyOrderPosition.Length; index++)
+            {
+                EnemyOrder[index] = -1;
+                EnemyOrderPosition[index] = -1;
+            }
+        }
+        public void AppendEnemyOrder(int slot)
+        {
+            if (slot < 0 || slot >= Enemies.Length || EnemyOrderCount >= EnemyOrder.Length) return;
+            EnemyOrderPosition[slot] = EnemyOrderCount;
+            EnemyOrder[EnemyOrderCount++] = slot;
+        }
+        public void RemoveEnemyOrder(int slot)
+        {
+            if (slot < 0 || slot >= Enemies.Length) return;
+            var position = EnemyOrderPosition[slot];
+            if (position < 0 || position >= EnemyOrderCount || EnemyOrder[position] != slot) return;
+            var lastPosition = --EnemyOrderCount;
+            if (position != lastPosition)
+            {
+                var replacement = EnemyOrder[lastPosition];
+                EnemyOrder[position] = replacement;
+                EnemyOrderPosition[replacement] = position;
+            }
+            EnemyOrder[lastPosition] = -1;
+            EnemyOrderPosition[slot] = -1;
+        }
+        public void ResetBossOrder()
+        {
+            BossOrderCount = 0;
+            for (var index = 0; index < BossOrder.Length; index++) BossOrder[index] = -1;
+        }
+        public void AppendBossOrder(int slot)
+        {
+            if (slot < 0 || slot >= Bosses.Length || BossOrderCount >= BossOrder.Length) return;
+            if (Bosses[slot].Active && Array.IndexOf(BossOrder, slot, 0, BossOrderCount) >= 0) return;
+            BossOrder[BossOrderCount++] = slot;
+        }
+        public void RemoveBossOrder(int slot)
+        {
+            if (slot < 0 || slot >= Bosses.Length) return;
+            var position = -1;
+            for (var index = 0; index < BossOrderCount; index++)
+            {
+                if (BossOrder[index] != slot) continue;
+                position = index;
+                break;
+            }
+            if (position < 0) return;
+            // Source bosses.filter(...) preserves survivor order. Shift rather
+            // than swap so removing the first encounter cannot reorder the
+            // remaining encounter before a later slot is appended.
+            for (var index = position + 1; index < BossOrderCount; index++)
+                BossOrder[index - 1] = BossOrder[index];
+            BossOrder[--BossOrderCount] = -1;
+        }
+        public void EnsureBossOrderEntries()
+        {
+            // Runtime spawns append explicitly. Reconcile active/death-fade
+            // fixtures without disturbing the already established order.
+            for (var index = 0; index < Bosses.Length; index++)
+            {
+                if (!Bosses[index].Active && Bosses[index].DeathTimer <= 0) continue;
+                var present = false;
+                for (var order = 0; order < BossOrderCount; order++)
+                {
+                    if (BossOrder[order] != index) continue;
+                    present = true;
+                    break;
+                }
+                if (!present) AppendBossOrder(index);
+            }
+            for (var order = BossOrderCount - 1; order >= 0; order--)
+            {
+                var slot = BossOrder[order];
+                if (slot < 0 || (!Bosses[slot].Active && Bosses[slot].DeathTimer <= 0))
+                    RemoveBossOrder(slot);
+            }
+        }
+        public void RebuildEnemyGrid()
+        {
+            EnemyGrid.Clear();
+            Array.Clear(EnemyGridSpawnIds, 0, EnemyGridSpawnIds.Length);
+            for (var order = 0; order < EnemyOrderCount; order++)
+            {
+                var index = EnemyOrder[order];
+                if (Enemies[index].Active)
+                {
+                    EnemyGridSpawnIds[index] = Enemies[index].SpawnId;
+                    EnemyGrid.Insert(index, Enemies[index].Position.x, Enemies[index].Position.y);
+                }
+            }
+        }
+        public bool IsCurrentGridEnemy(int index)
+        {
+            return index >= 0 && index < Enemies.Length && Enemies[index].Active &&
+                EnemyGridSpawnIds[index] == Enemies[index].SpawnId;
+        }
+        public void ResetMeteorOrder()
+        {
+            MeteorOrderCount = 0;
+            for (var index = 0; index < MeteorOrderPosition.Length; index++)
+            {
+                MeteorOrder[index] = -1;
+                MeteorOrderPosition[index] = -1;
+            }
+        }
+        public void AppendMeteorOrder(int slot)
+        {
+            if (slot < 0 || slot >= Meteors.Length || MeteorOrderCount >= MeteorOrder.Length) return;
+            if (MeteorOrderPosition[slot] >= 0) return;
+            MeteorOrderPosition[slot] = MeteorOrderCount;
+            MeteorOrder[MeteorOrderCount++] = slot;
+        }
+        public void RemoveMeteorOrder(int slot)
+        {
+            if (slot < 0 || slot >= Meteors.Length) return;
+            var position = MeteorOrderPosition[slot];
+            if (position < 0 || position >= MeteorOrderCount || MeteorOrder[position] != slot) return;
+            var lastPosition = --MeteorOrderCount;
+            if (position != lastPosition)
+            {
+                var replacement = MeteorOrder[lastPosition];
+                MeteorOrder[position] = replacement;
+                MeteorOrderPosition[replacement] = position;
+            }
+            MeteorOrder[lastPosition] = -1;
+            MeteorOrderPosition[slot] = -1;
+        }
+        public void EnsureMeteorOrderEntries()
+        {
+            // Runtime spawns append explicitly. This small reconciliation also
+            // keeps reflection-seeded PlayMode fixtures deterministic without
+            // changing the live compact order.
+            for (var index = 0; index < Meteors.Length; index++)
+            {
+                if (Meteors[index].Active) AppendMeteorOrder(index);
+            }
+            for (var order = MeteorOrderCount - 1; order >= 0; order--)
+            {
+                var slot = MeteorOrder[order];
+                if (slot < 0 || !Meteors[slot].Active) RemoveMeteorOrder(slot);
+            }
+        }
+        public void ResetPickupOrder()
+        {
+            PickupOrderCount = 0;
+            for (var index = 0; index < PickupOrderPosition.Length; index++)
+                PickupOrderPosition[index] = -1;
+        }
+        public void AppendPickupOrder(int slot)
+        {
+            if (slot < 0 || slot >= Pickups.Length || PickupOrderCount >= PickupOrder.Length)
+                return;
+            if (PickupOrderPosition[slot] >= 0) return;
+            PickupOrderPosition[slot] = PickupOrderCount;
+            PickupOrder[PickupOrderCount++] = slot;
+        }
+        public void RemovePickupOrder(int slot)
+        {
+            if (slot < 0 || slot >= PickupOrderPosition.Length) return;
+            var position = PickupOrderPosition[slot];
+            if (position >= 0) RemovePickupOrderAt(position);
+        }
+        public void RemovePickupOrderAt(int position)
+        {
+            if (position < 0 || position >= PickupOrderCount) return;
+            var removedSlot = PickupOrder[position];
+            var lastPosition = --PickupOrderCount;
+            if (position < lastPosition)
+            {
+                var movedSlot = PickupOrder[lastPosition];
+                PickupOrder[position] = movedSlot;
+                PickupOrderPosition[movedSlot] = position;
+            }
+            PickupOrderPosition[removedSlot] = -1;
         }
     }
 }
