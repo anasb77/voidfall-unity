@@ -1420,7 +1420,10 @@ namespace VoidFall.UI
             layout.padding = padding ?? new RectOffset();
             layout.childAlignment = alignment;
             layout.childControlWidth = true;
-            layout.childControlHeight = false;
+            // Rows declare their heights through LayoutElement (SetHeight) or
+            // text preferred sizes. Without height control the parent ignores
+            // those contracts and stacked screens collapse to the top.
+            layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
             return layout;

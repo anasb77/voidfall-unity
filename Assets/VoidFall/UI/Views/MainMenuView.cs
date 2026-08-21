@@ -134,7 +134,9 @@ namespace VoidFall.UI
             var row = UIBuilder.Stretch(UIBuilder.CreateRect(strip, "Cells"), 14f, 9f, 14f, 9f);
             var layout = UIBuilder.AddHorizontalLayout(row, 0f, null, TextAnchor.MiddleCenter);
             layout.childControlWidth = true;
-            layout.childForceExpandWidth = true;
+            // Forced expansion would stretch the 1px dividers into wide blocks;
+            // cells claim the free width through flexibleWidth instead.
+            layout.childForceExpandWidth = false;
 
             _bestScoreValue = BuildStatusCell(row, "BestScore", "trophy", "Best score", "0");
             BuildStatusDivider(row, "DividerA");
@@ -152,6 +154,9 @@ namespace VoidFall.UI
             string value)
         {
             var cell = UIBuilder.CreateRect(parent, name);
+            var cellElement = cell.gameObject.AddComponent<LayoutElement>();
+            cellElement.flexibleWidth = 1f;
+            cellElement.flexibleHeight = 1f;
 
             var icon = UIIcons.CreateHomeIcon(cell, iconId, UITheme.CyanBright, 14f);
             var textLeft = 0f;
