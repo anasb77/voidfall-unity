@@ -1164,5 +1164,16 @@ namespace VoidFall.Runtime
             }
             ResetMeteorOrder();
         }
+        // ---- Enemy AI (migrated per roster; dependency map in Handoff doc) ----
+        public void UpdateBulwark(ref EnemyState enemy, float dt, Vector2 direction)
+        {
+            var desired = Mathf.Atan2(direction.y, direction.x);
+            var current = enemy.Rotation;
+            var difference = Mathf.Atan2(Mathf.Sin(desired - current), Mathf.Cos(desired - current));
+            var next = current + Mathf.Clamp(difference, -1.45f * dt, 1.45f * dt);
+            enemy.Rotation = next;
+            enemy.Facing = new Vector2(Mathf.Cos(next), Mathf.Sin(next));
+            enemy.Velocity = enemy.Facing * enemy.Speed;
+        }
     }
 }
