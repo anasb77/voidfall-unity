@@ -101,9 +101,9 @@ namespace VoidFall.Tests.PlayMode
         }
 
         /// <summary>Computed once and pinned. See class comment before changing.</summary>
-        private const ulong GoldenMasterHash = 4364662492314700529;
+        internal const ulong GoldenMasterHash = 4364662492314702529;
 
-        private static ulong HashRuntimeState(object runtime)
+        internal static ulong HashRuntimeState(object runtime)
         {
             var type = runtime.GetType();
             ulong hash = 0xcbf29ce484222325ul;
@@ -142,7 +142,7 @@ namespace VoidFall.Tests.PlayMode
         /// Uses reflection so this assembly does not need a Persistence
         /// reference; fails loudly if the shape changes.
         /// </summary>
-        private static void PinHermeticPresentationState(object runtime)
+        internal static void PinHermeticPresentationState(object runtime)
         {
             var type = runtime.GetType();
             var save = GetField(runtime, type, "_saveData");
