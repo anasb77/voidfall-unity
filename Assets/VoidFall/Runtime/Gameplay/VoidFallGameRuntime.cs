@@ -102,8 +102,8 @@ namespace VoidFall.Runtime
         };
         // Pre-allocated spread/side arrays used in hot combat loops to avoid
         // per-frame heap allocations (audit #19).
-        private static readonly float[] GunnerRosterTwoSpreads = { -0.23f, 0f, 0.2f };
-        private static readonly float[] TwinGunnerSides = { -1f, 1f };
+        internal static readonly float[] GunnerRosterTwoSpreads = { -0.23f, 0f, 0.2f };
+        internal static readonly float[] TwinGunnerSides = { -1f, 1f };
         private static readonly float[] BossPressureSpreads = { -0.58f, -0.38f, -0.2f, 0.2f, 0.38f, 0.58f };
         // Source burst calls carry a final size argument. Every current
         // source-mapped call site passes that value explicitly; keep tuple
@@ -2903,7 +2903,7 @@ namespace VoidFall.Runtime
             return Vector2.Distance(point, start + segment * projection);
         }
 
-        private static float HarvesterSpeedCapAt(float elapsedSeconds, int bossCycle)
+        internal static float HarvesterSpeedCapAt(float elapsedSeconds, int bossCycle)
         {
             return EnemySpeedScaleAt(elapsedSeconds, bossCycle) * 1.3f;
         }
@@ -2934,7 +2934,7 @@ namespace VoidFall.Runtime
             return nearbyIndex >= 0 ? nearbyIndex : farthestIndex;
         }
 
-        private static float SourceLengthOrOne(Vector2 value)
+        internal static float SourceLengthOrOne(Vector2 value)
         {
             var length = value.magnitude;
             return length > 0f ? length : 1f;

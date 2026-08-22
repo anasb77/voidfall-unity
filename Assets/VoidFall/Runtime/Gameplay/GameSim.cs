@@ -1199,6 +1199,8 @@ namespace VoidFall.Runtime
         public Func<int> EnemyShotsRemainingQuery;
         public Func<bool> EnemyGameOverQuery;
         public Func<bool> EnemyRevivePendingQuery;
+        public Action<int> EnemyHidePickupViewHook;
+        public Action<float> EnemyTelemetryHook;
         public Action<float> EnemyShakeHook;
 
         private static EnemyDefinition FindEnemy(string id)
@@ -1647,5 +1649,225 @@ namespace VoidFall.Runtime
             EnemyAmberFlashHook?.Invoke(elite ? 0.32f : 0.24f);
             EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.ExploderBlast, elite ? 1.05f : 0.86f);
         }
+
+        /// <summary>Five-argument hostile-shot spawn with browser defaults.</summary>
+        private void SpawnHostileShot(Vector2 position, Vector2 direction, float damage, float speed, float curvature)
+            => EnemySpawnShotHook?.Invoke(position, direction, damage, speed, curvature, false, -1);
+        public void UpdateHarvester(ref EnemyState enemy, float dt, Vector2 fallbackDirection, ref float globalStoredXp, int xpNeed, float time, int bossCycle)
+        {
+            var limits = PickupRules.HarvesterXpLimits(xpNeed);
+            if (enemy.StoredXp >= limits.Individual || globalStoredXp >= limits.Global)
+            {
+                enemy.Rotation = SourceEnemyRotationFromDirection(fallbackDirection);
+                enemy.Velocity = fallbackDirection * enemy.Speed * 0.56f;
+                return;
+            }
+
+            var targetIndex = -1;
+            var targetDistanceSquared = 500f * 500f;
+            for (var index = 0; index < Pickups.Length; index++)
+            {
+                var pickup = Pickups[index];
+                if (!pickup.Active || pickup.Kind != PickupKind.Xp || pickup.Pull) continue;
+                var distance = (pickup.Position - enemy.Position).sqrMagnitude;
+                if (distance >= targetDistanceSquared) continue;
+                targetDistanceSquared = distance;
+                targetIndex = index;
+            }
+            if (targetIndex < 0)
+            {
+                // Browser updateHarvester keeps the sprite facing the
+                // operative even when no eligible pickup exists.
+                enemy.Rotation = SourceEnemyRotationFromDirection(fallbackDirection);
+                enemy.Velocity = fallbackDirection * enemy.Speed * 0.78f;
+                return;
+            }
+
+            var pickupState = Pickups[targetIndex];
+            var pickupDelta = pickupState.Position - enemy.Position;
+            var distanceToPickup = SourceLengthOrOne(pickupDelta);
+            var direction = pickupDelta / distanceToPickup;
+            enemy.Rotation = SourceEnemyRotationFromDirection(direction);
+            enemy.Facing = direction;
+            enemy.Velocity = direction * enemy.Speed * (distanceToPickup < 170 ? 0.68f : 1f);
+            var mouth = enemy.Position + direction * enemy.Radius * 0.72f;
+            var mouthDistance = Vector2.Distance(mouth, pickupState.Position);
+            if (distanceToPickup < 180)
+            {
+                var pullDistance = SourceLengthOrOne(mouth - pickupState.Position);
+                var pullDirection = (mouth - pickupState.Position) / pullDistance;
+                var curve = Mathf.Sin(pickupState.Age * 7f + enemy.Seed) * 150f;
+                pickupState.Velocity += new Vector2(
+                    pullDirection.x * 1150f - pullDirection.y * curve,
+                    pullDirection.y * 1150f + pullDirection.x * curve) * dt;
+                Pickups[targetIndex] = pickupState;
+            }
+            if (mouthDistance >= 12) return;
+
+            var absorbed = (float)PickupRules.HarvesterAbsorptionAmount(
+                pickupState.Value,
+                enemy.StoredXp,
+                globalStoredXp,
+                xpNeed);
+            if (absorbed <= 0) return;
+            if (absorbed >= pickupState.Value)
+            {
+                pickupState.Active = false;
+                Pickups[targetIndex] = pickupState;
+                EnemyHidePickupViewHook?.Invoke(targetIndex);
+                RemovePickupOrder(targetIndex);
+            }
+            else
+            {
+                pickupState.Value -= absorbed;
+                pickupState.Velocity = -direction * 85f;
+                Pickups[targetIndex] = pickupState;
+            }
+
+            enemy.StoredXp += absorbed;
+            globalStoredXp += absorbed;
+            EnemyTelemetryHook?.Invoke(absorbed);
+            EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.Harvest, 0.82f);
+            var healthGain = absorbed * 1.25f;
+            enemy.MaxHealth += healthGain;
+            enemy.Health += healthGain;
+            enemy.Radius = Mathf.Min(29, (float)(FindEnemy("harvester")?.Radius ?? 18) + Mathf.Sqrt(enemy.StoredXp));
+            enemy.Speed = Mathf.Min(
+                (float)(FindEnemy("harvester")?.Speed ?? 64) * HarvesterSpeedCapAt(time, bossCycle),
+                enemy.Speed + absorbed * 0.18f);
+            enemy.Damage += (float)(FindEnemy("harvester")?.ContactDamage ?? 13) *
+                HarvesterDamageGainScaleAt(time, bossCycle) * absorbed * 0.006f;
+            EnemyBurstFxHook?.Invoke(mouth, SourceDotColor("lime"),
+                7, 130, 0.3f, 0.58f);
+            EnemyRingWaveHook?.Invoke(enemy.Position, enemy.Radius, 105f, 0.22f,
+                new Color(0.639f, 0.902f, 0.216f, 0.7f));
+        }
+        public void UpdateGunner(ref EnemyState enemy, float dt, float distance, Vector2 direction)
+        {
+            var definition = FindEnemy(enemy.Id);
+            enemy.Rotation = SourceEnemyRotationFromDirection(direction);
+            var curved = enemy.EliteKind.HasValue && enemy.EliteKind.Value == EliteVariantId.Gunner;
+            var stats = curved ? EliteRules.EliteVariantStatsFor(EliteVariantId.Gunner) : default(EliteVariantStats);
+            var preferred = (float)(definition?.PreferredDistance ?? 330);
+            if (enemy.State == 1)
+            {
+                enemy.Velocity *= Mathf.Max(0, 1 - 12 * dt);
+                enemy.StateTimer -= dt;
+                if (enemy.StateTimer <= 0)
+                {
+                    var baseAngle = Mathf.Atan2(enemy.DashDirection.y, enemy.DashDirection.x);
+                    var projectileSpeed = (float)(definition?.ProjectileSpeed ?? 260);
+                    if (curved)
+                    {
+                        var curvatures = EliteRules.CurvedVolleyCurvatures(enemy.Volley);
+                        if (EnemyShotsRemainingQuery() < curvatures.Length ||
+                            EliteRules.MaxCurvedProjectiles - CurvedShotCount < curvatures.Length)
+                        {
+                            enemy.State = 0;
+                            enemy.AttackCooldown = (float)stats.AttackCooldownSeconds;
+                            return;
+                        }
+                        foreach (var curvature in curvatures)
+                        {
+                            SpawnHostileShot(
+                                enemy.Position + enemy.DashDirection * (enemy.Radius + 4),
+                                new Vector2(Mathf.Cos(baseAngle), Mathf.Sin(baseAngle)),
+                                enemy.Damage * 0.62f,
+                                projectileSpeed,
+                                (float)curvature);
+                        }
+
+                        enemy.Volley++;
+                        enemy.State = 0;
+                        enemy.AttackCooldown = (float)stats.AttackCooldownSeconds;
+                        EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.GunnerShot, 1.1f);
+                    }
+                    else if (enemy.Roster == EnemyRoster.Two && enemy.Id == "gunner")
+                    {
+                        var spreads = VoidFallGameRuntime.GunnerRosterTwoSpreads;
+                        if (EnemyShotsRemainingQuery() >= spreads.Length)
+                        {
+                            foreach (var spread in spreads)
+                            {
+                                var angle = baseAngle + spread;
+                                SpawnHostileShot(
+                                    enemy.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (enemy.Radius + 4),
+                                    new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)),
+                                    enemy.Damage * 0.48f,
+                                    projectileSpeed * 1.05f,
+                                    0);
+                            }
+                        }
+
+                        enemy.State = 0;
+                        enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
+                            definition?.AttackCooldown ?? 2.8,
+                            enemy.Roster);
+                        EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.GunnerShot, 0.9f);
+                    }
+                    else if (enemy.Id == "twinGunner")
+                    {
+                        foreach (var side in VoidFallGameRuntime.TwinGunnerSides)
+                        {
+                            var angle = baseAngle + side * 0.13f;
+                            var muzzle = enemy.Position + new Vector2(-enemy.DashDirection.y, enemy.DashDirection.x) * side * 7;
+                            SpawnHostileShot(
+                                muzzle,
+                                new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)),
+                                enemy.Damage * 0.55f,
+                                projectileSpeed,
+                                0);
+                        }
+
+                        enemy.State = 0;
+                        enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
+                            definition?.AttackCooldown ?? 3.2,
+                            enemy.Roster);
+                        EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.GunnerShot, 0.9f);
+                    }
+                    else
+                    {
+                        SpawnHostileShot(enemy.Position, direction, enemy.Damage * 0.7f, projectileSpeed, 0);
+                        enemy.State = 0;
+                        enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
+                            definition?.AttackCooldown ?? 2.8,
+                            enemy.Roster);
+                        EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.GunnerShot, 0.9f);
+                    }
+                }
+
+                return;
+            }
+
+            if (distance > preferred + 45)
+            {
+                enemy.Velocity = direction * enemy.Speed;
+            }
+            else if (distance < preferred - 70)
+            {
+                enemy.Velocity = -direction * enemy.Speed * 0.75f;
+            }
+            else
+            {
+                enemy.Velocity = new Vector2(-direction.y, direction.x) * enemy.Speed * 0.35f;
+            }
+
+            if (enemy.AttackCooldown <= 0 && distance < 620)
+            {
+                enemy.State = 1;
+                enemy.StateTimer = curved
+                    ? (float)stats.TelegraphSeconds
+                    : enemy.Roster == EnemyRoster.Two && enemy.Id == "gunner"
+                        ? 0.78f
+                        : (float)(definition?.TelegraphSeconds ?? 0.55);
+                enemy.DashDirection = direction;
+            }
+        }
+        private static float HarvesterSpeedCapAt(float elapsedSeconds, int bossCycle)
+            => VoidFallGameRuntime.HarvesterSpeedCapAt(elapsedSeconds, bossCycle);
+
+        private static float HarvesterDamageGainScaleAt(float elapsedSeconds, int bossCycle)
+            => VoidFallGameRuntime.HarvesterDamageGainScaleAt(elapsedSeconds, bossCycle);
+
     }
 }

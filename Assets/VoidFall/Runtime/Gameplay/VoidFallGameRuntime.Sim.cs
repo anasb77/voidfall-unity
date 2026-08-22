@@ -605,6 +605,8 @@ namespace VoidFall.Runtime
             _gameSim.EnemyShotsRemainingQuery = EnemyShotsRemainingForSim;
             _gameSim.EnemyGameOverQuery = EnemyGameOverForSim;
             _gameSim.EnemyRevivePendingQuery = EnemyRevivePendingForSim;
+            _gameSim.EnemyHidePickupViewHook = EnemyHidePickupViewForSim;
+            _gameSim.EnemyTelemetryHook = EnemyTelemetryForSim;
             // Browser updateEnemies walks its compact array backwards. The
             // logical order list preserves that behavior across pooled slots.
             for (var order = _gameSim.EnemyOrderCount - 1; order >= 0; order--)
@@ -732,95 +734,9 @@ namespace VoidFall.Runtime
         private void UpdateStandardElite(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateStandardElite(ref enemy, dt, distance, direction);
         private void UpdateBulwark(ref EnemyState enemy, float dt, Vector2 direction) => _gameSim.UpdateBulwark(ref enemy, dt, direction);
         private void UpdateHarvester(ref EnemyState enemy, float dt, Vector2 fallbackDirection, ref float globalStoredXp)
-        {
-            var limits = PickupRules.HarvesterXpLimits(_xpNeed);
-            if (enemy.StoredXp >= limits.Individual || globalStoredXp >= limits.Global)
-            {
-                enemy.Rotation = SourceEnemyRotationFromDirection(fallbackDirection);
-                enemy.Velocity = fallbackDirection * enemy.Speed * 0.56f;
-                return;
-            }
+            => _gameSim.UpdateHarvester(ref enemy, dt, fallbackDirection, ref globalStoredXp, _xpNeed, (float)_time, _bossCycle);
 
-            var targetIndex = -1;
-            var targetDistanceSquared = 500f * 500f;
-            for (var index = 0; index < _gameSim.Pickups.Length; index++)
-            {
-                var pickup = _gameSim.Pickups[index];
-                if (!pickup.Active || pickup.Kind != PickupKind.Xp || pickup.Pull) continue;
-                var distance = (pickup.Position - enemy.Position).sqrMagnitude;
-                if (distance >= targetDistanceSquared) continue;
-                targetDistanceSquared = distance;
-                targetIndex = index;
-            }
-            if (targetIndex < 0)
-            {
-                // Browser updateHarvester keeps the sprite facing the
-                // operative even when no eligible pickup exists.
-                enemy.Rotation = SourceEnemyRotationFromDirection(fallbackDirection);
-                enemy.Velocity = fallbackDirection * enemy.Speed * 0.78f;
-                return;
-            }
-
-            var pickupState = _gameSim.Pickups[targetIndex];
-            var pickupDelta = pickupState.Position - enemy.Position;
-            var distanceToPickup = SourceLengthOrOne(pickupDelta);
-            var direction = pickupDelta / distanceToPickup;
-            enemy.Rotation = SourceEnemyRotationFromDirection(direction);
-            enemy.Facing = direction;
-            enemy.Velocity = direction * enemy.Speed * (distanceToPickup < 170 ? 0.68f : 1f);
-            var mouth = enemy.Position + direction * enemy.Radius * 0.72f;
-            var mouthDistance = Vector2.Distance(mouth, pickupState.Position);
-            if (distanceToPickup < 180)
-            {
-                var pullDistance = SourceLengthOrOne(mouth - pickupState.Position);
-                var pullDirection = (mouth - pickupState.Position) / pullDistance;
-                var curve = Mathf.Sin(pickupState.Age * 7f + enemy.Seed) * 150f;
-                pickupState.Velocity += new Vector2(
-                    pullDirection.x * 1150f - pullDirection.y * curve,
-                    pullDirection.y * 1150f + pullDirection.x * curve) * dt;
-                _gameSim.Pickups[targetIndex] = pickupState;
-            }
-            if (mouthDistance >= 12) return;
-
-            var absorbed = (float)PickupRules.HarvesterAbsorptionAmount(
-                pickupState.Value,
-                enemy.StoredXp,
-                globalStoredXp,
-                _xpNeed);
-            if (absorbed <= 0) return;
-            if (absorbed >= pickupState.Value)
-            {
-                pickupState.Active = false;
-                _gameSim.Pickups[targetIndex] = pickupState;
-                Hide(_pickupViews[targetIndex]);
-                RemovePickupOrder(targetIndex);
-            }
-            else
-            {
-                pickupState.Value -= absorbed;
-                pickupState.Velocity = -direction * 85f;
-                _gameSim.Pickups[targetIndex] = pickupState;
-            }
-
-            enemy.StoredXp += absorbed;
-            globalStoredXp += absorbed;
-            _telemetry.RecordXpAbsorbedByHarvester(absorbed);
-            _audio?.Play(ProceduralAudio.Cue.Harvest, 0.82f);
-            var healthGain = absorbed * 1.25f;
-            enemy.MaxHealth += healthGain;
-            enemy.Health += healthGain;
-            enemy.Radius = Mathf.Min(29, (float)(FindEnemy("harvester")?.Radius ?? 18) + Mathf.Sqrt(enemy.StoredXp));
-            enemy.Speed = Mathf.Min(
-                (float)(FindEnemy("harvester")?.Speed ?? 64) * HarvesterSpeedCapAt(_time, _bossCycle),
-                enemy.Speed + absorbed * 0.18f);
-            enemy.Damage += (float)(FindEnemy("harvester")?.ContactDamage ?? 13) *
-                HarvesterDamageGainScaleAt(_time, _bossCycle) * absorbed * 0.006f;
-            BurstFx(mouth, SourceDotColor("lime"),
-                7, 130, 0.3f, 0.58f);
-            SpawnRingWave(enemy.Position, enemy.Radius, 105f, 0.22f,
-                new Color(0.639f, 0.902f, 0.216f, 0.7f));
-        }
-
+        private void UpdateGunner(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateGunner(ref enemy, dt, distance, direction);
         private float XpHeldByHarvesters()
         {
             var total = 0f;
@@ -873,6 +789,10 @@ namespace VoidFall.Runtime
 
         private bool EnemyGameOverForSim() => _gameOver;
 
+
+        private void EnemyHidePickupViewForSim(int slot) => Hide(_pickupViews[slot]);
+
+        private void EnemyTelemetryForSim(float absorbed) => _telemetry.RecordXpAbsorbedByHarvester(absorbed);
         private bool EnemyRevivePendingForSim() => _revivePending;
         private double EnemyFxRollForSim() => _fxSim.FxRng.Next();
         private bool EnemySpawnDroneForSim(int carrierSpawnId, Vector2 position)
@@ -895,128 +815,6 @@ namespace VoidFall.Runtime
                 return true;
             }
             return false;
-        }
-
-        private void UpdateGunner(ref EnemyState enemy, float dt, float distance, Vector2 direction)
-        {
-            var definition = FindEnemy(enemy.Id);
-            enemy.Rotation = SourceEnemyRotationFromDirection(direction);
-            var curved = enemy.EliteKind.HasValue && enemy.EliteKind.Value == EliteVariantId.Gunner;
-            var stats = curved ? EliteRules.EliteVariantStatsFor(EliteVariantId.Gunner) : default(EliteVariantStats);
-            var preferred = (float)(definition?.PreferredDistance ?? 330);
-            if (enemy.State == 1)
-            {
-                enemy.Velocity *= Mathf.Max(0, 1 - 12 * dt);
-                enemy.StateTimer -= dt;
-                if (enemy.StateTimer <= 0)
-                {
-                    var baseAngle = Mathf.Atan2(enemy.DashDirection.y, enemy.DashDirection.x);
-                    var projectileSpeed = (float)(definition?.ProjectileSpeed ?? 260);
-                    if (curved)
-                    {
-                        var curvatures = EliteRules.CurvedVolleyCurvatures(enemy.Volley);
-                        if (MaxHostileShots - ActiveHostileShots() < curvatures.Length ||
-                            EliteRules.MaxCurvedProjectiles - _gameSim.CurvedShotCount < curvatures.Length)
-                        {
-                            enemy.State = 0;
-                            enemy.AttackCooldown = (float)stats.AttackCooldownSeconds;
-                            return;
-                        }
-                        foreach (var curvature in curvatures)
-                        {
-                            SpawnHostileShot(
-                                enemy.Position + enemy.DashDirection * (enemy.Radius + 4),
-                                new Vector2(Mathf.Cos(baseAngle), Mathf.Sin(baseAngle)),
-                                enemy.Damage * 0.62f,
-                                projectileSpeed,
-                                (float)curvature);
-                        }
-
-                        enemy.Volley++;
-                        enemy.State = 0;
-                        enemy.AttackCooldown = (float)stats.AttackCooldownSeconds;
-                        _audio?.Play(ProceduralAudio.Cue.GunnerShot, 1.1f);
-                    }
-                    else if (enemy.Roster == EnemyRoster.Two && enemy.Id == "gunner")
-                    {
-                        var spreads = GunnerRosterTwoSpreads;
-                        if (MaxHostileShots - ActiveHostileShots() >= spreads.Length)
-                        {
-                            foreach (var spread in spreads)
-                            {
-                                var angle = baseAngle + spread;
-                                SpawnHostileShot(
-                                    enemy.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (enemy.Radius + 4),
-                                    new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)),
-                                    enemy.Damage * 0.48f,
-                                    projectileSpeed * 1.05f,
-                                    0);
-                            }
-                        }
-
-                        enemy.State = 0;
-                        enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
-                            definition?.AttackCooldown ?? 2.8,
-                            enemy.Roster);
-                        _audio?.Play(ProceduralAudio.Cue.GunnerShot, 0.9f);
-                    }
-                    else if (enemy.Id == "twinGunner")
-                    {
-                        foreach (var side in TwinGunnerSides)
-                        {
-                            var angle = baseAngle + side * 0.13f;
-                            var muzzle = enemy.Position + new Vector2(-enemy.DashDirection.y, enemy.DashDirection.x) * side * 7;
-                            SpawnHostileShot(
-                                muzzle,
-                                new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)),
-                                enemy.Damage * 0.55f,
-                                projectileSpeed,
-                                0);
-                        }
-
-                        enemy.State = 0;
-                        enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
-                            definition?.AttackCooldown ?? 3.2,
-                            enemy.Roster);
-                        _audio?.Play(ProceduralAudio.Cue.GunnerShot, 0.9f);
-                    }
-                    else
-                    {
-                        SpawnHostileShot(enemy.Position, direction, enemy.Damage * 0.7f, projectileSpeed, 0);
-                        enemy.State = 0;
-                        enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
-                            definition?.AttackCooldown ?? 2.8,
-                            enemy.Roster);
-                        _audio?.Play(ProceduralAudio.Cue.GunnerShot, 0.9f);
-                    }
-                }
-
-                return;
-            }
-
-            if (distance > preferred + 45)
-            {
-                enemy.Velocity = direction * enemy.Speed;
-            }
-            else if (distance < preferred - 70)
-            {
-                enemy.Velocity = -direction * enemy.Speed * 0.75f;
-            }
-            else
-            {
-                enemy.Velocity = new Vector2(-direction.y, direction.x) * enemy.Speed * 0.35f;
-            }
-
-            if (enemy.AttackCooldown <= 0 && distance < 620)
-            {
-                enemy.State = 1;
-                enemy.StateTimer = curved
-                    ? (float)stats.TelegraphSeconds
-                    : enemy.Roster == EnemyRoster.Two && enemy.Id == "gunner"
-                        ? 0.78f
-                        : (float)(definition?.TelegraphSeconds ?? 0.55);
-                enemy.DashDirection = direction;
-            }
         }
 
         private void UpdateMortar(ref EnemyState enemy, float dt, float distance, Vector2 direction)
@@ -2900,7 +2698,7 @@ namespace VoidFall.Runtime
             return Mathf.Min(4.5f, 1f + time / 720f + cycle * 0.08f);
         }
 
-        private static float HarvesterDamageGainScaleAt(float elapsedSeconds, int bossCycle)
+        internal static float HarvesterDamageGainScaleAt(float elapsedSeconds, int bossCycle)
         {
             return EnemyDamageScaleAt(elapsedSeconds, bossCycle);
         }
