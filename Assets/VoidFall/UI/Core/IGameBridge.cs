@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using VoidFall.Persistence;
 
 namespace VoidFall.UI
@@ -24,5 +25,11 @@ namespace VoidFall.UI
 
         /// <summary>Rebuilds live audio/quality state from current settings.</summary>
         void ApplyLiveSettings();
+
+        /// <summary>Persisted high-score rows; empty when the profile has none.</summary>
+        IReadOnlyList<HighScoreEntry> GetHighScores();
+
+        /// <summary>Persisted lifetime stats; null when the profile has none.</summary>
+        LifetimeStats GetLifetimeStats();
     }
 }

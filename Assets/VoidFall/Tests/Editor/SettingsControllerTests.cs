@@ -23,6 +23,8 @@ namespace VoidFall.Tests.Editor
             public void RestoreSettings(SaveSettings snapshot) { RestoreCalls++; LastRestored = snapshot; }
             public bool TryPersistSettings() { PersistCalls++; return PersistSucceeds; }
             public void ApplyLiveSettings() { ApplyCalls++; }
+            public System.Collections.Generic.IReadOnlyList<HighScoreEntry> GetHighScores() => System.Array.Empty<HighScoreEntry>();
+            public LifetimeStats GetLifetimeStats() => null;
         }
 
         private static SaveSettings LiveProfile() => new SaveSettings { quality = "high", touchSize = 1f };

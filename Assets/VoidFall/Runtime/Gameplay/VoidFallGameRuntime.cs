@@ -1279,6 +1279,7 @@ namespace VoidFall.Runtime
         }
 
         private SettingsController _settingsController;
+        private RecordsController _recordsController;
 
         private void Update()
         {
@@ -5727,6 +5728,9 @@ namespace VoidFall.Runtime
             public void RestoreSettings(SaveSettings snapshot) => _rt.RestoreSettingsInternal(snapshot);
             public bool TryPersistSettings() => _rt.CommitSettings();
             public void ApplyLiveSettings() => _rt.ApplySettings();
+            public IReadOnlyList<HighScoreEntry> GetHighScores()
+                => _rt._saveData?.highScores ?? (IReadOnlyList<HighScoreEntry>)System.Array.Empty<HighScoreEntry>();
+            public LifetimeStats GetLifetimeStats() => _rt._saveData?.stats;
         }
     }
 }

@@ -39,7 +39,7 @@ namespace VoidFall.UI
     /// it as a single space-padded text blob, which cannot line up in a
     /// proportional font.
     /// </summary>
-    public sealed class RecordsView : UIViewBase
+    public sealed class RecordsView : UIViewBase, IRecordsSink
     {
         private static readonly string[] ColumnHeaders = { "#", "Score", "Kills", "Time", "Bosses" };
         private static readonly float[] ColumnWidths = { 38f, 130f, 82f, 82f, 82f };

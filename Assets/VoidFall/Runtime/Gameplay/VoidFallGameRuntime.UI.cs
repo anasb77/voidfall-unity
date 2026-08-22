@@ -97,41 +97,9 @@ namespace VoidFall.Runtime
         private void RefreshRecordsUi()
         {
             if (_ui?.Records == null) return;
-            var scores = new List<HighScoreRow>();
-            if (_saveData?.highScores != null)
-            {
-                foreach (var entry in _saveData.highScores)
-                {
-                    if (entry == null) continue;
-                    scores.Add(new HighScoreRow
-                    {
-                        Score = entry.score,
-                        Time = entry.time,
-                        Level = entry.level,
-                        Kills = entry.kills,
-                        BossKills = entry.bossKills
-                    });
-                }
-            }
-            _ui.Records.PopulateHighScores(scores);
-
-            var stats = _saveData?.stats;
-            if (stats == null) return;
-            _ui.Records.PopulateLifetime(new UILifetimeStats
-            {
-                TotalRuns = stats.totalRuns,
-                TotalKills = stats.totalKills,
-                BestScore = stats.bestScore,
-                BestTime = stats.bestTime,
-                TotalBossKills = stats.totalBossKills,
-                TotalEliteKills = stats.totalEliteKills,
-                TotalPlaySeconds = stats.totalPlaySeconds,
-                TotalPartsEarned = stats.totalPartsEarned,
-                BestKills = stats.bestKills,
-                HighestLevel = stats.highestLevel,
-                TotalDamageDealt = stats.totalDamageDealt,
-                TotalDamageTaken = stats.totalDamageTaken
-            });
+            if (_recordsController == null)
+                _recordsController = new RecordsController(_ui.Records);
+            _recordsController.Refresh(_saveData?.highScores, _saveData?.stats);
         }
 
         private void RefreshSettingsUi()
