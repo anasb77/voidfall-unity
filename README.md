@@ -27,10 +27,14 @@ There are six assembly definitions (`asmdef`) under `Assets/VoidFall/`:
 
 Two caveats for anyone navigating this for the first time:
 
-- `Runtime/Gameplay/VoidFallGameRuntime.cs` is a single class (split across
-  partial files by concern) holding the simulation, every enemy behaviour,
-  rendering, the HUD, and every menu. Splitting it into real services is
-  tracked as open work in `MIGRATION_STATUS.md`.
+- The simulation is being extracted out of the runtime class into plain C#
+  owner classes: `Runtime/Gameplay/FxSim.cs` (cosmetic FX — complete),
+  `Runtime/Gameplay/GameSim.cs` (combat state, order bookkeeping, player
+  kinematics, and all ten enemy behaviours — complete), plus
+  `Runtime/Input/InputReader.cs` and `Runtime/Gameplay/SlotOrder.cs`. What
+  remains on `VoidFallGameRuntime` is view code (Render/UI/Hud/Arena
+  partials), the combat dispatcher loop, and hook bindings. See
+  `Docs/Architecture.md` for the component map.
 - The `Mobile` folder is empty, and `Rendering` contains only shaders and icon
   assets. They are not assemblies.
 
