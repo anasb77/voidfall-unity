@@ -590,6 +590,9 @@ namespace VoidFall.Runtime
             _gameSim.EnemyRingWaveHook = EnemyRingWaveForSim;
             _gameSim.EnemyFloaterHook = EnemyFloaterForSim;
             _gameSim.EnemySpawnDroneHook = EnemySpawnDroneForSim;
+            _gameSim.EnemyAudioCueHook = EnemyAudioCueForSim;
+            _gameSim.EnemyParticleScaleHook = EnemyParticleScaleForSim;
+            _gameSim.EnemyFxRollHook = EnemyFxRollForSim;
             // Browser updateEnemies walks its compact array backwards. The
             // logical order list preserves that behavior across pooled slots.
             for (var order = _gameSim.EnemyOrderCount - 1; order >= 0; order--)
@@ -710,61 +713,11 @@ namespace VoidFall.Runtime
             }
         }
 
-        private void UpdateStandardElite(ref EnemyState enemy, float dt, float distance, Vector2 direction)
-        {
-            var definition = ContentCatalog.Elite;
-            if (enemy.State == 0)
-            {
-                enemy.Velocity = direction * enemy.Speed;
-                enemy.StateTimer -= dt;
-                if (enemy.StateTimer <= 0 && distance < 560f)
-                {
-                    enemy.State = 1;
-                    enemy.StateTimer = (float)definition.ChargeTelegraphSeconds;
-                    enemy.DashDirection = direction;
-                    _audio?.Play(ProceduralAudio.Cue.Warning, 0.72f);
-                }
-                return;
-            }
+        private void UpdateDasher(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateDasher(ref enemy, dt, distance, direction);
 
-            if (enemy.State == 1)
-            {
-                enemy.Velocity *= Mathf.Max(0, 1f - 11f * dt);
-                enemy.StateTimer -= dt;
-                if (enemy.StateTimer <= 0)
-                {
-                    enemy.State = 2;
-                    enemy.StateTimer = (float)definition.ChargeDurationSeconds;
-                    _audio?.Play(ProceduralAudio.Cue.Dash, 0.9f);
-                }
-                return;
-            }
+        private void UpdateRosterPincer(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateRosterPincer(ref enemy, dt, distance, direction);
 
-            if (enemy.State == 2)
-            {
-                enemy.Velocity = enemy.DashDirection * (float)definition.ChargeSpeed;
-                enemy.StateTimer -= dt;
-                if (_qualityPreset.ParticleScale > 0.01f && (float)_fxSim.FxRng.Next() < 0.38f)
-                {
-                    BurstFx(enemy.Position, SourceDotColor("yellow"), 1, 24, 0.26f, 0.6f);
-                }
-                if (enemy.StateTimer <= 0)
-                {
-                    enemy.State = 3;
-                    enemy.StateTimer = (float)definition.ChargeRecoverySeconds;
-                }
-                return;
-            }
-
-            enemy.Velocity = direction * enemy.Speed * 0.3f;
-            enemy.StateTimer -= dt;
-            if (enemy.StateTimer <= 0)
-            {
-                enemy.State = 0;
-                enemy.StateTimer = (float)definition.ChargeCooldownSeconds + (float)(_gameSim.Rng.Next() * 1.2);
-            }
-        }
-
+        private void UpdateStandardElite(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateStandardElite(ref enemy, dt, distance, direction);
         private void UpdateBulwark(ref EnemyState enemy, float dt, Vector2 direction) => _gameSim.UpdateBulwark(ref enemy, dt, direction);
         private void UpdateHarvester(ref EnemyState enemy, float dt, Vector2 fallbackDirection, ref float globalStoredXp)
         {
@@ -877,6 +830,13 @@ namespace VoidFall.Runtime
         private void EnemyFloaterForSim(Vector2 position, string text, Color color, float size)
             => SpawnFloater(position, text, color, size);
 
+
+        private void EnemyAudioCueForSim(ProceduralAudio.Cue cue, float volume)
+            => _audio?.Play(cue, volume);
+
+        private float EnemyParticleScaleForSim() => _qualityPreset.ParticleScale;
+
+        private double EnemyFxRollForSim() => _fxSim.FxRng.Next();
         private bool EnemySpawnDroneForSim(int carrierSpawnId, Vector2 position)
             => SpawnCarrierDrone(carrierSpawnId, position);
         private void UpdateCarrier(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateCarrier(ref enemy, dt, distance, direction);
@@ -1168,106 +1128,6 @@ namespace VoidFall.Runtime
             AddCameraShake(elite ? 0.46f : 0.38f);
             _amberFlash = Mathf.Max(_amberFlash, elite ? 0.32f : 0.24f);
             _audio?.Play(ProceduralAudio.Cue.ExploderBlast, elite ? 1.05f : 0.86f);
-        }
-
-        private void UpdateDasher(ref EnemyState enemy, float dt, float distance, Vector2 direction)
-        {
-            var definition = FindEnemy("dasher");
-            if (enemy.State == 0)
-            {
-                enemy.Velocity = direction * enemy.Speed;
-                if (distance < 260 && enemy.Age > 0.6f)
-                {
-                    enemy.State = 1;
-                    enemy.StateTimer = (float)(definition?.TelegraphSeconds ?? 0.72);
-                    enemy.DashDirection = direction;
-                }
-            }
-            else if (enemy.State == 1)
-            {
-                enemy.Velocity *= Mathf.Max(0, 1 - 10 * dt);
-                enemy.StateTimer -= dt;
-                if (enemy.StateTimer <= 0)
-                {
-                    enemy.State = 2;
-                    enemy.StateTimer = 0.38f;
-                    _audio?.Play(ProceduralAudio.Cue.Dash, 0.94f);
-                }
-            }
-            else if (enemy.State == 2)
-            {
-                enemy.Velocity = enemy.DashDirection * 570;
-                enemy.StateTimer -= dt;
-                if (_qualityPreset.ParticleScale > 0.01f && (float)_fxSim.FxRng.Next() < 0.45f)
-                    BurstFx(enemy.Position, SourceDotColor("pink"),
-                        1, 20, 0.25f, 0.6f);
-                if (enemy.StateTimer <= 0)
-                {
-                    enemy.State = 3;
-                    enemy.StateTimer = (float)(definition?.RecoverySeconds ?? 0.65);
-                }
-            }
-            else
-            {
-                enemy.Velocity = direction * enemy.Speed * 0.28f;
-                enemy.StateTimer -= dt;
-                if (enemy.StateTimer <= 0) enemy.State = 0;
-            }
-        }
-
-        private void UpdateRosterPincer(ref EnemyState enemy, float dt, float distance, Vector2 direction)
-        {
-            var side = Mathf.Sin(enemy.Seed) >= 0 ? 1 : -1;
-            if (enemy.State == 0)
-            {
-                var offset = side * 0.58f;
-                enemy.Velocity = new Vector2(
-                    direction.x * Mathf.Cos(offset) - direction.y * Mathf.Sin(offset),
-                    direction.x * Mathf.Sin(offset) + direction.y * Mathf.Cos(offset)) * enemy.Speed;
-                enemy.Rotation = SourceEnemyRotationFromDirection(enemy.Velocity);
-                if (enemy.Age > 0.7f && distance < 245)
-                {
-                    enemy.State = 1;
-                    enemy.StateTimer = 0.52f;
-                    enemy.DashDirection = direction;
-                    _audio?.Play(ProceduralAudio.Cue.Warning, 0.78f);
-                }
-            }
-            else if (enemy.State == 1)
-            {
-                enemy.Velocity *= Mathf.Max(0, 1 - 13 * dt);
-                enemy.Rotation = SourceEnemyRotationFromDirection(enemy.DashDirection);
-                enemy.StateTimer -= dt;
-                if (enemy.StateTimer <= 0)
-                {
-                    enemy.State = 2;
-                    enemy.StateTimer = 0.34f;
-                    _audio?.Play(ProceduralAudio.Cue.Dash, 0.92f);
-                }
-            }
-            else if (enemy.State == 2)
-            {
-                enemy.Velocity = enemy.DashDirection * 465;
-                enemy.Rotation = SourceEnemyRotationFromDirection(enemy.DashDirection);
-                enemy.StateTimer -= dt;
-                if (SourceRosterPincerDashFxEligible(
-                        _qualityPreset.ParticleScale > 0.01f,
-                        _fxSim.FxRng.Next()))
-                    BurstFx(enemy.Position, SourceDotColor("fuchsia"),
-                        1, 18, 0.22f, 0.5f);
-                if (enemy.StateTimer <= 0)
-                {
-                    enemy.State = 3;
-                    enemy.StateTimer = 1.35f;
-                }
-            }
-            else
-            {
-                enemy.Velocity = new Vector2(-direction.x - direction.y * side, -direction.y + direction.x * side) * enemy.Speed * 0.24f;
-                enemy.Rotation = SourceEnemyRotationFromDirection(enemy.Velocity);
-                enemy.StateTimer -= dt;
-                if (enemy.StateTimer <= 0) enemy.State = 0;
-            }
         }
 
         private void UpdateMeteors(float dt)
@@ -2129,7 +1989,7 @@ namespace VoidFall.Runtime
             }
         }
 
-        private static bool SourceRosterPincerDashFxEligible(bool effectsEnabled, double fxRoll)
+        internal static bool SourceRosterPincerDashFxEligible(bool effectsEnabled, double fxRoll)
         {
             return effectsEnabled && fxRoll < 0.32;
         }
