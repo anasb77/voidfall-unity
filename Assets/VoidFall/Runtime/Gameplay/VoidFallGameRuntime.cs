@@ -756,6 +756,8 @@ namespace VoidFall.Runtime
     private Func<int, int, bool> _bulletMeteorHitHook;
     private Func<int, bool> _bulletRicochetHook;
     private readonly int[] _bulletExpiredSlots = new int[MaxBullets];
+    // Cached hook for GameSim.AdvancePickups.
+    private Action<int, int, bool> _pickupCollectedHook;
         private int _nextArcEffectSequence;
         private int _nextRailTrailSequence;
         private bool _paused;
