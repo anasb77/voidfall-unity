@@ -146,6 +146,7 @@ namespace VoidFall.Runtime
             // MenuPage.Main was an in-run summary page with no counterpart in the
             // browser build. Its figures now ride along on the pause overlay.
             else if (_menuPage == MenuPage.Main) screen = UIScreen.Pause;
+            else if (_rouletteActive) screen = UIScreen.Roulette;
             else if (_levelUpActive) screen = UIScreen.LevelUp;
             else if (_revivePending) screen = UIScreen.Revive;
             else if (_gameOver) screen = UIScreen.GameOver;

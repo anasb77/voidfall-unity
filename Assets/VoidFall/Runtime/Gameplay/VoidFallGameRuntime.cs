@@ -1322,7 +1322,7 @@ namespace VoidFall.Runtime
                     {
                         CloseMenu();
                     }
-                    else if (!_gameOver && !_levelUpActive)
+                    else if (!_gameOver && !_levelUpActive && !_rouletteActive)
                     {
                         TogglePause();
                     }
@@ -1336,7 +1336,7 @@ namespace VoidFall.Runtime
                 }
 
                 if ((keyboard.enterKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame) &&
-                    !_revivePending && !_levelUpActive)
+                    !_revivePending && !_levelUpActive && !_rouletteActive)
                 {
                     if (_menuPage == MenuPage.Home)
                     {
@@ -1969,6 +1969,9 @@ namespace VoidFall.Runtime
             _levelOptions = null;
             _rerollsRemaining = 1;
             _levelUpActive = false;
+            _rouletteActive = false;
+            _rouletteSession = null;
+            _rouletteRng = null;
             _pistolRank = 1;
             _calibrationRank = 0;
             RecalculatePlayerStats(false);
