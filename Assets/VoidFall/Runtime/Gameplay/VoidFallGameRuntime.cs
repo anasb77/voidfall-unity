@@ -114,8 +114,8 @@ namespace VoidFall.Runtime
         // Browser canvas Y grows downward; Unity world/UI Y grows upward. The
         // source floatText(y - 8) therefore maps to a +8 world-space offset.
         private const float SourceFloatingTextAnchorOffset = 8f;
-        private const float PlayerRadius = 15f;
-        private const float AttackPlayerRadius = 14f;
+        internal const float PlayerRadius = 15f;
+        internal const float AttackPlayerRadius = 14f;
         private const float WorldHalfWidth = 640f;
         private const float WorldHalfHeight = 360f;
 
@@ -2977,7 +2977,7 @@ namespace VoidFall.Runtime
                 : 0.08f + pulse * 0.1f;
         }
 
-        private static void ApplySourcePlayerKnockback(ref EnemyState enemy, Vector2 impactDirection)
+        internal static void ApplySourcePlayerKnockback(ref EnemyState enemy, Vector2 impactDirection)
         {
             var direction = SourceNormalizedDirection(impactDirection);
             if (direction == Vector2.zero) return;

@@ -1188,6 +1188,17 @@ namespace VoidFall.Runtime
         public Func<float> EnemyParticleScaleHook;
         public Func<double> EnemyFxRollHook;
         public Action<float, Vector2> EnemyDamagePlayerHook;
+        public Action<Vector2, float, float, bool> EnemyBlastWaveHook;
+        public Action<Vector2, float, float> EnemyImpactMarkHook;
+        public Action<float> EnemyFreezeHook;
+        public Action<float> EnemyAmberFlashHook;
+        public Action<Vector2, float, float, int, int> EnemyDamageAreaHook;
+        public Action<Vector2, Vector2, float, float, float, bool, int> EnemySpawnShotHook;
+        public Action<int> EnemyFuseWarningHook;
+        public Action<int, bool> EnemyResolveDeathHook;
+        public Func<int> EnemyShotsRemainingQuery;
+        public Func<bool> EnemyGameOverQuery;
+        public Func<bool> EnemyRevivePendingQuery;
         public Action<float> EnemyShakeHook;
 
         private static EnemyDefinition FindEnemy(string id)
@@ -1482,6 +1493,159 @@ namespace VoidFall.Runtime
         private static bool SourceRosterPincerDashFxEligible(bool effectsEnabled, double fxRoll)
         {
             return VoidFallGameRuntime.SourceRosterPincerDashFxEligible(effectsEnabled, fxRoll);
+        }
+
+        private const float PlayerRadius = VoidFallGameRuntime.PlayerRadius;
+        private const float AttackPlayerRadius = VoidFallGameRuntime.AttackPlayerRadius;
+
+        private void ApplySourcePlayerKnockback(ref EnemyState enemy, Vector2 impactDirection)
+            => VoidFallGameRuntime.ApplySourcePlayerKnockback(ref enemy, impactDirection);
+        public void UpdateMortar(ref EnemyState enemy, float dt, float distance, Vector2 direction, float time)
+        {
+            var definition = FindEnemy("mortar");
+            enemy.Rotation = SourceEnemyRotationFromDirection(direction);
+            var siege = enemy.EliteKind.HasValue && enemy.EliteKind.Value == EliteVariantId.Mortar;
+            var stats = siege ? EliteRules.EliteVariantStatsFor(EliteVariantId.Mortar) : default(EliteVariantStats);
+            if (enemy.State == 1)
+            {
+                enemy.Velocity *= Mathf.Max(0, 1 - 12 * dt);
+                enemy.StateTimer -= dt;
+                if (siege)
+                {
+                    var drift = (float)EliteRules.SiegeMortarDrift(enemy.StateTimer);
+                    if (enemy.StateTimer > EliteRules.SiegeMortarLockSeconds)
+                    {
+                        var wobble = enemy.Seed + time * 2.6f;
+                        enemy.DashDirection = new Vector2(
+                            enemy.AimPosition.x + Mathf.Cos(wobble) * drift * 0.35f,
+                            enemy.AimPosition.y + Mathf.Sin(wobble * 1.3f) * drift * 0.35f);
+                    }
+                    else enemy.DashDirection = enemy.AimPosition;
+                }
+
+                if (enemy.StateTimer > 0) return;
+                var impact = siege ? (float)stats.BlastRadius : (float)(definition?.BlastRadius ?? 82);
+                var distanceToImpact = Vector2.Distance(Player.Position, enemy.DashDirection);
+                if (distanceToImpact < impact + AttackPlayerRadius)
+                {
+                    var impactDirection = Player.Position - enemy.DashDirection;
+                    var canImpactPlayer = Player.Health > 0 && !EnemyGameOverQuery() && !EnemyRevivePendingQuery() &&
+                        Player.DyingTimer <= 0 && Player.Iframes <= 0;
+                    EnemyDamagePlayerHook?.Invoke(enemy.Damage, impactDirection);
+                    if (canImpactPlayer) ApplySourcePlayerKnockback(ref enemy, impactDirection);
+                }
+                EnemyBlastWaveHook?.Invoke(enemy.DashDirection, impact, 0.5f, false);
+                EnemyBlastWaveHook?.Invoke(enemy.DashDirection, impact * 0.62f, 0.28f, false);
+                EnemyImpactMarkHook?.Invoke(enemy.DashDirection, impact, (float)(EnemyFxRollHook() * Math.PI * 2));
+                EnemyBurstFxHook?.Invoke(enemy.DashDirection, SourceDotColor("orange"), 20, 320, 0.54f, 0.86f);
+                EnemyBurstFxHook?.Invoke(enemy.DashDirection, SourceDotColor("yellow"), 9, 240, 0.36f, 0.72f);
+                EnemyBurstFxHook?.Invoke(enemy.DashDirection, SourceDotColor("white"), 5, 150, 0.2f, 0.52f);
+                EnemyRingWaveHook?.Invoke(enemy.DashDirection, 7f, impact * 2.5f, 0.38f,
+                    new Color(1f, 0.46f, 0.12f, 0.6f));
+                EnemyRingWaveHook?.Invoke(enemy.DashDirection, 4f, impact * 1.5f, 0.24f,
+                    new Color(1f, 0.9f, 0.3f, 0.56f));
+                EnemyFreezeHook?.Invoke(0.055f);
+                EnemyShakeHook?.Invoke(0.38f);
+                EnemyAmberFlashHook?.Invoke(0.38f);
+                EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.ExploderBlast, 0.86f);
+                enemy.State = 0;
+                enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
+                    siege ? stats.AttackCooldownSeconds : (definition?.AttackCooldown ?? 5),
+                    enemy.Roster);
+                return;
+            }
+
+            var preferred = (float)(definition?.PreferredDistance ?? 470);
+            if (distance > preferred + 55) enemy.Velocity = direction * enemy.Speed;
+            else if (distance < preferred - 90) enemy.Velocity = -direction * enemy.Speed * 0.82f;
+            else enemy.Velocity = new Vector2(-direction.y, direction.x) * enemy.Speed * 0.22f;
+            if (enemy.AttackCooldown <= 0 && distance < 760)
+            {
+                enemy.State = 1;
+                enemy.StateTimer = siege ? (float)stats.TelegraphSeconds : (float)(definition?.TelegraphSeconds ?? 1.15);
+                enemy.AimPosition = Player.Position + Player.Velocity * 0.24f;
+                enemy.DashDirection = enemy.AimPosition;
+                EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.Warning, 0.84f);
+            }
+        }
+        public void UpdateExploder(ref EnemyState enemy, float dt, float distance, Vector2 direction)
+        {
+            var definition = FindEnemy("exploder");
+            var elite = enemy.EliteKind.HasValue && enemy.EliteKind.Value == EliteVariantId.Exploder;
+            var stats = elite ? EliteRules.EliteVariantStatsFor(EliteVariantId.Exploder) : default(EliteVariantStats);
+            var telegraph = elite
+                ? (float)stats.TelegraphSeconds
+                : (float)(definition?.TelegraphSeconds ?? 0.9) + (enemy.Roster == EnemyRoster.Two ? 0.28f : 0);
+            var radius = elite ? (float)stats.BlastRadius : (float)(definition?.BlastRadius ?? 76);
+            if (enemy.State == 0)
+            {
+                enemy.Velocity = direction * enemy.Speed;
+                if (distance < (float)(definition?.TriggerDistance ?? 72))
+                {
+                    enemy.State = 1;
+                    enemy.StateTimer = telegraph;
+                    enemy.TelegraphPulseTimer = 0.18f;
+                    enemy.Velocity = Vector2.zero;
+                    EnemyFuseWarningHook?.Invoke(0);
+                }
+                return;
+            }
+
+            enemy.StateTimer -= dt;
+            enemy.Velocity = Vector2.zero;
+            enemy.TelegraphPulseTimer -= dt;
+            if (enemy.StateTimer > 0 && enemy.TelegraphPulseTimer <= 0)
+            {
+                var progress = Mathf.Clamp01(1f - enemy.StateTimer / Mathf.Max(0.01f, telegraph));
+                var stage = Mathf.Clamp(Mathf.FloorToInt(progress * 6f), 0, 5);
+                EnemyFuseWarningHook?.Invoke(stage);
+                enemy.TelegraphPulseTimer += elite
+                    ? 1f / Mathf.Max(0.01f, (float)EliteRules.EliteExploderFlashRate(enemy.StateTimer, telegraph))
+                    : 0.24f - progress * 0.15f;
+            }
+            if (enemy.StateTimer > 0) return;
+            if (Vector2.Distance(Player.Position, enemy.Position) < radius + AttackPlayerRadius)
+            {
+                var impactDirection = Player.Position - enemy.Position;
+                var canImpactPlayer = Player.Health > 0 && !EnemyGameOverQuery() && !EnemyRevivePendingQuery() &&
+                    Player.DyingTimer <= 0 && Player.Iframes <= 0;
+                EnemyDamagePlayerHook?.Invoke(enemy.Damage, impactDirection);
+                if (canImpactPlayer) ApplySourcePlayerKnockback(ref enemy, impactDirection);
+            }
+            // Keep the browser's self-detonation composition order: the blast
+            // and its three burst layers are emitted before Roster-II shots,
+            // and Elite Exploder's splash/meteor chain follows those shots.
+            EnemyBlastWaveHook?.Invoke(enemy.Position, radius, 0.46f, false);
+            EnemyBurstFxHook?.Invoke(enemy.Position, SourceDotColor("white"), 7, 260, 0.24f, 0.62f);
+            EnemyBurstFxHook?.Invoke(enemy.Position, SourceDotColor("orange"), 24, 340, 0.58f, 0.95f);
+            EnemyBurstFxHook?.Invoke(enemy.Position, SourceDotColor("red"), 12, 250, 0.46f, 0.78f);
+            if (enemy.Roster == EnemyRoster.Two && EnemyShotsRemainingQuery() >= 6)
+            {
+                for (var index = 0; index < 6; index++)
+                {
+                    var angle = enemy.Rotation + index / 6f * Mathf.PI * 2;
+                    var shotDirection = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                    EnemySpawnShotHook?.Invoke(enemy.Position + shotDirection * (enemy.Radius + 8), shotDirection, enemy.Damage * 0.32f, 210, 0, false, -1);
+                }
+            }
+            if (elite)
+            {
+                EnemyDamageAreaHook?.Invoke(enemy.Position, radius, enemy.Damage * 1.6f,
+                    EnemyIdentity(enemy, enemy.View), -1);
+                // Browser authority lets an Elite Exploder arm nearby
+                // explosive meteors as part of the same detonation pass.
+                IgniteMeteorsInRadius(enemy.Position, radius);
+                EnemyRingWaveHook?.Invoke(enemy.Position, 10f, radius * 2.1f, 0.32f,
+                    new Color(1f, 0.46f, 0.12f, 0.66f));
+            }
+            // Resolve the self-detonating enemy after its source-side effects,
+            // then apply the flash/shake/audio cues that follow removeEnemy().
+            Enemies[enemy.View] = enemy;
+            EnemyResolveDeathHook?.Invoke(enemy.View, true);
+            enemy.Active = false;
+            EnemyShakeHook?.Invoke(elite ? 0.46f : 0.38f);
+            EnemyAmberFlashHook?.Invoke(elite ? 0.32f : 0.24f);
+            EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.ExploderBlast, elite ? 1.05f : 0.86f);
         }
     }
 }
