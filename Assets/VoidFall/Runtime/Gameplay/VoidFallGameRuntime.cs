@@ -2483,7 +2483,7 @@ namespace VoidFall.Runtime
         private static readonly Color DotWhite = ParseColor("#e2e8f0", Color.white);
         private static readonly Color DotYellow = ParseColor("#facc15", Color.white);
 
-        private static Color SourceDotColor(string dot)
+        internal static Color SourceDotColor(string dot)
         {
             // These are the browser sprites.dot palette entries. Burst and
             // trail particles use the color-baked dot sprite, so keeping this

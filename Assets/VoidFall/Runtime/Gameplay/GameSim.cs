@@ -1175,5 +1175,155 @@ namespace VoidFall.Runtime
             enemy.Facing = new Vector2(Mathf.Cos(next), Mathf.Sin(next));
             enemy.Velocity = enemy.Facing * enemy.Speed;
         }
+        // ---- Enemy behaviour presentation/gameplay hooks ----
+        // Bound once per tick by the runtime's UpdateEnemies wrapper. Hook
+        // call points are part of the hashed FX-RNG contract: they must stay
+        // exactly where the browser interleaved them relative to state
+        // mutations and RNG draws.
+        public Action<Vector2, Color, int, float, float, float> EnemyBurstFxHook;
+        public Action<Vector2, float, float, float, Color> EnemyRingWaveHook;
+        public Action<Vector2, string, Color, float> EnemyFloaterHook;
+        public Func<int, Vector2, bool> EnemySpawnDroneHook;
+        public Action<ProceduralAudio.Cue, float> EnemyAudioCueHook;
+        public Action<float, Vector2> EnemyDamagePlayerHook;
+        public Action<float> EnemyShakeHook;
+
+        private static EnemyDefinition FindEnemy(string id)
+        {
+            foreach (var definition in ContentCatalog.Enemies) if (definition.Id == id) return definition;
+            return null;
+        }
+
+        private static Color SourceDotColor(string dot)
+        {
+            // Palette ownership stays with the procedural factory's caller to
+            // prevent hand-tuned RGB drift between the two copies.
+            return VoidFallGameRuntime.SourceDotColor(dot);
+        }
+
+        private static float SourceEnemyRotationFromDirection(Vector2 direction)
+        {
+            return VoidFallGameRuntime.SourceEnemyRotationFromDirection(direction);
+        }
+        public void UpdateCarrier(ref EnemyState enemy, float dt, float distance, Vector2 direction)
+        {
+            var definition = FindEnemy("carrier");
+            var preferred = (float)(definition?.PreferredDistance ?? 300);
+            if (distance > preferred + 60) enemy.Velocity = direction * enemy.Speed;
+            else if (distance < preferred - 80) enemy.Velocity = -direction * enemy.Speed * 0.55f;
+            else enemy.Velocity = new Vector2(-direction.y, direction.x) * enemy.Speed * 0.2f;
+            if (enemy.AttackCooldown > 0) return;
+
+            var activeDrones = 0;
+            for (var index = 0; index < Enemies.Length; index++)
+            {
+                if (Enemies[index].Active &&
+                    Enemies[index].CarrierDrone &&
+                    Enemies[index].SummonedByCarrierSpawnId == enemy.SpawnId)
+                    activeDrones++;
+            }
+            var amount = Mathf.Min(2, 6 - activeDrones);
+            for (var index = 0; index < amount; index++)
+            {
+                var angle = enemy.Rotation + Mathf.PI + (index == 0 ? -0.45f : 0.45f);
+                EnemySpawnDroneHook?.Invoke(
+                    enemy.SpawnId,
+                    enemy.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (enemy.Radius + 10));
+            }
+            if (amount > 0)
+            {
+                EnemyBurstFxHook?.Invoke(enemy.Position, SourceDotColor("yellow"), 8, 150, 0.35f, 0.62f);
+                EnemyRingWaveHook?.Invoke(enemy.Position, enemy.Radius, 95f, 0.28f,
+                    new Color(1f, 0.86f, 0.18f, 0.58f));
+            }
+            enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
+                definition?.AttackCooldown ?? 4.6,
+                enemy.Roster);
+        }
+        public void UpdateRosterGuard(ref EnemyState enemy, float dt, Vector2 direction)
+        {
+            enemy.Rotation = SourceEnemyRotationFromDirection(direction);
+            enemy.Velocity = direction * enemy.Speed * 0.76f;
+            if (enemy.AttackCooldown > 0) return;
+            var shielded = 0;
+            for (var order = 0; order < EnemyOrderCount && shielded < 3; order++)
+            {
+                var index = EnemyOrder[order];
+                var other = Enemies[index];
+                if (!other.Active || index == enemy.View || other.Elite) continue;
+                if ((other.Position - enemy.Position).sqrMagnitude > 235f * 235f) continue;
+                var capacity = Mathf.Max(8, other.MaxHealth * 0.12f);
+                other.MaxShield = Mathf.Max(other.MaxShield, capacity);
+                var before = other.Shield;
+                other.Shield = Mathf.Min(other.MaxShield, other.Shield + capacity);
+                if (other.Shield > before)
+                {
+                    shielded++;
+                    EnemyBurstFxHook?.Invoke(other.Position, SourceDotColor("blue"),
+                        3, 80, 0.25f, 0.46f);
+                    Enemies[index] = other;
+                }
+            }
+            if (shielded > 0)
+            {
+                EnemyRingWaveHook?.Invoke(enemy.Position, enemy.Radius + 4f, 235f, 0.34f,
+                    new Color(0.133f, 0.827f, 0.933f, 0.78f));
+                EnemyBurstFxHook?.Invoke(enemy.Position, SourceDotColor("cyan"),
+                    8, 120, 0.34f, 0.58f);
+            }
+            enemy.AttackCooldown = shielded > 0
+                ? (float)EnemyRosterRules.RosterCooldownSeconds(4.8, enemy.Roster)
+                : 0.75f;
+        }
+        public void UpdateTechnician(ref EnemyState enemy, float dt, float distance, Vector2 direction)
+        {
+            var definition = FindEnemy("technician");
+            var preferred = (float)(definition?.PreferredDistance ?? 270);
+            if (distance > preferred + 50) enemy.Velocity = direction * enemy.Speed;
+            else if (distance < preferred - 70) enemy.Velocity = -direction * enemy.Speed * 0.7f;
+            else enemy.Velocity = new Vector2(-direction.y, direction.x) * enemy.Speed * 0.28f;
+            if (enemy.AttackCooldown > 0) return;
+
+            var target = -1;
+            var lowestRatio = 0.96f;
+            for (var order = 0; order < EnemyOrderCount; order++)
+            {
+                var index = EnemyOrder[order];
+                var other = Enemies[index];
+                if (!other.Active || index == enemy.View) continue;
+                if ((other.Position - enemy.Position).sqrMagnitude > 260f * 260f) continue;
+                var healthRatio = other.Health / Mathf.Max(1, other.MaxHealth);
+                var shieldRatio = other.MaxShield > 0 ? other.Shield / other.MaxShield : 1;
+                var ratio = Mathf.Min(healthRatio, shieldRatio);
+                if (ratio < lowestRatio)
+                {
+                    lowestRatio = ratio;
+                    target = index;
+                }
+            }
+
+            if (target < 0)
+            {
+                enemy.AttackCooldown = 0.5f;
+                return;
+            }
+
+            var repaired = Enemies[target];
+            var repair = Mathf.Max(7, repaired.MaxHealth * 0.07f);
+            repaired.Health = Mathf.Min(repaired.MaxHealth, repaired.Health + repair);
+            if (repaired.MaxShield > 0) repaired.Shield = Mathf.Min(repaired.MaxShield, repaired.Shield + repaired.MaxShield * 0.12f);
+            repaired.HitTimer = Mathf.Max(repaired.HitTimer, 0.06f);
+            Enemies[target] = repaired;
+            EnemyFloaterHook?.Invoke(
+                repaired.Position + Vector2.up * repaired.Radius,
+                "REPAIRED",
+                new Color(0.368f, 0.91f, 0.83f, 1f),
+                10);
+            EnemyBurstFxHook?.Invoke(repaired.Position, SourceDotColor("emerald"), 6, 120, 0.32f, 0.58f);
+            EnemyBurstFxHook?.Invoke(enemy.Position, SourceDotColor("cyan"), 3, 90, 0.24f, 0.48f);
+            enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
+                definition?.AttackCooldown ?? 2.4,
+                enemy.Roster);
+        }
     }
 }

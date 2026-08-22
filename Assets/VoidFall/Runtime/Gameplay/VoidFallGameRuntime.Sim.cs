@@ -585,6 +585,11 @@ namespace VoidFall.Runtime
         private void UpdateEnemies(float dt)
         {
             var globalHarvesterXp = XpHeldByHarvesters();
+            // Enemy behaviour presentation hooks (see GameSim contract notes).
+            _gameSim.EnemyBurstFxHook = EnemyBurstFxForSim;
+            _gameSim.EnemyRingWaveHook = EnemyRingWaveForSim;
+            _gameSim.EnemyFloaterHook = EnemyFloaterForSim;
+            _gameSim.EnemySpawnDroneHook = EnemySpawnDroneForSim;
             // Browser updateEnemies walks its compact array backwards. The
             // logical order list preserves that behavior across pooled slots.
             for (var order = _gameSim.EnemyOrderCount - 1; order >= 0; order--)
@@ -862,42 +867,23 @@ namespace VoidFall.Runtime
             return total;
         }
 
-        private void UpdateCarrier(ref EnemyState enemy, float dt, float distance, Vector2 direction)
-        {
-            var definition = FindEnemy("carrier");
-            var preferred = (float)(definition?.PreferredDistance ?? 300);
-            if (distance > preferred + 60) enemy.Velocity = direction * enemy.Speed;
-            else if (distance < preferred - 80) enemy.Velocity = -direction * enemy.Speed * 0.55f;
-            else enemy.Velocity = new Vector2(-direction.y, direction.x) * enemy.Speed * 0.2f;
-            if (enemy.AttackCooldown > 0) return;
 
-            var activeDrones = 0;
-            for (var index = 0; index < _gameSim.Enemies.Length; index++)
-            {
-                if (_gameSim.Enemies[index].Active &&
-                    _gameSim.Enemies[index].CarrierDrone &&
-                    _gameSim.Enemies[index].SummonedByCarrierSpawnId == enemy.SpawnId)
-                    activeDrones++;
-            }
-            var amount = Mathf.Min(2, 6 - activeDrones);
-            for (var index = 0; index < amount; index++)
-            {
-                var angle = enemy.Rotation + Mathf.PI + (index == 0 ? -0.45f : 0.45f);
-                SpawnCarrierDrone(
-                    enemy.SpawnId,
-                    enemy.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (enemy.Radius + 10));
-            }
-            if (amount > 0)
-            {
-                BurstFx(enemy.Position, SourceDotColor("yellow"), 8, 150, 0.35f, 0.62f);
-                SpawnRingWave(enemy.Position, enemy.Radius, 95f, 0.28f,
-                    new Color(1f, 0.86f, 0.18f, 0.58f));
-            }
-            enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
-                definition?.AttackCooldown ?? 4.6,
-                enemy.Roster);
-        }
+        private void EnemyBurstFxForSim(Vector2 position, Color color, int count, float speed, float lifetime, float explicitSize)
+            => BurstFx(position, color, count, speed, lifetime, explicitSize);
 
+        private void EnemyRingWaveForSim(Vector2 position, float startRadius, float growth, float life, Color color)
+            => SpawnRingWave(position, startRadius, growth, life, color);
+
+        private void EnemyFloaterForSim(Vector2 position, string text, Color color, float size)
+            => SpawnFloater(position, text, color, size);
+
+        private bool EnemySpawnDroneForSim(int carrierSpawnId, Vector2 position)
+            => SpawnCarrierDrone(carrierSpawnId, position);
+        private void UpdateCarrier(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateCarrier(ref enemy, dt, distance, direction);
+
+        private void UpdateRosterGuard(ref EnemyState enemy, float dt, Vector2 direction) => _gameSim.UpdateRosterGuard(ref enemy, dt, direction);
+
+        private void UpdateTechnician(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateTechnician(ref enemy, dt, distance, direction);
         private bool SpawnCarrierDrone(int carrierSpawnId, Vector2 position)
         {
             if (!SpawnEnemy("runner", position, null, true, false)) return false;
@@ -1033,57 +1019,6 @@ namespace VoidFall.Runtime
                         : (float)(definition?.TelegraphSeconds ?? 0.55);
                 enemy.DashDirection = direction;
             }
-        }
-
-        private void UpdateTechnician(ref EnemyState enemy, float dt, float distance, Vector2 direction)
-        {
-            var definition = FindEnemy("technician");
-            var preferred = (float)(definition?.PreferredDistance ?? 270);
-            if (distance > preferred + 50) enemy.Velocity = direction * enemy.Speed;
-            else if (distance < preferred - 70) enemy.Velocity = -direction * enemy.Speed * 0.7f;
-            else enemy.Velocity = new Vector2(-direction.y, direction.x) * enemy.Speed * 0.28f;
-            if (enemy.AttackCooldown > 0) return;
-
-            var target = -1;
-            var lowestRatio = 0.96f;
-            for (var order = 0; order < _gameSim.EnemyOrderCount; order++)
-            {
-                var index = _gameSim.EnemyOrder[order];
-                var other = _gameSim.Enemies[index];
-                if (!other.Active || index == enemy.View) continue;
-                if ((other.Position - enemy.Position).sqrMagnitude > 260f * 260f) continue;
-                var healthRatio = other.Health / Mathf.Max(1, other.MaxHealth);
-                var shieldRatio = other.MaxShield > 0 ? other.Shield / other.MaxShield : 1;
-                var ratio = Mathf.Min(healthRatio, shieldRatio);
-                if (ratio < lowestRatio)
-                {
-                    lowestRatio = ratio;
-                    target = index;
-                }
-            }
-
-            if (target < 0)
-            {
-                enemy.AttackCooldown = 0.5f;
-                return;
-            }
-
-            var repaired = _gameSim.Enemies[target];
-            var repair = Mathf.Max(7, repaired.MaxHealth * 0.07f);
-            repaired.Health = Mathf.Min(repaired.MaxHealth, repaired.Health + repair);
-            if (repaired.MaxShield > 0) repaired.Shield = Mathf.Min(repaired.MaxShield, repaired.Shield + repaired.MaxShield * 0.12f);
-            repaired.HitTimer = Mathf.Max(repaired.HitTimer, 0.06f);
-            _gameSim.Enemies[target] = repaired;
-            SpawnFloater(
-                repaired.Position + Vector2.up * repaired.Radius,
-                "REPAIRED",
-                new Color(0.368f, 0.91f, 0.83f, 1f),
-                10);
-            BurstFx(repaired.Position, SourceDotColor("emerald"), 6, 120, 0.32f, 0.58f);
-            BurstFx(enemy.Position, SourceDotColor("cyan"), 3, 90, 0.24f, 0.48f);
-            enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
-                definition?.AttackCooldown ?? 2.4,
-                enemy.Roster);
         }
 
         private void UpdateMortar(ref EnemyState enemy, float dt, float distance, Vector2 direction)
@@ -1333,42 +1268,6 @@ namespace VoidFall.Runtime
                 enemy.StateTimer -= dt;
                 if (enemy.StateTimer <= 0) enemy.State = 0;
             }
-        }
-
-        private void UpdateRosterGuard(ref EnemyState enemy, float dt, Vector2 direction)
-        {
-            enemy.Rotation = SourceEnemyRotationFromDirection(direction);
-            enemy.Velocity = direction * enemy.Speed * 0.76f;
-            if (enemy.AttackCooldown > 0) return;
-            var shielded = 0;
-            for (var order = 0; order < _gameSim.EnemyOrderCount && shielded < 3; order++)
-            {
-                var index = _gameSim.EnemyOrder[order];
-                var other = _gameSim.Enemies[index];
-                if (!other.Active || index == enemy.View || other.Elite) continue;
-                if ((other.Position - enemy.Position).sqrMagnitude > 235f * 235f) continue;
-                var capacity = Mathf.Max(8, other.MaxHealth * 0.12f);
-                other.MaxShield = Mathf.Max(other.MaxShield, capacity);
-                var before = other.Shield;
-                other.Shield = Mathf.Min(other.MaxShield, other.Shield + capacity);
-                if (other.Shield > before)
-                {
-                    shielded++;
-                    BurstFx(other.Position, SourceDotColor("blue"),
-                        3, 80, 0.25f, 0.46f);
-                    _gameSim.Enemies[index] = other;
-                }
-            }
-            if (shielded > 0)
-            {
-                SpawnRingWave(enemy.Position, enemy.Radius + 4f, 235f, 0.34f,
-                    new Color(0.133f, 0.827f, 0.933f, 0.78f));
-                BurstFx(enemy.Position, SourceDotColor("cyan"),
-                    8, 120, 0.34f, 0.58f);
-            }
-            enemy.AttackCooldown = shielded > 0
-                ? (float)EnemyRosterRules.RosterCooldownSeconds(4.8, enemy.Roster)
-                : 0.75f;
         }
 
         private void UpdateMeteors(float dt)
@@ -3754,7 +3653,7 @@ namespace VoidFall.Runtime
             return 42f;
         }
 
-        private static float SourceEnemyRotationFromDirection(Vector2 direction)
+        internal static float SourceEnemyRotationFromDirection(Vector2 direction)
         {
             return direction.sqrMagnitude > 0f
                 ? Mathf.Atan2(direction.y, direction.x)
