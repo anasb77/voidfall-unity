@@ -3081,40 +3081,23 @@ namespace VoidFall.Runtime
             RecordTelemetrySample(Mathf.Max(0.0001f, _debugFrameEmaMs / 1000f));
             SaveRun();
             if (_ui != null)
+            if (_ui != null)
             {
-                var summary = new GameOverSummary
-                {
-                    Victory = false,
-                    Score = CurrentScore(),
-                    ElapsedSeconds = _time,
-                    Kills = _kills,
-                    EliteKills = _eliteKills,
-                    BossKills = _bossKills,
-                    Level = _level,
-                    PartsEarned = _partsEarned,
-                    IsBest = _lastRunIsBest,
-                    Saved = _lastRunSaved,
-                    Weapons = new List<WeaponStatSummary>(),
-                    BuildChips = BuildRecapChips()
-                };
-                if (_upgradeProgress != null)
-                {
-                    var totalDamage = (float)Math.Max(1L, _damageDealt);
-                    for (var i = 0; i < ContentCatalog.Weapons.Length; i++)
-                    {
-                        var rank = _upgradeProgress.WeaponRanks[i];
-                        if (rank <= 0) continue;
-                        var weapon = ContentCatalog.Weapons[i];
-                        var dmg = _weaponDamage != null && i < _weaponDamage.Length ? (long)_weaponDamage[i] : 0L;
-                        summary.Weapons.Add(new WeaponStatSummary
-                        {
-                            Name = weapon.Name,
-                            Rank = rank,
-                            Damage = dmg,
-                            DamagePercent = Mathf.Clamp01((float)dmg / totalDamage)
-                        });
-                    }
-                }
+                var summary = GameOverSummaryBuilder.Build(
+                    victory: false,
+                    score: CurrentScore(),
+                    elapsedSeconds: _time,
+                    kills: _kills,
+                    eliteKills: _eliteKills,
+                    bossKills: _bossKills,
+                    level: _level,
+                    partsEarned: _partsEarned,
+                    isBest: _lastRunIsBest,
+                    saved: _lastRunSaved,
+                    weaponRanks: _upgradeProgress?.WeaponRanks,
+                    weaponDamage: _weaponDamage,
+                    totalDamageDealt: _damageDealt,
+                    buildChips: BuildRecapChips());
                 _ui.GameOver?.Show(summary);
             }
         }
