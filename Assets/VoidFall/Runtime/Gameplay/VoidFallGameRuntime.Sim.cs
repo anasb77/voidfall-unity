@@ -1567,41 +1567,20 @@ namespace VoidFall.Runtime
 
         private void IgniteMeteorsInRadius(Vector2 origin, float radius)
         {
-            EnsureMeteorOrderEntries();
-            var link = 1;
-            for (var order = 0; order < _gameSim.MeteorOrderCount; order++)
+            var ignited = _gameSim.IgniteMeteorsInRadius(origin, radius);
+            for (var replay = 0; replay < ignited; replay++)
             {
-                var index = _gameSim.MeteorOrder[order];
-                var meteor = _gameSim.Meteors[index];
-                if (!meteor.Active || !meteor.Explosive || meteor.FuseTimer > 0) continue;
-                if ((meteor.Position - origin).sqrMagnitude > (radius + meteor.Radius) * (radius + meteor.Radius)) continue;
-                meteor.Health = 0;
-                meteor.FuseTimer = (float)MeteorRules.ExplosiveChainDelaySeconds(link);
                 PlayFuseWarning(4);
                 _telemetry.RecordMeteorDestroyed(ArenaIdName(_arenaId), true);
-                _gameSim.Meteors[index] = meteor;
-                link++;
             }
         }
 
-        private int CountMeteors(bool explosive)
-        {
-            var count = 0;
-            const float countRadiusSquared = 1400f * 1400f;
-            foreach (var meteor in _gameSim.Meteors)
-            {
-                if (!meteor.Active || meteor.Explosive != explosive) continue;
-                if ((meteor.Position - _gameSim.Player.Position).sqrMagnitude <= countRadiusSquared) count++;
-            }
-
-            return count;
-        }
+        private int CountMeteors(bool explosive) => _gameSim.CountMeteors(explosive);
 
         private void ClearMeteors()
         {
             for (var index = 0; index < _gameSim.Meteors.Length; index++)
             {
-                _gameSim.Meteors[index].Active = false;
                 Hide(_meteorViews[index]);
                 Hide(_meteorHitViews[index]);
                 Hide(_meteorCoreViews[index]);
@@ -1609,56 +1588,23 @@ namespace VoidFall.Runtime
                 Hide(_meteorDangerRingViews[index]);
                 Hide(_meteorHealthArcViews[index]);
             }
-            for (var index = 0; index < _fxSim.MeteorShards.Length; index++)
-            {
-                // Remove the logical entry even when the pooled slot is
-                // already inactive. A previous budget trim can deactivate a
-                // shard before arena cleanup, and leaving its order entry
-                // behind would make the next reuse appear twice in the
-                // browser-equivalent particles array.
-                RemoveSourceFxOrder(SourceFxKind.MeteorShard, index);
-                _fxSim.MeteorShards[index].Active = false;
-                Hide(_meteorShardViews[index]);
-            }
-            ResetMeteorOrder();
+            var clearedCount = _fxSim.ClearMeteorShards(_fxClearedScratch);
+            for (var index = 0; index < clearedCount; index++)
+                Hide(_meteorShardViews[_fxClearedScratch[index]]);
+            _gameSim.ClearMeteorStates();
         }
 
         private void ShatterMeteor(MeteorState meteor, float force)
         {
             var shardCount = _qualityPreset.Detail > 1 ? 6 : 4;
             var visibleRadius = Mathf.Max(1f, meteor.VisibleRadius);
+            // The budget guard is constant across this loop: nothing here
+            // changes the live particle count between iterations.
+            var allowInsert = !(ActiveFxVisualCount() >= SourceParticleLimit(_qualityPreset.ParticleScale));
             for (var index = 0; index < shardCount; index++)
             {
-                var angle = (float)(_fxSim.FxRng.Next() * Math.PI * 2);
-                var direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                var speed = (110f + (float)_fxSim.FxRng.Next() * 190f) * force;
-                var size = visibleRadius * (0.32f + (float)_fxSim.FxRng.Next() * 0.26f);
-                var life = 0.42f + (float)_fxSim.FxRng.Next() * 0.3f;
-                // Browser singleParticle() consumes this full tuple even
-                // when the particle budget rejects insertion. Keep the
-                // meteor-shard stream deterministic under pressure.
-                if (ActiveFxVisualCount() >= SourceParticleLimit(_qualityPreset.ParticleScale))
-                    continue;
-                var slot = FindMeteorShardSlot();
-                if (slot < 0) continue;
-                if (_fxSim.MeteorShards[slot].Active)
-                    RemoveSourceFxOrder(SourceFxKind.MeteorShard, slot);
-                var shard = new MeteorShardState
-                {
-                    Active = true,
-                    Position = meteor.Position + direction * visibleRadius * 0.4f,
-                    Velocity = direction * speed,
-                    Life = life,
-                    MaxLife = life,
-                    Size = size,
-                    Rotation = 0,
-                    Spin = 0,
-                    Variant = index % 4,
-                    View = slot,
-                };
-                _fxSim.MeteorShards[slot] = shard;
-                AppendSourceFxOrder(SourceFxKind.MeteorShard, slot);
-                var view = EnsureMeteorShardView(slot);
+                if (!_fxSim.TrySpawnMeteorShard(meteor.Position, visibleRadius, force, index, allowInsert, out var shard)) continue;
+                var view = EnsureMeteorShardView(shard.View);
                 view.sprite = ProceduralSpriteFactory.MeteorShard(shard.Variant);
                 view.color = Color.white;
                 view.transform.position = shard.Position;

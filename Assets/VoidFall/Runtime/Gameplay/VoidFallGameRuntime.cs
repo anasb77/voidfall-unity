@@ -694,6 +694,7 @@ namespace VoidFall.Runtime
         // Scratch buffers for GameSim.AdvanceMeteors: fuse-expired and
     // distance-culled slots needing view hides. No allocation per step.
     private readonly int[] _meteorExpiredSlots = new int[MaxMeteors];
+        private readonly int[] _fxClearedScratch = new int[MaxMeteorShards];
     private readonly int[] _meteorCulledSlots = new int[MaxMeteors];
         private DirectorEventDefinition _nextDirectorEvent;
         private bool _directorActive;

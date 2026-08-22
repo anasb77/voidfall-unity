@@ -419,5 +419,73 @@ namespace VoidFall.Runtime
                     RemoveSourceFxOrder(kind, slot);
             }
         }
+        /// <summary>
+        /// Deactivates every meteor-shard slot and removes its insertion-order
+        /// entry, reporting the slots so the caller can hide views.
+        /// </summary>
+        public int ClearMeteorShards(int[] clearedSlots)
+        {
+            var count = 0;
+            for (var index = 0; index < MeteorShards.Length; index++)
+            {
+                // Remove the logical entry even when the pooled slot is
+                // already inactive. A previous budget trim can deactivate a
+                // shard before arena cleanup, and leaving its order entry
+                // behind would make the next reuse appear twice in the
+                // browser-equivalent particles array.
+                RemoveSourceFxOrder(SourceFxKind.MeteorShard, index);
+                if (MeteorShards[index].Active)
+                {
+                    MeteorShards[index].Active = false;
+                    clearedSlots[count++] = index;
+                }
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// Meteor-shard spawn: consumes the full FX-RNG roll tuple exactly
+        /// like the browser's singleParticle() even when insertion is
+        /// rejected (<paramref name="allowInsert"/> false or no free slot),
+        /// keeping the shard stream deterministic under pressure. On success
+        /// the state is written and the order appended; the caller creates
+        /// the view.
+        /// </summary>
+        public bool TrySpawnMeteorShard(
+            Vector2 meteorPosition,
+            float visibleRadius,
+            float force,
+            int shardIndex,
+            bool allowInsert,
+            out MeteorShardState shard)
+        {
+            var angle = (float)(FxRng.Next() * Math.PI * 2);
+            var direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+            var speed = (110f + (float)FxRng.Next() * 190f) * force;
+            var size = visibleRadius * (0.32f + (float)FxRng.Next() * 0.26f);
+            var life = 0.42f + (float)FxRng.Next() * 0.3f;
+            shard = new MeteorShardState
+            {
+                Active = true,
+                Position = meteorPosition + direction * visibleRadius * 0.4f,
+                Velocity = direction * speed,
+                Life = life,
+                MaxLife = life,
+                Size = size,
+                Rotation = 0,
+                Spin = 0,
+                Variant = shardIndex % 4,
+                View = 0,
+            };
+            if (!allowInsert) return false;
+            var slot = FindMeteorShardSlot();
+            if (slot < 0) return false;
+            if (MeteorShards[slot].Active)
+                RemoveSourceFxOrder(SourceFxKind.MeteorShard, slot);
+            shard.View = slot;
+            MeteorShards[slot] = shard;
+            AppendSourceFxOrder(SourceFxKind.MeteorShard, slot);
+            return true;
+        }
     }
 }

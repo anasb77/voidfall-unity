@@ -1115,5 +1115,54 @@ namespace VoidFall.Runtime
             foreach (var meteor in Meteors) if (meteor.Active) count++;
             return count;
         }
+        /// <summary>
+        /// Counts active meteors of the given kind within the browser's 1400
+        /// unit spawn-count radius of the player.
+        /// </summary>
+        public int CountMeteors(bool explosive)
+        {
+            var count = 0;
+            const float countRadiusSquared = 1400f * 1400f;
+            foreach (var meteor in Meteors)
+            {
+                if (!meteor.Active || meteor.Explosive != explosive) continue;
+                if ((meteor.Position - Player.Position).sqrMagnitude <= countRadiusSquared) count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        /// Chain-ignites explosive meteors within blast radius: zeroes health
+        /// and arms each fuse with the per-link chain delay. Returns the
+        /// number ignited so the caller can replay fuse warnings and
+        /// telemetry in the same order.
+        /// </summary>
+        public int IgniteMeteorsInRadius(Vector2 origin, float radius)
+        {
+            var link = 1;
+            for (var order = 0; order < MeteorOrderCount; order++)
+            {
+                var index = MeteorOrder[order];
+                var meteor = Meteors[index];
+                if (!meteor.Active || !meteor.Explosive || meteor.FuseTimer > 0) continue;
+                if ((meteor.Position - origin).sqrMagnitude > (radius + meteor.Radius) * (radius + meteor.Radius)) continue;
+                meteor.Health = 0;
+                meteor.FuseTimer = (float)MeteorRules.ExplosiveChainDelaySeconds(link);
+                Meteors[index] = meteor;
+                link++;
+            }
+            return link - 1;
+        }
+
+        /// <summary>Deactivates every meteor slot. Views are the caller's.</summary>
+        public void ClearMeteorStates()
+        {
+            for (var index = 0; index < Meteors.Length; index++)
+            {
+                Meteors[index].Active = false;
+            }
+            ResetMeteorOrder();
+        }
     }
 }
