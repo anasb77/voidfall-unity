@@ -38,6 +38,18 @@ namespace VoidFall.Runtime
                 { "NoGravity", new[] { 30f, 112f } },
             };
 
+        /// <summary>
+        /// TRACK SHIFT combat entry points for gameplay OST tracks (spec
+        /// 50.2): authored seconds that skip quiet intros so a shifted track
+        /// starts hot. Keys match clip names; add entries as tracks are
+        /// curated.
+        /// </summary>
+        private static readonly Dictionary<string, float[]> GameplayStartOffsets =
+            new Dictionary<string, float[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Example: { "FracturedHeaven", new[] { 18f, 111f } },
+            };
+
         // Time constant for cross-fades, not a duration.
         private const float FadeTimeConstant = 0.32f;
         // Final gain applied on top of master x music. ProceduralAudio's pad
@@ -295,6 +307,17 @@ namespace VoidFall.Runtime
             RequestChannel(Channel.None);
         }
 
+        /// <summary>
+        /// TRACK SHIFT pickup (spec section 50): crossfades the gameplay
+        /// soundtrack to a different track at an authored combat entry point.
+        /// Combat never pauses; one shift at a time.
+        /// </summary>
+        public void ShiftToNextCombatTrack()
+        {
+            if (!HasGameplayTracks || _channel != Channel.Gameplay || _switching) return;
+            RequestChannel(Channel.Gameplay);
+        }
+
         private void RequestChannel(Channel channel)
         {
             if (channel == Channel.Gameplay && !HasGameplayTracks) return;
@@ -353,7 +376,7 @@ namespace VoidFall.Runtime
             }
 
             _current = clips[index];
-            _startOffset = channel == Channel.MainMenu ? PickStartOffset(_current.name) : 0f;
+            _startOffset = PickStartOffset(_current.name);
             StartCurrent(0f);
         }
 
@@ -394,10 +417,22 @@ namespace VoidFall.Runtime
         private float PickStartOffset(string clipName)
         {
             if (string.IsNullOrEmpty(clipName)) return 0f;
-            if (!MenuStartOffsets.TryGetValue(clipName, out var options)) return 0f;
-            if (options == null || options.Length == 0) return 0f;
-            if (options.Length == 1) return options[0];
-            return options[_rng.Next(options.Length)];
+            if (MenuStartOffsets.TryGetValue(clipName, out var options) &&
+                options != null && options.Length > 0)
+            {
+                return options.Length == 1 ? options[0] : options[_rng.Next(options.Length)];
+            }
+            // TRACK SHIFT combat entry points for OST tracks (spec 50.2):
+            // authored seconds that skip quiet intros so the next track
+            // starts hot. A track with no entry here starts at zero.
+            if (GameplayStartOffsets.TryGetValue(clipName, out var combatOptions) &&
+                combatOptions != null && combatOptions.Length > 0)
+            {
+                return combatOptions.Length == 1
+                    ? combatOptions[0]
+                    : combatOptions[_rng.Next(combatOptions.Length)];
+            }
+            return 0f;
         }
 
         /// <summary>

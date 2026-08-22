@@ -1972,6 +1972,8 @@ namespace VoidFall.Runtime
             _rouletteActive = false;
             _rouletteSession = null;
             _rouletteRng = null;
+            _activeWildCards.Clear();
+            _standstillSeconds = 0;
             _pistolRank = 1;
             _calibrationRank = 0;
             RecalculatePlayerStats(false);
@@ -2293,6 +2295,9 @@ namespace VoidFall.Runtime
             // first, then expires their timers before the remaining systems run.
             _gameSim.Player.Iframes = Mathf.Max(0, _gameSim.Player.Iframes - dt);
             _overclock.Step(dt);
+            // OVERCLOCKER wild card: a permanent tier-1 floor on the boost.
+            if (!_overclock.Active && HasWildCard(WildCardId.Overclocker))
+                _overclock.HoldTier1();
             _adrenalTimer = Mathf.Max(0, _adrenalTimer - dt);
             UpdateCameraFollow(dt);
             UpdateWeapons(dt);

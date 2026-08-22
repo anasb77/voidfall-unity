@@ -132,6 +132,7 @@ namespace VoidFall.Runtime
             Repair,
             Bomb,
             Overdrive,
+            TrackShift,
         }
 
         internal struct PickupState

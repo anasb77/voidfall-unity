@@ -66,6 +66,9 @@ namespace VoidFall.Runtime
                 _moveSpeedMultiplier * (1 + (_adrenalTimer > 0 ? adrenal * 0.06f : 0)) *
                 (float)OverclockRules.MovementMultiplier(_overclock.PowerTier);
             if (_gameSim.Player.Health <= 0) input = Vector2.zero;
+            // STANDSTILL stance timer: rest counts up, any movement resets.
+            if (input.sqrMagnitude < 0.0001f) _standstillSeconds += dt;
+            else _standstillSeconds = 0f;
             var targetVelocity = input * speed;
             var movementBlend = 1 - Mathf.Exp(-14f * dt);
             _gameSim.Player.Velocity += (targetVelocity - _gameSim.Player.Velocity) * movementBlend;
@@ -1815,7 +1818,10 @@ namespace VoidFall.Runtime
                     RemovePickupOrderAt(order);
                     if (pickup.Kind == PickupKind.Xp)
                     {
-                        _xp += pickup.Value;
+                        // GREED doubles every source; the pull flag was
+                        // captured before the slot freed.
+                        if (collectedFromPull) collectedFromPull = !HasWildCard(WildCardId.Greed);
+                        _xp += pickup.Value * GreedXpMultiplier();
                         _telemetry.RecordXpCollected(pickup.Value);
                         _pickupStep = _pickupStepTimer > 0 ? _pickupStep + 1 : 0;
                         _pickupStepTimer = 0.9f;
@@ -1841,13 +1847,18 @@ namespace VoidFall.Runtime
                     }
                     else if (pickup.Kind == PickupKind.Magnet)
                     {
-                        for (var otherIndex = 0; otherIndex < _gameSim.Pickups.Length; otherIndex++)
+                        // GREED disables every magnet effect, including this
+                        // pickup's pull-all - no hidden exceptions (spec 44.3).
+                        if (!HasWildCard(WildCardId.Greed))
                         {
-                            var other = _gameSim.Pickups[otherIndex];
-                            if (other.Active && other.Kind == PickupKind.Xp)
+                            for (var otherIndex = 0; otherIndex < _gameSim.Pickups.Length; otherIndex++)
                             {
-                                other.Pull = true;
-                                _gameSim.Pickups[otherIndex] = other;
+                                var other = _gameSim.Pickups[otherIndex];
+                                if (other.Active && other.Kind == PickupKind.Xp)
+                                {
+                                    other.Pull = true;
+                                    _gameSim.Pickups[otherIndex] = other;
+                                }
                             }
                         }
                         _audio?.Play(ProceduralAudio.Cue.Pickup, 1f);
@@ -1892,14 +1903,24 @@ namespace VoidFall.Runtime
                             2.5f,
                             ToastKind.Reward);
                     }
+                    else if (pickup.Kind == PickupKind.TrackShift)
+                    {
+                        // Spec section 50: crossfade to the next track at a
+                        // combat entry point; combat never pauses.
+                        _music?.ShiftToNextCombatTrack();
+                        _score += 150;
+                        BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"), 10, 200, 0.4f, 0.75f);
+                        ShowArenaToast("TRACK SHIFT", 2f, ToastKind.Reward);
+                    }
                     _telemetry.RecordPickup(PickupKindName(pickup.Kind), pickup.Value);
                 };
             }
             _gameSim.PickupCollectedHook = _pickupCollectedHook;
+            var greedActive = HasWildCard(WildCardId.Greed);
 
             _gameSim.AdvancePickups(
                 dt,
-                _pickupRadius + _workshopMagnet * 8,
+                greedActive ? 0f : _pickupRadius + _workshopMagnet * 8,
                 PlayerRadius,
                 _gameSim.Player.Health > 0 && !_gameOver && !_revivePending,
                 out var pulledXpCount,
@@ -3136,13 +3157,17 @@ namespace VoidFall.Runtime
         private void SpawnRarePickup(Vector2 position)
         {
             var roll = _gameSim.Rng.Next();
-            var kind = roll < 0.3
-                ? PickupKind.Magnet
-                : roll < 0.64
-                    ? PickupKind.Repair
-                    : roll < 0.86
-                        ? PickupKind.Bomb
-                        : PickupKind.Overdrive;
+            // TRACK SHIFT rides the rare pool at a modest band; the music
+            // switch is a delight, not a build-around.
+            var kind = roll < 0.08
+                ? PickupKind.TrackShift
+                : roll < 0.36
+                    ? PickupKind.Magnet
+                    : roll < 0.67
+                        ? PickupKind.Repair
+                        : roll < 0.87
+                            ? PickupKind.Bomb
+                            : PickupKind.Overdrive;
             SpawnSpecialPickup(position, 1, kind);
         }
 
@@ -3167,6 +3192,7 @@ namespace VoidFall.Runtime
                 case PickupKind.Repair: return "repair";
                 case PickupKind.Bomb: return "bomb";
                 case PickupKind.Overdrive: return "overdrive";
+                case PickupKind.TrackShift: return "trackshift";
                 default: return "unknown";
             }
         }
@@ -3320,6 +3346,7 @@ namespace VoidFall.Runtime
         {
             var enemy = _gameSim.Enemies[index];
             if (!enemy.Active) return;
+            damage *= PlayerDamageMultiplier();
             var appliedDamage = Mathf.Max(0, damage);
             if (enemy.Id == "bulwark" && direction.sqrMagnitude > 0.001f)
             {
@@ -3403,6 +3430,7 @@ namespace VoidFall.Runtime
             if (index < 0 || index >= _gameSim.Bosses.Length) return;
             var boss = _gameSim.Bosses[index];
             if (!boss.Active || boss.State == 4) return;
+            damage *= PlayerDamageMultiplier();
             if (IsMatriarchShielded(boss))
             {
                 if (boss.ShieldHitTimer <= 0)
@@ -3575,6 +3603,7 @@ namespace VoidFall.Runtime
             if (index < 0 || index >= _gameSim.Meteors.Length) return false;
             var meteor = _gameSim.Meteors[index];
             if (!meteor.Active || meteor.FuseTimer > 0) return false;
+            damage *= PlayerDamageMultiplier();
             meteor.Health -= damage;
             meteor.HitTimer = 0.09f;
             if (meteor.Health > 0)

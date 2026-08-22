@@ -87,11 +87,13 @@ namespace VoidFall.Runtime
                     ShowArenaToast("Rare boon - integrity restored", 2.5f, ToastKind.Reward);
                     break;
                 case RoulettePrizeKind.WildCard:
-                    // Wild-card run modifiers land with that feature; until
-                    // then the top wedge cashes out at its Parts value.
-                    _partsEarned += 80;
-                    _score += 750;
-                    ShowArenaToast("Wild card cashes out early", 2.5f, ToastKind.Reward);
+                    if (!TryGrantRandomWildCard(session))
+                    {
+                        // Every implemented card is already held: cash out.
+                        _partsEarned += 80;
+                        _score += 750;
+                        ShowArenaToast("Wild card cashes out early", 2.5f, ToastKind.Reward);
+                    }
                     break;
             }
         }

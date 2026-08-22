@@ -55,5 +55,18 @@ namespace VoidFall.Core
             Streak = 0;
             RemainingSeconds = 0f;
         }
+
+        /// <summary>
+        /// OVERCLOCKER wild card (spec 44.1): keeps a permanent tier-1 state.
+        /// Called after Step whenever the card is held; never raises the tier
+        /// or streak above what pickups earned - it only prevents full expiry.
+        /// </summary>
+        public void HoldTier1()
+        {
+            if (Active) return;
+            PowerTier = 1;
+            if (Streak < 1) Streak = 1;
+            RemainingSeconds = OverclockRules.StackDurationSeconds;
+        }
     }
 }
