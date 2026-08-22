@@ -62,6 +62,16 @@ namespace VoidFall.Runtime
         /// <summary>Player kinematics and vitals (migrated from the runtime).</summary>
         public PlayerState Player;
 
+        /// <summary>Live count of curved hostile projectiles (browser cap state).</summary>
+        public int CurvedShotCount;
+
+        // Hostile-shot advance wiring. The runtime keeps DamagePlayer (health,
+        // iframes, death/revive flow, shake, telemetry), so the loop invokes
+        // these cached delegates at the exact points the browser resolves an
+        // impact. Both are instance-cached; nothing allocates per step.
+        public Func<bool> PlayerVulnerableQuery;
+        public Action<int, Vector2> HostileShotImpact;
+
         public GameSim(
             int maxEnemies,
             int maxBullets,
@@ -368,6 +378,137 @@ namespace VoidFall.Runtime
             };
             AppendMeteorOrder(slot);
             return slot;
+        }
+
+        /// <summary>
+        /// Rebuilds the hostile-shot insertion order to exactly the active
+        /// shots: appends every active slot the order is missing, then drops
+        /// stale entries. Same shape as the runtime's original helper.
+        /// </summary>
+        public void EnsureHostileShotOrderEntries()
+        {
+            for (var index = 0; index < HostileShots.Length; index++)
+            {
+                if (HostileShots[index].Active) HostileShotOrder.Append(index);
+            }
+            for (var order = HostileShotOrder.Count - 1; order >= 0; order--)
+            {
+                var slot = HostileShotOrder.SlotAt(order);
+                if (slot < 0 || !HostileShots[slot].Active) HostileShotOrder.Remove(slot);
+            }
+        }
+
+        /// <summary>
+        /// Inserts a spawned hostile shot: curved-cap check, slot find, state
+        /// write, and order append. No Rng draws happen here, matching the
+        /// browser spawnHostileShot. Returns the slot, or -1 when the pool is
+        /// full or the curved cap blocks the spawn. View creation stays on the
+        /// runtime.
+        /// </summary>
+        public int TryInsertHostileShot(
+            Vector2 position,
+            Vector2 direction,
+            float damage,
+            float speed,
+            float curvature,
+            bool meteorOwned = false,
+            int visualVariant = -1)
+        {
+            var slot = FindInactive(HostileShots);
+            if (slot < 0) return -1;
+            // Browser spawnHostileShot uses an exact non-zero check for
+            // curvature; tiny valid values still consume the curved-shot cap
+            // and receive lateral acceleration.
+            var curved = curvature != 0f;
+            if (curved && CurvedShotCount >= EliteRules.MaxCurvedProjectiles) return -1;
+            // Browser spawnHostileShot stores the supplied nx/ny directly; it
+            // does not substitute a right-facing unit vector for zero input.
+            var angle = Mathf.Atan2(direction.y, direction.x);
+            var acceleration = curved
+                ? new Vector2(
+                    Mathf.Cos(angle + Mathf.PI / 2) * curvature * (float)EliteRules.CurvedLateralAcceleration,
+                    Mathf.Sin(angle + Mathf.PI / 2) * curvature * (float)EliteRules.CurvedLateralAcceleration)
+                : Vector2.zero;
+            HostileShots[slot] = new HostileShotState
+            {
+                Active = true,
+                Position = position,
+                Velocity = direction * speed,
+                Acceleration = acceleration,
+                Damage = damage,
+                Life = curved ? 3.6f : 3.2f,
+                Radius = curved ? 7f : 6f,
+                Curved = curved,
+                MeteorOwned = meteorOwned,
+                Variant = visualVariant,
+                View = slot,
+            };
+            HostileShotOrder.Append(slot);
+            if (curved) CurvedShotCount++;
+            return slot;
+        }
+
+        /// <summary>
+        /// Advances every active hostile shot: curve acceleration, drift, life
+        /// decay, player-impact resolution, and expiry.
+        ///
+        /// Player impacts call <see cref="HostileShotImpact"/> mid-loop at the
+        /// exact point the browser resolves them - DamagePlayer may set
+        /// iframes or end the run, which gates later shots in this same pass,
+        /// so the impact must not be deferred. Vulnerability beyond health
+        /// (game over, revive pending, dying timer, iframes) is queried live
+        /// through <see cref="PlayerVulnerableQuery"/> for the same reason.
+        /// Expired slots are reported through expiredSlots so the caller can
+        /// hide views.
+        /// </summary>
+        public void AdvanceHostileShots(
+            float dt,
+            float attackPlayerRadius,
+            int[] expiredSlots,
+            out int expiredCount)
+        {
+            expiredCount = 0;
+            EnsureHostileShotOrderEntries();
+            var initialOrderCount = HostileShotOrder.Count;
+            for (var order = initialOrderCount - 1; order >= 0; order--)
+            {
+                var index = HostileShotOrder.SlotAt(order);
+                var shot = HostileShots[index];
+                if (!shot.Active)
+                {
+                    HostileShotOrder.Remove(index);
+                    continue;
+                }
+                if (shot.Curved) shot.Velocity += shot.Acceleration * dt;
+                shot.Position += shot.Velocity * dt;
+                shot.Life -= dt;
+                if (shot.Life > 0 && Player.Health > 0 &&
+                    PlayerVulnerableQuery != null && PlayerVulnerableQuery() &&
+                    Vector2.Distance(shot.Position, Player.Position) <
+                        shot.Radius + attackPlayerRadius)
+                {
+                    var impactDirection = shot.Velocity / SourceLengthOrOne(shot.Velocity);
+                    HostileShotImpact?.Invoke(index, impactDirection);
+                    shot.Life = 0;
+                }
+
+                if (shot.Life <= 0)
+                {
+                    shot.Active = false;
+                    if (shot.Curved) CurvedShotCount = Mathf.Max(0, CurvedShotCount - 1);
+                    if (expiredSlots != null && expiredCount < expiredSlots.Length)
+                        expiredSlots[expiredCount++] = index;
+                    HostileShotOrder.Remove(index);
+                }
+
+                HostileShots[index] = shot;
+            }
+        }
+
+        private static float SourceLengthOrOne(Vector2 value)
+        {
+            var length = value.magnitude;
+            return length > 0f ? length : 1f;
         }
 
         public void ResetPickupOrder()

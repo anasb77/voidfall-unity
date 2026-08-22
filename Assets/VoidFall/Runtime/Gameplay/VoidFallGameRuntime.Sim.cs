@@ -942,7 +942,7 @@ namespace VoidFall.Runtime
                     {
                         var curvatures = EliteRules.CurvedVolleyCurvatures(enemy.Volley);
                         if (MaxHostileShots - ActiveHostileShots() < curvatures.Length ||
-                            EliteRules.MaxCurvedProjectiles - _curvedShotCount < curvatures.Length)
+                            EliteRules.MaxCurvedProjectiles - _gameSim.CurvedShotCount < curvatures.Length)
                         {
                             enemy.State = 0;
                             enemy.AttackCooldown = (float)stats.AttackCooldownSeconds;
@@ -3761,37 +3761,12 @@ namespace VoidFall.Runtime
             bool meteorOwned = false,
             int visualVariant = -1)
         {
-            var slot = FindInactive(_gameSim.HostileShots);
+            // Insertion (curved-cap check, slot find, state write, order
+            // append) is GameSim's now; check order matches the browser.
+            var slot = _gameSim.TryInsertHostileShot(
+                position, direction, damage, speed, curvature, meteorOwned, visualVariant);
             if (slot < 0) return;
-            // Browser spawnHostileShot uses an exact non-zero check for
-            // curvature; tiny valid values still consume the curved-shot cap
-            // and receive lateral acceleration.
             var curved = curvature != 0f;
-            if (curved && _curvedShotCount >= EliteRules.MaxCurvedProjectiles) return;
-            // Browser spawnHostileShot stores the supplied nx/ny directly; it
-            // does not substitute a right-facing unit vector for zero input.
-            var angle = Mathf.Atan2(direction.y, direction.x);
-            var acceleration = curved
-                ? new Vector2(
-                    Mathf.Cos(angle + Mathf.PI / 2) * curvature * (float)EliteRules.CurvedLateralAcceleration,
-                    Mathf.Sin(angle + Mathf.PI / 2) * curvature * (float)EliteRules.CurvedLateralAcceleration)
-                : Vector2.zero;
-            _gameSim.HostileShots[slot] = new HostileShotState
-            {
-                Active = true,
-                Position = position,
-                Velocity = direction * speed,
-                Acceleration = acceleration,
-                Damage = damage,
-                Life = curved ? 3.6f : 3.2f,
-                Radius = curved ? 7f : 6f,
-                Curved = curved,
-                MeteorOwned = meteorOwned,
-                Variant = visualVariant,
-                View = slot,
-            };
-            AppendHostileShotOrder(slot);
-            if (curved) _curvedShotCount++;
             var view = EnsureHostileShotView(slot);
             view.sprite = curved
                 ? ProceduralSpriteFactory.Projectile("curved")
@@ -3817,40 +3792,32 @@ namespace VoidFall.Runtime
 
         private void UpdateHostileShots(float dt)
         {
-            EnsureHostileShotOrderEntries();
-            var initialOrderCount = _gameSim.HostileShotOrder.Count;
-            for (var order = initialOrderCount - 1; order >= 0; order--)
+            // The runtime keeps DamagePlayer and telemetry; GameSim drives the
+            // loop and calls back at the exact points the browser resolves an
+            // impact, so iframes set by one hit still gate later shots in the
+            // same pass. Delegates are cached - no per-step allocation.
+            if (_hostileShotVulnerableQuery == null)
             {
-                var index = _gameSim.HostileShotOrder.SlotAt(order);
-                var shot = _gameSim.HostileShots[index];
-                if (!shot.Active)
+                _hostileShotVulnerableQuery = () =>
+                    !_gameOver && !_revivePending &&
+                    _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0;
+                _hostileShotImpactHandler = (index, impactDirection) =>
                 {
-                    RemoveHostileShotOrder(index);
-                    continue;
-                }
-                if (shot.Curved) shot.Velocity += shot.Acceleration * dt;
-                shot.Position += shot.Velocity * dt;
-                shot.Life -= dt;
-                if (shot.Life > 0 && _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
-                    _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0 &&
-                    Vector2.Distance(shot.Position, _gameSim.Player.Position) < shot.Radius + AttackPlayerRadius)
-                {
-                    var impactDirection = shot.Velocity / SourceLengthOrOne(shot.Velocity);
-                    DamagePlayer(shot.Damage, impactDirection);
-                    if (shot.MeteorOwned) _telemetry.RecordMeteorPlayerHit(ArenaIdName(_arenaId));
-                    shot.Life = 0;
-                }
-
-                if (shot.Life <= 0)
-                {
-                    shot.Active = false;
-                    if (shot.Curved) _curvedShotCount = Mathf.Max(0, _curvedShotCount - 1);
-                    Hide(_hostileShotViews[index]);
-                    RemoveHostileShotOrder(index);
-                }
-
-                _gameSim.HostileShots[index] = shot;
+                    DamagePlayer(_gameSim.HostileShots[index].Damage, impactDirection);
+                    if (_gameSim.HostileShots[index].MeteorOwned)
+                        _telemetry.RecordMeteorPlayerHit(ArenaIdName(_arenaId));
+                };
             }
+            _gameSim.PlayerVulnerableQuery = _hostileShotVulnerableQuery;
+            _gameSim.HostileShotImpact = _hostileShotImpactHandler;
+
+            _gameSim.AdvanceHostileShots(
+                dt,
+                AttackPlayerRadius,
+                _hostileShotExpiredSlots,
+                out var expiredCount);
+            for (var slotIndex = 0; slotIndex < expiredCount; slotIndex++)
+                Hide(_hostileShotViews[_hostileShotExpiredSlots[slotIndex]]);
         }
 
         private void SpawnPickup(Vector2 position, float value)

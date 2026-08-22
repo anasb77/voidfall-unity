@@ -754,7 +754,11 @@ namespace VoidFall.Runtime
         private bool _pendingDoubleBoss;
         private int _nextBossTelemetryId;
         private int _nextEnemyId;
-        private int _curvedShotCount;
+        // Cached delegates for GameSim.AdvanceHostileShots (no per-step allocation)
+    // plus the expired-slot scratch buffer for view hides.
+    private Func<bool> _hostileShotVulnerableQuery;
+    private Action<int, Vector2> _hostileShotImpactHandler;
+    private readonly int[] _hostileShotExpiredSlots = new int[MaxHostileShots];
         private int _nextArcEffectSequence;
         private int _nextRailTrailSequence;
         private bool _paused;
@@ -2031,7 +2035,7 @@ namespace VoidFall.Runtime
             _pendingDoubleBoss = false;
             _nextBossTelemetryId = 1;
             _nextEnemyId = 1;
-            _curvedShotCount = 0;
+            _gameSim.CurvedShotCount = 0;
             _nextArcEffectSequence = 0;
             _nextRailTrailSequence = 0;
             _paused = false;
