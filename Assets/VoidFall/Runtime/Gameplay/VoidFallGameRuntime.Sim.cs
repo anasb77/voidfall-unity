@@ -607,6 +607,7 @@ namespace VoidFall.Runtime
             _gameSim.EnemyRevivePendingQuery = EnemyRevivePendingForSim;
             _gameSim.EnemyHidePickupViewHook = EnemyHidePickupViewForSim;
             _gameSim.EnemyTelemetryHook = EnemyTelemetryForSim;
+            _gameSim.EnemyShakeHook = EnemyShakeForSim;
             // Browser updateEnemies walks its compact array backwards. The
             // logical order list preserves that behavior across pooled slots.
             for (var order = _gameSim.EnemyOrderCount - 1; order >= 0; order--)
@@ -793,6 +794,8 @@ namespace VoidFall.Runtime
         private void EnemyHidePickupViewForSim(int slot) => Hide(_pickupViews[slot]);
 
         private void EnemyTelemetryForSim(float absorbed) => _telemetry.RecordXpAbsorbedByHarvester(absorbed);
+
+        private void EnemyShakeForSim(float amount) => AddCameraShake(amount);
         private bool EnemyRevivePendingForSim() => _revivePending;
         private double EnemyFxRollForSim() => _fxSim.FxRng.Next();
         private bool EnemySpawnDroneForSim(int carrierSpawnId, Vector2 position)
