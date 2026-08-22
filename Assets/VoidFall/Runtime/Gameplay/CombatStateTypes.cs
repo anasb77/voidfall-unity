@@ -197,4 +197,18 @@ namespace VoidFall.Runtime
             public float Iframes;
             public float DyingTimer;
         }
+
+        /// <summary>
+        /// Nearest-hostile query result. Promoted from a private runtime nested
+        /// type so GameSim's homing/ricochet logic can share it.
+        /// </summary>
+        internal struct HostileTarget
+        {
+            public bool Valid;
+            public bool Boss;
+            public int Index;
+            public int Identity;
+            public Vector2 Position;
+            public float DistanceSquared;
+        }
 }

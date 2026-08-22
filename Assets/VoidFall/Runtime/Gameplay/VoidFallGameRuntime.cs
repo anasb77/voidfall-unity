@@ -270,16 +270,6 @@ namespace VoidFall.Runtime
             public ToastKind Kind;
         }
 
-        private struct HostileTarget
-        {
-            public bool Valid;
-            public bool Boss;
-            public int Index;
-            public int Identity;
-            public Vector2 Position;
-            public float DistanceSquared;
-        }
-
         private enum MenuPage
         {
             None,
@@ -759,6 +749,13 @@ namespace VoidFall.Runtime
     private Func<bool> _hostileShotVulnerableQuery;
     private Action<int, Vector2> _hostileShotImpactHandler;
     private readonly int[] _hostileShotExpiredSlots = new int[MaxHostileShots];
+    // Cached hooks for GameSim.AdvanceBullets plus its scratch buffer.
+    private Action<int> _bulletTrailHook;
+    private Action<int, int> _bulletEnemyHitHook;
+    private Action<int, int> _bulletBossHitHook;
+    private Func<int, int, bool> _bulletMeteorHitHook;
+    private Func<int, bool> _bulletRicochetHook;
+    private readonly int[] _bulletExpiredSlots = new int[MaxBullets];
         private int _nextArcEffectSequence;
         private int _nextRailTrailSequence;
         private bool _paused;

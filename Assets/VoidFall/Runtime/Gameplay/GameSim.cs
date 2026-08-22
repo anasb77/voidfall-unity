@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using UnityEngine;
 using VoidFall.Core;
 
@@ -71,6 +72,17 @@ namespace VoidFall.Runtime
         // impact. Both are instance-cached; nothing allocates per step.
         public Func<bool> PlayerVulnerableQuery;
         public Action<int, Vector2> HostileShotImpact;
+
+        // Bullet advance wiring. The loop skeleton, homing targeting, identity
+        // bookkeeping and hit resolution live here; the runtime supplies the
+        // view/FX/damage cascades through these cached delegates at the exact
+        // points the browser interleaves them (FX RNG draw order is hashed by
+        // the golden master, so the call points must not move).
+        public Action<int> BulletTrailHook;            // slot: homing trail emission
+        public Action<int, int> BulletEnemyHitHook;    // slot, enemyIndex
+        public Action<int, int> BulletBossHitHook;     // slot, bossIndex
+        public Func<int, int, bool> BulletMeteorHitHook; // slot, meteorIndex -> consumed?
+        public Func<int, bool> BulletRicochetHook;     // slot -> retargeted?
 
         public GameSim(
             int maxEnemies,
@@ -509,6 +521,338 @@ namespace VoidFall.Runtime
         {
             var length = value.magnitude;
             return length > 0f ? length : 1f;
+        }
+
+        public void EnsureBulletOrderEntries()
+        {
+            for (var index = 0; index < Bullets.Length; index++)
+            {
+                if (Bullets[index].Active) BulletOrder.Append(index);
+            }
+            for (var order = BulletOrder.Count - 1; order >= 0; order--)
+            {
+                var slot = BulletOrder.SlotAt(order);
+                if (slot < 0 || !Bullets[slot].Active) BulletOrder.Remove(slot);
+            }
+        }
+
+        internal static int EnemyIdentity(EnemyState enemy, int slot)
+        {
+            // SpawnId is the browser-equivalent object identity. A few
+            // reflection fixtures construct a zero-initialized EnemyState, so
+            // retain deterministic slot identity only for that test-only case.
+            return enemy.SpawnId > 0 ? enemy.SpawnId : slot;
+        }
+
+        internal static int BossIdentity(BossState boss, int slot)
+        {
+            // TelemetryInstanceId is the browser boss instance identity. A
+            // slot fallback keeps reflection fixtures deterministic.
+            return boss.TelemetryInstanceId > 0 ? boss.TelemetryInstanceId : slot + 1;
+        }
+
+        private bool BulletAlreadyHitEnemy(BulletState bullet, int enemyIndex)
+        {
+            if (enemyIndex < 0 || enemyIndex >= Enemies.Length) return false;
+            var identity = EnemyIdentity(Enemies[enemyIndex], enemyIndex);
+            return bullet.HitEnemy0 == identity || bullet.HitEnemy1 == identity ||
+                bullet.HitEnemy2 == identity || bullet.HitEnemy3 == identity;
+        }
+
+        private static bool BossAlreadyHit(BulletState bullet, BossState boss, int slot)
+        {
+            var identity = BossIdentity(boss, slot);
+            return bullet.BossHit0 == identity || bullet.BossHit1 == identity ||
+                bullet.BossHit2 == identity || bullet.BossHit3 == identity;
+        }
+
+        /// <summary>
+        /// Nearest-hostile scan in insertion order so equal-distance ties
+        /// resolve identically to the browser.
+        /// </summary>
+        internal HostileTarget FindNearestHostileFrom(
+            Vector2 origin,
+            float range,
+            BulletState bullet,
+            bool excludeHitHistory = true,
+            HashSet<int> visited = null,
+            int[] visitedBuffer = null,
+            int visitedCount = 0)
+        {
+            var target = new HostileTarget
+            {
+                Valid = false,
+                Index = -1,
+                DistanceSquared = range * range,
+            };
+            for (var order = 0; order < EnemyOrderCount; order++)
+            {
+                var index = EnemyOrder[order];
+                var enemy = Enemies[index];
+                if (!enemy.Active || enemy.Age < 0.15f ||
+                    IsVisited(visited, visitedBuffer, visitedCount, EnemyIdentity(enemy, index)) ||
+                    (excludeHitHistory && BulletAlreadyHitEnemy(bullet, index))) continue;
+                var distance = (enemy.Position - origin).sqrMagnitude;
+                if (distance >= target.DistanceSquared) continue;
+                target = new HostileTarget
+                {
+                    Valid = true,
+                    Boss = false,
+                    Index = index,
+                    Identity = EnemyIdentity(enemy, index),
+                    Position = enemy.Position,
+                    DistanceSquared = distance,
+                };
+            }
+            EnsureBossOrderEntries();
+            for (var bossOrder = 0; bossOrder < BossOrderCount; bossOrder++)
+            {
+                var index = BossOrder[bossOrder];
+                var boss = Bosses[index];
+                if (!boss.Active || boss.State == 4 ||
+                    IsVisited(visited, visitedBuffer, visitedCount, -BossIdentity(boss, index)) ||
+                    (excludeHitHistory && BossAlreadyHit(bullet, boss, index))) continue;
+                var distance = (boss.Position - origin).sqrMagnitude;
+                if (distance >= target.DistanceSquared) continue;
+                target = new HostileTarget
+                {
+                    Valid = true,
+                    Boss = true,
+                    Index = index,
+                    Identity = BossIdentity(boss, index),
+                    Position = boss.Position,
+                    DistanceSquared = distance,
+                };
+            }
+            return target;
+        }
+
+        private static bool IsVisited(
+            HashSet<int> visited,
+            int[] visitedBuffer,
+            int visitedCount,
+            int identity)
+        {
+            if (visited != null) return visited.Contains(identity);
+            for (var index = 0; index < visitedCount; index++)
+            {
+                if (visitedBuffer[index] == identity) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Advances every active bullet: homing targeting/steering, trail hook,
+        /// drift, life expiry, and the enemy/boss/meteor collision cascade.
+        ///
+        /// Damage application, FX emission and cluster spawns stay on the
+        /// runtime behind the five bullet hooks; each hook is invoked with the
+        /// slot's state already published to <see cref="Bullets"/> so nested
+        /// reads (cluster charges, damage areas) see this-iteration changes
+        /// exactly as the single-loop original did. The local copy is re-read
+        /// after every hook because cascades can kill enemies or spawn bullets
+        /// into the pool mid-iteration. Deactivated slots are reported through
+        /// expiredSlots for view hides.
+        /// </summary>
+        public void AdvanceBullets(float dt, int[] expiredSlots, out int expiredCount)
+        {
+            expiredCount = 0;
+            EnsureBulletOrderEntries();
+            var initialOrderCount = BulletOrder.Count;
+            for (var order = initialOrderCount - 1; order >= 0; order--)
+            {
+                var i = BulletOrder.SlotAt(order);
+                var bullet = Bullets[i];
+                if (!bullet.Active)
+                {
+                    BulletOrder.Remove(i);
+                    continue;
+                }
+                if (bullet.Homing)
+                {
+                    bullet.HomingRefreshTimer -= dt;
+                    var target = new HostileTarget
+                    {
+                        Valid = false,
+                        Index = -1,
+                    };
+                    if (bullet.HomingTargetIndex >= 0)
+                    {
+                        if (bullet.HomingTargetBoss)
+                        {
+                            if (bullet.HomingTargetIndex < Bosses.Length)
+                            {
+                                var boss = Bosses[bullet.HomingTargetIndex];
+                                if (boss.Active && boss.State != 4 &&
+                                    BossIdentity(boss, bullet.HomingTargetIndex) == bullet.HomingTargetIdentity)
+                                {
+                                    target = new HostileTarget
+                                    {
+                                        Valid = true,
+                                        Boss = true,
+                                        Index = bullet.HomingTargetIndex,
+                                        Identity = BossIdentity(boss, bullet.HomingTargetIndex),
+                                        Position = boss.Position,
+                                        DistanceSquared = (boss.Position - bullet.Position).sqrMagnitude,
+                                    };
+                                }
+                            }
+                        }
+                        else if (bullet.HomingTargetIndex < Enemies.Length)
+                        {
+                            var enemy = Enemies[bullet.HomingTargetIndex];
+                            if (enemy.Active && enemy.Age >= 0.15f &&
+                                EnemyIdentity(enemy, bullet.HomingTargetIndex) == bullet.HomingTargetIdentity)
+                            {
+                                target = new HostileTarget
+                                {
+                                    Valid = true,
+                                    Boss = false,
+                                    Index = bullet.HomingTargetIndex,
+                                    Identity = EnemyIdentity(enemy, bullet.HomingTargetIndex),
+                                    Position = enemy.Position,
+                                    DistanceSquared = (enemy.Position - bullet.Position).sqrMagnitude,
+                                };
+                            }
+                        }
+                    }
+                    if (bullet.HomingRefreshTimer <= 0 || !target.Valid ||
+                        target.DistanceSquared > 620f * 620f * 1.44f)
+                    {
+                        target = FindNearestHostileFrom(bullet.Position, 620, bullet, false);
+                        bullet.HomingTargetIndex = target.Valid ? target.Index : -1;
+                        bullet.HomingTargetIdentity = target.Valid ? target.Identity : -1;
+                        bullet.HomingTargetBoss = target.Valid && target.Boss;
+                        bullet.HomingRefreshTimer = 0.09f + (order % 4) * 0.01f;
+                    }
+                    if (target.Valid)
+                    {
+                        var desired = Mathf.Atan2(target.Position.y - bullet.Position.y, target.Position.x - bullet.Position.x);
+                        var current = Mathf.Atan2(bullet.Velocity.y, bullet.Velocity.x);
+                        var difference = Mathf.Atan2(Mathf.Sin(desired - current), Mathf.Cos(desired - current));
+                        var turn = Mathf.Clamp(
+                            difference,
+                            -bullet.HomingTurnRate * dt,
+                            bullet.HomingTurnRate * dt);
+                        var speed = bullet.Velocity.magnitude;
+                        var angle = current + turn;
+                        bullet.Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * speed;
+                    }
+
+                    // Trail emission draws the shared FX RNG on the runtime; it
+                    // is a view-side effect but its RNG consumption is hashed.
+                    Bullets[i] = bullet;
+                    BulletTrailHook?.Invoke(i);
+                    bullet = Bullets[i];
+                }
+                bullet.Position += bullet.Velocity * dt;
+                bullet.Life -= dt;
+                if (bullet.Life <= 0)
+                {
+                    bullet.Active = false;
+                    Bullets[i] = bullet;
+                    if (expiredSlots != null && expiredCount < expiredSlots.Length)
+                        expiredSlots[expiredCount++] = i;
+                    BulletOrder.Remove(i);
+                    continue;
+                }
+                var hit = false;
+                var enemyCandidateCount = EnemyGrid.QueryNeighborhood(
+                    bullet.Position.x,
+                    bullet.Position.y,
+                    1,
+                    EnemyGridBulletCandidates);
+                for (var candidate = 0; candidate < enemyCandidateCount; candidate++)
+                {
+                    var enemyIndex = EnemyGridBulletCandidates[candidate];
+                    var enemy = Enemies[enemyIndex];
+                    if (!IsCurrentGridEnemy(enemyIndex) || BulletAlreadyHitEnemy(bullet, enemyIndex)) continue;
+                    var radius = bullet.Radius + enemy.Radius;
+                    if (enemy.Age < 0.12f ||
+                        (enemy.Position - bullet.Position).sqrMagnitude >= radius * radius) continue;
+                    // Browser bullets retain Enemy object identity in hit0..3.
+                    // A pooled slot can be reused after a kill, so store the
+                    // stable SpawnId rather than the transient array index.
+                    bullet.HitEnemy3 = bullet.HitEnemy2;
+                    bullet.HitEnemy2 = bullet.HitEnemy1;
+                    bullet.HitEnemy1 = bullet.HitEnemy0;
+                    bullet.HitEnemy0 = EnemyIdentity(enemy, enemyIndex);
+                    bullet.Hits++;
+                    Bullets[i] = bullet;
+                    BulletEnemyHitHook?.Invoke(i, enemyIndex);
+                    bullet = Bullets[i];
+                    hit = true;
+                    break;
+                }
+
+                if (!hit)
+                {
+                    EnsureBossOrderEntries();
+                    for (var bossOrder = 0; bossOrder < BossOrderCount; bossOrder++)
+                    {
+                        var bossIndex = BossOrder[bossOrder];
+                        var boss = Bosses[bossIndex];
+                        if (!boss.Active || boss.State == 4 ||
+                            BossAlreadyHit(bullet, boss, bossIndex)) continue;
+                        var radius = bullet.Radius + boss.Radius;
+                        if ((boss.Position - bullet.Position).sqrMagnitude >= radius * radius) continue;
+                        bullet.BossHit3 = bullet.BossHit2;
+                        bullet.BossHit2 = bullet.BossHit1;
+                        bullet.BossHit1 = bullet.BossHit0;
+                        bullet.BossHit0 = BossIdentity(boss, bossIndex);
+                        // Keep the old slot mask populated for reflection
+                        // fixtures; gameplay history uses stable IDs above.
+                        bullet.BossHitMask |= 1 << bossIndex;
+                        bullet.Hits++;
+                        Bullets[i] = bullet;
+                        BulletBossHitHook?.Invoke(i, bossIndex);
+                        bullet = Bullets[i];
+                        hit = true;
+                        break;
+                    }
+                }
+
+                if (!hit)
+                {
+                    EnsureMeteorOrderEntries();
+                    for (var meteorOrder = MeteorOrderCount - 1; meteorOrder >= 0; meteorOrder--)
+                    {
+                        var meteorIndex = MeteorOrder[meteorOrder];
+                        var meteor = Meteors[meteorIndex];
+                        if (!meteor.Active || meteor.FuseTimer > 0 || meteor.HitTimer > 0) continue;
+                        var radius = bullet.Radius + meteor.Radius;
+                        if ((meteor.Position - bullet.Position).sqrMagnitude >= radius * radius) continue;
+                        Bullets[i] = bullet;
+                        var consumed = BulletMeteorHitHook != null &&
+                            BulletMeteorHitHook(i, meteorIndex);
+                        bullet = Bullets[i];
+                        if (!consumed) continue;
+                        bullet.Hits++;
+                        hit = true;
+                        break;
+                    }
+                }
+
+                if (hit)
+                {
+                    if (bullet.Ricochets > 0 && BulletRicochetHook != null && BulletRicochetHook(i))
+                    {
+                        bullet = Bullets[i];
+                        bullet.Ricochets--;
+                        bullet.Life = Mathf.Max(bullet.Life, 0.55f);
+                    }
+                    else if (bullet.PierceRemaining > 0) bullet.PierceRemaining--;
+                    else bullet.Active = false;
+                }
+                if (bullet.Life <= 0) bullet.Active = false;
+                Bullets[i] = bullet;
+                if (!bullet.Active)
+                {
+                    if (expiredSlots != null && expiredCount < expiredSlots.Length)
+                        expiredSlots[expiredCount++] = i;
+                    BulletOrder.Remove(i);
+                }
+            }
         }
 
         public void ResetPickupOrder()

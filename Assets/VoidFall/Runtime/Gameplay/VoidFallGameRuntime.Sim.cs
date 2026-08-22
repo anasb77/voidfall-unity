@@ -2162,91 +2162,16 @@ namespace VoidFall.Runtime
 
         private void UpdateBullets(float dt)
         {
-            EnsureBulletOrderEntries();
-            var initialOrderCount = _gameSim.BulletOrder.Count;
-            for (var order = initialOrderCount - 1; order >= 0; order--)
+            // The loop skeleton, homing targeting, identity bookkeeping and
+            // hit resolution live in GameSim.AdvanceBullets; the runtime owns
+            // the FX/damage cascades behind these cached hooks. Hook bodies
+            // are the original in-loop blocks, unchanged. Delegates are cached
+            // once - no per-step allocation.
+            if (_bulletTrailHook == null)
             {
-                var i = _gameSim.BulletOrder.SlotAt(order);
-                var bullet = _gameSim.Bullets[i];
-                if (!bullet.Active)
+                _bulletTrailHook = slot =>
                 {
-                    RemoveBulletOrder(i);
-                    continue;
-                }
-                var railgun = bullet.WeaponIndex >= 0 &&
-                    bullet.WeaponIndex < ContentCatalog.Weapons.Length &&
-                    ContentCatalog.Weapons[bullet.WeaponIndex].Id == "railgun";
-                if (bullet.Homing)
-                {
-                    bullet.HomingRefreshTimer -= dt;
-                    var target = new HostileTarget
-                    {
-                        Valid = false,
-                        Index = -1,
-                    };
-                    if (bullet.HomingTargetIndex >= 0)
-                    {
-                        if (bullet.HomingTargetBoss)
-                        {
-                            if (bullet.HomingTargetIndex < _gameSim.Bosses.Length)
-                            {
-                                var boss = _gameSim.Bosses[bullet.HomingTargetIndex];
-                                if (boss.Active && boss.State != 4 &&
-                                    BossIdentity(boss, bullet.HomingTargetIndex) == bullet.HomingTargetIdentity)
-                                {
-                                target = new HostileTarget
-                                {
-                                    Valid = true,
-                                    Boss = true,
-                                    Index = bullet.HomingTargetIndex,
-                                    Identity = BossIdentity(boss, bullet.HomingTargetIndex),
-                                    Position = boss.Position,
-                                    DistanceSquared = (boss.Position - bullet.Position).sqrMagnitude,
-                                };
-                                }
-                            }
-                        }
-                        else if (bullet.HomingTargetIndex < _gameSim.Enemies.Length)
-                        {
-                            var enemy = _gameSim.Enemies[bullet.HomingTargetIndex];
-                            if (enemy.Active && enemy.Age >= 0.15f &&
-                                EnemyIdentity(enemy, bullet.HomingTargetIndex) == bullet.HomingTargetIdentity)
-                            {
-                                target = new HostileTarget
-                                {
-                                    Valid = true,
-                                    Boss = false,
-                                    Index = bullet.HomingTargetIndex,
-                                    Identity = EnemyIdentity(enemy, bullet.HomingTargetIndex),
-                                    Position = enemy.Position,
-                                    DistanceSquared = (enemy.Position - bullet.Position).sqrMagnitude,
-                                };
-                            }
-                        }
-                    }
-                    if (bullet.HomingRefreshTimer <= 0 || !target.Valid ||
-                        target.DistanceSquared > 620f * 620f * 1.44f)
-                    {
-                        target = FindNearestHostileFrom(bullet.Position, 620, bullet, false);
-                        bullet.HomingTargetIndex = target.Valid ? target.Index : -1;
-                        bullet.HomingTargetIdentity = target.Valid ? target.Identity : -1;
-                        bullet.HomingTargetBoss = target.Valid && target.Boss;
-                        bullet.HomingRefreshTimer = 0.09f + (order % 4) * 0.01f;
-                    }
-                    if (target.Valid)
-                    {
-                        var desired = Mathf.Atan2(target.Position.y - bullet.Position.y, target.Position.x - bullet.Position.x);
-                        var current = Mathf.Atan2(bullet.Velocity.y, bullet.Velocity.x);
-                        var difference = Mathf.Atan2(Mathf.Sin(desired - current), Mathf.Cos(desired - current));
-                        var turn = Mathf.Clamp(
-                            difference,
-                            -bullet.HomingTurnRate * dt,
-                            bullet.HomingTurnRate * dt);
-                        var speed = bullet.Velocity.magnitude;
-                        var angle = current + turn;
-                        bullet.Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * speed;
-                    }
-
+                    var bullet = _gameSim.Bullets[slot];
                     // Browser updateBullets emits the projectile trail only for
                     // homing bullets, before movement, with the shared FX RNG.
                     // The browser guards the FX RNG draw behind the quality
@@ -2264,40 +2189,14 @@ namespace VoidFall.Runtime
                             0.2f,
                             0.42f);
                     }
-                }
-                bullet.Position += bullet.Velocity * dt;
-                bullet.Life -= dt;
-                if (bullet.Life <= 0)
+                };
+                _bulletEnemyHitHook = (slot, enemyIndex) =>
                 {
-                    bullet.Active = false;
-                    Hide(_bulletViews[i]);
-                    Hide(_bulletContrastViews[i]);
-                    _gameSim.Bullets[i] = bullet;
-                    RemoveBulletOrder(i);
-                    continue;
-                }
-                var hit = false;
-                var enemyCandidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
-                    bullet.Position.x,
-                    bullet.Position.y,
-                    1,
-                    _gameSim.EnemyGridBulletCandidates);
-                for (var candidate = 0; candidate < enemyCandidateCount; candidate++)
-                {
-                    var enemyIndex = _gameSim.EnemyGridBulletCandidates[candidate];
+                    var bullet = _gameSim.Bullets[slot];
                     var enemy = _gameSim.Enemies[enemyIndex];
-                    if (!IsCurrentGridEnemy(enemyIndex) || BulletAlreadyHitEnemy(bullet, enemyIndex)) continue;
-                    var radius = bullet.Radius + enemy.Radius;
-                    if (enemy.Age < 0.12f ||
-                        (enemy.Position - bullet.Position).sqrMagnitude >= radius * radius) continue;
-                    // Browser bullets retain Enemy object identity in hit0..3.
-                    // A pooled slot can be reused after a kill, so store the
-                    // stable SpawnId rather than the transient array index.
-                    bullet.HitEnemy3 = bullet.HitEnemy2;
-                    bullet.HitEnemy2 = bullet.HitEnemy1;
-                    bullet.HitEnemy1 = bullet.HitEnemy0;
-                    bullet.HitEnemy0 = EnemyIdentity(enemy, enemyIndex);
-                    bullet.Hits++;
+                    var railgun = bullet.WeaponIndex >= 0 &&
+                        bullet.WeaponIndex < ContentCatalog.Weapons.Length &&
+                        ContentCatalog.Weapons[bullet.WeaponIndex].Id == "railgun";
                     var critical = _gameSim.Rng.Next() < _critChance;
                     ApplyEnemyDamage(enemyIndex, bullet.Damage * (critical ? 2.1f : 1),
                         bullet.Velocity, bullet.Knockback, critical, bullet.WeaponIndex);
@@ -2313,108 +2212,85 @@ namespace VoidFall.Runtime
                     {
                         bullet.Cluster = false;
                         SpawnClusterChargesAfterEnemyHit(bullet, bullet.HitEnemy0);
+                        _gameSim.Bullets[slot] = bullet;
                     }
-                    hit = true;
-                    break;
-                }
-
-                if (!hit)
+                };
+                _bulletBossHitHook = (slot, bossIndex) =>
                 {
-                    EnsureBossOrderEntries();
-                    for (var bossOrder = 0; bossOrder < _gameSim.BossOrderCount; bossOrder++)
+                    var bullet = _gameSim.Bullets[slot];
+                    var boss = _gameSim.Bosses[bossIndex];
+                    var railgun = bullet.WeaponIndex >= 0 &&
+                        bullet.WeaponIndex < ContentCatalog.Weapons.Length &&
+                        ContentCatalog.Weapons[bullet.WeaponIndex].Id == "railgun";
+                    var critical = _gameSim.Rng.Next() < _critChance;
+                    ApplyBossDamage(
+                        bossIndex,
+                        bullet.Damage * (critical ? 2.1f : 1),
+                        bullet.WeaponIndex,
+                        critical);
+                    if (railgun) RailgunImpact(boss.Position, bullet.Hits);
+                    if (bullet.BlastRadius > 0)
                     {
-                        var bossIndex = _gameSim.BossOrder[bossOrder];
-                        var boss = _gameSim.Bosses[bossIndex];
-                        if (!boss.Active || boss.State == 4 ||
-                            BossAlreadyHit(bullet, boss, bossIndex)) continue;
-                        var radius = bullet.Radius + boss.Radius;
-                        if ((boss.Position - bullet.Position).sqrMagnitude >= radius * radius) continue;
-                        bullet.BossHit3 = bullet.BossHit2;
-                        bullet.BossHit2 = bullet.BossHit1;
-                        bullet.BossHit1 = bullet.BossHit0;
-                        bullet.BossHit0 = BossIdentity(boss, bossIndex);
-                        // Keep the old slot mask populated for reflection
-                        // fixtures; gameplay history uses stable IDs above.
-                        bullet.BossHitMask |= 1 << bossIndex;
-                        bullet.Hits++;
-                        var critical = _gameSim.Rng.Next() < _critChance;
-                        ApplyBossDamage(
-                            bossIndex,
-                            bullet.Damage * (critical ? 2.1f : 1),
-                            bullet.WeaponIndex,
-                            critical);
-                        if (railgun) RailgunImpact(boss.Position, bullet.Hits);
-                        if (bullet.BlastRadius > 0)
-                        {
-                            // The browser gives a boss hit a cyan presentation
-                            // cue only; its blast damage is for enemy/meteor
-                            // hits, not an extra boss-area hit.
-                            BurstFx(
-                                bullet.Position,
-                                SourceDotColor("cyan"),
-                                7,
-                                190,
-                                0.35f,
-                                0.7f);
-                        }
-                        if (bullet.Cluster)
-                        {
-                            bullet.Cluster = false;
-                            SpawnClusterCharges(bullet);
-                        }
-                        hit = true;
-                        break;
+                        // The browser gives a boss hit a cyan presentation
+                        // cue only; its blast damage is for enemy/meteor
+                        // hits, not an extra boss-area hit.
+                        BurstFx(
+                            bullet.Position,
+                            SourceDotColor("cyan"),
+                            7,
+                            190,
+                            0.35f,
+                            0.7f);
                     }
-                }
-
-                if (!hit)
-                {
-                    EnsureMeteorOrderEntries();
-                    for (var meteorOrder = _gameSim.MeteorOrderCount - 1; meteorOrder >= 0; meteorOrder--)
+                    if (bullet.Cluster)
                     {
-                        var meteorIndex = _gameSim.MeteorOrder[meteorOrder];
-                        var meteor = _gameSim.Meteors[meteorIndex];
-                        if (!meteor.Active || meteor.FuseTimer > 0 || meteor.HitTimer > 0) continue;
-                        var radius = bullet.Radius + meteor.Radius;
-                        if ((meteor.Position - bullet.Position).sqrMagnitude >= radius * radius) continue;
-                        if (!DamageMeteor(meteorIndex, bullet.Damage)) continue;
-                        bullet.Hits++;
-                        if (railgun) RailgunImpact(meteor.Position, bullet.Hits);
-                        if (bullet.BlastRadius > 0)
-                        {
-                            var weaponId = ContentCatalog.Weapons[
-                                Mathf.Clamp(bullet.WeaponIndex, 0, ContentCatalog.Weapons.Length - 1)].Id;
-                            DamageArea(
-                                bullet.Position,
-                                bullet.BlastRadius,
-                                bullet.Damage * (weaponId == "seeker" ? 0.8f : 0.35f),
-                                -1,
-                                bullet.WeaponIndex);
-                        }
-                        hit = true;
-                        break;
+                        bullet.Cluster = false;
+                        SpawnClusterCharges(bullet);
+                        _gameSim.Bullets[slot] = bullet;
                     }
-                }
-
-                if (hit)
+                };
+                _bulletMeteorHitHook = (slot, meteorIndex) =>
                 {
-                    if (bullet.Ricochets > 0 && RetargetRicochet(ref bullet))
+                    var bullet = _gameSim.Bullets[slot];
+                    var meteor = _gameSim.Meteors[meteorIndex];
+                    if (!DamageMeteor(meteorIndex, bullet.Damage)) return false;
+                    var railgun = bullet.WeaponIndex >= 0 &&
+                        bullet.WeaponIndex < ContentCatalog.Weapons.Length &&
+                        ContentCatalog.Weapons[bullet.WeaponIndex].Id == "railgun";
+                    if (railgun) RailgunImpact(meteor.Position, bullet.Hits);
+                    if (bullet.BlastRadius > 0)
                     {
-                        bullet.Ricochets--;
-                        bullet.Life = Mathf.Max(bullet.Life, 0.55f);
-                        BurstFx(bullet.Position, SourceDotColor("white"), 4, 140, 0.24f, 0.55f);
+                        var weaponId = ContentCatalog.Weapons[
+                            Mathf.Clamp(bullet.WeaponIndex, 0, ContentCatalog.Weapons.Length - 1)].Id;
+                        DamageArea(
+                            bullet.Position,
+                            bullet.BlastRadius,
+                            bullet.Damage * (weaponId == "seeker" ? 0.8f : 0.35f),
+                            -1,
+                            bullet.WeaponIndex);
                     }
-                    else if (bullet.PierceRemaining > 0) bullet.PierceRemaining--;
-                    else bullet.Active = false;
-                }
-                if (bullet.Life <= 0) bullet.Active = false;
-                if (!bullet.Active)
+                    return true;
+                };
+                _bulletRicochetHook = slot =>
                 {
-                    Hide(_bulletViews[i]);
-                    Hide(_bulletContrastViews[i]);
-                }
-                _gameSim.Bullets[i] = bullet;
-                if (!bullet.Active) RemoveBulletOrder(i);
+                    var bullet = _gameSim.Bullets[slot];
+                    if (!RetargetRicochet(ref bullet)) return false;
+                    _gameSim.Bullets[slot] = bullet;
+                    BurstFx(bullet.Position, SourceDotColor("white"), 4, 140, 0.24f, 0.55f);
+                    return true;
+                };
+            }
+            _gameSim.BulletTrailHook = _bulletTrailHook;
+            _gameSim.BulletEnemyHitHook = _bulletEnemyHitHook;
+            _gameSim.BulletBossHitHook = _bulletBossHitHook;
+            _gameSim.BulletMeteorHitHook = _bulletMeteorHitHook;
+            _gameSim.BulletRicochetHook = _bulletRicochetHook;
+
+            _gameSim.AdvanceBullets(dt, _bulletExpiredSlots, out var expiredCount);
+            for (var slotIndex = 0; slotIndex < expiredCount; slotIndex++)
+            {
+                Hide(_bulletViews[_bulletExpiredSlots[slotIndex]]);
+                Hide(_bulletContrastViews[_bulletExpiredSlots[slotIndex]]);
             }
         }
 
