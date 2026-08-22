@@ -364,7 +364,7 @@ namespace VoidFall.Runtime
                     ? ProceduralSpriteFactory.RosterTwoEnemy(enemy.Id, flash)
                     : ProceduralSpriteFactory.Enemy(
                         spriteId,
-                        EnemySpriteAccent(enemy),
+                        CachedEnemySpriteAccent(enemy),
                         flash);
                 _enemyViews[i].transform.position = enemy.Position;
                 _enemyViews[i].transform.rotation = Quaternion.Euler(
@@ -399,7 +399,7 @@ namespace VoidFall.Runtime
                     var warning = EnsureEnemyExploderWarningView(i);
                     warning.sprite = enemy.Roster == EnemyRoster.Two
                         ? ProceduralSpriteFactory.RosterTwoEnemy("exploder", true)
-                        : ProceduralSpriteFactory.Enemy("exploder", EnemySpriteAccent(enemy), true);
+                        : ProceduralSpriteFactory.Enemy("exploder", CachedEnemySpriteAccent(enemy), true);
                     warning.transform.position = enemy.Position;
                     warning.transform.rotation = _enemyViews[i].transform.rotation;
                     warning.transform.localScale = _enemyViews[i].transform.localScale;
@@ -419,7 +419,7 @@ namespace VoidFall.Runtime
                     var overlay = EnsureEnemyHarvesterFullView(i);
                     overlay.sprite = ProceduralSpriteFactory.Enemy(
                         "harvester",
-                        EnemySpriteAccent(enemy),
+                        CachedEnemySpriteAccent(enemy),
                         true);
                     overlay.transform.position = enemy.Position;
                     overlay.transform.rotation = _enemyViews[i].transform.rotation;

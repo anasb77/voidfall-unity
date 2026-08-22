@@ -2923,7 +2923,7 @@ namespace VoidFall.Runtime
                 : ParseColor(definition.Color, Color.magenta);
             view.sprite = ProceduralSpriteFactory.Enemy(
                 SourceEnemySpriteId(id, elite, variantDefinition?.BaseId),
-                EnemySpriteAccent(enemy),
+                CachedEnemySpriteAccent(enemy),
                 false);
             view.color = Color.white;
             view.enabled = true;
@@ -4211,7 +4211,7 @@ namespace VoidFall.Runtime
             {
                 view.sprite = ProceduralSpriteFactory.Enemy(
                     SourceEnemySpriteId(enemy),
-                    EnemySpriteAccent(enemy),
+                    CachedEnemySpriteAccent(enemy),
                     false);
                 view.transform.position = ghost.Position;
                 view.transform.rotation = Quaternion.Euler(0, 0, ghost.Rotation);
