@@ -69,6 +69,12 @@ namespace VoidFall.Tests.PlayMode
             yield return null;
             yield return null;
 
+            // Hermeticity: cosmetic budgets (particle/shard counts) read the
+            // player's saved quality preset and reduced-motion flag, and those
+            // budgets are hashed. Pin them so local machine state cannot drift
+            // the golden master.
+            PinHermeticPresentationState(runtime);
+
             var apply = typeof(VoidFallGameRuntime).GetMethod(
                 "ApplyStressScenario",
                 BindingFlags.Public | BindingFlags.Instance);
@@ -128,6 +134,48 @@ namespace VoidFall.Tests.PlayMode
             var field = type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
             Assert.That(field, Is.Not.Null, $"Missing state field '{name}'; update SimulationGoldenMasterTests.");
             return field.GetValue(target);
+        }
+
+        /// <summary>
+        /// Forces a deterministic presentation profile: reduced motion off,
+        /// high contrast off, default touch size, and the High quality preset.
+        /// Uses reflection so this assembly does not need a Persistence
+        /// reference; fails loudly if the shape changes.
+        /// </summary>
+        private static void PinHermeticPresentationState(object runtime)
+        {
+            var type = runtime.GetType();
+            var save = GetField(runtime, type, "_saveData");
+            Assert.That(save, Is.Not.Null, "Runtime has no save profile to pin.");
+
+            var settingsField = save.GetType().GetField("settings");
+            Assert.That(settingsField, Is.Not.Null, "Save profile has no settings field.");
+            var settings = settingsField.GetValue(save);
+            if (settings == null)
+            {
+                settings = System.Activator.CreateInstance(settingsField.FieldType);
+                settingsField.SetValue(save, settings);
+            }
+            var st = settings.GetType();
+            st.GetField("reducedMotion").SetValue(settings, false);
+            st.GetField("highContrast").SetValue(settings, false);
+            st.GetField("touchSize").SetValue(settings, 1f);
+            st.GetField("quality").SetValue(settings, "high");
+
+            var rulesType = typeof(VoidFall.Core.QualityRules);
+            var presetIdType = rulesType.Assembly.GetType("VoidFall.Core.QualityPresetId");
+            Assert.That(presetIdType, Is.Not.Null, "QualityPresetId moved; update SimulationGoldenMasterTests.");
+            var highId = System.Enum.Parse(presetIdType, "High");
+            var preset = rulesType.GetMethod("Preset").Invoke(null, new[] { highId });
+
+            var applyPreset = type.GetMethod(
+                "ApplyQualityPreset",
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                null,
+                new[] { preset.GetType() },
+                null);
+            Assert.That(applyPreset, Is.Not.Null, "ApplyQualityPreset(QualityPreset) moved; update this test.");
+            applyPreset.Invoke(runtime, new[] { preset });
         }
 
         /// <summary>
