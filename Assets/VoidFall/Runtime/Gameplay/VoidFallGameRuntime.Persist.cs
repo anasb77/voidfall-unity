@@ -226,7 +226,7 @@ namespace VoidFall.Runtime
             }
 
             _saveData = imported;
-            _settingsDirty = false;
+            _settingsController.MarkClean();
             _resetProgressArmed = false;
             _resetProgressTimer = 0;
             _workshopPreviewId = null;

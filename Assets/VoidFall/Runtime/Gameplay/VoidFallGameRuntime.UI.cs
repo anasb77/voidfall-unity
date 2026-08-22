@@ -749,7 +749,7 @@ namespace VoidFall.Runtime
             SyncUiScreen();
         }
 
-        private void ApplySettings()
+        internal void ApplySettings()
         {
             var settings = _saveData?.settings;
             if (settings == null) return;
@@ -798,7 +798,7 @@ namespace VoidFall.Runtime
             }
         }
 
-        private void SetMenuNotice(string message)
+        internal void SetMenuNotice(string message)
         {
             _menuNotice = message;
             _menuNoticeTimer = 3f;
@@ -2846,7 +2846,7 @@ namespace VoidFall.Runtime
             return texture;
         }
 
-        private static SaveSettings CloneSettings(SaveSettings settings)
+        internal static SaveSettings CloneSettings(SaveSettings settings)
         {
             var value = settings ?? new SaveSettings();
             return new SaveSettings
@@ -2863,22 +2863,7 @@ namespace VoidFall.Runtime
         }
 
         private void ApplyAndCommitSettings(SaveSettings previousSettings)
-        {
-            _settingsDirty = true;
-            if (CommitSettings())
-            {
-                ApplySettings();
-                return;
-            }
-
-            // Match React's save-first updateSettings contract: a failed
-            // persistence write must not leave the rejected value active in
-            // memory or in the live quality/audio controller.
-            if (_saveData != null)
-                _saveData.settings = CloneSettings(previousSettings);
-            _settingsDirty = false;
-            ApplySettings();
-        }
+            => _settingsController.CommitImmediateWithRollback(previousSettings);
 
         private void TryBuyWorkshop(string id)
         {

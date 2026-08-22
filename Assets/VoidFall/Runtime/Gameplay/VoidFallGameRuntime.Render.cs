@@ -3303,11 +3303,8 @@ namespace VoidFall.Runtime
             var quantized = quantizer != null ? quantizer(next) : QuantizeUnitSetting(next);
             if (Mathf.Abs(quantized - value) > 0.001f)
             {
-                _settingsDirtyPrevious = CloneSettings(_saveData?.settings);
-                setter(quantized);
+                _settingsController.StageContinuousChange(_saveData?.settings);
                 ApplySettings();
-                _settingsDirty = true;
-                _settingsDirtyTimer = 0.5f;
             }
         }
 

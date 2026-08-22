@@ -791,9 +791,6 @@ namespace VoidFall.Runtime
         private string _workshopPreviewId;
         private string _workshopFocusedId;
         private bool _workshopFocusVisible;
-        private bool _settingsDirty;
-        private float _settingsDirtyTimer;
-        private SaveSettings _settingsDirtyPrevious;
         private bool _settingsQualityMenuOpen;
         private static readonly string[] SettingsQualityOptions =
         {
@@ -1064,6 +1061,7 @@ namespace VoidFall.Runtime
             SetupFx();
             _saveStore = new SaveStore();
             _saveData = _saveStore.Load();
+            _settingsController = new SettingsController(new RuntimeGameBridge(this));
             ApplySettings();
             // Resolve the saved arena while the application is still composing
             // its first scene. Imported textures replace the old multi-million-
@@ -1280,16 +1278,14 @@ namespace VoidFall.Runtime
             _qualityWarmupTimer = QualityGameplayWarmupSeconds;
         }
 
+        private SettingsController _settingsController;
+
         private void Update()
         {
             RecordStartupMenuFrame();
             var startupUpdateStarted = Time.realtimeSinceStartupAsDouble;
             // Debounce settings disk write so slider drags don't save every pixel (audit #14).
-            if (_settingsDirtyTimer > 0)
-            {
-                _settingsDirtyTimer -= Time.unscaledDeltaTime;
-                if (_settingsDirtyTimer <= 0) CommitSettings();
-            }
+            _settingsController?.Tick(Time.unscaledDeltaTime);
 
             var keyboard = Keyboard.current;
             if (keyboard != null)
@@ -1612,17 +1608,15 @@ namespace VoidFall.Runtime
 
             if (immediate)
             {
-                var previous = CloneSettings(settings);
+                var previous = _settingsController.StageContinuousChange(settings);
                 mutate(settings);
-                ApplyAndCommitSettings(previous);
+                _settingsController.CommitImmediateWithRollback(previous);
                 return;
             }
 
-            _settingsDirtyPrevious = CloneSettings(settings);
+            _settingsController.StageContinuousChange(settings);
             mutate(settings);
             ApplySettings();
-            _settingsDirty = true;
-            _settingsDirtyTimer = 0.5f;
         }
 
         private int CurrentBestScore()
@@ -4659,7 +4653,7 @@ namespace VoidFall.Runtime
             }
 
             _saveData = fresh;
-            _settingsDirty = false;
+            _settingsController.MarkClean();
             _resetProgressArmed = false;
             _resetProgressTimer = 0;
             ApplySettings();
@@ -5716,5 +5710,23 @@ namespace VoidFall.Runtime
         private static int FindInactive(PickupState[] states) => GameSim.FindInactive(states);
         private static int FindInactive(PickupState[] states, int count) => GameSim.FindInactive(states, count);
         private static int FindInactive(BossState[] states) => GameSim.FindInactive(states);
+
+        internal SaveSettings RestoreSettingsInternal(SaveSettings snapshot)
+        {
+            if (_saveData == null) return snapshot;
+            _saveData.settings = snapshot;
+            return snapshot;
+        }
+
+        /// <summary>Bridge adapter exposing the settings slice to VoidFall.UI.</summary>
+        private sealed class RuntimeGameBridge : IGameBridge
+        {
+            private readonly VoidFallGameRuntime _rt;
+            public RuntimeGameBridge(VoidFallGameRuntime rt) { _rt = rt; }
+            public SaveSettings CloneLiveSettings() => VoidFallGameRuntime.CloneSettings(_rt._saveData?.settings);
+            public void RestoreSettings(SaveSettings snapshot) => _rt.RestoreSettingsInternal(snapshot);
+            public bool TryPersistSettings() => _rt.CommitSettings();
+            public void ApplyLiveSettings() => _rt.ApplySettings();
+        }
     }
 }

@@ -4285,9 +4285,8 @@ namespace VoidFall.Runtime
                 rank.rectTransform.sizeDelta.y);
         }
 
-        private bool CommitSettings()
+        internal bool CommitSettings()
         {
-            if (!_settingsDirty) return true;
             if (_saveStore == null || _saveData == null)
             {
                 SetMenuNotice("Settings could not be saved");
@@ -4298,7 +4297,6 @@ namespace VoidFall.Runtime
             {
                 _saveData = SaveStore.Sanitize(_saveData);
                 _saveStore.Save(_saveData);
-                _settingsDirty = false;
                 return true;
             }
             catch (Exception exception)

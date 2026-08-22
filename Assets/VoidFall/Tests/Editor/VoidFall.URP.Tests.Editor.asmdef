@@ -7,6 +7,7 @@
     "VoidFall.Runtime",
     "VoidFall.Audio",
     "VoidFall.UI",
+        "VoidFall.Persistence",
     "Unity.RenderPipelines.Universal.Runtime",
     "Unity.RenderPipelines.Core.Runtime"
   ],
