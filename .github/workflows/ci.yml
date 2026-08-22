@@ -1,0 +1,82 @@
+name: CI
+
+# VoidFall continuous integration.
+#
+# REQUIREMENTS (one-time repo setup):
+#   1. Add repository secret UNITY_LICENSE containing the personal-use or
+#      pro license .ulf contents (see https://game.ci/documentation for
+#      activation via unity-activation workflow).
+#   2. Optional: UNITY_EMAIL / UNITY_PASSWORD / UNITY_SERIAL for pro seats.
+#
+# Jobs:
+#   - docs-lint: fast checks that never need Unity (runs on every push).
+#   - unity-tests: EditMode + PlayMode suites incl. the simulation
+#     golden-master hash gate, via GameCI. Runs once the license secret is
+#     configured; skipped silently otherwise so forks stay green.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  docs-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guard against committed Library artifacts
+        run: |
+          if git ls-files | grep -qE "^Library/|\.meta$.*Library"; then
+            echo "::error::Library artifacts must not be tracked"; exit 1
+          fi
+          echo "ok"
+      - name: Docs present
+        run: |
+          test -f Docs/Architecture.md
+          test -f Docs/RefactoringPlaybook.md
+          test -f Docs/Design/MenuControllersMigration.md
+          test -f MIGRATION_STATUS.md
+          echo "docs ok"
+
+  unity-tests:
+    runs-on: ubuntu-latest
+    if: ${{ github.repository != '' && vars.UNITY_TESTS_ENABLED == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: Library-
+
+      - name: Run EditMode tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          testMode: EditMode
+          artifactsPath: test-results/editmode
+
+      - name: Run PlayMode tests (golden master)
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          testMode: PlayMode
+          testFilter: VoidFall.Tests.PlayMode.SimulationGoldenMasterTests
+          artifactsPath: test-results/playmode
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
