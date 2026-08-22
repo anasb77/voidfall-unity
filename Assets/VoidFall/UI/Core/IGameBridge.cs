@@ -23,6 +23,9 @@ namespace VoidFall.UI
         /// </summary>
         bool TryPersistSettings();
 
+        /// <summary>Persists the whole current profile. Same primitive as TryPersistSettings.</summary>
+        bool TryPersistProfile();
+
         /// <summary>Rebuilds live audio/quality state from current settings.</summary>
         void ApplyLiveSettings();
 

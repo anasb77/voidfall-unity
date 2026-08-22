@@ -1061,7 +1061,8 @@ namespace VoidFall.Runtime
             SetupFx();
             _saveStore = new SaveStore();
             _saveData = _saveStore.Load();
-            _settingsController = new SettingsController(new RuntimeGameBridge(this));
+            _gameBridge = new RuntimeGameBridge(this);
+            _settingsController = new SettingsController(_gameBridge);
             ApplySettings();
             // Resolve the saved arena while the application is still composing
             // its first scene. Imported textures replace the old multi-million-
@@ -1279,6 +1280,8 @@ namespace VoidFall.Runtime
         }
 
         private SettingsController _settingsController;
+        private IGameBridge _gameBridge;
+        private WorkshopController _workshopController;
         private RecordsController _recordsController;
 
         private void Update()
@@ -5727,6 +5730,7 @@ namespace VoidFall.Runtime
             public SaveSettings CloneLiveSettings() => VoidFallGameRuntime.CloneSettings(_rt._saveData?.settings);
             public void RestoreSettings(SaveSettings snapshot) => _rt.RestoreSettingsInternal(snapshot);
             public bool TryPersistSettings() => _rt.CommitSettings();
+            public bool TryPersistProfile() => _rt.CommitSettings();
             public void ApplyLiveSettings() => _rt.ApplySettings();
             public IReadOnlyList<HighScoreEntry> GetHighScores()
                 => _rt._saveData?.highScores ?? (IReadOnlyList<HighScoreEntry>)System.Array.Empty<HighScoreEntry>();

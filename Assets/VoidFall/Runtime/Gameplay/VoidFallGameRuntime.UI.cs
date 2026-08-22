@@ -74,24 +74,10 @@ namespace VoidFall.Runtime
         private void RefreshWorkshopUi()
         {
             if (_ui?.Workshop == null) return;
-            var list = new List<WorkshopItemData>();
-            foreach (var id in WorkshopOrder)
-            {
-                var rank = WorkshopRank(id);
-                var maxRank = id == "protocol" ? 1 : SaveStore.WorkshopMaxRank;
-                var cost = WorkshopCost(id, rank);
-                list.Add(new WorkshopItemData
-                {
-                    Id = id,
-                    Name = WorkshopName(id),
-                    Description = WorkshopDescription(id),
-                    CurrentRank = rank,
-                    MaxRank = maxRank,
-                    Cost = cost,
-                    CanAfford = (_saveData?.parts ?? 0) >= cost && cost >= 0
-                });
-            }
-            _ui.Workshop.Populate(_saveData?.parts ?? 0, list);
+            if (_workshopController == null)
+                _workshopController = new WorkshopController(_gameBridge);
+            var rows = _workshopController.BuildRows(WorkshopOrder, _saveData?.parts ?? 0, _saveData?.workshop);
+            _ui.Workshop.Populate(_saveData?.parts ?? 0, rows);
         }
 
         private void RefreshRecordsUi()
@@ -184,20 +170,13 @@ namespace VoidFall.Runtime
 
         private void RefundAllWorkshop()
         {
-            if (_saveData?.workshop == null) return;
-            var refundedParts = 0;
-            foreach (var entry in _saveData.workshop)
-            {
-                if (entry == null) continue;
-                for (var r = 0; r < entry.rank; r++)
-                {
-                    var cost = WorkshopCost(entry.id, r);
-                    if (cost > 0) refundedParts += cost;
-                }
-                entry.rank = 0;
-            }
-            _saveData.parts = AddCounter(_saveData.parts, refundedParts);
-            _saveStore?.Save(_saveData);
+            var profile = _saveData;
+            if (profile?.workshop == null) return;
+            if (_workshopController == null)
+                _workshopController = new WorkshopController(_gameBridge);
+            var parts = profile.parts;
+            var refundedParts = _workshopController.RefundAll(profile.workshop, ref parts);
+            profile.parts = parts;
             EnqueueToast("Workshop refunded", $"+{refundedParts} Parts", 2.5f, ToastKind.Reward);
         }
 
@@ -2835,43 +2814,20 @@ namespace VoidFall.Runtime
 
         private void TryBuyWorkshop(string id)
         {
-            if (_saveData?.workshop == null) return;
-            foreach (var entry in _saveData.workshop)
+            var profile = _saveData;
+            if (profile?.workshop == null) return;
+            if (_workshopController == null)
+                _workshopController = new WorkshopController(_gameBridge);
+            var parts = profile.parts;
+            if (!_workshopController.TryPurchase(profile.workshop, ref parts, id, out var notice))
             {
-                if (entry == null || entry.id != id) continue;
-                var cost = WorkshopCost(id, entry.rank);
-                if (cost < 0)
-                {
-                    SetMenuNotice("That upgrade is already at maximum rank.");
-                    return;
-                }
-                if (_saveData.parts < cost)
-                {
-                    SetMenuNotice($"Need {cost - _saveData.parts} more Parts.");
-                    return;
-                }
-                _saveData.parts -= cost;
-                entry.rank++;
-                // Every other Save() call site reports failure. This one used to
-                // let the exception escape through the IMGUI layout pass, which
-                // left the player charged in memory with no explanation. Roll the
-                // purchase back so the shown balance matches what is on disk.
-                try
-                {
-                    _saveStore.Save(_saveData);
-                }
-                catch (Exception exception)
-                {
-                    _saveData.parts += cost;
-                    entry.rank--;
-                    Debug.LogError("VoidFall workshop purchase could not be saved: " + exception.Message);
-                    SetMenuNotice("Purchase could not be saved. Parts were not spent.");
-                    return;
-                }
-                _workshopPreviewId = WorkshopPreviewAfterPurchase();
-                SetMenuNotice($"{WorkshopName(id)} upgraded to rank {entry.rank}. Applies next run.");
+                if (notice != null) SetMenuNotice(notice);
+                profile.parts = parts;
                 return;
             }
+            profile.parts = parts;
+            SetMenuNotice(notice);
+            _workshopPreviewId = WorkshopPreviewAfterPurchase();
         }
 
         public static string WorkshopPreviewAfterPurchase()
@@ -2893,53 +2849,11 @@ namespace VoidFall.Runtime
             }
         }
 
-        private static string WorkshopName(string id)
-        {
-            switch (id)
-            {
-                case "integrity": return "Integrity";
-                case "power": return "Power";
-                case "mobility": return "Mobility";
-                case "recovery": return "Recovery";
-                case "magnet": return "Magnet";
-                case "precision": return "Precision";
-                case "arsenal": return "Arsenal";
-                case "protocol": return "Revival Protocol";
-                default: return id;
-            }
-        }
+        private static string WorkshopName(string id) => WorkshopController.NameFor(id);
 
-        private static string WorkshopDescription(string id)
-        {
-            switch (id)
-            {
-                case "integrity": return "+5 maximum health per rank.";
-                case "power": return "+4% weapon damage per rank.";
-                case "mobility": return "+3% movement speed per rank.";
-                case "recovery": return "Restore 3 health after each level per rank.";
-                case "magnet": return "+8 pickup radius per rank.";
-                case "precision": return "+2% critical chance per rank.";
-                case "arsenal": return "Weapons recover 3% faster per rank.";
-                case "protocol": return "+1 revive per run. Maximum one in this slice.";
-                default: return "Permanent upgrade.";
-            }
-        }
+        private static string WorkshopDescription(string id) => WorkshopController.DescriptionFor(id);
 
-        private static int WorkshopCost(string id, int rank)
-        {
-            switch (id)
-            {
-                case "integrity": return rank == 0 ? 35 : rank == 1 ? 75 : rank == 2 ? 130 : -1;
-                case "power": return rank == 0 ? 45 : rank == 1 ? 95 : rank == 2 ? 165 : -1;
-                case "mobility": return rank == 0 ? 40 : rank == 1 ? 85 : rank == 2 ? 145 : -1;
-                case "recovery": return rank == 0 ? 30 : rank == 1 ? 70 : rank == 2 ? 120 : -1;
-                case "magnet": return rank == 0 ? 25 : rank == 1 ? 60 : rank == 2 ? 105 : -1;
-                case "precision": return rank == 0 ? 50 : rank == 1 ? 110 : rank == 2 ? 190 : -1;
-                case "arsenal": return rank == 0 ? 90 : rank == 1 ? 150 : rank == 2 ? 195 : -1;
-                case "protocol": return rank == 0 ? 120 : -1;
-                default: return -1;
-            }
-        }
+        private static int WorkshopCost(string id, int rank) => WorkshopController.CostFor(id, rank);
 
         private static string FormatRecordDate(long value)
         {
