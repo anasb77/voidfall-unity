@@ -2024,10 +2024,15 @@ namespace VoidFall.Runtime
 
         private float WeaponRecoveryScale()
         {
-            return (float)CombatRules.WeaponRecoveryMultiplier(
+            // COLOSSUS ARSENAL: -25% fire rate, applied after every other
+            // recovery source so the penalty cannot be out-built.
+            var scale = (float)CombatRules.WeaponRecoveryMultiplier(
                 _cooldownMultiplier,
                 _adrenalTimer > 0 ? SupportRank("adrenal") : 0,
                 (float)OverclockRules.CooldownMultiplier(_overclock.PowerTier));
+            return HasWildCard(WildCardId.ColossusArsenal)
+                ? scale * (float)WildCardRules.ColossusRecoveryPenaltyMultiplier
+                : scale;
         }
 
         private void FireWeapon(int weaponIndex, WeaponStatsDefinition stats, int rank, HostileTarget target)
@@ -2181,6 +2186,8 @@ namespace VoidFall.Runtime
             var radius = radiusOverride > 0
                 ? radiusOverride
                 : (float)stats.ProjectileRadius * radiusScale;
+            // COLOSSUS ARSENAL: double projectile size (spec 44.4).
+            if (HasWildCard(WildCardId.ColossusArsenal)) radius *= 2f;
             var blastRadius = blastRadiusOverride.HasValue
                 ? blastRadiusOverride.Value * _areaMultiplier
                 : (float)stats.BlastRadius * _areaMultiplier;

@@ -1498,7 +1498,7 @@ namespace VoidFall.Runtime
         }
 
         private const float PlayerRadius = VoidFallGameRuntime.PlayerRadius;
-        private const float AttackPlayerRadius = VoidFallGameRuntime.AttackPlayerRadius;
+        private static float AttackPlayerRadius => VoidFallGameRuntime.AttackPlayerRadius;
 
         private void ApplySourcePlayerKnockback(ref EnemyState enemy, Vector2 impactDirection)
             => VoidFallGameRuntime.ApplySourcePlayerKnockback(ref enemy, impactDirection);

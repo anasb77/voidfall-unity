@@ -52,6 +52,11 @@ namespace VoidFall.Runtime
                         "OVERCLOCKER - the boost never ends",
                         3f, ToastKind.Reward);
                     break;
+                case WildCardId.ColossusArsenal:
+                    ShowArenaToast(
+                        "COLOSSUS ARSENAL - everything is bigger",
+                        3f, ToastKind.Reward);
+                    break;
             }
         }
 

@@ -115,7 +115,10 @@ namespace VoidFall.Runtime
         // source floatText(y - 8) therefore maps to a +8 world-space offset.
         private const float SourceFloatingTextAnchorOffset = 8f;
         internal const float PlayerRadius = 15f;
-        internal const float AttackPlayerRadius = 14f;
+        internal static float AttackPlayerRadius =>
+            _instance != null && _instance.HasWildCard(WildCardId.ColossusArsenal)
+                ? 14f * (float)WildCardRules.ColossusHitboxMultiplier
+                : 14f;
         private const float WorldHalfWidth = 640f;
         private const float WorldHalfHeight = 360f;
 

@@ -12,6 +12,7 @@ namespace VoidFall.Core
         Greed,
         SecondLife,
         Overclocker,
+        ColossusArsenal,
     }
 
     public static class WildCardRules
@@ -28,6 +29,13 @@ namespace VoidFall.Core
         // 44.6 SECOND LIFE: one extra revive at half health.
         public const int SecondLifeBonusRevives = 1;
 
+        // 44.4 COLOSSUS ARSENAL: double projectile size, double the player's
+        // damage-taking footprint, and a real -25% fire rate penalty.
+        public const double ColossusProjectileSizeMultiplier = 2.0;
+        public const double ColossusHitboxMultiplier = 2.0;
+        // Fire rate falls 25%, so cooldowns stretch by exactly 4/3.
+        public const double ColossusRecoveryPenaltyMultiplier = 4.0 / 3.0;
+
         public static bool StandstillActive(double stationarySeconds)
         {
             var seconds = IsFinite(stationarySeconds) ? stationarySeconds : 0;
@@ -39,7 +47,8 @@ namespace VoidFall.Core
             return id == WildCardId.Standstill ||
                 id == WildCardId.Greed ||
                 id == WildCardId.SecondLife ||
-                id == WildCardId.Overclocker;
+                id == WildCardId.Overclocker ||
+                id == WildCardId.ColossusArsenal;
         }
 
         private static bool IsFinite(double value)
