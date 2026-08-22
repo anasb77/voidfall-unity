@@ -2413,55 +2413,16 @@ namespace VoidFall.Runtime
 
         private void UpdatePickups(float dt)
         {
-            // Browser updatePickups walks the compact pickup array backwards.
-            // The pooled runtime keeps the same newest-first swap-removal
-            // semantics through a slot-order list; pickups spawned by a
-            // same-step effect append after the captured range and wait for
-            // the next simulation step, just like browser array growth.
-            var initialOrderCount = _gameSim.PickupOrderCount;
-            var pulledXpCount = 0;
-            var pulledXpValue = 0f;
-            for (var order = initialOrderCount - 1; order >= 0; order--)
+            // Movement, magnet pull and collection detection live in
+            // GameSim.AdvancePickups; the runtime applies collected effects
+            // through this cached hook, invoked after the slot is freed so a
+            // Bomb reward drop can reuse it within the same step.
+            if (_pickupCollectedHook == null)
             {
-                var i = _gameSim.PickupOrder[order];
-                var pickup = _gameSim.Pickups[i];
-                if (!pickup.Active) continue;
-                pickup.Age += dt;
-                var delta = _gameSim.Player.Position - pickup.Position;
-                var distanceSquared = delta.sqrMagnitude;
-                var playerAlive = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending;
-                var magnetRadius = _pickupRadius + _workshopMagnet * 8;
-                if (playerAlive && (pickup.Pull || distanceSquared < magnetRadius * magnetRadius))
+                _pickupCollectedHook = (slot, order, collectedFromPull) =>
                 {
-                    pickup.Pull = true;
-                    pickup.Speed = Mathf.Min(950, pickup.Speed + 2800 * dt);
-                    pickup.Velocity = SourcePickupPullVelocity(delta, pickup.Speed);
-                }
-                else
-                {
-                    var decay = Mathf.Exp(-5 * dt);
-                    pickup.Velocity *= decay;
-                }
-                if (pickup.Kind == PickupKind.Xp && pickup.Pull)
-                {
-                    pulledXpCount++;
-                    pulledXpValue += Mathf.Max(0f, pickup.Value);
-                }
-                pickup.Position += pickup.Velocity * dt;
-                var collected = false;
-                var collectedFromPull = pickup.Pull;
-                if (playerAlive && distanceSquared < (PlayerRadius + 7) * (PlayerRadius + 7))
-                {
-                    // Browser updatePickups removes the collected item before
-                    // running its effect. This matters for Bomb: enemy death
-                    // rewards must see the freed pickup slot in the same step.
-                    collected = true;
-                    pickup.Active = false;
-                    pickup.Pull = false;
-                    pickup.Velocity = Vector2.zero;
-                    pickup.Speed = 0;
-                    _gameSim.Pickups[i] = pickup;
-                    Hide(_pickupViews[i]);
+                    var pickup = _gameSim.Pickups[slot];
+                    Hide(_pickupViews[slot]);
                     RemovePickupOrderAt(order);
                     if (pickup.Kind == PickupKind.Xp)
                     {
@@ -2543,12 +2504,17 @@ namespace VoidFall.Runtime
                             ToastKind.Reward);
                     }
                     _telemetry.RecordPickup(PickupKindName(pickup.Kind), pickup.Value);
-                }
-                // A collected effect may reuse the freed pooled slot (Bomb
-                // reward drops do exactly that). Do not restore the stale
-                // collected value over the newly spawned pickup.
-                if (!collected) _gameSim.Pickups[i] = pickup;
+                };
             }
+            _gameSim.PickupCollectedHook = _pickupCollectedHook;
+
+            _gameSim.AdvancePickups(
+                dt,
+                _pickupRadius + _workshopMagnet * 8,
+                PlayerRadius,
+                _gameSim.Player.Health > 0 && !_gameOver && !_revivePending,
+                out var pulledXpCount,
+                out var pulledXpValue);
             _magnetTarget = MusicReactiveMath.MagnetTarget(pulledXpCount, pulledXpValue);
             _pickupStepTimer = Mathf.Max(0, _pickupStepTimer - dt);
             if (_pickupStepTimer <= 0) _pickupStep = 0;

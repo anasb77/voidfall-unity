@@ -855,6 +855,89 @@ namespace VoidFall.Runtime
             }
         }
 
+        /// <summary>
+        /// Invoked when a pickup is collected, AFTER the slot has been
+        /// deactivated and freed - the browser removes the item before running
+        /// its effect, which matters for Bomb reward drops reusing the freed
+        /// slot within the same step. The runtime hides the view, removes the
+        /// order entry and applies the pickup effect. collectedFromPull
+        /// carries the pull flag the freed slot no longer holds (it gates the
+        /// gem-audio coalescing).
+        /// </summary>
+        public Action<int, int, bool> PickupCollectedHook;
+
+        /// <summary>
+        /// Advances every active pickup: aging, magnet pull acceleration or
+        /// velocity decay, drift, and collection detection. Collection frees
+        /// the slot first and then invokes <see cref="PickupCollectedHook"/>;
+        /// slots reported pulled are counted for the music-reactive magnet.
+        /// </summary>
+        public void AdvancePickups(
+            float dt,
+            float magnetRadius,
+            float collectRadius,
+            bool playerAlive,
+            out int pulledXpCount,
+            out float pulledXpValue)
+        {
+            pulledXpCount = 0;
+            pulledXpValue = 0f;
+            // Browser updatePickups walks the compact pickup array backwards.
+            // The pooled runtime keeps the same newest-first swap-removal
+            // semantics through a slot-order list; pickups spawned by a
+            // same-step effect append after the captured range and wait for
+            // the next simulation step, just like browser array growth.
+            var initialOrderCount = PickupOrderCount;
+            for (var order = initialOrderCount - 1; order >= 0; order--)
+            {
+                var i = PickupOrder[order];
+                var pickup = Pickups[i];
+                if (!pickup.Active) continue;
+                pickup.Age += dt;
+                var delta = Player.Position - pickup.Position;
+                var distanceSquared = delta.sqrMagnitude;
+                if (playerAlive && (pickup.Pull || distanceSquared < magnetRadius * magnetRadius))
+                {
+                    pickup.Pull = true;
+                    pickup.Speed = Mathf.Min(950, pickup.Speed + 2800 * dt);
+                    pickup.Velocity = SourcePickupPullVelocity(delta, pickup.Speed);
+                }
+                else
+                {
+                    var decay = Mathf.Exp(-5 * dt);
+                    pickup.Velocity *= decay;
+                }
+                if (pickup.Kind == PickupKind.Xp && pickup.Pull)
+                {
+                    pulledXpCount++;
+                    pulledXpValue += Mathf.Max(0f, pickup.Value);
+                }
+                pickup.Position += pickup.Velocity * dt;
+                var collectedFromPull = pickup.Pull;
+                if (playerAlive && distanceSquared < (collectRadius + 7) * (collectRadius + 7))
+                {
+                    // Free the pooled slot before the effect runs (see hook).
+                    pickup.Active = false;
+                    pickup.Pull = false;
+                    pickup.Velocity = Vector2.zero;
+                    pickup.Speed = 0;
+                    Pickups[i] = pickup;
+                    PickupCollectedHook?.Invoke(i, order, collectedFromPull);
+                    // A collected effect may reuse the freed slot (Bomb reward
+                    // drops do exactly that): never write the stale value back.
+                    continue;
+                }
+                Pickups[i] = pickup;
+            }
+        }
+
+        private static Vector2 SourcePickupPullVelocity(Vector2 delta, float speed)
+        {
+            // Browser updatePickups divides by Math.sqrt(distanceSq) || 1:
+            // tiny non-zero offsets still become a full-speed pull vector.
+            return delta / SourceLengthOrOne(delta) * speed;
+        }
+
         public void ResetPickupOrder()
         {
             PickupOrderCount = 0;
