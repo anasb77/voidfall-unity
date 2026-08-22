@@ -1776,7 +1776,7 @@ namespace VoidFall.Runtime
             if (!soundtrackDrivesMusic) _audio?.StartPad();
             for (var i = 0; i < _gameSim.Enemies.Length; i++)
             {
-                _gameSim.Enemies[i].Active = false;
+                _gameSim.Enemies[i] = default;
                 Hide(_enemyViews[i]);
                 Hide(_enemyHarvesterFullViews[i]);
                 Hide(_enemyExploderWarningViews[i]);
@@ -1806,7 +1806,7 @@ namespace VoidFall.Runtime
             ResetEnemyOrder();
             for (var i = 0; i < _gameSim.Bullets.Length; i++)
             {
-                _gameSim.Bullets[i].Active = false;
+                _gameSim.Bullets[i] = default;
                 Hide(_bulletViews[i]);
                 Hide(_bulletContrastViews[i]);
                 Hide(_railAfterimageFarViews[i]);
@@ -1815,13 +1815,13 @@ namespace VoidFall.Runtime
             ResetBulletOrder();
             for (var i = 0; i < _gameSim.HostileShots.Length; i++)
             {
-                _gameSim.HostileShots[i].Active = false;
+                _gameSim.HostileShots[i] = default;
                 Hide(_hostileShotViews[i]);
             }
             ResetHostileShotOrder();
             for (var i = 0; i < _gameSim.Meteors.Length; i++)
             {
-                _gameSim.Meteors[i].Active = false;
+                _gameSim.Meteors[i] = default;
                 Hide(_meteorViews[i]);
                 Hide(_meteorHitViews[i]);
                 Hide(_meteorCoreViews[i]);
@@ -1832,18 +1832,18 @@ namespace VoidFall.Runtime
             ResetMeteorOrder();
             for (var i = 0; i < _fxSim.MeteorShards.Length; i++)
             {
-                _fxSim.MeteorShards[i].Active = false;
+                _fxSim.MeteorShards[i] = default;
                 Hide(_meteorShardViews[i]);
             }
             for (var i = 0; i < _fxSim.SourceParticles.Length; i++)
             {
-                _fxSim.SourceParticles[i].Active = false;
+                _fxSim.SourceParticles[i] = default;
                 Hide(_sourceParticleViews[i]);
             }
             ResetSourceFxOrder();
             for (var i = 0; i < _impactMarks.Length; i++)
             {
-                _impactMarks[i].Active = false;
+                _impactMarks[i] = default;
                 Hide(_impactMarkViews[i]);
                 for (var segment = 0; segment < ImpactHeatSegmentCount; segment++)
                     Hide(_impactHeatViews[ImpactHeatSlot(i, segment)]);
@@ -1851,14 +1851,14 @@ namespace VoidFall.Runtime
             ResetImpactMarkOrder();
             for (var i = 0; i < _fxSim.RingWaves.Length; i++)
             {
-                _fxSim.RingWaves[i].Active = false;
+                _fxSim.RingWaves[i] = default;
                 Hide(_ringWaveViews[i]);
                 Hide(_ringWaveGlowViews[i]);
                 Hide(_ringWaveSpriteViews[i]);
             }
             for (var i = 0; i < _blastWaves.Length; i++)
             {
-                _blastWaves[i].Active = false;
+                _blastWaves[i] = default;
                 Hide(_blastWaveFillViews[i]);
                 Hide(_blastWaveRimViews[i]);
                 Hide(_blastWaveArcViews[i]);
@@ -1866,15 +1866,13 @@ namespace VoidFall.Runtime
             ResetBlastWaveOrder();
             for (var i = 0; i < _gameSim.Pickups.Length; i++)
             {
-                _gameSim.Pickups[i].Active = false;
+                _gameSim.Pickups[i] = default;
                 Hide(_pickupViews[i]);
             }
             ResetPickupOrder();
             for (var i = 0; i < _gameSim.Bosses.Length; i++)
             {
-                _gameSim.Bosses[i].Active = false;
-                _gameSim.Bosses[i].StateTimer = 0;
-                _gameSim.Bosses[i].DeathTimer = 0;
+                _gameSim.Bosses[i] = default;
                 Hide(_bossViews[i]);
                 Hide(_bossTelegraphFillRenderers[i]);
                 Hide(_bossTelegraphOutlineViews[i]);
@@ -1885,13 +1883,13 @@ namespace VoidFall.Runtime
             Hide(_bossBarFill);
             for (var i = 0; i < _arcEffects.Length; i++)
             {
-                _arcEffects[i].Active = false;
+                _arcEffects[i] = default;
                 Hide(_arcViews[i]);
                 Hide(_arcCoreViews[i]);
             }
             for (var i = 0; i < _railTrails.Length; i++)
             {
-                _railTrails[i].Active = false;
+                _railTrails[i] = default;
                 Hide(_railTrailViews[i]);
             }
             for (var i = 0; i < _bladeViews.Length; i++) Hide(_bladeViews[i]);
