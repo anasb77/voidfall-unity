@@ -21,7 +21,8 @@ namespace VoidFall.UI
         Pause,
         Revive,
         GameOver,
-        Roulette
+        Roulette,
+        RouteSelect
     }
 
     /// <summary>
@@ -121,6 +122,12 @@ namespace VoidFall.UI
         /// session rather than a navigation state.
         /// </summary>
         public RouletteView Roulette { get; private set; }
+
+        /// <summary>
+        /// The branching choice after a Void's objective completes; like the
+        /// roulette it is a modal session, not a navigation page.
+        /// </summary>
+        public RouteSelectView RouteSelect { get; private set; }
 
         public UICallbacks Callbacks { get; private set; }
 
@@ -223,6 +230,9 @@ namespace VoidFall.UI
 
             Roulette = CreateView<RouletteView>(_overlayLayerRect, "Boss Roulette");
             Roulette.Initialize(this);
+
+            RouteSelect = CreateView<RouteSelectView>(_overlayLayerRect, "Route Select");
+            RouteSelect.Initialize(this);
 
             Evolution = CreateView<EvolutionRevealView>(effectLayer, "Evolution Reveal");
             Evolution.Initialize(this);
@@ -353,9 +363,10 @@ namespace VoidFall.UI
             // messages on precisely the pages that produce them.
             var decisionOverlay = screen == UIScreen.LevelUp || screen == UIScreen.Revive ||
                 screen == UIScreen.Pause || screen == UIScreen.GameOver ||
-                screen == UIScreen.Roulette;
+                screen == UIScreen.Roulette || screen == UIScreen.RouteSelect;
             Toasts?.SetObscured(decisionOverlay);
             Roulette?.SetVisible(screen == UIScreen.Roulette);
+            RouteSelect?.SetVisible(screen == UIScreen.RouteSelect);
         }
 
         public UIScreen CurrentScreen => _screen;

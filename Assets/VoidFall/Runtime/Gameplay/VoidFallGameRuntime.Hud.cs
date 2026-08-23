@@ -115,6 +115,7 @@ namespace VoidFall.Runtime
                 _objectiveText.text = _objectiveLine;
                 _objectiveText.enabled = !string.IsNullOrEmpty(_objectiveLine);
             }
+            AnimateRiftPortal(Time.unscaledDeltaTime);
             var hudScore = CurrentScore();
             if ((_metricsText != null || _metricValues[0] != null) &&
                 (_lastHudKills != _kills || _lastHudParts != _partsEarned || _lastHudScore != hudScore))

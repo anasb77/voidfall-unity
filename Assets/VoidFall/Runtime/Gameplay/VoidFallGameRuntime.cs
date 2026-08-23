@@ -1753,6 +1753,7 @@ namespace VoidFall.Runtime
             _gameSim.Rng = new Rng(_runSeed);
             _fxSim.FxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
             BeginObjectiveForCurrentArena();
+            EnsureVoidRouteForRun();
             _musicPerimeter?.Configure(
                 unchecked((int)_runSeed),
                 _qualityPreset.Detail,
@@ -2332,7 +2333,10 @@ namespace VoidFall.Runtime
             if (arenaStep.Event == ArenaTransitionEvent.Swap && arenaStep.State.Incoming.HasValue)
             {
                 _arenaId = arenaStep.State.Incoming.Value;
-                BeginObjectiveForCurrentArena();
+                // Endless-clock rotation re-keys the objective only without a
+                // route; with a route the Void's objective must survive an
+                // incidental arena rotation without resetting its progress.
+                if (_voidRoute == null) BeginObjectiveForCurrentArena();
                 SelectRecipeForCurrentArena();
                 PrepareArenaNeighborhood();
                 ClearMeteors();

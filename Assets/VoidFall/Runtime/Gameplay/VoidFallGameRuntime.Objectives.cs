@@ -32,7 +32,13 @@ namespace VoidFall.Runtime
         /// </summary>
         private void BeginObjectiveForCurrentArena()
         {
-            var objective = VoidObjectives.ForArena(ArenaCatalogRules.StableId(_arenaId));
+            // With a route active the objective keys on the Void, not the
+            // arena: Hydra shares the Abyss arena as a placeholder but must
+            // not share its escape condition.
+            var key = _voidRoute != null
+                ? _voidRoute.CurrentVoidId
+                : ArenaCatalogRules.StableId(_arenaId);
+            var objective = VoidObjectives.ForArena(key);
             if (objective == null)
             {
                 _objectives?.Clear();
@@ -43,6 +49,7 @@ namespace VoidFall.Runtime
             _objectives.Begin(objective);
             _objectiveLine = objective.GetObjectiveText();
             _objectiveLineTimer = ObjectiveLineRebuildSeconds;
+            _objectivesCompletionHandled = false;
         }
 
         private void NotifyObjectiveKill() => _objectives?.NotifyKill();
@@ -57,6 +64,11 @@ namespace VoidFall.Runtime
         {
             if (_objectives == null) return;
             _objectives.Step(deltaTime);
+            if (_objectives.IsComplete && !_objectivesCompletionHandled)
+            {
+                _objectivesCompletionHandled = true;
+                OnVoidObjectiveCompleted();
+            }
             _objectiveLineTimer -= (float)deltaTime;
             if (_objectiveLineTimer > 0) return;
             _objectiveLineTimer = ObjectiveLineRebuildSeconds;

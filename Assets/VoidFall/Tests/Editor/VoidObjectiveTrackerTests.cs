@@ -12,13 +12,17 @@ namespace VoidFall.Tests.Editor
         [Test]
         public void Arena_factory_maps_the_built_voids()
         {
-            var abyss = VoidObjectives.ForArena("abyss");
-            Assert.That(abyss, Is.Not.Null, "the mandatory beginning must have an objective");
-            Assert.That(abyss, Is.InstanceOf<MultiPhaseObjective>());
+            foreach (var voidId in new[] { "abyss", "red-nebula", "white-sakura", "hydra" })
+            {
+                var objective = VoidObjectives.ForArena(voidId);
+                Assert.That(objective, Is.Not.Null, voidId + " must open a rift");
+                Assert.That(objective, Is.InstanceOf<MultiPhaseObjective>(),
+                    voidId + " composes survive + named-kill phases");
+            }
 
-            // Voids without a built escape condition stay endless.
-            Assert.That(VoidObjectives.ForArena("red-nebula"), Is.Null);
-            Assert.That(VoidObjectives.ForArena("white-sakura"), Is.Null);
+            // Layer II and beyond stay endless until their Voids are built.
+            Assert.That(VoidObjectives.ForArena("null-city"), Is.Null);
+            Assert.That(VoidObjectives.ForArena("last-gate"), Is.Null);
             Assert.That(VoidObjectives.ForArena(null), Is.Null);
         }
 

@@ -24,6 +24,13 @@ namespace VoidFall.Core
         /// then kill the Gatekeeper. The Herald is the first boss the
         /// director schedules; the Gatekeeper maps onto its first death
         /// until real rift transitions replace the endless clock.
+        ///
+        /// The Layer I entries are documented placeholders: each is survive
+        /// a duration, then defeat the next boss on the global clock (the
+        /// Warden at 300 s, the Matriarch at 450 s). They exist so every
+        /// branch of the prototype route opens a rift; they are replaced by
+        /// the real per-Void objectives (Anchors, Rift Zones, Gene Nodes)
+        /// as those structures land in the simulation.
         /// </summary>
         public static IVoidObjective ForArena(string arenaStableId)
         {
@@ -34,6 +41,21 @@ namespace VoidFall.Core
                         "ABYSS",
                         new SurviveObjective(180, "Survive"),
                         new KillTargetObjective("herald", "Kill the Gatekeeper"));
+                case "red-nebula":
+                    return new MultiPhaseObjective(
+                        "RED NEBULA",
+                        new SurviveObjective(240, "Endure the storm"),
+                        new KillTargetObjective("warden", "Destroy the Warden"));
+                case "white-sakura":
+                    return new MultiPhaseObjective(
+                        "WHITE SAKURA",
+                        new SurviveObjective(240, "Hold the dreamscape"),
+                        new KillTargetObjective("warden", "Silence the Warden"));
+                case "hydra":
+                    return new MultiPhaseObjective(
+                        "HYDRA",
+                        new SurviveObjective(300, "Survive the mutation"),
+                        new KillTargetObjective("matriarch", "Kill Hydra Prime"));
                 default:
                     return null;
             }
