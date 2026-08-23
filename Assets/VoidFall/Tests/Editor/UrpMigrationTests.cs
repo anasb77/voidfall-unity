@@ -134,9 +134,10 @@ namespace VoidFall.Tests.Editor
             Assert.That(profile.components, Is.Not.Empty,
                 "URP will rewrite an empty default profile during a build.");
             Assert.That(profile.TryGet(out Bloom bloom), Is.True);
-            Assert.That(bloom.intensity.value, Is.Zero);
+            Assert.That(bloom.intensity.value, Is.EqualTo(1.2f),
+                "the neon identity ships with its glow");
             Assert.That(profile.TryGet(out ChromaticAberration chromatic), Is.True);
-            Assert.That(chromatic.intensity.value, Is.Zero);
+            Assert.That(chromatic.intensity.value, Is.EqualTo(0.12f));
             Assert.That(profile.TryGet(out ColorAdjustments color), Is.True);
             Assert.That(color.postExposure.value, Is.Zero);
             Assert.That(color.contrast.value, Is.Zero);

@@ -116,11 +116,13 @@ namespace VoidFall.Editor
             // URP requires its global default profile to contain every supported
             // component with overrides enabled. An empty profile is not stable:
             // Unity repopulates it during a player build. Populate it explicitly
-            // and lock every image-changing default to its neutral value.
+            // with the tuned presentation defaults (the neon identity needs its
+            // glow); everything else locks to neutral so a player build can
+            // never silently introduce an untuned effect.
             VolumeProfileUtils.EnsureAllOverridesForDefaultProfile(profile);
 
-            if (profile.TryGet(out Bloom bloom)) bloom.intensity.value = 0f;
-            if (profile.TryGet(out ChromaticAberration chromatic)) chromatic.intensity.value = 0f;
+            if (profile.TryGet(out Bloom bloom)) bloom.intensity.value = 1.2f;
+            if (profile.TryGet(out ChromaticAberration chromatic)) chromatic.intensity.value = 0.12f;
             if (profile.TryGet(out ColorAdjustments color))
             {
                 color.postExposure.value = 0f;
