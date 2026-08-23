@@ -1752,6 +1752,7 @@ namespace VoidFall.Runtime
             _runSeed = SelectRunSeed();
             _gameSim.Rng = new Rng(_runSeed);
             _fxSim.FxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
+            BeginObjectiveForCurrentArena();
             _musicPerimeter?.Configure(
                 unchecked((int)_runSeed),
                 _qualityPreset.Detail,
@@ -2331,6 +2332,7 @@ namespace VoidFall.Runtime
             if (arenaStep.Event == ArenaTransitionEvent.Swap && arenaStep.State.Incoming.HasValue)
             {
                 _arenaId = arenaStep.State.Incoming.Value;
+                BeginObjectiveForCurrentArena();
                 SelectRecipeForCurrentArena();
                 PrepareArenaNeighborhood();
                 ClearMeteors();
@@ -2475,6 +2477,8 @@ namespace VoidFall.Runtime
 
             _timeScale += (_targetTimeScale - _timeScale) *
                 (1 - Mathf.Exp(-9f * realDt));
+
+            StepObjectiveTracker(dt);
         }
 
         private static readonly Color DotCyan = ParseColor("#22d3ee", Color.white);

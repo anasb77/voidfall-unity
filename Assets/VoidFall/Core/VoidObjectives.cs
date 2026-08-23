@@ -14,6 +14,30 @@ namespace VoidFall.Core
             var total = Math.Max(0, (int)Math.Floor(seconds));
             return (total / 60).ToString("00") + ":" + (total % 60).ToString("00");
         }
+
+        /// <summary>
+        /// The escape condition for a Void, keyed by the arena stable id
+        /// ("abyss", "red-nebula", ...). Voids without a built objective
+        /// return null and the run keeps its endless behavior there.
+        ///
+        /// Abyss (spec §11): survive the opening escalation (~3 minutes),
+        /// then kill the Gatekeeper. The Herald is the first boss the
+        /// director schedules; the Gatekeeper maps onto its first death
+        /// until real rift transitions replace the endless clock.
+        /// </summary>
+        public static IVoidObjective ForArena(string arenaStableId)
+        {
+            switch (arenaStableId)
+            {
+                case "abyss":
+                    return new MultiPhaseObjective(
+                        "ABYSS",
+                        new SurviveObjective(180, "Survive"),
+                        new KillTargetObjective("herald", "Kill the Gatekeeper"));
+                default:
+                    return null;
+            }
+        }
     }
 
     /// <summary>Survive for a fixed duration (Abyss opening, board cycles).</summary>
@@ -241,8 +265,8 @@ namespace VoidFall.Core
     /// <summary>
     /// Strictly ordered phases (survive then Gatekeeper; nodes then Hydra
     /// Prime; both board cycles then Checkmate). The next phase begins only
-    /// after the current one completes, and a single tick's feed is never
-    /// shared across the phase boundary.
+    /// after the current one completes; each tick's feed is consumed by
+    /// exactly one phase - the boundary batch goes to the newly begun phase.
     /// </summary>
     public sealed class MultiPhaseObjective : IVoidObjective
     {
@@ -289,10 +313,20 @@ namespace VoidFall.Core
             if (!_begun || IsComplete) return;
             if (_transitionPending)
             {
-                // The previous phase completed on an earlier tick; start the
-                // next one now so both phases never consume the same feed.
+                // The previous phase completed on an earlier tick. Begin the
+                // next phase and hand it this tick's batch: every batch is
+                // consumed by exactly one phase, and a named kill landing on
+                // the boundary tick (a boss dying the instant the survive
+                // phase ends) is not silently swallowed.
                 _transitionPending = false;
-                _phases[_index].BeginObjective();
+                var next = _phases[_index];
+                next.BeginObjective();
+                next.TickObjective(deltaTime, feed);
+                if (next.IsComplete)
+                {
+                    _index++;
+                    if (_index < _phases.Length) _transitionPending = true;
+                }
                 return;
             }
             var phase = _phases[_index];

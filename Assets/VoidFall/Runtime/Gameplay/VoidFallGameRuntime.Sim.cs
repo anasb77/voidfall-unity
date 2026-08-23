@@ -2945,6 +2945,7 @@ namespace VoidFall.Runtime
             if (slot < 0) return;
             var definition = FindBoss(id);
             if (definition == null) return;
+            NotifyObjectiveBossSpawned(id);
             _bossCycle = Mathf.Max(_bossCycle, Mathf.Max(0, encounterCycle));
             var activeBeforeSpawn = ActiveBosses();
             DiscoverBestiary(id);
@@ -3687,6 +3688,7 @@ namespace VoidFall.Runtime
                 return;
             }
             _kills++;
+            NotifyObjectiveKill();
             var rewardXp = enemy.Xp;
             // Browser removeEnemy awards a flat 10 score to normal enemies;
             // XP is a separate reward and must not change the kill score.
@@ -3892,6 +3894,7 @@ namespace VoidFall.Runtime
             bossAccent.a = 0.82f;
             BurstFx(boss.Position, SourceDotColor("white"), 18, 280, 0.7f, 0.9f);
             _bossKills++;
+            NotifyObjectiveBossKilled(boss.Id);
             _score += 1000;
             var definition = FindBoss(boss.Id);
             if (definition != null)

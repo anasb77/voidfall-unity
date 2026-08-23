@@ -141,7 +141,8 @@ namespace VoidFall.Tests.Editor
             Assert.That(objective.IsComplete, Is.False);
             Assert.That(objective.PhaseIndex, Is.EqualTo(1));
 
-            // Transition tick: phase 2 begins, does not consume old feed.
+            // Transition tick: phase 2 begins with this tick's batch (empty
+            // here); the old batch from phase 1's final tick is gone.
             Tick(objective, 1, default(VoidObjectiveFeed));
             Assert.That(boss.Spawned, Is.False);
 
@@ -169,8 +170,7 @@ namespace VoidFall.Tests.Editor
             Assert.That(objective.Progress01, Is.EqualTo(0.25).Within(1e-9));
 
             Tick(objective, 50, default(VoidObjectiveFeed)); // first completes
-            Tick(objective, 1, default(VoidObjectiveFeed));  // second begins
-            Tick(objective, 50, default(VoidObjectiveFeed));
+            Tick(objective, 50, default(VoidObjectiveFeed)); // boundary batch begins + ticks phase 2
             Assert.That(objective.Progress01, Is.EqualTo(0.75).Within(1e-9));
         }
 

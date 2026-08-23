@@ -106,6 +106,15 @@ namespace VoidFall.Runtime
                 _lastHudLevel = _level;
                 _levelText.text = $"LV {_level}";
             }
+            // The objective line is rebuilt on a fixed cadence inside the
+            // simulation tick (StepObjectiveTracker); the HUD only rewrites
+            // the label when that cached string actually changes.
+            if (_objectiveText != null && _objectiveLine != _lastObjectiveLine)
+            {
+                _lastObjectiveLine = _objectiveLine;
+                _objectiveText.text = _objectiveLine;
+                _objectiveText.enabled = !string.IsNullOrEmpty(_objectiveLine);
+            }
             var hudScore = CurrentScore();
             if ((_metricsText != null || _metricValues[0] != null) &&
                 (_lastHudKills != _kills || _lastHudParts != _partsEarned || _lastHudScore != hudScore))
@@ -917,6 +926,10 @@ namespace VoidFall.Runtime
             _levelText = CreateText(canvasObject.transform, new Vector2(-10, -49), new Vector2(0.5f, 1), 10, new Color(0.49f, 0.827f, 0.988f));
             _levelText.alignment = TextAnchor.UpperCenter;
             _levelText.rectTransform.sizeDelta = new Vector2(94, 16);
+            _objectiveText = CreateText(canvasObject.transform, new Vector2(-10, -68), new Vector2(0.5f, 1), 10, new Color(0.663f, 0.733f, 0.812f));
+            _objectiveText.alignment = TextAnchor.UpperCenter;
+            _objectiveText.rectTransform.sizeDelta = new Vector2(420, 16);
+            _objectiveText.enabled = false;
 
             _metricsPanel = CreateHudImage(canvasObject.transform, "Run Metrics Panel");
             _metricsPanel.sprite = ProceduralSpriteFactory.Square();
