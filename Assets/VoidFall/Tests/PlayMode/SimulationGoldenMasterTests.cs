@@ -101,7 +101,7 @@ namespace VoidFall.Tests.PlayMode
         }
 
         /// <summary>Computed once and pinned. See class comment before changing.</summary>
-        internal const ulong GoldenMasterHash = 4364662492314700529;
+        internal const ulong GoldenMasterHash = 16262338206111542146;
 
         internal static ulong HashRuntimeState(object runtime)
         {

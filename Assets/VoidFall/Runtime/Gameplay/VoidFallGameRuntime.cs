@@ -1757,6 +1757,7 @@ namespace VoidFall.Runtime
             BeginObjectiveForCurrentArena();
             EnsureVoidRouteForRun();
             ResetRouletteLuck();
+            HideRouletteChest();
             _musicPerimeter?.Configure(
                 unchecked((int)_runSeed),
                 _qualityPreset.Detail,
@@ -4913,7 +4914,7 @@ namespace VoidFall.Runtime
                 cameraObject.tag = "MainCamera";
             }
             _camera.orthographic = true;
-            _camera.orthographicSize = WorldHalfHeight;
+            _camera.orthographicSize = GameplayReferenceHalfHeight;
             UpdateGameplayCameraViewport();
             _camera.allowDynamicResolution = false;
             _camera.backgroundColor = new Color(0.015f, 0.025f, 0.07f, 1);
@@ -4930,11 +4931,20 @@ namespace VoidFall.Runtime
             return new Vector2(WorldHalfWidth, WorldHalfHeight);
         }
 
+        /// <summary>
+        /// The unified gameplay framing. The camera used to run 1 world unit
+        /// per pixel, so the visible battlefield changed with the window
+        /// resolution; every resolution now sees the same world. The size is
+        /// the framing the 720p-era view had (WorldHalfHeight), dezoomed 35%.
+        /// </summary>
+        internal const float GameplayReferenceHalfHeight = WorldHalfHeight * 1.35f;
+
         private static Vector2 GameplayViewportHalfExtent(float viewportWidth, float viewportHeight)
         {
+            var height = Mathf.Max(1f, viewportHeight);
             return new Vector2(
-                Mathf.Max(1f, viewportWidth) * 0.5f,
-                Mathf.Max(1f, viewportHeight) * 0.5f);
+                GameplayReferenceHalfHeight * Mathf.Max(0.5f, viewportWidth) / height,
+                GameplayReferenceHalfHeight);
         }
 
         private void SetupPlayer()
