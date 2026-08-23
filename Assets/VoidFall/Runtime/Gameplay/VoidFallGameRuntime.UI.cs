@@ -282,11 +282,17 @@ namespace VoidFall.Runtime
                 2.2f,
                 ToastKind.Reward);
             SetMenuNotice(_revivesRemaining > 0 ? $"Revived — {_revivesRemaining} left." : "Revived.");
+            if (_roulettePendingAfterRevive)
+            {
+                _roulettePendingAfterRevive = false;
+                OpenBossRoulette();
+            }
         }
 
         private void DeclineRevive()
         {
             if (!_revivePending) return;
+            _roulettePendingAfterRevive = false;
             EndRun();
         }
 

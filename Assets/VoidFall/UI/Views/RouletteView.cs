@@ -30,7 +30,7 @@ namespace VoidFall.UI
 
         private const float WheelDiameter = 520f;
         private const float MarkerRadius = WheelDiameter * 0.36f;
-        private const float SpinSeconds = 2.7f;
+        private const float SpinSeconds = 5.2f;
         private const int ExtraRevolutions = 4;
 
         private readonly List<RectTransform> _markers = new List<RectTransform>();
@@ -41,6 +41,7 @@ namespace VoidFall.UI
         private Button _improveOddsButton;
         private Button _raiseStakesButton;
         private Button _spinButton;
+        private RectTransform _raysRect;
         private Button _continueButton;
         private Text _improveOddsCostLabel;
         private Text _raiseStakesCostLabel;
@@ -121,10 +122,10 @@ namespace VoidFall.UI
             _partsLabel = UIBuilder.CreateText(
                 header, "Parts", string.Empty, 15f,
                 UITheme.CyanPale, TextAnchor.UpperCenter, true, FontStyle.Bold);
-            _partsLabel.rectTransform.anchorMin = new Vector2(0.5f, 1f);
-            _partsLabel.rectTransform.anchorMax = new Vector2(0.5f, 1f);
-            _partsLabel.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _partsLabel.rectTransform.anchoredPosition = new Vector2(0f, 0f);
+            _partsLabel.rectTransform.anchorMin = new Vector2(1f, 1f);
+            _partsLabel.rectTransform.anchorMax = new Vector2(1f, 1f);
+            _partsLabel.rectTransform.pivot = new Vector2(1f, 1f);
+            _partsLabel.rectTransform.anchoredPosition = new Vector2(-18f, -8f);
             _partsLabel.transform.SetSiblingIndex(1);
         }
 
@@ -143,6 +144,26 @@ namespace VoidFall.UI
             disc.color = UITheme.WithAlpha(new Color(0.04f, 0.05f, 0.09f), 0.92f);
             disc.raycastTarget = false;
 
+            // Golden rays backdrop (LightRays pack): slow spin, breathes
+            // brighter on the reveal.
+            var raysTexture = Resources.Load<Texture2D>("VoidFall/UI/LightRays/Rays1");
+            if (raysTexture != null)
+            {
+                var rays = UIBuilder.CreateSurface(holder, "LightRays", Sprite.Create(
+                    raysTexture,
+                    new Rect(0f, 0f, raysTexture.width, raysTexture.height),
+                    new Vector2(0.5f, 0.5f),
+                    100f));
+                rays.type = Image.Type.Simple;
+                rays.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+                rays.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+                rays.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+                rays.rectTransform.sizeDelta = new Vector2(WheelDiameter * 1.9f, WheelDiameter * 1.9f);
+                rays.color = new Color(1f, 0.9f, 0.55f, 0.34f);
+                rays.raycastTarget = false;
+                _raysRect = rays.rectTransform;
+                rays.transform.SetAsFirstSibling();
+            }
             var rim = UIBuilder.CreateRect(holder, "Rim");
             UIBuilder.Stretch(rim);
             var rimImage = rim.gameObject.AddComponent<Image>();
@@ -312,6 +333,7 @@ namespace VoidFall.UI
             _availableParts = Math.Max(0, availableParts);
             _spinContext = spinContext;
             _stage = Stage.Choosing;
+            SetWagerRowInteractable(true);
             _spinElapsed = 0f;
             _revealElapsed = -1f;
 
@@ -337,6 +359,25 @@ namespace VoidFall.UI
                 var wedge = wedges[index];
                 var accent = ParseAccent(wedge.Accent);
 
+                // Pizza wedge: a radial fill aligned under this marker.
+                var slice = UIBuilder.CreateSurface(_wheel, "Slice " + index, UISprites.Circle(256));
+                slice.type = Image.Type.Filled;
+                slice.fillMethod = Image.FillMethod.Radial360;
+                slice.fillOrigin = (int)Image.Origin360.Top;
+                slice.fillClockwise = true;
+                slice.fillAmount = 1f / wedges.Length;
+                slice.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+                slice.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+                slice.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+                slice.rectTransform.sizeDelta = new Vector2(WheelDiameter, WheelDiameter);
+                slice.rectTransform.anchoredPosition = Vector2.zero;
+                slice.rectTransform.localRotation = Quaternion.Euler(0f, 0f, (0.5f - index) * step);
+                var shade = index % 2 == 0 ? 1f : 0.7f;
+                var sliceAlpha = wedge.Tier == RouletteTier.Legendary ? 0.4f
+                    : wedge.Tier == RouletteTier.Premium ? 0.3f
+                    : wedge.Tier == RouletteTier.Standard ? 0.2f : 0.1f;
+                slice.color = UITheme.WithAlpha(accent * shade, sliceAlpha);
+                slice.raycastTarget = false;
                 var marker = UIBuilder.CreateRect(_wheel, "Wedge " + index);
                 marker.anchorMin = new Vector2(0.5f, 0.5f);
                 marker.anchorMax = new Vector2(0.5f, 0.5f);
@@ -494,12 +535,14 @@ namespace VoidFall.UI
 
         private void Update()
         {
+            if (_raysRect != null)
+                _raysRect.Rotate(0f, 0f, -14f * Time.unscaledDeltaTime);
             UpdateReveal();
             if (_stage != Stage.Spinning || _wheel == null) return;
             _spinElapsed += Time.unscaledDeltaTime;
             var t = Mathf.Clamp01(_spinElapsed / SpinSeconds);
-            // Ease-out cubic: fast launch, long decelerating settle.
-            var eased = 1f - Mathf.Pow(1f - t, 3f);
+            // Ease-out quartic: violent launch, long ticking settle.
+            var eased = 1f - Mathf.Pow(1f - t, 4f);
             var angle = Mathf.LerpAngle(_startRotation, _targetRotation, eased);
             _wheel.localRotation = Quaternion.Euler(0f, 0f, angle);
 
@@ -523,6 +566,7 @@ namespace VoidFall.UI
         {
             _stage = Stage.Revealed;
             _revealElapsed = 0f;
+            if (_raysRect != null) _raysRect.localScale = new Vector3(1.12f, 1.12f, 1f);
             var prize = _session != null ? _session.Result : null;
             if (prize == null) return;
 

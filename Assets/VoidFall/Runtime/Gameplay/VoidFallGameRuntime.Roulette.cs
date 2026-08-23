@@ -19,6 +19,7 @@ namespace VoidFall.Runtime
         private RouletteSession _rouletteSession;
         private Rng _rouletteRng;
         private bool _rouletteActive;
+        private bool _roulettePendingAfterRevive;
 
         // Per-run ceremony history: drives the luck pity (each ceremony
         // tilts the next table upward) and the repeat protection.
@@ -31,11 +32,19 @@ namespace VoidFall.Runtime
         {
             _rouletteCeremoniesSeen = 0;
             _rouletteHasLast = false;
+            _roulettePendingAfterRevive = false;
         }
 
         private void OpenBossRoulette()
         {
             if (_ui == null || _gameOver || _revivePending || _rouletteActive) return;
+            if (_gameSim.Player.Health <= 0)
+            {
+                // The boss fell as the player fell. Defer the ceremony
+                // until the revive question resolves.
+                _roulettePendingAfterRevive = true;
+                return;
+            }
             _rouletteRng = new Rng(_runSeed ^ ((uint)_bossKills * 0x9e3779b9u));
             _rouletteSession = new RouletteSession(
                 _runSeed,
