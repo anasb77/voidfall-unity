@@ -10,8 +10,10 @@ namespace VoidFall.Editor
 {
     public static class ArenaContentBaker
     {
-        public const int BakeWidth = 3021;
-        public const int BakeHeight = 1699;
+        public const int BakeWidth = 3840;
+        public const int BakeHeight = 2160;
+        public const int DetailBakeWidth = 2560;
+        public const int DetailBakeHeight = 1440;
 
         private const string GeneratedRoot = "Assets/VoidFall/Generated";
         private const string ArenaTextureRoot = GeneratedRoot + "/Arenas";
@@ -95,6 +97,8 @@ namespace VoidFall.Editor
                     errors.Add("Invalid prepared arena asset: " + assetPath);
                 if (asset.Width != BakeWidth || asset.Height != BakeHeight)
                     errors.Add("Unexpected prepared arena dimensions: " + assetPath);
+                if (asset.DetailWidth != DetailBakeWidth || asset.DetailHeight != DetailBakeHeight)
+                    errors.Add("Unexpected prepared arena detail dimensions: " + assetPath);
 
                 ValidateTexture(asset.BaseSprite, arena + " base", errors);
                 ValidateTexture(asset.DetailSprite, arena + " details", errors);
@@ -111,8 +115,10 @@ namespace VoidFall.Editor
 
             var basePath = textureFolder + "/Base.png";
             var detailPath = textureFolder + "/Details.png";
-            WritePng(basePath, ArenaPlateFactory.BuildBasePixels(arena, BakeWidth, BakeHeight));
-            WritePng(detailPath, ArenaPlateFactory.BuildDetailPixels(arena, BakeWidth, BakeHeight));
+            WritePng(basePath, BakeWidth, BakeHeight,
+                ArenaPlateFactory.BuildBasePixels(arena, BakeWidth, BakeHeight));
+            WritePng(detailPath, DetailBakeWidth, DetailBakeHeight,
+                ArenaPlateFactory.BuildDetailPixels(arena, DetailBakeWidth, DetailBakeHeight));
             ImportArenaTexture(basePath);
             ImportArenaTexture(detailPath);
 
@@ -136,17 +142,19 @@ namespace VoidFall.Editor
             serialized.FindProperty("_detailSprite").objectReferenceValue = detailSprite;
             serialized.FindProperty("_width").intValue = BakeWidth;
             serialized.FindProperty("_height").intValue = BakeHeight;
+            serialized.FindProperty("_detailWidth").intValue = DetailBakeWidth;
+            serialized.FindProperty("_detailHeight").intValue = DetailBakeHeight;
             serialized.FindProperty("_schema").intValue = ArenaPlateAsset.CurrentSchema;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(asset);
         }
 
-        private static void WritePng(string assetPath, Color32[] pixels)
+        private static void WritePng(string assetPath, int width, int height, Color32[] pixels)
         {
-            if (pixels == null || pixels.Length != BakeWidth * BakeHeight)
+            if (pixels == null || pixels.Length != width * height)
                 throw new InvalidOperationException("Arena baker returned an invalid pixel buffer for " + assetPath + ".");
 
-            var texture = new Texture2D(BakeWidth, BakeHeight, TextureFormat.RGBA32, false)
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
             {
                 name = Path.GetFileNameWithoutExtension(assetPath),
             };

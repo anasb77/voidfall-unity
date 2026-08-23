@@ -15,6 +15,8 @@ MonoBehaviour:
   _arena: 2
   _baseSprite: {fileID: 21300000, guid: e08754265accdc64f917e8b40c690751, type: 3}
   _detailSprite: {fileID: 21300000, guid: 3244ac8cdab7a194aa3ba62f5b1ddd96, type: 3}
-  _width: 3021
-  _height: 1699
-  _schema: 1
+  _width: 3840
+  _height: 2160
+  _detailWidth: 2560
+  _detailHeight: 1440
+  _schema: 2

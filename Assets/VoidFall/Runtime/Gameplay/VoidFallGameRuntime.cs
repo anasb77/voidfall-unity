@@ -482,6 +482,8 @@ namespace VoidFall.Runtime
         private ArenaResidencyManager _arenaResidency;
         private int _arenaPlateBakeWidth = ArenaPlateFactory.DefaultWidth;
         private int _arenaPlateBakeHeight = ArenaPlateFactory.DefaultHeight;
+        private int _arenaPlateDetailBakeWidth = 2560;
+        private int _arenaPlateDetailBakeHeight = 1440;
         private readonly LineRenderer[] _arenaRockRimViews = new LineRenderer[MaxArenaRocks];
         private readonly LineRenderer[] _arenaStellarRimViews = new LineRenderer[MaxArenaStellarRimSegments];
         private readonly LineRenderer[] _arenaLandmarkViews = new LineRenderer[MaxArenaLandmarkSegments];

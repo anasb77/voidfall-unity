@@ -213,9 +213,9 @@ namespace VoidFall.Tests.Editor
                 arena.enumValueIndex = (int)ArenaId.WhiteSakura;
                 baseSprite.objectReferenceValue = sprite;
                 detailSprite.objectReferenceValue = sprite;
-                width.intValue = 3021;
-                height.intValue = 1699;
-                schema.intValue = 1;
+                width.intValue = 3840;
+                height.intValue = 2160;
+                schema.intValue = 2;
                 serialized.ApplyModifiedPropertiesWithoutUndo();
 
                 var validity = typeof(ArenaPlateAsset).GetMethod("IsValidFor");

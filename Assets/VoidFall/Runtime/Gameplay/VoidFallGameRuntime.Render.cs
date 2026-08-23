@@ -4690,8 +4690,11 @@ namespace VoidFall.Runtime
             {
                 _arenaBakedDetailView.sprite = _arenaPlateDetailSprites[(int)_arenaId];
                 _arenaBakedDetailView.color = Color.white;
-                _arenaBakedDetailView.transform.localScale =
-                    _backdropView.transform.localScale * recipe.DetailScale;
+                _arenaBakedDetailView.transform.localScale = new Vector3(
+                    (recipe.MirrorX ? -1f : 1f) *
+                        viewportHalf.x * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateDetailBakeWidth),
+                    viewportHalf.y * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateDetailBakeHeight),
+                    1) * recipe.DetailScale;
                 _arenaBakedDetailView.transform.position = _backdropView.transform.position +
                     new Vector3(
                         viewportHalf.x * recipe.DetailOffsetX,

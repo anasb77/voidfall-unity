@@ -25,8 +25,12 @@ namespace VoidFall.Tests.Editor
                 Assert.That(asset, Is.Not.Null,
                     "Missing prepared arena package plate: " + path);
                 Assert.That(asset.IsValidFor(arena), Is.True, "Invalid prepared arena: " + arena);
-                Assert.That(asset.Width, Is.EqualTo(3021));
-                Assert.That(asset.Height, Is.EqualTo(1699));
+                // Keep in sync with ArenaContentBaker's bake tiers: 4K sky
+                // base, 1440p detail elements.
+                Assert.That(asset.Width, Is.EqualTo(3840));
+                Assert.That(asset.Height, Is.EqualTo(2160));
+                Assert.That(asset.DetailWidth, Is.EqualTo(2560));
+                Assert.That(asset.DetailHeight, Is.EqualTo(1440));
 
                 AssertImported(asset.BaseSprite, arena + " base");
                 AssertImported(asset.DetailSprite, arena + " details");

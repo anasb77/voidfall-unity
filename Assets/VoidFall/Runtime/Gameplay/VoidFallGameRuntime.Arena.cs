@@ -123,6 +123,8 @@ namespace VoidFall.Runtime
             _arenaPlateDetailSprites[index] = asset.DetailSprite;
             _arenaPlateBakeWidth = asset.Width;
             _arenaPlateBakeHeight = asset.Height;
+            _arenaPlateDetailBakeWidth = asset.DetailWidth;
+            _arenaPlateDetailBakeHeight = asset.DetailHeight;
             return true;
         }
 
@@ -171,8 +173,8 @@ namespace VoidFall.Runtime
                 -106);
             _arenaBakedDetailView.color = Color.white;
             _arenaBakedDetailView.transform.localScale = new Vector3(
-                viewportHalf.x * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateBakeWidth),
-                viewportHalf.y * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateBakeHeight),
+                viewportHalf.x * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateDetailBakeWidth),
+                viewportHalf.y * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateDetailBakeHeight),
                 1);
 
             // Arena colour grading belongs to the arena, not to the player.
