@@ -1756,6 +1756,7 @@ namespace VoidFall.Runtime
             _fxSim.FxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
             BeginObjectiveForCurrentArena();
             EnsureVoidRouteForRun();
+            ResetRouletteLuck();
             _musicPerimeter?.Configure(
                 unchecked((int)_runSeed),
                 _qualityPreset.Detail,

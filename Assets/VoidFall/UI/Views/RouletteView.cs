@@ -53,6 +53,9 @@ namespace VoidFall.UI
         private Rng _rng;
         private int _availableParts;
         private Stage _stage = Stage.Idle;
+        private RouletteSpinContext _spinContext;
+        private float _revealElapsed = -1f;
+        private Image _resultCardImage;
 
         // Spin interpolation state.
         private float _spinElapsed;
@@ -260,6 +263,7 @@ namespace VoidFall.UI
             image.sprite = UISprites.Rounded(14f, Color.white, Color.white, Color.white);
             image.type = Image.Type.Sliced;
             image.color = new Color(0.05f, 0.07f, 0.12f, 0.97f);
+            _resultCardImage = image;
 
             _resultTitle = UIBuilder.CreateText(
                 card, "Prize", string.Empty, 30f, Color.white,
@@ -297,13 +301,19 @@ namespace VoidFall.UI
         /// The Rng handed in here must be the run's deterministic stream so
         /// replays from a seed reproduce the same prize.
         /// </summary>
-        public void Present(RouletteSession session, Rng rng, int availableParts)
+        public void Present(
+            RouletteSession session,
+            Rng rng,
+            int availableParts,
+            RouletteSpinContext spinContext = default(RouletteSpinContext))
         {
             _session = session;
             _rng = rng;
             _availableParts = Math.Max(0, availableParts);
+            _spinContext = spinContext;
             _stage = Stage.Choosing;
             _spinElapsed = 0f;
+            _revealElapsed = -1f;
 
             gameObject.SetActive(true);
             RebuildMarkers();
@@ -339,16 +349,33 @@ namespace VoidFall.UI
                     Mathf.Sin(radians) * MarkerRadius);
                 marker.localRotation = Quaternion.identity;
 
+                // Tier language: size carries quality, the halo marks
+                // legendary slices, and mediocre slices read as dimmed.
+                var dotSize = wedge.Tier == RouletteTier.Legendary
+                    ? 20f
+                    : wedge.Tier == RouletteTier.Premium ? 17f
+                    : wedge.Tier == RouletteTier.Standard ? 14f : 11f;
+                if (wedge.Tier == RouletteTier.Legendary)
+                {
+                    var halo = UIBuilder.CreateSurface(marker, "Halo", UISprites.Circle(64));
+                    halo.type = Image.Type.Simple;
+                    halo.rectTransform.sizeDelta = new Vector2(dotSize + 12f, dotSize + 12f);
+                    halo.rectTransform.anchoredPosition = new Vector2(0f, 16f);
+                    halo.color = UITheme.WithAlpha(accent, 0.28f);
+                    halo.raycastTarget = false;
+                }
+
                 var dot = UIBuilder.CreateSurface(marker, "Dot", UISprites.Circle(64));
                 dot.type = Image.Type.Simple;
-                dot.rectTransform.sizeDelta = new Vector2(14f, 14f);
+                dot.rectTransform.sizeDelta = new Vector2(dotSize, dotSize);
                 dot.rectTransform.anchoredPosition = new Vector2(0f, 16f);
                 dot.color = accent;
                 dot.raycastTarget = false;
 
+                var labelAlpha = wedge.Tier == RouletteTier.Mediocre ? 0.5f : 0.85f;
                 var label = UIBuilder.CreateText(
                     marker, "Label", wedge.Name, 11f,
-                    UITheme.WithAlpha(Color.white, 0.85f), TextAnchor.UpperCenter, true, FontStyle.Bold);
+                    UITheme.WithAlpha(Color.white, labelAlpha), TextAnchor.UpperCenter, true, FontStyle.Bold);
                 label.rectTransform.pivot = new Vector2(0.5f, 1f);
                 label.rectTransform.sizeDelta = new Vector2(120f, 30f);
                 label.rectTransform.anchoredPosition = new Vector2(0f, 6f);
@@ -442,9 +469,10 @@ namespace VoidFall.UI
         {
             if (_stage != Stage.Choosing || _session == null) return;
 
-            // The one and only sample. Purchases from this point on are locked
-            // by the rules engine; the animation below only reveals the result.
-            RouletteRules.Spin(_session, _rng);
+            // The one and only sample (plus at most one bounded protection
+            // re-sample). Purchases from this point on are locked by the
+            // rules engine; the animation below only reveals the result.
+            RouletteRules.Spin(_session, _rng, _spinContext);
 
             var wedges = _session.Wedges;
             var step = 360f / Mathf.Max(1, wedges.Length);
@@ -466,6 +494,7 @@ namespace VoidFall.UI
 
         private void Update()
         {
+            UpdateReveal();
             if (_stage != Stage.Spinning || _wheel == null) return;
             _spinElapsed += Time.unscaledDeltaTime;
             var t = Mathf.Clamp01(_spinElapsed / SpinSeconds);
@@ -479,13 +508,41 @@ namespace VoidFall.UI
             RevealResult();
         }
 
+        /// <summary>Landing pop: the result card settles 1.06x to 1x.</summary>
+        private void UpdateReveal()
+        {
+            if (_revealElapsed < 0f || _resultPanel == null) return;
+            _revealElapsed += Time.unscaledDeltaTime;
+            var t = Mathf.Clamp01(_revealElapsed / 0.35f);
+            var scale = Mathf.Lerp(1.06f, 1f, 1f - Mathf.Pow(1f - t, 3f));
+            _resultPanel.localScale = new Vector3(scale, scale, 1f);
+            if (t >= 1f) _revealElapsed = -1f;
+        }
+
         private void RevealResult()
         {
             _stage = Stage.Revealed;
+            _revealElapsed = 0f;
             var prize = _session != null ? _session.Result : null;
             if (prize == null) return;
 
-            if (_resultPanel != null) _resultPanel.gameObject.SetActive(true);
+            if (_resultPanel != null)
+            {
+                _resultPanel.gameObject.SetActive(true);
+                _resultPanel.localScale = new Vector3(1.06f, 1.06f, 1f);
+            }
+            if (_resultCardImage != null)
+            {
+                // The card breathes the tier: grey mediocre, cyan standard,
+                // gold premium, ignited legendary.
+                _resultCardImage.color = prize.Tier == RouletteTier.Mediocre
+                    ? new Color(0.09f, 0.10f, 0.13f, 0.97f)
+                    : prize.Tier == RouletteTier.Standard
+                        ? new Color(0.06f, 0.12f, 0.16f, 0.97f)
+                        : prize.Tier == RouletteTier.Premium
+                            ? new Color(0.13f, 0.10f, 0.04f, 0.97f)
+                            : new Color(0.16f, 0.07f, 0.03f, 0.97f);
+            }
             if (_resultTitle != null)
             {
                 _resultTitle.text = prize.Name;

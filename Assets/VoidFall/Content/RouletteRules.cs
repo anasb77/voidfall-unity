@@ -128,15 +128,48 @@ namespace VoidFall.Core
     }
 
     /// <summary>
+    /// Per-run ceremony history the spin rules protect against. The default
+    /// struct disables every protection, so legacy call sites keep the exact
+    /// pre-protection draw behavior.
+    /// </summary>
+    public struct RouletteSpinContext
+    {
+        /// <summary>Ceremonies already completed this run before this one.</summary>
+        public int CeremoniesSeen;
+
+        /// <summary>Enable the first-ceremony floor and repeat protection.</summary>
+        public bool ProtectionsEnabled;
+
+        public bool HasPrevious;
+        public RoulettePrizeKind PreviousKind;
+        public RouletteTier PreviousTier;
+    }
+
+    /// <summary>
     /// Boss Roulette ceremony rules: the wedge table, the two Parts purchases,
     /// the Void's refund roll, and the weighted landing sample.
     ///
     /// Integrity rule (spec 43.3): the result is sampled once, up front, from
     /// the run's Rng stream. The spin animation only reveals it — the wheel
     /// never re-rolls or fabricates a near-miss.
+    ///
+    /// The luck and protection layers are also integrity-bound: each may
+    /// consume at most one extra draw, and whatever the re-sample lands on
+    /// is final — the wheel never fishes for a better outcome.
     /// </summary>
     public static class RouletteRules
     {
+        /// <summary>
+        /// Luck pity: each completed ceremony tilts the next table slightly
+        /// upward - mediocre slices fade, premium and legendary slices grow -
+        /// so a run the Void keeps shorting feels luckier as it fights on.
+        /// The effect is bounded; after 8 ceremonies it holds steady.
+        /// </summary>
+        public const int LuckCapCeremonies = 8;
+        public const double LuckMediocreDecay = 0.85;
+        public const double LuckPremiumGrowth = 0.10;
+        public const double LuckLegendaryGrowth = 0.15;
+
         /// <summary>Chance the Void refunds a wager while keeping the effect.</summary>
         public const double VoidRefundChance = 0.30;
 
@@ -308,6 +341,32 @@ namespace VoidFall.Core
             return RefundLines[Math.Abs(index) % RefundLines.Length];
         }
 
+        /// <summary>Luck pity applied to a base table for the next ceremony.</summary>
+        public static RouletteWedgeDefinition[] ApplyLuck(
+            RouletteWedgeDefinition[] table,
+            int ceremoniesSeen)
+        {
+            var source = table == null || table.Length == 0 ? DefaultTable() : table;
+            var steps = Math.Max(0, Math.Min(LuckCapCeremonies, ceremoniesSeen));
+            if (steps == 0) return source;
+
+            var mediocre = Math.Pow(LuckMediocreDecay, steps);
+            var premium = 1.0 + LuckPremiumGrowth * steps;
+            var legendary = 1.0 + LuckLegendaryGrowth * steps;
+            var next = new RouletteWedgeDefinition[source.Length];
+            for (var index = 0; index < source.Length; index++)
+            {
+                var wedge = source[index];
+                var multiplier = wedge.Tier == RouletteTier.Mediocre
+                    ? mediocre
+                    : wedge.Tier == RouletteTier.Premium
+                        ? premium
+                        : wedge.Tier == RouletteTier.Legendary ? legendary : 1.0;
+                next[index] = wedge.WithWeight(wedge.Weight * multiplier);
+            }
+            return next;
+        }
+
         /// <summary>
         /// Samples the landing wedge once from the current table weights.
         /// Called at ceremony open before any animation; the view only
@@ -315,7 +374,35 @@ namespace VoidFall.Core
         /// </summary>
         public static void Spin(RouletteSession session, Rng random)
         {
+            Spin(session, random, default(RouletteSpinContext));
+        }
+
+        /// <summary>
+        /// Protected spin. First ceremony of a run: a Mediocre landing is
+        /// re-sampled once (the opening ceremony should never feel like a
+        /// insult). Repeat protection: landing the same prize as the
+        /// previous ceremony at Standard or below is re-sampled once. The
+        /// re-sample is final - exactly one extra draw, no fishing.
+        /// </summary>
+        public static void Spin(RouletteSession session, Rng random, RouletteSpinContext context)
+        {
             if (session == null || session.Spun) return;
+            SampleIndex(session, random);
+            if (!context.ProtectionsEnabled) return;
+
+            var result = session.Result;
+            var needsResample =
+                (context.CeremoniesSeen == 0 && result.Tier == RouletteTier.Mediocre) ||
+                (context.HasPrevious &&
+                 result.Kind == context.PreviousKind &&
+                 result.Tier <= RouletteTier.Standard);
+            if (!needsResample) return;
+
+            SampleIndex(session, random);
+        }
+
+        private static void SampleIndex(RouletteSession session, Rng random)
+        {
             var wedges = session.Wedges;
             if (wedges.Length == 0)
             {

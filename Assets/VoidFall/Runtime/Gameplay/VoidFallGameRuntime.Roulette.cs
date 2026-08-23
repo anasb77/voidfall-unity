@@ -20,6 +20,19 @@ namespace VoidFall.Runtime
         private Rng _rouletteRng;
         private bool _rouletteActive;
 
+        // Per-run ceremony history: drives the luck pity (each ceremony
+        // tilts the next table upward) and the repeat protection.
+        private int _rouletteCeremoniesSeen;
+        private RoulettePrizeKind _rouletteLastKind;
+        private RouletteTier _rouletteLastTier;
+        private bool _rouletteHasLast;
+
+        private void ResetRouletteLuck()
+        {
+            _rouletteCeremoniesSeen = 0;
+            _rouletteHasLast = false;
+        }
+
         private void OpenBossRoulette()
         {
             if (_ui == null || _gameOver || _revivePending || _rouletteActive) return;
@@ -27,13 +40,25 @@ namespace VoidFall.Runtime
             _rouletteSession = new RouletteSession(
                 _runSeed,
                 _bossKills,
-                RouletteRules.DefaultTable());
+                RouletteRules.ApplyLuck(
+                    RouletteRules.DefaultTable(), _rouletteCeremoniesSeen));
             _rouletteActive = true;
             _paused = true;
             _ui.Roulette.CeremonyComplete -= OnRouletteComplete;
             _ui.Roulette.CeremonyComplete += OnRouletteComplete;
             _ui.SetScreen(UIScreen.Roulette);
-            _ui.Roulette.Present(_rouletteSession, _rouletteRng, Mathf.Max(0, _partsEarned));
+            _ui.Roulette.Present(
+                _rouletteSession,
+                _rouletteRng,
+                Mathf.Max(0, _partsEarned),
+                new RouletteSpinContext
+                {
+                    CeremoniesSeen = _rouletteCeremoniesSeen,
+                    ProtectionsEnabled = true,
+                    HasPrevious = _rouletteHasLast,
+                    PreviousKind = _rouletteLastKind,
+                    PreviousTier = _rouletteLastTier,
+                });
         }
 
         private void OnRouletteComplete(RouletteSession session)
@@ -46,6 +71,13 @@ namespace VoidFall.Runtime
                 // effect, so only the net spend leaves the run economy.
                 var netSpend = session.PartsSpent - session.PartsRefunded;
                 _partsEarned = Math.Max(0, _partsEarned - netSpend);
+                if (session.Result != null)
+                {
+                    _rouletteLastKind = session.Result.Kind;
+                    _rouletteLastTier = session.Result.Tier;
+                    _rouletteHasLast = true;
+                }
+                _rouletteCeremoniesSeen++;
             }
             _rouletteSession = null;
             _rouletteRng = null;
