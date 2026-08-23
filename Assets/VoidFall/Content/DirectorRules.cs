@@ -117,11 +117,16 @@ namespace VoidFall.Core
         {
             var safeIndex = Math.Max(0, index);
             var hash = EventHash(seed, safeIndex);
-            var id = safeIndex % 4 == 0
+            // Every fifth event is a formation (walls, wedges, phalanxes) -
+            // the shaped-pressure layer over ambient spawning. Its kind and
+            // sweep direction derive from FormationSeed at execution time so
+            // the unlock clock (exploder walls) is read against live time.
+            var id = safeIndex % 5 == 0
                 ? "swarm"
-                : safeIndex % 4 == 1
+                : safeIndex % 5 == 1
                     ? "rushers"
-                    : safeIndex % 4 == 2 ? "encircle" : "surge";
+                    : safeIndex % 5 == 2 ? "encircle"
+                    : safeIndex % 5 == 3 ? "surge" : "formation";
             var startsAt = EventStart(seed, safeIndex);
             var count = id == "swarm"
                 ? SwarmEnemyCount(startsAt)
@@ -133,11 +138,12 @@ namespace VoidFall.Core
                 id,
                 startsAt - WarningSeconds,
                 startsAt,
-                id == "swarm" || id == "encircle" ? 0.45 : id == "rushers" ? 6 : 7,
+                id == "swarm" || id == "encircle" ? 0.45 : 6,
                 RecoverySeconds,
                 (int)((hash >> 8) % 4),
                 ((hash >> 10) / (double)0x3fffff) * Math.PI * 2,
-                count);
+                count,
+                hash >> 16);
         }
 
         public static string[] BossOrder(uint seed, int cycle)
@@ -286,7 +292,8 @@ namespace VoidFall.Core
     public readonly struct DirectorEventDefinition
     {
         public DirectorEventDefinition(int index, string id, double warningAtSeconds, double startsAtSeconds,
-            double durationSeconds, double recoverySeconds, int spawnEdge, double safeGapAngle, int enemyCount)
+            double durationSeconds, double recoverySeconds, int spawnEdge, double safeGapAngle, int enemyCount,
+            uint formationSeed = 0)
         {
             Index = index;
             Id = id;
@@ -297,6 +304,7 @@ namespace VoidFall.Core
             SpawnEdge = spawnEdge;
             SafeGapAngle = safeGapAngle;
             EnemyCount = enemyCount;
+            FormationSeed = formationSeed;
         }
 
         public int Index { get; }
@@ -308,6 +316,7 @@ namespace VoidFall.Core
         public int SpawnEdge { get; }
         public double SafeGapAngle { get; }
         public int EnemyCount { get; }
+        public uint FormationSeed { get; }
     }
 
     public readonly struct BossScheduleResult

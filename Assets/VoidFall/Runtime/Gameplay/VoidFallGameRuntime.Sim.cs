@@ -403,6 +403,7 @@ namespace VoidFall.Runtime
             if (eventId == "swarm") return "Swarm incoming";
             if (eventId == "encircle") return "Encirclement incoming";
             if (eventId == "rushers") return "Rushers incoming";
+            if (eventId == "formation") return "Formation incoming";
             return "Enemy surge";
         }
 
@@ -415,6 +416,12 @@ namespace VoidFall.Runtime
             _directorWarned = true;
             _spawnTimer = Mathf.Max(_spawnTimer, 0.65f);
             _audio?.Play(ProceduralAudio.Cue.Warning, 0.9f);
+
+            if (_nextDirectorEvent.Id == "formation")
+            {
+                StartFormationEvent();
+                return;
+            }
 
             if (_nextDirectorEvent.Id != "swarm" && _nextDirectorEvent.Id != "encircle") return;
 
@@ -441,6 +448,49 @@ namespace VoidFall.Runtime
                     occupiedArc * ((index + 0.5f) / Mathf.Max(1, count));
                 var position = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
                 if (SpawnEnemy(useRunners ? "runner" : "chaser", position)) _directorSpawned++;
+            }
+        }
+
+        /// <summary>
+        /// Materializes a director formation: one composed shape (wall,
+        /// wedge, column, phalanx, or arc) spawned off-screen in a single
+        /// tick. Depth is geometric, so no extra spawn timers are needed -
+        /// the members march in with their own movement behaviors.
+        /// </summary>
+        private void StartFormationEvent()
+        {
+            var viewportHalf = GameplayViewportHalfExtent();
+            var kind = FormationRules.PickKind(
+                _nextDirectorEvent.FormationSeed, _time);
+            var cap = Mathf.Max(0,
+                DirectorRules.ActiveEnemyCap(_time, ActiveBosses()) - ActiveEnemies());
+            var spawns = FormationRules.Compose(
+                kind,
+                _time,
+                _nextDirectorEvent.FormationSeed,
+                _gameSim.Player.Position.x,
+                _gameSim.Player.Position.y,
+                viewportHalf.x,
+                viewportHalf.y,
+                cap);
+            foreach (var spawn in spawns)
+            {
+                if (SpawnEnemy(spawn.EnemyId, new Vector2((float)spawn.X, (float)spawn.Y)))
+                    _directorSpawned++;
+            }
+            ShowArenaToast(FormationLabel(kind), 2.5f, ToastKind.Danger);
+        }
+
+        private static string FormationLabel(FormationKind kind)
+        {
+            switch (kind)
+            {
+                case FormationKind.ExploderWall: return "VOLATILE WALL INCOMING";
+                case FormationKind.VeeWedge: return "WEDGE FORMATION INCOMING";
+                case FormationKind.Column: return "RUSH COLUMN INCOMING";
+                case FormationKind.Phalanx: return "PHALANX INCOMING";
+                case FormationKind.ArcClose: return "CLOSING ARC INCOMING";
+                default: return "WALL INCOMING";
             }
         }
 
