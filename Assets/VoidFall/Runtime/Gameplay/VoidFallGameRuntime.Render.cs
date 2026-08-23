@@ -559,7 +559,10 @@ namespace VoidFall.Runtime
                     0,
                     _gameSim.Meteors[i].Rotation * Mathf.Rad2Deg);
                 meteorView.transform.localScale = Vector3.one *
-                    SourceMeteorSpriteWorldSize(_gameSim.Meteors[i].Variant, _gameSim.Meteors[i].Explosive);
+                    SourceMeteorSpriteWorldSize(_gameSim.Meteors[i].Variant, _gameSim.Meteors[i].Explosive) *
+                    (_gameSim.Meteors[i].VisibleRadius /
+                     (float)MeteorRules.MeteorVisibleRadius(
+                         _gameSim.Meteors[i].Variant, _gameSim.Meteors[i].Explosive));
                 // The browser never tints the meteor body while armed; the
                 // warning arcs and seeded core carry the fuse read instead.
                 meteorView.color = Color.white;

@@ -302,6 +302,23 @@ namespace VoidFall.Runtime
                 if (!meteor.Active) continue;
                 meteor.Position += meteor.Velocity * dt;
                 meteor.Rotation += meteor.Spin * dt;
+                if (meteor.FuseTimer <= 0)
+                {
+                    // Landed meteors are terrain: enemies slide around them
+                    // instead of walking through. Position-only push-out per
+                    // tick; enemy behaviors re-apply their own steering.
+                    for (var enemySlot = 0; enemySlot < Enemies.Length; enemySlot++)
+                    {
+                        var enemy = Enemies[enemySlot];
+                        if (!enemy.Active) continue;
+                        var offset = enemy.Position - meteor.Position;
+                        var distance = offset.magnitude;
+                        var minDistance = meteor.Radius + enemy.Radius;
+                        if (distance >= minDistance || distance <= 0.0001f) continue;
+                        enemy.Position = meteor.Position + offset / distance * minDistance;
+                        Enemies[enemySlot] = enemy;
+                    }
+                }
                 meteor.HitTimer = Mathf.Max(0, meteor.HitTimer - dt);
                 if (meteor.FuseTimer > 0)
                 {
@@ -376,7 +393,7 @@ namespace VoidFall.Runtime
                 Position = candidate,
                 Velocity = new Vector2(Mathf.Cos(driftAngle), Mathf.Sin(driftAngle)) * speed,
                 Rotation = (float)(Rng.Next() * Math.PI * 2),
-                Spin = ((float)Rng.Next() - 0.5f) * 0.26f,
+                Spin = ((float)Rng.Next() - 0.5f) * 0.9f,
                 Health = maxHealth,
                 MaxHealth = maxHealth,
                 Radius = radius,
@@ -389,6 +406,11 @@ namespace VoidFall.Runtime
                 View = slot,
             };
             AppendMeteorOrder(slot);
+            var seeded = Meteors[slot];
+            var sizeRoll = 0.85f + 0.4f * (seeded.Seed * 0.618034f - Mathf.Floor(seeded.Seed * 0.618034f));
+            seeded.Radius *= sizeRoll;
+            seeded.VisibleRadius *= sizeRoll;
+            Meteors[slot] = seeded;
             return slot;
         }
 
