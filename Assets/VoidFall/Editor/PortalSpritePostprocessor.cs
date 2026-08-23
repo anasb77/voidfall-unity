@@ -5,10 +5,11 @@ namespace VoidFall.EditorTools
 {
     /// <summary>
     /// Forces the rift portal frames (Assets/VoidFall/Resources/VoidFall/
-    /// Portals) to sprite import settings suitable for additive world
-    /// rendering: sprites, no mipmaps, capped at 512 px, non-POT scaling
-    /// off so the 2400x1440 frames are not squashed, and no alpha handling
-    /// since the frames composite additively over their black background.
+    /// Portals) to plain readable textures: the portal composites them
+    /// additively over their black background and builds full-frame Sprites
+    /// at runtime with Sprite.Create, sidestepping sprite-sheet import
+    /// entirely (the editor's automatic slicing kept fragmenting these
+    /// frames no matter the importer mode).
     /// </summary>
     public sealed class PortalSpritePostprocessor : AssetPostprocessor
     {
@@ -18,13 +19,15 @@ namespace VoidFall.EditorTools
         {
             if (!assetPath.StartsWith(Folder, System.StringComparison.Ordinal)) return;
             var importer = (TextureImporter)assetImporter;
-            importer.textureType = TextureImporterType.Sprite;
-            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.textureType = TextureImporterType.Default;
+            importer.spriteImportMode = SpriteImportMode.None;
             importer.mipmapEnabled = false;
+            importer.isReadable = true;
             importer.maxTextureSize = 512;
             importer.npotScale = TextureImporterNPOTScale.None;
-            importer.textureCompression = TextureImporterCompression.Compressed;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
             importer.alphaIsTransparency = false;
+            importer.wrapMode = TextureWrapMode.Clamp;
         }
     }
 }

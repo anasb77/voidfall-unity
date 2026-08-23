@@ -149,8 +149,28 @@ namespace VoidFall.Runtime
         private void ShowRiftPortal()
         {
             if (_riftPortalFrames == null || _riftPortalFrames.Length == 0)
-                _riftPortalFrames = Resources.LoadAll<Sprite>(RiftPortalResourcePath);
-            if (_riftPortalFrames == null || _riftPortalFrames.Length == 0) return;
+            {
+                // The frames import as plain textures (the editor's sprite
+                // slicing fragmented them); full-frame Sprites are created
+                // here once, sized directly in world units.
+                var textures = Resources.LoadAll<Texture2D>(RiftPortalResourcePath);
+                if (textures == null || textures.Length == 0)
+                {
+                    _riftPortalFrames = new Sprite[0];
+                    return;
+                }
+                _riftPortalFrames = new Sprite[textures.Length];
+                for (var i = 0; i < textures.Length; i++)
+                {
+                    var texture = textures[i];
+                    _riftPortalFrames[i] = Sprite.Create(
+                        texture,
+                        new Rect(0f, 0f, texture.width, texture.height),
+                        new Vector2(0.5f, 0.5f),
+                        Mathf.Max(1f, texture.height / RiftPortalWorldSize));
+                }
+            }
+            if (_riftPortalFrames.Length == 0) return;
 
             if (_riftPortal == null)
             {
@@ -164,11 +184,7 @@ namespace VoidFall.Runtime
             _riftPortalFrameIndex = 0;
             _riftPortalFrameTimer = 0;
             _riftPortal.sprite = _riftPortalFrames[0];
-            // World size from the source frame; the 2400x1440 frames carry
-            // generous padding, so the visual lands near RiftPortalWorldSize.
-            var frame = _riftPortalFrames[0].rect;
-            var scale = RiftPortalWorldSize / Mathf.Max(1f, frame.height);
-            _riftPortal.transform.localScale = new Vector3(scale, scale, 1f);
+            _riftPortal.transform.localScale = Vector3.one;
             var position = _gameSim.Player.Position + new Vector2(0f, 130f);
             position.x = Mathf.Clamp(position.x, -540f, 540f);
             position.y = Mathf.Clamp(position.y, -280f, 280f);
