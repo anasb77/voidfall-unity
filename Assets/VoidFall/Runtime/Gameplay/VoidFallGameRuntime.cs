@@ -1104,6 +1104,12 @@ namespace VoidFall.Runtime
                 SetReducedMotion = v => ApplySettingFromUi(s => s.reducedMotion = v, true),
                 SetHighContrast = v => ApplySettingFromUi(s => s.highContrast = v, true),
 
+                SetResolution = (w, h) => ApplySettingFromUi(
+                    s => { s.resolutionWidth = w; s.resolutionHeight = h; }, true),
+                SetDisplayMode = v => ApplySettingFromUi(s => s.fullscreenMode = v, true),
+                SetBloom = v => ApplySettingFromUi(s => s.bloom = v, false),
+                SetChromatic = v => ApplySettingFromUi(s => s.chromatic = v, false),
+
                 ToggleMute = ToggleMute,
                 IsMuted = () => _audio != null && _audio.Muted,
 
@@ -1161,6 +1167,7 @@ namespace VoidFall.Runtime
             // cleanup that also belongs to the surviving runtime.
             if (!_ownsGlobalResources || _instance != this) return;
             _ownsGlobalResources = false;
+            DestroyVideoVolumeResources();
             _arenaResidency?.Dispose();
             _arenaResidency = null;
 
@@ -4921,6 +4928,7 @@ namespace VoidFall.Runtime
             _camera.backgroundColor = new Color(0.015f, 0.025f, 0.07f, 1);
             if (_camera.GetComponent<AudioListener>() == null)
                 _camera.gameObject.AddComponent<AudioListener>();
+            SetupVideoVolume();
         }
 
         private Vector2 GameplayViewportHalfExtent()

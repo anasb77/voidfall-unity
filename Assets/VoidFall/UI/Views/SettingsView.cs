@@ -26,7 +26,7 @@ namespace VoidFall.UI
         {
             public Slider Slider;
             public Text Value;
-            public bool Percentage;
+            public Func<float, string> Format;
         }
 
         private sealed class ToggleRow
@@ -40,12 +40,17 @@ namespace VoidFall.UI
         private readonly Dictionary<string, ToggleRow> _toggles = new Dictionary<string, ToggleRow>();
         private readonly List<Image> _qualitySegments = new List<Image>();
         private readonly List<Text> _qualityLabels = new List<Text>();
+        private readonly List<Vector2Int> _resolutionSizes = new List<Vector2Int>();
 
         private RectTransform _content;
         private Text _muteLabel;
         private Text _resetLabel;
         private Image _resetSurface;
+        private Text _resolutionLabel;
+        private Text _displayModeLabel;
         private string _quality = "auto";
+        private int _resolutionIndex;
+        private int _displayModeIndex;
         private bool _applying;
         private bool _resetArmed;
         private float _resetArmedUntil;
@@ -66,13 +71,14 @@ namespace VoidFall.UI
             _content = UIBuilder.CreateScrollView(area, "Scroll", out _);
             UIBuilder.AddVerticalLayout(_content, 8f, new RectOffset(0, 0, 8, 8));
 
-            AddSlider("master", "Master volume", 0f, 1f, v => Callbacks?.SetMasterVolume?.Invoke(v), true);
-            AddSlider("effects", "Effects volume", 0f, 1f, v => Callbacks?.SetEffectsVolume?.Invoke(v), true);
-            AddSlider("music", "Music volume", 0f, 1f, v => Callbacks?.SetMusicVolume?.Invoke(v), true);
-            AddSlider("shake", "Screen shake", 0f, 1f, v => Callbacks?.SetScreenShake?.Invoke(v), true);
-            AddSlider("touch", "Touch control size", 0.75f, 1.35f, v => Callbacks?.SetTouchSize?.Invoke(v), true);
+            AddSlider("master", "Master volume", 0f, 1f, v => Callbacks?.SetMasterVolume?.Invoke(v), FormatPercent);
+            AddSlider("effects", "Effects volume", 0f, 1f, v => Callbacks?.SetEffectsVolume?.Invoke(v), FormatPercent);
+            AddSlider("music", "Music volume", 0f, 1f, v => Callbacks?.SetMusicVolume?.Invoke(v), FormatPercent);
+            AddSlider("shake", "Screen shake", 0f, 1f, v => Callbacks?.SetScreenShake?.Invoke(v), FormatPercent);
+            AddSlider("touch", "Touch control size", 0.75f, 1.35f, v => Callbacks?.SetTouchSize?.Invoke(v), FormatPercent);
 
             AddQualityRow();
+            AddVideoSection();
 
             AddToggle(
                 "reducedMotion",
@@ -146,14 +152,14 @@ namespace VoidFall.UI
             return row;
         }
 
-        private void AddSlider(string key, string label, float min, float max, Action<float> onChange, bool percentage)
+        private void AddSlider(string key, string label, float min, float max, Action<float> onChange, Func<float, string> format)
         {
             CreateRow(key, label, null, out var control);
 
             var readout = UIBuilder.CreateText(
                 control.parent,
                 "Readout",
-                "100%",
+                format(Mathf.Lerp(min, max, 1f)),
                 10f,
                 UITheme.TextNavDetail,
                 TextAnchor.UpperLeft,
@@ -164,17 +170,27 @@ namespace VoidFall.UI
             readout.rectTransform.offsetMax = Vector2.zero;
 
             var slider = BuildSlider(control, min, max);
-            var row = new SliderRow { Slider = slider, Value = readout, Percentage = percentage };
+            var row = new SliderRow { Slider = slider, Value = readout, Format = format };
             _sliders[key] = row;
 
             slider.onValueChanged.AddListener(value =>
             {
-                readout.text = Mathf.RoundToInt(value * 100f).ToString() + "%";
+                readout.text = format(value);
                 // Suppress the callback while Apply() seeds the control, or the
                 // view would immediately write the value it was just handed back.
                 if (_applying) return;
                 onChange?.Invoke(value);
             });
+        }
+
+        private static string FormatPercent(float value)
+        {
+            return Mathf.RoundToInt(value * 100f).ToString() + "%";
+        }
+
+        private static string FormatHundredths(float value)
+        {
+            return value.ToString("F2");
         }
 
         /// <summary>Builds a themed slider: rounded track, cyan fill, round handle.</summary>
@@ -307,6 +323,122 @@ namespace VoidFall.UI
                     _qualityLabels[index].color = active ? UITheme.CyanPale : UITheme.TextNavDetail;
                 }
             }
+        }
+
+        /// <summary>
+        /// The VIDEO section: monitor resolution and display mode cyclers plus
+        /// the two post-effect sliders. Has no browser counterpart; the port
+        /// owns a real window, so these follow the arena selector's
+        /// &lt; / value / &gt; cycling pattern rather than a dropdown.
+        /// </summary>
+        private void AddVideoSection()
+        {
+            var header = UIBuilder.CreateSectionLabel(_content, "VideoSectionLabel", "Video");
+            UIBuilder.SetHeight(header.rectTransform, 22f);
+
+            _resolutionSizes.AddRange(VideoSettingsRules.BuildResolutionSizes(Screen.resolutions));
+
+            CreateRow(
+                "resolution",
+                "Resolution",
+                "AUTO keeps the monitor's native size.",
+                out var resolutionControl);
+            _resolutionLabel = CreateCycleControl(resolutionControl, StepResolution);
+            RefreshResolutionLabel();
+
+            CreateRow(
+                "displayMode",
+                "Display mode",
+                null,
+                out var displayControl);
+            _displayModeLabel = CreateCycleControl(displayControl, StepDisplayMode);
+            RefreshDisplayModeLabel();
+
+            AddSlider(
+                "bloom",
+                "Bloom",
+                0f,
+                VideoSettingsRules.MaxBloom,
+                v => Callbacks?.SetBloom?.Invoke(v),
+                FormatHundredths);
+            AddSlider(
+                "chromatic",
+                "Chromatic aberration",
+                0f,
+                VideoSettingsRules.MaxChromatic,
+                v => Callbacks?.SetChromatic?.Invoke(v),
+                FormatHundredths);
+        }
+
+        /// <summary>The shared &lt; / value / &gt; stepper used by both cyclers.</summary>
+        private static Text CreateCycleControl(RectTransform control, Action<int> step)
+        {
+            var previous = UIBuilder.CreateIconButton(control, "Prev", "\u25C0", () => step(-1), 26f);
+            var previousRect = previous.GetComponent<RectTransform>();
+            previousRect.anchorMin = new Vector2(0f, 0.5f);
+            previousRect.anchorMax = new Vector2(0f, 0.5f);
+            previousRect.pivot = new Vector2(0f, 0.5f);
+            previousRect.anchoredPosition = Vector2.zero;
+
+            var value = UIBuilder.CreateText(
+                control,
+                "Value",
+                string.Empty,
+                10f,
+                UITheme.CyanLabel,
+                TextAnchor.MiddleCenter,
+                true,
+                FontStyle.Bold,
+                0.08f);
+            value.rectTransform.offsetMin = new Vector2(32f, 0f);
+            value.rectTransform.offsetMax = new Vector2(-32f, 0f);
+
+            var next = UIBuilder.CreateIconButton(control, "Next", "\u25B6", () => step(1), 26f);
+            var nextRect = next.GetComponent<RectTransform>();
+            nextRect.anchorMin = new Vector2(1f, 0.5f);
+            nextRect.anchorMax = new Vector2(1f, 0.5f);
+            nextRect.pivot = new Vector2(1f, 0.5f);
+            nextRect.anchoredPosition = Vector2.zero;
+            return value;
+        }
+
+        private void StepResolution(int delta)
+        {
+            // Index 0 is the AUTO entry; the wrap carries the cycle from the
+            // smallest mode back to AUTO and from AUTO past the largest.
+            _resolutionIndex = VideoSettingsRules.CycleIndex(_resolutionIndex, _resolutionSizes.Count + 1, delta);
+            RefreshResolutionLabel();
+            var size = ResolutionAtIndex(_resolutionIndex);
+            Callbacks?.SetResolution?.Invoke(size.x, size.y);
+        }
+
+        private void RefreshResolutionLabel()
+        {
+            var size = ResolutionAtIndex(_resolutionIndex);
+            if (_resolutionLabel != null)
+                _resolutionLabel.text = VideoSettingsRules.ResolutionLabel(size.x, size.y);
+        }
+
+        private Vector2Int ResolutionAtIndex(int index)
+        {
+            return index > 0 && index <= _resolutionSizes.Count
+                ? _resolutionSizes[index - 1]
+                : Vector2Int.zero;
+        }
+
+        private void StepDisplayMode(int delta)
+        {
+            _displayModeIndex = VideoSettingsRules.CycleIndex(
+                _displayModeIndex, VideoSettingsRules.DisplayModeValues.Length, delta);
+            RefreshDisplayModeLabel();
+            Callbacks?.SetDisplayMode?.Invoke(VideoSettingsRules.DisplayModeValues[_displayModeIndex]);
+        }
+
+        private void RefreshDisplayModeLabel()
+        {
+            if (_displayModeLabel == null) return;
+            var index = VideoSettingsRules.DisplayModeIndex(VideoSettingsRules.DisplayModeValue(_displayModeIndex));
+            _displayModeLabel.text = VideoSettingsRules.DisplayModeLabels[index];
         }
 
         /// <summary>A .toggle-track switch: a pill with a knob that slides 19px.</summary>
@@ -491,6 +623,17 @@ namespace VoidFall.UI
                 SetSlider("shake", state.ScreenShake);
                 SetSlider("touch", state.TouchSize);
 
+                // The effect sliders display the intensity that is actually
+                // rendered, so the -1 "shipped default" sentinel seeds as its
+                // effective value instead of clamping to the slider floor.
+                SetSlider("bloom", VideoSettingsRules.EffectiveBloom(state.Bloom));
+                SetSlider("chromatic", VideoSettingsRules.EffectiveChromatic(state.Chromatic));
+
+                _resolutionIndex = IndexOfResolution(state.ResolutionWidth, state.ResolutionHeight);
+                RefreshResolutionLabel();
+                _displayModeIndex = VideoSettingsRules.DisplayModeIndex(state.FullscreenMode);
+                RefreshDisplayModeLabel();
+
                 SetToggle("reducedMotion", state.ReducedMotion);
                 SetToggle("highContrast", state.HighContrast);
 
@@ -504,13 +647,27 @@ namespace VoidFall.UI
             }
         }
 
+        /// <summary>
+        /// The saved size's cycle position, falling back to the AUTO entry for
+        /// an unset size or one this monitor does not list.
+        /// </summary>
+        private int IndexOfResolution(int width, int height)
+        {
+            if (width <= 0 || height <= 0) return 0;
+            for (var index = 0; index < _resolutionSizes.Count; index++)
+            {
+                if (_resolutionSizes[index].x == width && _resolutionSizes[index].y == height) return index + 1;
+            }
+            return 0;
+        }
+
         private void SetSlider(string key, float value)
         {
             if (!_sliders.TryGetValue(key, out var row) || row.Slider == null) return;
             row.Slider.value = Mathf.Clamp(value, row.Slider.minValue, row.Slider.maxValue);
-            if (row.Value != null)
+            if (row.Value != null && row.Format != null)
             {
-                row.Value.text = Mathf.RoundToInt(row.Slider.value * 100f).ToString() + "%";
+                row.Value.text = row.Format(row.Slider.value);
             }
         }
 

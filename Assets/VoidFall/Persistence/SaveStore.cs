@@ -18,6 +18,20 @@ namespace VoidFall.Persistence
         public bool highContrast;
         public float touchSize = 1f;
         public string quality = "high";
+
+        // VIDEO preferences. The field defaults double as the old-save
+        // migration: JsonUtility leaves missing fields at their initializers,
+        // so a pre-VIDEO profile deserializes to native resolution, the
+        // platform's default fullscreen window, and the shipped post-effect
+        // intensities. These bounds mirror VideoSettingsRules in VoidFall.UI.
+        public int resolutionWidth;
+        public int resolutionHeight;
+        public int fullscreenMode = 1;
+        public float bloom = -1f;
+        public float chromatic = -1f;
+
+        public const float MaxBloom = 2f;
+        public const float MaxChromatic = 0.5f;
     }
 
     [Serializable]
@@ -496,7 +510,33 @@ namespace VoidFall.Persistence
             value.touchSize = Clamp(value.touchSize, 0.75f, 1.35f, 1f);
             if (value.quality != "auto" && value.quality != "low" && value.quality != "balanced" && value.quality != "high")
                 value.quality = "high";
+            // 0 x 0 is the cycler's AUTO (native) entry, so a half-written pair
+            // collapses to auto rather than an unusable size.
+            value.resolutionWidth = ClampInt(value.resolutionWidth, 0, (int)MaxCounter);
+            value.resolutionHeight = ClampInt(value.resolutionHeight, 0, (int)MaxCounter);
+            if (value.resolutionWidth == 0 || value.resolutionHeight == 0)
+            {
+                value.resolutionWidth = 0;
+                value.resolutionHeight = 0;
+            }
+            // Stored as a FullScreenMode value; the cycler only offers
+            // 0 (exclusive), 1 (fullscreen window), and 3 (windowed).
+            if (value.fullscreenMode != 0 && value.fullscreenMode != 1 && value.fullscreenMode != 3)
+                value.fullscreenMode = 1;
+            value.bloom = ClampOptional(value.bloom, SaveSettings.MaxBloom);
+            value.chromatic = ClampOptional(value.chromatic, SaveSettings.MaxChromatic);
             return value;
+        }
+
+        /// <summary>
+        /// Clamps an optional effect intensity. Any negative value — including
+        /// NaN/Infinity and the -1 "use the shipped default" sentinel —
+        /// normalizes to exactly -1; valid values clamp to [0, max].
+        /// </summary>
+        private static float ClampOptional(float value, float max)
+        {
+            if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f) return -1f;
+            return Mathf.Clamp(value, 0f, max);
         }
 
         private static WorkshopEntry[] SanitizeWorkshop(WorkshopEntry[] entries)

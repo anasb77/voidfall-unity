@@ -101,7 +101,12 @@ namespace VoidFall.Runtime
                 TouchSize = settings.touchSize,
                 Quality = settings.quality,
                 ReducedMotion = settings.reducedMotion,
-                HighContrast = settings.highContrast
+                HighContrast = settings.highContrast,
+                ResolutionWidth = settings.resolutionWidth,
+                ResolutionHeight = settings.resolutionHeight,
+                FullscreenMode = settings.fullscreenMode,
+                Bloom = settings.bloom,
+                Chromatic = settings.chromatic
             });
         }
 
@@ -750,6 +755,11 @@ namespace VoidFall.Runtime
                     Application.targetFrameRate = 60;
                     break;
             }
+            // Video preferences ride the same apply path: boot re-applies the
+            // saved resolution/display mode, and every later call refreshes
+            // the bloom and chromatic aberration intensities behind the
+            // sliders. ApplyVideoSettings itself no-ops unchanged resolutions.
+            ApplyVideoSettings();
         }
 
         internal void SetMenuNotice(string message)
@@ -2813,6 +2823,11 @@ namespace VoidFall.Runtime
                 highContrast = value.highContrast,
                 touchSize = value.touchSize,
                 quality = value.quality,
+                resolutionWidth = value.resolutionWidth,
+                resolutionHeight = value.resolutionHeight,
+                fullscreenMode = value.fullscreenMode,
+                bloom = value.bloom,
+                chromatic = value.chromatic,
             };
         }
 

@@ -61,6 +61,12 @@ namespace VoidFall.UI
         public Action<bool> SetReducedMotion;
         public Action<bool> SetHighContrast;
 
+        /// <summary>VIDEO section. Resolution 0 x 0 means AUTO (native).</summary>
+        public Action<int, int> SetResolution;
+        public Action<int> SetDisplayMode;
+        public Action<float> SetBloom;
+        public Action<float> SetChromatic;
+
         public Action ToggleMute;
         public Func<bool> IsMuted;
 
@@ -84,6 +90,14 @@ namespace VoidFall.UI
         public string Quality;
         public bool ReducedMotion;
         public bool HighContrast;
+
+        // VIDEO. Resolution 0 x 0 means AUTO (native); negative effect
+        // intensities mean "use the shipped defaults" (bloom 1.2, chromatic 0.12).
+        public int ResolutionWidth;
+        public int ResolutionHeight;
+        public int FullscreenMode;
+        public float Bloom;
+        public float Chromatic;
     }
 
     /// <summary>Lifetime profile figures shown on the home screen and records.</summary>
