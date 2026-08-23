@@ -3965,7 +3965,7 @@ namespace VoidFall.Runtime
                     "+" + definition.RewardParts + " Parts");
             }
             // The Void demands its ceremony once the encounter is fully clear.
-            if (noBossesRemain) OpenBossRoulette();
+            if (noBossesRemain) SpawnRouletteChest(boss.Position);
         }
 
         private static void CommitRunParts(SaveData saveData, int partsEarned)

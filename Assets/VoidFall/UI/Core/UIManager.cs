@@ -22,7 +22,8 @@ namespace VoidFall.UI
         Revive,
         GameOver,
         Roulette,
-        RouteSelect
+        RouteSelect,
+        PrizeReveal
     }
 
     /// <summary>
@@ -129,6 +130,9 @@ namespace VoidFall.UI
         /// </summary>
         public RouteSelectView RouteSelect { get; private set; }
 
+        /// <summary>The single-card prize reveal after a roulette lands.</summary>
+        public PrizeRevealView PrizeReveal { get; private set; }
+
         public UICallbacks Callbacks { get; private set; }
 
         private Canvas _canvas;
@@ -233,6 +237,9 @@ namespace VoidFall.UI
 
             RouteSelect = CreateView<RouteSelectView>(_overlayLayerRect, "Route Select");
             RouteSelect.Initialize(this);
+
+            PrizeReveal = CreateView<PrizeRevealView>(_overlayLayerRect, "Prize Reveal");
+            PrizeReveal.Initialize(this);
 
             Evolution = CreateView<EvolutionRevealView>(effectLayer, "Evolution Reveal");
             Evolution.Initialize(this);
@@ -363,10 +370,12 @@ namespace VoidFall.UI
             // messages on precisely the pages that produce them.
             var decisionOverlay = screen == UIScreen.LevelUp || screen == UIScreen.Revive ||
                 screen == UIScreen.Pause || screen == UIScreen.GameOver ||
-                screen == UIScreen.Roulette || screen == UIScreen.RouteSelect;
+                screen == UIScreen.Roulette || screen == UIScreen.RouteSelect ||
+                screen == UIScreen.PrizeReveal;
             Toasts?.SetObscured(decisionOverlay);
             Roulette?.SetVisible(screen == UIScreen.Roulette);
             RouteSelect?.SetVisible(screen == UIScreen.RouteSelect);
+            PrizeReveal?.SetVisible(screen == UIScreen.PrizeReveal);
         }
 
         public UIScreen CurrentScreen => _screen;

@@ -25,35 +25,35 @@ namespace VoidFall.Runtime
             return _activeWildCards.Contains(id);
         }
 
-        private void ActivateWildCard(WildCardId id)
+        private void ActivateWildCard(WildCardId id, bool announce = true)
         {
             if (id == WildCardId.None || !_activeWildCards.Add(id)) return;
             switch (id)
             {
                 case WildCardId.Standstill:
-                    ShowArenaToast(
+                    if (announce) ShowArenaToast(
                         "STANDSTILL - hold your ground, deal double damage",
                         3f, ToastKind.Reward);
                     break;
                 case WildCardId.Greed:
-                    ShowArenaToast(
+                    if (announce) ShowArenaToast(
                         "GREED - double experience, magnet disabled",
                         3f, ToastKind.Reward);
                     break;
                 case WildCardId.SecondLife:
                     _revivesRemaining += WildCardRules.SecondLifeBonusRevives;
-                    ShowArenaToast(
+                    if (announce) ShowArenaToast(
                         "SECOND LIFE - an extra revive waits",
                         3f, ToastKind.Reward);
                     break;
                 case WildCardId.Overclocker:
                     _overclock.HoldTier1();
-                    ShowArenaToast(
+                    if (announce) ShowArenaToast(
                         "OVERCLOCKER - the boost never ends",
                         3f, ToastKind.Reward);
                     break;
                 case WildCardId.ColossusArsenal:
-                    ShowArenaToast(
+                    if (announce) ShowArenaToast(
                         "COLOSSUS ARSENAL - everything is bigger",
                         3f, ToastKind.Reward);
                     break;
@@ -65,8 +65,9 @@ namespace VoidFall.Runtime
         /// hold. Returns false when every implemented card is held (the caller
         /// then pays a Parts fallback).
         /// </summary>
-        private bool TryGrantRandomWildCard(RouletteSession session)
+        private bool TryGrantRandomWildCard(RouletteSession session, out WildCardId granted, bool announce = true)
         {
+            granted = WildCardId.None;
             var candidates = new List<WildCardId>();
             foreach (WildCardId id in Enum.GetValues(typeof(WildCardId)))
             {
@@ -78,7 +79,8 @@ namespace VoidFall.Runtime
             var index = _rouletteRng != null
                 ? _rouletteRng.Int(candidates.Count)
                 : 0;
-            ActivateWildCard(candidates[index]);
+            granted = candidates[index];
+            ActivateWildCard(granted, announce);
             return true;
         }
 

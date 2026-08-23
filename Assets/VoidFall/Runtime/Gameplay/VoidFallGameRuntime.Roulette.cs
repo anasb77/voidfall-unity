@@ -73,9 +73,15 @@ namespace VoidFall.Runtime
         private void OnRouletteComplete(RouletteSession session)
         {
             if (_ui != null) _ui.Roulette.CeremonyComplete -= OnRouletteComplete;
+            RouletteTier revealTier = RouletteTier.Standard;
+            string revealTitle = "NOTHING";
+            string revealDetail = "The Void kept its prize.";
             if (session != null)
             {
-                ApplyRoulettePrize(session);
+                var reveal = ApplyRoulettePrize(session);
+                revealTitle = reveal.Title;
+                revealDetail = reveal.Detail;
+                revealTier = reveal.Tier;
                 // Refunded wagers were returned by the Void while keeping the
                 // effect, so only the net spend leaves the run economy.
                 var netSpend = session.PartsSpent - session.PartsRefunded;
@@ -91,61 +97,128 @@ namespace VoidFall.Runtime
             _rouletteSession = null;
             _rouletteRng = null;
             _rouletteActive = false;
+
+            // The won prize is presented as one full card - no toast popups;
+            // this screen is the announcement. The run resumes on continue.
+            if (_ui != null && _ui.PrizeReveal != null)
+            {
+                _ui.SetScreen(UIScreen.PrizeReveal);
+                _ui.PrizeReveal.Show(revealTitle, revealDetail, revealTier, ClosePrizeReveal);
+            }
+            else
+            {
+                ClosePrizeReveal();
+            }
+        }
+
+        private void ClosePrizeReveal()
+        {
             _paused = false;
             _ui?.SetScreen(UIScreen.None);
         }
 
-        private void ApplyRoulettePrize(RouletteSession session)
+        private readonly struct RoulettePrizeReveal
+        {
+            public RoulettePrizeReveal(string title, string detail, RouletteTier tier)
+            {
+                Title = title;
+                Detail = detail;
+                Tier = tier;
+            }
+
+            public string Title { get; }
+            public string Detail { get; }
+            public RouletteTier Tier { get; }
+        }
+
+        /// <summary>
+        /// Applies the won prize and returns what the reveal card should
+        /// say. Presentation is the card screen's job - nothing here pops a
+        /// toast.
+        /// </summary>
+        private RoulettePrizeReveal ApplyRoulettePrize(RouletteSession session)
         {
             var prize = session.Result;
-            if (prize == null || _upgradeProgress == null) return;
+            if (prize == null || _upgradeProgress == null)
+                return new RoulettePrizeReveal("NOTHING", "The Void kept its prize.", RouletteTier.Mediocre);
             switch (prize.Kind)
             {
                 case RoulettePrizeKind.PowerUp:
                     // A gift materializes at the player's feet; a rare pickup
                     // keeps it exciting without new spawn plumbing.
                     SpawnRarePickup(_gameSim.Player.Position);
-                    break;
+                    return new RoulettePrizeReveal(
+                        "VOID GIFT",
+                        "A powerful pickable materializes at your feet. Go take it.",
+                        prize.Tier);
                 case RoulettePrizeKind.Parts:
                     _partsEarned += 60;
-                    ShowArenaToast("+60 Parts", 2.5f, ToastKind.Reward);
-                    break;
+                    return new RoulettePrizeReveal(
+                        "PARTS CACHE", "+60 Parts banked for the workshop.", prize.Tier);
                 case RoulettePrizeKind.UpgradeRandomOwned:
-                    GrantRandomOwnedRank(session, 1);
-                    break;
+                {
+                    var (applied, name) = GrantRandomOwnedRank(1);
+                    return OwnedRankReveal(prize, applied, name);
+                }
                 case RoulettePrizeKind.NewRandomCard:
-                    GrantNewCardRank(session);
-                    break;
+                {
+                    var (granted, name) = GrantNewCardRank();
+                    return granted
+                        ? new RoulettePrizeReveal(name, "A new card joins your arsenal.", prize.Tier)
+                        : new RoulettePrizeReveal("EVERY CARD OWNED", "+40 Parts instead.", RouletteTier.Mediocre);
+                }
                 case RoulettePrizeKind.WeaponUpgradeQuality:
-                    GrantRandomOwnedRank(session, 2, weaponsOnly: true);
-                    break;
+                {
+                    var (applied, name) = GrantRandomOwnedRank(2, weaponsOnly: true);
+                    return OwnedRankReveal(prize, applied, name);
+                }
                 case RoulettePrizeKind.SupportUpgradeQuality:
-                    GrantRandomOwnedRank(session, 2, supportsOnly: true);
-                    break;
+                {
+                    var (applied, name) = GrantRandomOwnedRank(2, supportsOnly: true);
+                    return OwnedRankReveal(prize, applied, name);
+                }
                 case RoulettePrizeKind.RareBoon:
                     _gameSim.Player.Health = _gameSim.Player.MaxHealth;
                     _score += 500;
-                    ShowArenaToast("Rare boon - integrity restored", 2.5f, ToastKind.Reward);
-                    break;
+                    return new RoulettePrizeReveal(
+                        "RARE BOON", "Integrity fully restored, +500 score.", prize.Tier);
                 case RoulettePrizeKind.WildCard:
-                    if (!TryGrantRandomWildCard(session))
-                    {
-                        // Every implemented card is already held: cash out.
-                        _partsEarned += 80;
-                        _score += 750;
-                        ShowArenaToast("Wild card cashes out early", 2.5f, ToastKind.Reward);
-                    }
-                    break;
+                {
+                    if (TryGrantRandomWildCard(session, out var granted, announce: false))
+                        return new RoulettePrizeReveal(
+                            WildCardRules.DisplayName(granted),
+                            "A rule-breaking card bends the run.",
+                            RouletteTier.Legendary);
+                    _partsEarned += 80;
+                    _score += 750;
+                    return new RoulettePrizeReveal(
+                        "WILD CARD CASHES OUT", "Every card is already held: +80 Parts, +750 score.",
+                        RouletteTier.Premium);
+                }
+                default:
+                    return new RoulettePrizeReveal(prize.Name, prize.Description + ".", prize.Tier);
             }
+        }
+
+        private static RoulettePrizeReveal OwnedRankReveal(
+            RouletteWedgeDefinition prize, int applied, string name)
+        {
+            return applied > 0
+                ? new RoulettePrizeReveal(
+                    name + " +" + applied,
+                    applied + (applied == 1 ? " rank" : " ranks") + " applied to " + name + ".",
+                    prize.Tier)
+                : new RoulettePrizeReveal(
+                    "NOTHING LEFT TO UPGRADE", "+40 Parts instead.", RouletteTier.Mediocre);
         }
 
         /// <summary>
         /// Grants <paramref name="ranks"/> to one random owned card inside the
         /// requested families, clamped at its max rank. Uniform pick via the
-        /// ceremony's Rng; falls back to Parts when nothing qualifies.
+        /// ceremony's Rng; (0, null) when nothing qualifies - the caller
+        /// shapes the reveal (and the Parts fallback) from that.
         /// </summary>
-        private void GrantRandomOwnedRank(
-            RouletteSession session,
+        private (int Applied, string Name) GrantRandomOwnedRank(
             int ranks,
             bool weaponsOnly = false,
             bool supportsOnly = false)
@@ -164,31 +237,25 @@ namespace VoidFall.Runtime
             }
 
             var useWeapon = !supportsOnly && weaponCandidates.Count > 0 &&
-                (supportsOnly || _rouletteRng.Int(weaponCandidates.Count + supportCandidates.Count) < weaponCandidates.Count);
+                (weaponsOnly || _rouletteRng.Int(weaponCandidates.Count + supportCandidates.Count) < weaponCandidates.Count);
             if (useWeapon)
             {
                 var index = weaponCandidates[_rouletteRng.Int(weaponCandidates.Count)];
                 var applied = ApplyWeaponRanks(index, ranks);
-                ShowArenaToast(
-                    ContentCatalog.Weapons[index].Name + " +" + applied,
-                    2.5f, ToastKind.Reward);
-                return;
+                return (applied, ContentCatalog.Weapons[index].Name);
             }
             if (!weaponsOnly && supportCandidates.Count > 0)
             {
                 var index = supportCandidates[_rouletteRng.Int(supportCandidates.Count)];
                 var applied = ApplyCardRanks(index, ranks);
-                ShowArenaToast(
-                    ContentCatalog.Supports[index].Name + " +" + applied,
-                    2.5f, ToastKind.Reward);
-                return;
+                return (applied, ContentCatalog.Supports[index].Name);
             }
 
             _partsEarned += 40;
-            ShowArenaToast("Nothing left to upgrade - +40 Parts", 2.5f, ToastKind.Reward);
+            return (0, null);
         }
 
-        private void GrantNewCardRank(RouletteSession session)
+        private (bool Granted, string Name) GrantNewCardRank()
         {
             var weaponCandidates = new List<int>();
             var supportCandidates = new List<int>();
@@ -205,8 +272,7 @@ namespace VoidFall.Runtime
             if (total == 0)
             {
                 _partsEarned += 40;
-                ShowArenaToast("Every card owned - +40 Parts", 2.5f, ToastKind.Reward);
-                return;
+                return (false, null);
             }
 
             var pick = _rouletteRng.Int(total);
@@ -215,14 +281,14 @@ namespace VoidFall.Runtime
                 var index = weaponCandidates[pick];
                 _upgradeProgress.WeaponRanks[index] = 1;
                 RefreshCachedRanks();
-                ShowArenaToast("New card: " + ContentCatalog.Weapons[index].Name, 2.5f, ToastKind.Reward);
+                return (true, ContentCatalog.Weapons[index].Name);
             }
             else
             {
                 var index = supportCandidates[pick - weaponCandidates.Count];
                 _upgradeProgress.SupportRanks[index] = 1;
                 RefreshCachedRanks();
-                ShowArenaToast("New card: " + ContentCatalog.Supports[index].Name, 2.5f, ToastKind.Reward);
+                return (true, ContentCatalog.Supports[index].Name);
             }
         }
 

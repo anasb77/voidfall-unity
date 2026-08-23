@@ -36,6 +36,20 @@ namespace VoidFall.Core
         // Fire rate falls 25%, so cooldowns stretch by exactly 4/3.
         public const double ColossusRecoveryPenaltyMultiplier = 4.0 / 3.0;
 
+        /// <summary>Card-face name for reveals and the bestiary.</summary>
+        public static string DisplayName(WildCardId id)
+        {
+            switch (id)
+            {
+                case WildCardId.Standstill: return "STANDSTILL";
+                case WildCardId.Greed: return "GREED";
+                case WildCardId.SecondLife: return "SECOND LIFE";
+                case WildCardId.Overclocker: return "OVERCLOCKER";
+                case WildCardId.ColossusArsenal: return "COLOSSUS ARSENAL";
+                default: return "WILD CARD";
+            }
+        }
+
         public static bool StandstillActive(double stationarySeconds)
         {
             var seconds = IsFinite(stationarySeconds) ? stationarySeconds : 0;

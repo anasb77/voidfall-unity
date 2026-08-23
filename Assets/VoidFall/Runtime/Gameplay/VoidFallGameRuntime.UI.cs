@@ -285,7 +285,7 @@ namespace VoidFall.Runtime
             if (_roulettePendingAfterRevive)
             {
                 _roulettePendingAfterRevive = false;
-                OpenBossRoulette();
+                SpawnRouletteChest(_gameSim.Player.Position);
             }
         }
 
