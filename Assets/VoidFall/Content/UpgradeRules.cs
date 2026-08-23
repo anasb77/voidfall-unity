@@ -16,7 +16,7 @@ namespace VoidFall.Core
     public sealed class UpgradeProgress
     {
         public int[] WeaponRanks = new int[ContentOrder.Weapons.Length];
-        public int[] SupportRanks = new int[ContentCatalog.Supports.Length];
+        public int[] SupportRanks = new int[ExtendedCatalog.SupportCount];
         public int[] LateRanks = new int[ContentCatalog.LateUpgrades.Length];
         public bool[] Evolved = new bool[ContentOrder.Weapons.Length];
     }
@@ -79,9 +79,9 @@ namespace VoidFall.Core
             }
 
             if (owned < WeaponSlotLimit(progress)) return false;
-            for (var index = 0; index < ContentCatalog.Supports.Length; index++)
+            for (var index = 0; index < ExtendedCatalog.SupportCount; index++)
             {
-                if (progress.SupportRanks[index] < ContentCatalog.Supports[index].MaxRank) return false;
+                if (progress.SupportRanks[index] < ExtendedCatalog.AllSupports()[index].MaxRank) return false;
             }
 
             return true;
@@ -125,9 +125,9 @@ namespace VoidFall.Core
                 });
             }
 
-            for (var index = 0; index < ContentCatalog.Supports.Length; index++)
+            for (var index = 0; index < ExtendedCatalog.SupportCount; index++)
             {
-                var support = ContentCatalog.Supports[index];
+                var support = ExtendedCatalog.AllSupports()[index];
                 var current = progress.SupportRanks[index];
                 if (current >= support.MaxRank) continue;
                 var next = current + 1;
@@ -363,7 +363,7 @@ namespace VoidFall.Core
             }
 
             return supportIndex >= 0 && progress.WeaponRanks[rankIndex] >= ProgressionRules.MaxWeaponRank &&
-                progress.SupportRanks[supportIndex] >= ContentCatalog.Supports[supportIndex].MaxRank &&
+                progress.SupportRanks[supportIndex] >= ExtendedCatalog.AllSupports()[supportIndex].MaxRank &&
                 !progress.Evolved[rankIndex];
         }
 
@@ -381,7 +381,7 @@ namespace VoidFall.Core
 
         private static int SupportIndex(string id)
         {
-            for (var index = 0; index < ContentCatalog.Supports.Length; index++) if (ContentCatalog.Supports[index].Id == id) return index;
+            for (var index = 0; index < ExtendedCatalog.SupportCount; index++) if (ExtendedCatalog.AllSupports()[index].Id == id) return index;
             return -1;
         }
 

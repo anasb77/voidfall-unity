@@ -233,7 +233,7 @@ namespace VoidFall.Runtime
             for (var index = 0; index < _upgradeProgress.SupportRanks.Length; index++)
             {
                 var rank = _upgradeProgress.SupportRanks[index];
-                if (rank > 0 && rank < ContentCatalog.Supports[index].MaxRank) supportCandidates.Add(index);
+                if (rank > 0 && rank < ExtendedCatalog.AllSupports()[index].MaxRank) supportCandidates.Add(index);
             }
 
             var useWeapon = !supportsOnly && weaponCandidates.Count > 0 &&
@@ -248,7 +248,7 @@ namespace VoidFall.Runtime
             {
                 var index = supportCandidates[_rouletteRng.Int(supportCandidates.Count)];
                 var applied = ApplyCardRanks(index, ranks);
-                return (applied, ContentCatalog.Supports[index].Name);
+                return (applied, ExtendedCatalog.AllSupports()[index].Name);
             }
 
             _partsEarned += 40;
@@ -288,13 +288,13 @@ namespace VoidFall.Runtime
                 var index = supportCandidates[pick - weaponCandidates.Count];
                 _upgradeProgress.SupportRanks[index] = 1;
                 RefreshCachedRanks();
-                return (true, ContentCatalog.Supports[index].Name);
+                return (true, ExtendedCatalog.AllSupports()[index].Name);
             }
         }
 
         private int ApplyCardRanks(int supportIndex, int ranks)
         {
-            var max = ContentCatalog.Supports[supportIndex].MaxRank;
+            var max = ExtendedCatalog.AllSupports()[supportIndex].MaxRank;
             var next = Mathf.Clamp(_upgradeProgress.SupportRanks[supportIndex] + ranks, 0, max);
             var applied = next - _upgradeProgress.SupportRanks[supportIndex];
             _upgradeProgress.SupportRanks[supportIndex] = next;
@@ -320,6 +320,7 @@ namespace VoidFall.Runtime
                 ? _upgradeProgress.WeaponRanks[0]
                 : 0;
             _calibrationRank = SupportRank("calibration");
+            _spatialZoomScale = (float)SupportEffectRules.SpatialAwarenessZoom(SupportRank("spatialAwareness"));
         }
     }
 }

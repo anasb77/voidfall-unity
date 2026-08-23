@@ -715,15 +715,16 @@ namespace VoidFall.Persistence
 
         private static string[] SupportIds()
         {
-            var ids = new string[ContentCatalog.Supports.Length];
-            for (var index = 0; index < ids.Length; index++) ids[index] = ContentCatalog.Supports[index].Id;
+            var supports = ExtendedCatalog.AllSupports();
+            var ids = new string[supports.Length];
+            for (var index = 0; index < ids.Length; index++) ids[index] = supports[index].Id;
             return ids;
         }
 
         private static int[] SupportMaxRanks()
         {
-            var ranks = new int[ContentCatalog.Supports.Length];
-            for (var index = 0; index < ranks.Length; index++) ranks[index] = ContentCatalog.Supports[index].MaxRank;
+            var ranks = new int[ExtendedCatalog.SupportCount];
+            for (var index = 0; index < ranks.Length; index++) ranks[index] = ExtendedCatalog.AllSupports()[index].MaxRank;
             return ranks;
         }
 

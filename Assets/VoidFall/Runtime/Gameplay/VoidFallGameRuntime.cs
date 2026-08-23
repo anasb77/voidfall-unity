@@ -1573,16 +1573,16 @@ namespace VoidFall.Runtime
                 });
             }
 
-            var supportCount = Mathf.Min(ContentCatalog.Supports.Length, _upgradeProgress.SupportRanks.Length);
+            var supportCount = Mathf.Min(ExtendedCatalog.SupportCount, _upgradeProgress.SupportRanks.Length);
             for (var index = 0; index < supportCount; index++)
             {
                 var rank = _upgradeProgress.SupportRanks[index];
                 if (rank <= 0) continue;
                 chips.Add(new UIBuildChip
                 {
-                    Name = ContentCatalog.Supports[index].Name,
+                    Name = ExtendedCatalog.AllSupports()[index].Name,
                     Rank = rank,
-                    Accent = ParseColor(ContentCatalog.Supports[index].Accent, UITheme.CyanLight)
+                    Accent = ParseColor(ExtendedCatalog.AllSupports()[index].Accent, UITheme.CyanLight)
                 });
             }
 
@@ -1757,6 +1757,7 @@ namespace VoidFall.Runtime
             BeginObjectiveForCurrentArena();
             EnsureVoidRouteForRun();
             ResetRouletteLuck();
+            _spatialZoomScale = 1f;
             HideRouletteChest();
             _musicPerimeter?.Configure(
                 unchecked((int)_runSeed),
@@ -2250,8 +2251,8 @@ namespace VoidFall.Runtime
             for (var index = 0; index < scenario.SupportRanks.Length; index++)
             {
                 var value = scenario.SupportRanks[index];
-                for (var supportIndex = 0; supportIndex < ContentCatalog.Supports.Length; supportIndex++)
-                    if (ContentCatalog.Supports[supportIndex].Id == value.Id)
+                for (var supportIndex = 0; supportIndex < ExtendedCatalog.SupportCount; supportIndex++)
+                    if (ExtendedCatalog.AllSupports()[supportIndex].Id == value.Id)
                         _upgradeProgress.SupportRanks[supportIndex] = value.Rank;
             }
             for (var index = 0; index < scenario.LateRanks.Length; index++)
@@ -3189,8 +3190,8 @@ namespace VoidFall.Runtime
 
         private static string[] SupportIds()
         {
-            var ids = new string[ContentCatalog.Supports.Length];
-            for (var index = 0; index < ids.Length; index++) ids[index] = ContentCatalog.Supports[index].Id;
+            var ids = new string[ExtendedCatalog.SupportCount];
+            for (var index = 0; index < ids.Length; index++) ids[index] = ExtendedCatalog.AllSupports()[index].Id;
             return ids;
         }
 
@@ -3340,9 +3341,9 @@ namespace VoidFall.Runtime
         private int SupportRank(string id)
         {
             if (_upgradeProgress == null) return 0;
-            for (var index = 0; index < ContentCatalog.Supports.Length; index++)
+            for (var index = 0; index < ExtendedCatalog.SupportCount; index++)
             {
-                if (ContentCatalog.Supports[index].Id == id) return _upgradeProgress.SupportRanks[index];
+                if (ExtendedCatalog.AllSupports()[index].Id == id) return _upgradeProgress.SupportRanks[index];
             }
 
             return 0;
@@ -4914,7 +4915,7 @@ namespace VoidFall.Runtime
                 cameraObject.tag = "MainCamera";
             }
             _camera.orthographic = true;
-            _camera.orthographicSize = GameplayReferenceHalfHeight;
+            _camera.orthographicSize = ReferenceHalfHeight;
             UpdateGameplayCameraViewport();
             _camera.allowDynamicResolution = false;
             _camera.backgroundColor = new Color(0.015f, 0.025f, 0.07f, 1);
@@ -4939,12 +4940,16 @@ namespace VoidFall.Runtime
         /// </summary>
         internal const float GameplayReferenceHalfHeight = WorldHalfHeight * 1.35f;
 
+        /// <summary>Spatial Awareness widens the unified framing per rank.</summary>
+        private static float _spatialZoomScale = 1f;
+        private static float ReferenceHalfHeight => GameplayReferenceHalfHeight * _spatialZoomScale;
+
         private static Vector2 GameplayViewportHalfExtent(float viewportWidth, float viewportHeight)
         {
             var height = Mathf.Max(1f, viewportHeight);
             return new Vector2(
-                GameplayReferenceHalfHeight * Mathf.Max(0.5f, viewportWidth) / height,
-                GameplayReferenceHalfHeight);
+                ReferenceHalfHeight * Mathf.Max(0.5f, viewportWidth) / height,
+                ReferenceHalfHeight);
         }
 
         private void SetupPlayer()

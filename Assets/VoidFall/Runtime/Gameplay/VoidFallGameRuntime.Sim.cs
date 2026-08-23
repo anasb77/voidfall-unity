@@ -360,7 +360,7 @@ namespace VoidFall.Runtime
                     _directorWarned = false;
                     _directorSpawned = 0;
                     _score += 75;
-                    if (_gameSim.Rng.Next() < 0.35)
+                    if (_gameSim.Rng.Next() < 0.35 + SupportEffectRules.FortuneDropBonus(SupportRank("fortune")))
                     {
                         var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                         SpawnSpecialPickup(
@@ -1871,7 +1871,8 @@ namespace VoidFall.Runtime
                         // GREED doubles every source; the pull flag was
                         // captured before the slot freed.
                         if (collectedFromPull) collectedFromPull = !HasWildCard(WildCardId.Greed);
-                        _xp += pickup.Value * GreedXpMultiplier();
+                        _xp += pickup.Value * GreedXpMultiplier() *
+                        (float)SupportEffectRules.ScholarXpMultiplier(SupportRank("scholar"));
                         _telemetry.RecordXpCollected(pickup.Value);
                         _pickupStep = _pickupStepTimer > 0 ? _pickupStep + 1 : 0;
                         _pickupStepTimer = 0.9f;
@@ -2238,6 +2239,7 @@ namespace VoidFall.Runtime
                 : (float)stats.ProjectileRadius * radiusScale;
             // COLOSSUS ARSENAL: double projectile size (spec 44.4).
             if (HasWildCard(WildCardId.ColossusArsenal)) radius *= 2f;
+            radius *= (float)SupportEffectRules.ProjectileSizeMultiplier(SupportRank("projectileSize"));
             var blastRadius = blastRadiusOverride.HasValue
                 ? blastRadiusOverride.Value * _areaMultiplier
                 : (float)stats.BlastRadius * _areaMultiplier;
@@ -2245,11 +2247,11 @@ namespace VoidFall.Runtime
             {
                 Active = true,
                 Position = offsetOrigin ? origin + direction * 18 : origin,
-                Velocity = direction * (projectileSpeedOverride > 0 ? projectileSpeedOverride : (float)stats.ProjectileSpeed),
+                Velocity = direction * (projectileSpeedOverride > 0 ? projectileSpeedOverride : (float)stats.ProjectileSpeed * (float)SupportEffectRules.ProjectileSpeedMultiplier(SupportRank("projectileSpeed"))),
                 Damage = (float)stats.Damage * _damageMultiplier * damageScale,
                 Life = lifeOverride > 0
                     ? lifeOverride
-                    : (float)stats.Range / Mathf.Max(1, (float)stats.ProjectileSpeed),
+                    : (float)stats.Range / Mathf.Max(1, (float)stats.ProjectileSpeed * (float)SupportEffectRules.ProjectileSpeedMultiplier(SupportRank("projectileSpeed"))),
                 Radius = radius,
                 WeaponIndex = weaponIndex,
                 Rank = rank,
@@ -3340,6 +3342,12 @@ namespace VoidFall.Runtime
         private void DamagePlayer(float damage, Vector2 sourceDirection)
         {
             if (_gameOver || _revivePending || _gameSim.Player.DyingTimer > 0 || _gameSim.Player.Iframes > 0) return;
+            var dodgeRank = SupportRank("dodge");
+            if (dodgeRank > 0 && _gameSim.Rng.Next() < SupportEffectRules.DodgeChance(dodgeRank))
+            {
+                SpawnFloater(_gameSim.Player.Position, "DODGE", new Color(0.98f, 0.82f, 0.3f), 13f);
+                return;
+            }
             var appliedDamage = Mathf.Max(1, damage);
             // Commit the browser's player state before any hurt presentation:
             // later effects in the same simulation step observe the reduced
