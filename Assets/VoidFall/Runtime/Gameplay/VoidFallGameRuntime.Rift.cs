@@ -42,6 +42,7 @@ namespace VoidFall.Runtime
         private void OnVoidObjectiveCompleted()
         {
             if (_voidRoute == null) return;
+            if (!_voidRoute.NotifyVoidCompleted(_voidRoute.CurrentVoidId)) return;
             if (_voidRoute.NodesInState(RouteNodeState.Available).Count == 0)
             {
                 // Terminal Voids (or mid-flow states with no pending choice)

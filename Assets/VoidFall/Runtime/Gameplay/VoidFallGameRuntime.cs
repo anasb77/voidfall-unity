@@ -1761,8 +1761,6 @@ namespace VoidFall.Runtime
             _runSeed = SelectRunSeed();
             _gameSim.Rng = new Rng(_runSeed);
             _fxSim.FxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
-            BeginObjectiveForCurrentArena();
-            EnsureVoidRouteForRun();
             ResetRouletteLuck();
             _spatialZoomScale = 1f;
             HideRouletteChest();
@@ -2068,8 +2066,12 @@ namespace VoidFall.Runtime
             _menuNotice = null;
             _menuNoticeTimer = 0;
             EnqueueToast("Run started", null, 2.2f, ToastKind.Info);
-            _arenaId = ArenaIdFromName(_saveData?.arena);
+            // The menu selector previews the prepared arena catalogue. The
+            // authored route itself always begins in Abyss.
+            _arenaId = playStartCue ? ArenaId.Void : ArenaIdFromName(_saveData?.arena);
             SelectRecipeForCurrentArena();
+            EnsureVoidRouteForRun();
+            BeginObjectiveForCurrentArena();
             PrepareArenaNeighborhood();
             _arenaTransitionState = ArenaRules.CreateTransitionState(_runSeed);
             _telemetry.RecordLevel(0, _level, _xpNeed, 0);

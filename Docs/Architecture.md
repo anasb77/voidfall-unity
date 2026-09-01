@@ -1,90 +1,106 @@
-# VoidFall Unity — Architecture
+# VoidFall architecture
 
-Last updated: 2026-08-21 (commit `c8914bd`)
+Last verified: 2026-09-01, Unity `6000.5.7f1`.
 
-This document describes the codebase as it actually is. For migration history
-and honest caveats about what is verified, see `MIGRATION_STATUS.md`.
+## Boot and lifetime
 
-## Product
+`Assets/Scenes/SampleScene.unity` is the only build scene. Before it loads,
+`ParityFixtureProbe.CreateProbe` creates a persistent root with `FixedGameLoop`
+and `VoidFallGameRuntime`. The runtime constructs the camera, world renderers,
+pooled views, uGUI hierarchy, audio services, save store, and diagnostics.
 
-Endless space-survival shooter. Unity 6 (`6000.5.7f1`), URP 17.5, Windows
-Standalone target. One scene (`Assets/Scenes/SampleScene.unity`, camera only);
-the application bootstraps itself from code via
-`ParityFixtureProbe.CreateProbe`. Zero prefabs; all uGUI views are built at
-runtime from `Assets/VoidFall/UI/`.
+The composition is code-authored: there are no gameplay prefabs. This keeps
+the scene simple but makes tests and documentation important because most
+wiring is not visible in the Inspector.
 
-## Assembly map
-
-```text
-VoidFall.Core        engine-free simulation rules, RNG, collision grid, balance math
-VoidFall.Content     generated catalog + hand-written elite/roster/upgrade/evolution rules
-                     (rootNamespace is VoidFall.Core - its types live in that namespace)
-VoidFall.Persistence schema-v5 JSON saves, atomic writes, browser import/export
-VoidFall.Audio       procedural SFX + streamed reactive soundtrack
-VoidFall.UI          uGUI + TextMeshPro views (UIBuilder/UITheme/UIManager + 12 views)
-VoidFall.Runtime     gameplay driver: simulation logic, rendering, HUD coordination,
-                     input, telemetry, stress probes
-```
-
-Dependency direction: Runtime → {Core, Content, Persistence, Audio, UI};
-Content → Core; Persistence → Core+Content; Core depends on nothing.
-
-## The runtime class and its extraction state
-
-`VoidFallGameRuntime` remains one class (partial across several files), but its
-contents are being extracted into plain-C# owner classes. Status:
-
-| Concern | Owner | State |
-| --- | --- | --- |
-| Gameplay input polling | `Runtime/Input/InputReader.cs` | fully extracted |
-| Cosmetic FX (particles, shards, ring waves) | `Runtime/Gameplay/FxSim.cs` | fully extracted (state + pure logic); view sync + ParticleSystem emission stay on runtime |
-| Combat state (enemies, bullets, shots, pickups, bosses, meteors, orders, grid buffers, combat RNG) | `Runtime/Gameplay/GameSim.cs` | v0: state ownership complete; method bodies still on runtime |
-| HUD construction/update | partial file `VoidFallGameRuntime.Hud.cs` | consolidated; presenter extraction pending |
-| Menus/settings/workshop/records | partial file `...UI.cs` + `VoidFall.UI` views | views migrated; controller logic still on runtime |
-| Arena rendering | partial file `...Arena.cs` + `ArenaPlateFactory`, `ArenaResidencyManager` | plates/residency extracted; renderer promotion pending |
-| Data types | `Runtime/Gameplay/CombatStateTypes.cs` | combat structs promoted to namespace-level |
-
-Partial files of the runtime class live beside it:
-main state/lifecycle, `.Sim`, `.Render`, `.UI`, `.Hud`, `.Arena`, `.Fx`,
-`.Persist`, `.Audio`.
-
-## Deterministic simulation contract
-
-- Fixed-step simulation driven by `FixedGameLoop` calling `Simulate(double dt)`.
-- Two independent random streams, seeded per run:
-  - `GameSim.Rng` — combat draws;
-  - `FxSim.FxRng` — cosmetic draws.
-- Pooled slot arrays with insertion-order bookkeeping (`SlotOrder` where six
-  families shared exact semantics; specialized bookkeeping preserved for
-  enemy/boss/meteor/pickup whose browser semantics genuinely differ).
-- Quality presets scale cosmetic budgets only, never resolution or gameplay.
-
-## Regression safety net
-
-1. **Golden-master PlayMode test**
-   (`Assets/VoidFall/Tests/PlayMode/SimulationGoldenMasterTests.cs`): boots the
-   real runtime, applies the `productionMax` scenario with seed `0x5f1dc0de`,
-   steps `Simulate` 600 fixed ticks, hashes every gameplay state array
-   bit-exactly against a pinned constant (`15261090775683682834`).
-2. **EditMode suite** — 57 tests under `Assets/VoidFall/Tests/Editor/`.
-3. **Compile gate** — `dotnet build VoidFall.Runtime.csproj -t:Rebuild`
-   (0 errors; 14 known CS0649 warnings in `ParityFixtureProbe`).
-4. **Visual captures** — `-vfcapture*` player flags write screenshots;
-   baselines under `semantic-review/captures-*/`.
-
-Commands (from repo root):
+## Assembly boundaries
 
 ```text
-dotnet build VoidFall.Runtime.csproj -t:Rebuild
-"C:\Program Files\Unity\Hub\Editor\6000.5.7f1\Editor\Unity.exe" -batchmode
-  -projectPath <repo> -runTests -testPlatform EditMode  -testResults <out.xml>
-  ... and -testPlatform PlayMode for the golden master.
+VoidFall.Core          deterministic engine-free rules
+    ^
+    +-- VoidFall.Content
+    +-- VoidFall.Persistence
+
+VoidFall.UI ----------> Core + Content + Persistence
+VoidFall.Audio -------> Core
+VoidFall.Runtime -----> Core + Content + Persistence + UI + Audio
+                       Input System + Addressables + URP
 ```
 
-## Known open work
+`VoidFall.Core` and `VoidFall.Content` do not reference UnityEngine.
 
-Tracked in `MIGRATION_STATUS.md` and `Docs/AI/UnityProjectHealth.md`:
-migrate `GameSim` method bodies inward family by family; extract HudPresenter
-and ArenaRenderer as real classes; move menu controllers into `VoidFall.UI`;
-shrink the runtime MonoBehaviour to a composition root; VF-010..VF-012 release/
-input/accessibility gaps.
+## Simulation
+
+`FixedGameLoop` drives `VoidFallGameRuntime.Simulate(double)`. `GameSim` owns
+combat arrays, order tables, spatial scratch buffers, player state, meteors and
+the deterministic combat RNG. `FxSim` owns cosmetic effect state and a separate
+FX RNG. Unity view synchronization remains in runtime partials.
+
+The game uses fixed-capacity pools instead of one MonoBehaviour per enemy,
+projectile or pickup. This is a deliberate bullet-heaven performance contract.
+
+The 32-seed PlayMode sweep proves repeated runs are bit-stable. The canonical
+`productionMax` run is pinned by `SimulationGoldenMasterTests`.
+
+## Runtime composition status
+
+`VoidFallGameRuntime` is still a large partial class. Current extractions:
+
+- Complete: input polling, combat state, cosmetic FX state
+- Active UI controllers: Settings, Records and Workshop
+- Present but not fully promoted: `HudPresenter`
+- Still runtime-owned: arena rendering, much of HUD/view synchronization,
+  lifecycle orchestration, route/rift presentation, roulette integration
+
+This is maintainability debt, not a reason for a rewrite. Future extractions
+must preserve the golden master and visual captures.
+
+## UI
+
+All screens use runtime-authored uGUI. `UIManager` owns the screen hierarchy;
+`UIViewBase` owns one `CanvasGroup` per view. Gameplay HUD remains on its own
+canvas below modal menus. The music perimeter is one bounded custom Graphic,
+and danger indicators render above it.
+
+## Rendering
+
+URP 17.5 is active through `VoidFallURP.asset` and
+`VoidFallUniversalRenderer.asset`. The current PC presentation uses:
+
+- Linear color space
+- 4x MSAA
+- Bloom and chromatic aberration exposed in video settings
+- World-space arena vignette below gameplay actors
+- Unlit/additive custom shaders for sprites and effects
+
+Arena identity plates are imported, non-readable, mip-streamed textures.
+Addressables owns their asynchronous lifetime.
+
+## Arenas and route
+
+The route state machine currently contains ten conceptual Voids. Three have
+prepared visual packages: Abyss, Red Nebula and White Sakura. Hydra currently
+uses Abyss as a placeholder. A normal player run is forced to begin in Abyss;
+finishing its objective opens the first route choice.
+
+Only Abyss and the three Layer-I nodes currently have objective implementations.
+Layer-II objectives, complete transition reset semantics, threat scaling and
+the Final Void escape remain unfinished.
+
+## Persistence
+
+`SaveStore` owns schema-v5 JSON under `Application.persistentDataPath`.
+Writes use a temporary file, forced flush, atomic replacement and one backup.
+Unreadable storage is latched so a blank runtime profile cannot overwrite
+progression that failed to load. The live route is not yet serialized.
+
+## Validation contract
+
+- Build the generated solution: compilation gate
+- EditMode: pure rules, persistence, content, UI controllers and assets
+- PlayMode: runtime lifecycle, route regression tests and golden masters
+- Windows player: Addressables/build integration and stress smoke
+- Visual changes: 720p/1080p screenshots and manual readability checks
+
+Current known warnings are fourteen JsonUtility fixture-field warnings and two
+Unity 6.5 `Resolution.refreshRate` deprecations.

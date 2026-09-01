@@ -101,7 +101,10 @@ namespace VoidFall.Tests.PlayMode
         }
 
         /// <summary>Computed once and pinned. See class comment before changing.</summary>
-        internal const ulong GoldenMasterHash = 7472786138139307308;
+        // Meteor terrain/size variance (4c89e57) changes spawned meteor state
+        // during the ten-second productionMax window without changing RNG draw
+        // order. Re-pinned after confirming the 32-seed sweep remains stable.
+        internal const ulong GoldenMasterHash = 12947047772295568886;
 
         internal static ulong HashRuntimeState(object runtime)
         {

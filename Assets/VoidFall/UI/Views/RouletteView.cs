@@ -82,9 +82,6 @@ namespace VoidFall.UI
             BuildWheel(content);
             BuildWagerRow(content);
             BuildResultPanel(content);
-
-            var group = UIBuilder.EnsureGroup(gameObject);
-            group.blocksRaycasts = true;
         }
 
         private void BuildHeader(RectTransform parent)

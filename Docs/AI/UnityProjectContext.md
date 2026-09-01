@@ -1,87 +1,86 @@
-# VoidFall Unity Project Context
+# VoidFall Unity project context
 
-> Last analyzed: 2026-08-20
-> Commit: `e33e29c357baea69c8c971147340f86fb2d5dfb0`
-> Scope: current dirty working tree in `voidfall-unity`
+Last analyzed: 2026-09-01
 
-## Product status
+Source state: `f97a180` plus the verified route/UI working tree
 
-- `voidfall-unity` is the active product.
-- The sibling React/browser project `voidfall.io` is deprecated and was treated as read-only historical reference.
-- Current configured/tested target is Windows Standalone. Android and WebGL are not validated.
-- Current Unity version is 6000.5.7f1.
+## Product
 
-## Runtime shape
+`voidfall-unity` is the active game. The browser project is deprecated.
+Current target is Windows Standalone; mobile remains a future platform pass.
 
-- Render pipeline: Built-in Render Pipeline, Linear color space.
-- Input: Input System package 1.20.0, with gameplay polling `Keyboard.current`, `Gamepad.current`, and `Touchscreen.current` directly.
-- UI: runtime-created uGUI. Most labels use legacy `UnityEngine.UI.Text`; TextMeshPro is present but not the main text path.
-- Scene count: one build scene, `Assets/Scenes/SampleScene.unity`.
-- Prefab count: zero.
-- The scene contains only a Main Camera. The playable application is created before scene load by `ParityFixtureProbe.CreateProbe`.
+## Environment
 
-## Startup flow
+- Unity `6000.5.7f1`
+- URP `17.5.0`
+- Addressables `2.8.1`
+- Input System `1.20.0`
+- uGUI + TextMeshPro package, with many runtime labels still using uGUI Text
+- GitHub: `https://github.com/anasb77/voidfall-unity`
 
-1. `ParityFixtureProbe.CreateProbe` creates a persistent `VoidFall` object.
-2. It adds `ParityFixtureProbe`, `FixedGameLoop`, and `VoidFallGameRuntime`.
-3. `VoidFallGameRuntime.Awake` creates world, camera, backdrop, HUD, player, audio, effects, save state, and every uGUI view.
-4. The first rendered frame calls `EnsureArenaPlateViewport`.
-5. The current arena is baked synchronously. While browsing the menu, the Void arena is also baked synchronously when the saved arena is not Void.
-6. Procedural sprite warming continues across menu frames; starting a run drains any remaining work synchronously.
+## Startup
 
-## Assembly map
+One scene is enabled: `Assets/Scenes/SampleScene.unity`. The scene contains a
+camera; `ParityFixtureProbe` creates the persistent game root before scene load.
+`VoidFallGameRuntime.Awake` composes all runtime services and views, loads the
+save, prepares arena residency, and enters the menu.
 
-```text
-VoidFall.Core
-  <- VoidFall.Content
-  <- VoidFall.Persistence
+## Main directories
 
-VoidFall.Audio
+- `Assets/VoidFall/Core`: deterministic rules and route/objective state
+- `Assets/VoidFall/Content`: generated catalogue and authored content rules
+- `Assets/VoidFall/Runtime`: Unity integration, GameSim/FxSim and rendering
+- `Assets/VoidFall/UI`: runtime uGUI views, controllers and HUD contracts
+- `Assets/VoidFall/Audio`: streamed music and procedural SFX
+- `Assets/VoidFall/Persistence`: schema-v5 save/import code
+- `Assets/VoidFall/Editor`: arena/sprite baking and Windows build commands
+- `Assets/VoidFall/Generated`: baked sprites and arena source assets
+- `Assets/AddressableAssetsData`: arena Addressables catalogue configuration
 
-VoidFall.UI
-  -> Core, Content, Persistence, uGUI, TMP, Input System
+## Important invariants
 
-VoidFall.Runtime
-  -> Core, Content, Persistence, Audio, UI, Input System
-```
+- Combat and FX use separate deterministic RNG streams.
+- Pool/order iteration semantics are gameplay behavior; do not reorder casually.
+- New runs begin in Abyss regardless of the menu preview arena.
+- Arena textures are generated in Editor code and loaded as packages at runtime.
+- Arena identity effects must not tint the player or HUD.
+- Save failures must never overwrite unreadable progression.
+- Do not add per-enemy or per-projectile MonoBehaviours.
 
-The Core and Content split is a useful boundary. The main architectural concentration is `VoidFallGameRuntime.cs`, which owns simulation, rendering, runtime asset generation, UI/HUD coordination, input, persistence orchestration, and telemetry.
+## Current arena state
 
-## Main code areas
+Prepared and selectable in the main-menu carousel:
 
-- `Assets/VoidFall/Core`: deterministic rules and shared model types.
-- `Assets/VoidFall/Content`: generated catalog and gameplay content rules.
-- `Assets/VoidFall/Persistence`: schema-v5 JSON saves, browser import/export, atomic replacement and backup handling.
-- `Assets/VoidFall/Audio`: generated effects plus streamed soundtrack control.
-- `Assets/VoidFall/UI`: current runtime-authored uGUI migration.
-- `Assets/VoidFall/Runtime/Gameplay`: main runtime, procedural sprites, arena plates.
-- `Assets/VoidFall/Runtime/Telemetry`: run telemetry and stress benchmark support.
+- Abyss
+- Red Nebula
+- White Sakura
 
-## Persistence
+Next visual-only packages requested:
 
-- Saves use `Application.persistentDataPath`.
-- Writes use a temporary file, `Flush(true)`, atomic replacement where available, and `.bak` recovery.
-- An unreadable-save latch protects damaged data from being overwritten.
-- Browser import creates a pre-import backup.
+- Hydra, including existing mutation behavior
+- Monochrome Court
+- Lost City, using the existing `null-city` route identity for compatibility
 
-## Build and validation
+## Validation baseline
 
-- Build scene: `Assets/Scenes/SampleScene.unity` only.
-- Current local build script targets a machine-specific absolute path.
-- Latest inspected Windows build log reports success and a 117,606,213-byte player.
-- Unity batch compilation succeeded on 2026-08-20.
-- EditMode test discovery succeeded but found zero tests.
-- The repository's older parity documents point to test suites in an external validation clone; those tests are not reproducible from this checkout.
+- C# build: zero errors
+- EditMode: 168 project tests passing
+- PlayMode: 5 tests passing
+- Windows release player: build and `productionMax` smoke passing
+- No duplicate GUIDs or missing `.meta` files
 
-## Working-tree warning
+## Known gaps
 
-The audit covered the current dirty working tree, not just commit `e33e29c`. The entire `Assets/VoidFall/UI` directory and the local build script are currently untracked. Do not clean or reset the tree without first preserving them.
+- Route content after Layer I is incomplete.
+- Hydra mutation rules exist but are not wired into live spawning yet.
+- Monochrome Court and Lost City are graph nodes without visual packages.
+- HudPresenter is present but not wired as the sole HUD owner.
+- CI Unity tests run only when the repository variable is enabled.
+- Product identity still uses Unity's default company/application identifier.
+- Android/mobile, controller navigation and safe-area behavior need device work.
 
-## Recommended operating rules
+## Workspace hygiene
 
-- Profile startup and gameplay in a Development Build with Profiler markers before tuning.
-- Keep procedural pixel generation off the first interactive frame.
-- Add tests around pure Core/Content/Persistence behavior before splitting the runtime monolith.
-- Add screenshot/layout smoke tests for each uGUI screen at 1280x720 and 1920x1080.
-- Treat the current UI migration as in-progress until it is tracked, tested, and visually accepted.
-
+`Library`, `Logs`, `TestResults`, `.vs`, generated project files and player
+builds are local artifacts. They must not be committed. `Assets` is roughly
+50 MiB; a multi-gigabyte local folder is generated cache, not source size.

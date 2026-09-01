@@ -1476,7 +1476,8 @@ namespace VoidFall.UI
         /// <summary>Adds a CanvasGroup, creating it only once.</summary>
         public static CanvasGroup EnsureGroup(GameObject target)
         {
-            return target.GetComponent<CanvasGroup>() ?? target.AddComponent<CanvasGroup>();
+            var existing = target.GetComponent<CanvasGroup>();
+            return existing != null ? existing : target.AddComponent<CanvasGroup>();
         }
 
         /// <summary>

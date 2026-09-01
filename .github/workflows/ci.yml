@@ -32,10 +32,13 @@ jobs:
           echo "ok"
       - name: Docs present
         run: |
+          test -f README.md
           test -f Docs/Architecture.md
           test -f Docs/RefactoringPlaybook.md
-          test -f Docs/Design/MenuControllersMigration.md
-          test -f MIGRATION_STATUS.md
+          test -f Docs/Design/VoidFallArenaArchitecture.md
+          test -f Docs/AI/UnityProjectContext.md
+          test -f Docs/AI/UnityProjectHealth.md
+          test -f Docs/AudioCredits.md
           echo "docs ok"
 
   unity-tests:

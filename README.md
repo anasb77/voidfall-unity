@@ -1,62 +1,103 @@
-# VoidFall (Unity)
+# VoidFall
 
-A high-performance C# Unity 6 port of **VoidFall**, an endless space-survival shooter featuring fluid procedural combat, upgrades, dynamic nebula environments, atmospheric particle rendering, and full audio/tactile feedback.
+VoidFall is a Unity 6 survivor-shooter built around escaping a branching chain
+of hostile Voids. Combat is deterministic and pool-based; presentation uses
+runtime-authored uGUI, streamed reactive music, baked arena packages, and URP.
 
-## Project Overview
+## Current environment
 
-- **Engine Version**: Unity 6 (`6000.5.7f1`)
-- **Rendering**: Built-in pipeline, rendering direct to the backbuffer at native
-  resolution. Sprites are rasterized procedurally at runtime; there are no
-  authored texture assets for gameplay entities. No scriptable render pipeline
-  is installed, so there is no post-processing stack (and therefore no bloom).
-- **UI**: Legacy IMGUI (`OnGUI`)
-- **Input System**: Unity New Input System (`com.unity.inputsystem`)
-- **Target Platforms**: Windows/Standalone is the only configured and tested
-  target. Android components are not installed; WebGL is untested.
+- Unity `6000.5.7f1`
+- Universal Render Pipeline `17.5.0`
+- Addressables `2.8.1`
+- Input System `1.20.0`
+- Windows Standalone x86-64, Mono scripting backend
+- One enabled scene: `Assets/Scenes/SampleScene.unity`
 
-## Architecture & Modules
+The scene is intentionally small. `ParityFixtureProbe` creates the persistent
+runtime before scene load, and `VoidFallGameRuntime` composes the game world,
+simulation, UI, audio, rendering, persistence, and diagnostics.
 
-There are six assembly definitions (`asmdef`) under `Assets/VoidFall/`:
+## Current gameplay
 
-- **VoidFall.Core**: Pure simulation rules — spatial collision grid, deterministic RNG, combat/movement/pickup/meteor/quality/balance math. No engine dependencies.
-- **VoidFall.Content**: Generated content catalog plus hand-written elite, enemy-roster, upgrade-pool, and evolution rules.
-- **VoidFall.Runtime**: All Unity behaviour. Simulation driver, procedural sprite and arena-plate factories, entity rendering, particles, camera effects, input, and telemetry.
-- **VoidFall.UI**: Runtime-authored uGUI + TextMeshPro views (menus, HUD, overlays).
-- **VoidFall.Persistence**: Save store and browser save import/export.
-- **VoidFall.Audio**: Procedural audio synthesis plus streamed reactive soundtrack.
+- Six weapons, evolutions, supports, late upgrades, and workshop progression
+- Fourteen enemy types, elite variants, four bosses, formation events, meteors
+- Boss Roulette, Wild Cards, rare pickups, reactive soundtrack and neon border
+- Objective-driven rift opening and route selection
+- Three prepared arenas: Abyss, Red Nebula, and White Sakura
+- Three deterministic visual recipes per prepared arena
 
-Two caveats for anyone navigating this for the first time:
-
-- The simulation is fully extracted from the runtime class into plain C#
-  owner classes: `Runtime/Gameplay/FxSim.cs` (cosmetic FX),
-  `Runtime/Gameplay/GameSim.cs` (combat state, all ten enemy behaviours,
-  player kinematics), `Runtime/Input/InputReader.cs`, and
-  `Runtime/Gameplay/SlotOrder.cs`. Three menu screens (Settings, Records,
-  Workshop) are migrated behind `VoidFall.UI` controllers via `IGameBridge`;
-  their design lives in `Docs/Design/MenuControllersMigration.md` and the
-  remaining roadmap (lifecycle screens, HudPresenter/ArenaRenderer
-  promotions, composition-root shrink) in `Docs/AI/Handoff-2026-08-21.md`.
-  A PlayMode golden-master test pins simulation behavior bit-for-bit.
-- The `Mobile` folder is empty, and `Rendering` contains only shaders and icon
-  assets. They are not assemblies.
-
-## Getting Started
-
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/anasb77/voidfall-unity.git
-   ```
-2. **Open with Unity Hub**:
-   - Unity Version: **Unity 6 (6000.5.7f1)**
-   - Add the cloned folder as a project and open it.
-3. **Run the Game**:
-   - Open `Assets/Scenes/SampleScene.unity`.
-   - Press **Play** in the Unity Editor.
+Hydra, Monochrome Court, and Lost City are the next visual arena packages.
+Their full arena-specific objectives and enemy catalogues remain separate
+future work, except Hydra will reuse the existing mutation rules.
 
 ## Controls
 
-- **WASD / Left Stick / Arrow Keys**: Move Ship
-- **Mouse / Right Stick**: Aim Direction
-- **Left Mouse Button / Right Trigger / Space**: Fire Primary Weapon
-- **Right Mouse Button / Left Trigger / Shift**: Special / Dash
-- **Escape / P / Start**: Pause Menu
+- Move: WASD, arrows, or left stick
+- Aim: mouse or right stick
+- Fire: left mouse, Space, or right trigger
+- Pause: Escape, P, or controller Start
+
+## Architecture
+
+First-party assemblies:
+
+- `VoidFall.Core`: engine-free rules, deterministic state machines and RNG
+- `VoidFall.Content`: catalogue, spawning, upgrades, formations and rewards
+- `VoidFall.Persistence`: versioned JSON saves and browser-save import
+- `VoidFall.Audio`: procedural SFX and streamed reactive soundtrack
+- `VoidFall.UI`: uGUI views, controllers and HUD presentation contracts
+- `VoidFall.Runtime`: Unity composition, simulation bridges and rendering
+
+See [Docs/Architecture.md](Docs/Architecture.md) and
+[Docs/Design/VoidFallArenaArchitecture.md](Docs/Design/VoidFallArenaArchitecture.md).
+
+## Validation
+
+From the repository root:
+
+```powershell
+dotnet build VoidFall.Runtime.csproj -t:Rebuild
+```
+
+Unity test commands must not include `-quit`; the test runner exits on its own.
+
+```powershell
+& 'C:\Program Files\Unity\Hub\Editor\6000.5.7f1\Editor\Unity.exe' `
+  -batchmode -nographics -projectPath $PWD `
+  -runTests -testPlatform EditMode -testResults Logs/editmode.xml `
+  -logFile Logs/editmode.log
+
+& 'C:\Program Files\Unity\Hub\Editor\6000.5.7f1\Editor\Unity.exe' `
+  -batchmode -nographics -projectPath $PWD `
+  -runTests -testPlatform PlayMode -testResults Logs/playmode.xml `
+  -logFile Logs/playmode.log
+```
+
+Validated on 2026-09-01:
+
+- C# compilation: zero errors
+- Project EditMode tests: 168 passed
+- PlayMode tests: 5 passed
+- Windows release build and `productionMax` smoke run: passed
+
+The build command is:
+
+```powershell
+& 'C:\Program Files\Unity\Hub\Editor\6000.5.7f1\Editor\Unity.exe' `
+  -batchmode -nographics -projectPath $PWD `
+  -executeMethod VoidFall.EditorTools.BuildScript.BuildWindows `
+  -logFile Logs/windows-build.log
+```
+
+It writes `../Builds/VoidFall.exe`.
+
+## Repository rules
+
+- The browser/React version is deprecated and out of scope.
+- Never commit `Library`, `Logs`, `TestResults`, `.vs`, or player builds.
+- Preserve gameplay RNG draw order unless a behavior change is intentional.
+- Intentional simulation changes require a separately explained golden-master
+  hash update and a passing 32-seed determinism sweep.
+- Generated arena textures are authored in the Editor, never painted at runtime.
+
+Audio credits are recorded in [Docs/AudioCredits.md](Docs/AudioCredits.md).
