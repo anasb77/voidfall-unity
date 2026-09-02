@@ -21,8 +21,9 @@ not triple texture memory.
 ## Loading
 
 `ArenaResidencyManager` is the only Addressables handle owner. It reconciles a
-bounded resident set and releases obsolete handles. The hard cap is four arena
-package roots during overlap. Failed handles remain observable through status
+bounded resident set and releases obsolete handles. The menu cap is five arena
+package roots; gameplay remains current-plus-two-exits with a four-package
+transition peak. Failed handles remain observable through status
 and `LastFailure`; a complete alternative-recipe fallback remains future work.
 
 Current Addressables labels and bundles are grouped per arena identity:
@@ -30,6 +31,7 @@ Current Addressables labels and bundles are grouped per arena identity:
 - `vf-arena-abyss`
 - `vf-arena-red-nebula`
 - `vf-arena-white-sakura`
+- `vf-arena-hydra`
 
 ## Prepared catalogue
 
@@ -38,15 +40,17 @@ Current Addressables labels and bundles are grouped per arena identity:
 | Abyss | `abyss` | prepared, three recipes |
 | Red Nebula | `red-nebula` | prepared, three recipes |
 | White Sakura | `white-sakura` | prepared, three recipes |
-| Hydra | `hydra` | next visual package; currently reuses Abyss |
-| Monochrome Court | `monochrome-court` | next visual package |
+| Hydra | `hydra` | prepared, three recipes; mutated survival and Hydra Prime |
+| Monochrome Court | `monochrome-court` | prepared, three recipes; exclusive chess roster and alternating floor-hazard Twins |
 | Lost City | `null-city` | next visual package; stable ID retained |
 | Dead Orbit | `dead-orbit` | graph/data only |
 | Graveyard | `graveyard` | graph/data only |
 | Last Gate | `last-gate` | graph/data only |
 | Final Void | `final-void` | graph/data only |
 
-Prepared arenas appear in the main-menu carousel through `ContentOrder.Arenas`.
+Prepared arenas appear in the main-menu carousel through
+`ContentOrder.PreparedArenas`. `ContentOrder.Arenas` remains the legacy endless
+rotation so adding prepared route content cannot silently change old run seeds.
 Adding a map requires extending the stable ID bridge, bake specifications,
 addressable migration/validation and render identity rules together.
 
@@ -57,6 +61,13 @@ node complete, reveals its children and opens the route-select screen. Route
 identity and arena identity are related but not interchangeable: placeholder
 Voids may temporarily reuse a prepared visual arena while keeping their own
 objective and future content ID.
+
+Hydra uses the approved v13 composition directly: a 4K authored toxic field,
+a transparent 1440p authored ivory bone layer and a separate 1024px Hydra
+Prime sprite. Runtime code adds only motion, attacks and damage disintegration;
+it does not redraw the approved bones or boss with procedural primitives. Ten
+pooled runtime tentacles animate over the authored head. The central spine is
+presentation only; outer-rib collision is enabled only while the boss is active.
 
 ## Rendering layers
 
@@ -72,6 +83,10 @@ particles and shader cost rather than duplicating assets. Current arena bundles
 are approximately 1.6-2.3 MiB on disk after bundle compression; runtime GPU
 cost must be measured from imported formats and resident mips, not PNG size.
 
+The main-menu carousel keeps all five prepared preview packages resident so
+left/right selection is immediate. A run switches back to the smaller
+current-arena-plus-two-exits residency plan.
+
 Art is authored from 4K masters where identity detail benefits. Soft masks,
 fog and utility layers should remain 1440p or 1080p. No 8K runtime textures are
 planned.
@@ -80,7 +95,9 @@ planned.
 
 Editor tooling under `Assets/VoidFall/Editor`:
 
-- bakes plates and procedural sprites;
+- bakes ordinary arena plates and procedural gameplay sprites;
+- imports Hydra's authored base, detail and boss layers without regenerating them;
+- bakes Monochrome Court's 4K radial identity and 1440p board detail layers;
 - applies non-readable, mip-streamed import settings;
 - creates three recipe assets;
 - registers Addressables entries;

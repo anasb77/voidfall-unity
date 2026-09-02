@@ -16,6 +16,8 @@ public enum ArenaId
     Void,
     RedNebula,
     WhiteSakura,
+    Hydra,
+    MonochromeCourt,
 }
 
 public enum WeaponId
@@ -93,6 +95,16 @@ public static class ContentOrder
         ArenaId.Void,
         ArenaId.RedNebula,
         ArenaId.WhiteSakura,
+        ArenaId.Hydra,
+    };
+
+    public static readonly ArenaId[] PreparedArenas =
+    {
+        ArenaId.Void,
+        ArenaId.RedNebula,
+        ArenaId.WhiteSakura,
+        ArenaId.Hydra,
+        ArenaId.MonochromeCourt,
     };
 
     public static readonly WeaponId[] Weapons =

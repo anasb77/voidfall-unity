@@ -18,13 +18,13 @@ namespace VoidFall.Runtime
 
         private void CycleNextArenaFromUi()
         {
-            var arenas = ContentOrder.Arenas;
+            var arenas = ContentOrder.PreparedArenas;
             var currentIdx = Array.IndexOf(arenas, _arenaId);
             if (currentIdx < 0) currentIdx = 0;
             var nextIdx = (currentIdx + 1) % arenas.Length;
             _arenaId = arenas[nextIdx];
             SelectRecipeForCurrentArena();
-            PrepareArenaNeighborhood();
+            PrepareMenuArenaCatalogue();
             if (_saveData != null) _saveData.arena = ArenaIdName(_arenaId);
             RefreshMenuProfileUi();
             _audio?.Play(ProceduralAudio.Cue.Ui, 1f);
@@ -32,13 +32,13 @@ namespace VoidFall.Runtime
 
         private void CyclePrevArenaFromUi()
         {
-            var arenas = ContentOrder.Arenas;
+            var arenas = ContentOrder.PreparedArenas;
             var currentIdx = Array.IndexOf(arenas, _arenaId);
             if (currentIdx < 0) currentIdx = 0;
             var prevIdx = (currentIdx - 1 + arenas.Length) % arenas.Length;
             _arenaId = arenas[prevIdx];
             SelectRecipeForCurrentArena();
-            PrepareArenaNeighborhood();
+            PrepareMenuArenaCatalogue();
             if (_saveData != null) _saveData.arena = ArenaIdName(_arenaId);
             RefreshMenuProfileUi();
             _audio?.Play(ProceduralAudio.Cue.Ui, 1f);
@@ -1247,6 +1247,23 @@ namespace VoidFall.Runtime
                         Definition = 0.66f, Current = 0.62f, Rim = 0.58f + eased * 0.32f,
                         Density = 0.94f, EdgeBias = 0.38f,
                     };
+                case "dormant":
+                    return new ArenaCycleVisualState
+                    {
+                        Definition = 0.42f, Current = 0.12f, Rim = 0.48f, Density = 0.82f, EdgeBias = 0.08f,
+                    };
+                case "breathing":
+                    return new ArenaCycleVisualState
+                    {
+                        Definition = 0.58f, Current = 0.38f, Rim = 0.62f + eased * 0.12f,
+                        Density = 0.92f, EdgeBias = 0.18f,
+                    };
+                case "hostile":
+                    return new ArenaCycleVisualState
+                    {
+                        Definition = 0.76f, Current = 0.68f, Rim = 0.78f + eased * 0.18f,
+                        Density = 1f, EdgeBias = 0.32f,
+                    };
                 default:
                     return new ArenaCycleVisualState
                     {
@@ -1266,6 +1283,7 @@ namespace VoidFall.Runtime
             {
                 case ArenaId.RedNebula: return -0.5f;
                 case ArenaId.WhiteSakura: return 0.72f;
+                case ArenaId.Hydra: return -0.18f;
                 default: return 0;
             }
         }
@@ -1276,6 +1294,7 @@ namespace VoidFall.Runtime
             {
                 case ArenaId.RedNebula: return 13f;
                 case ArenaId.WhiteSakura: return 17f;
+                case ArenaId.Hydra: return 11f;
                 default: return 0;
             }
         }
@@ -1297,6 +1316,7 @@ namespace VoidFall.Runtime
             {
                 case ArenaId.RedNebula: return Mathf.PI * 0.86f;
                 case ArenaId.WhiteSakura: return -0.72f;
+                case ArenaId.Hydra: return -0.35f;
                 default: return 0;
             }
         }
@@ -1370,15 +1390,28 @@ namespace VoidFall.Runtime
             var exitA = default(ArenaPackageKey);
             var exitB = default(ArenaPackageKey);
             var exitCount = 0;
-            var arenas = ContentOrder.Arenas;
+            var arenas = ContentOrder.PreparedArenas;
             for (var index = 0; index < arenas.Length && exitCount < 2; index++)
             {
                 if (arenas[index] == _arenaId) continue;
                 if (exitCount++ == 0) exitA = ArenaPackageFor(arenas[index]);
                 else exitB = ArenaPackageFor(arenas[index]);
             }
+            ReconcileArenaResidency(ArenaResidencyPlanner.Steady(current, exitA, exitB));
+        }
 
-            var target = ArenaResidencyPlanner.Steady(current, exitA, exitB);
+        private void PrepareMenuArenaCatalogue()
+        {
+            if (_arenaResidency == null) return;
+            var arenas = ContentOrder.PreparedArenas;
+            var packages = new ArenaPackageKey[arenas.Length];
+            for (var index = 0; index < arenas.Length; index++)
+                packages[index] = ArenaPackageFor(arenas[index]);
+            ReconcileArenaResidency(ArenaResidencyPlanner.MenuCatalogue(packages));
+        }
+
+        private void ReconcileArenaResidency(ArenaResidentSet target)
+        {
             if (!_arenaResidency.Reconcile(target))
                 Debug.LogWarning(_arenaResidency.LastFailure);
             for (var index = 0; index < _preparedArenaPlateKeys.Length; index++)
@@ -1398,6 +1431,8 @@ namespace VoidFall.Runtime
             {
                 case ArenaId.RedNebula: return "redNebula";
                 case ArenaId.WhiteSakura: return "whiteSakura";
+                case ArenaId.Hydra: return "hydra";
+                case ArenaId.MonochromeCourt: return "monochrome-court";
                 default: return "void";
             }
         }
@@ -1408,6 +1443,8 @@ namespace VoidFall.Runtime
             {
                 case "redNebula": return ArenaId.RedNebula;
                 case "whiteSakura": return ArenaId.WhiteSakura;
+                case "hydra": return ArenaId.Hydra;
+                case "monochrome-court": return ArenaId.MonochromeCourt;
                 default: return ArenaId.Void;
             }
         }
@@ -1418,6 +1455,8 @@ namespace VoidFall.Runtime
             {
                 case ArenaId.RedNebula: return "Red Nebula";
                 case ArenaId.WhiteSakura: return "White Sakura";
+                case ArenaId.Hydra: return "Hydra";
+                case ArenaId.MonochromeCourt: return "Monochrome Court";
                 default: return "Abyss";
             }
         }
@@ -1425,7 +1464,7 @@ namespace VoidFall.Runtime
         private static ArenaDefinition FindArena(string id)
         {
             foreach (var definition in ContentCatalog.Arenas) if (definition.Id == id) return definition;
-            return null;
+            return HydraContent.FindArena(id) ?? MonochromeContent.FindArena(id);
         }
     }
 }

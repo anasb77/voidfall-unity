@@ -168,6 +168,21 @@ namespace VoidFall.Runtime
 
         private void UpdateSpawns(float dt)
         {
+            if (CurrentVoidIsMonochrome)
+            {
+                if (_monochromeBossEncounterActive)
+                    _spawnTimer = Mathf.Max(_spawnTimer, 0.45f);
+                else
+                    UpdateMonochromeSpawns(dt);
+                return;
+            }
+            if (HydraRuntimeRules.SuppressAmbientSpawns(
+                _voidRoute?.CurrentVoidId,
+                _hydraBossEncounterActive))
+            {
+                _spawnTimer = Mathf.Max(_spawnTimer, 0.45f);
+                return;
+            }
             UpdateDirector(dt);
             var bossActive = ActiveBosses() > 0;
             var activeBossCount = ActiveBosses();
@@ -678,6 +693,11 @@ namespace VoidFall.Runtime
                 enemy.BladeCooldown = Mathf.Max(0, enemy.BladeCooldown - dt);
                 enemy.HollowCooldown = Mathf.Max(0, enemy.HollowCooldown - dt);
                 enemy.HitTimer = Mathf.Max(0, enemy.HitTimer - dt);
+                if (enemy.MutationGene == MutationGene.Regenerative && enemy.HitTimer <= 0f)
+                {
+                    var regeneration = (float)MutationRules.ModifiersFor(enemy.MutationGene).RegenPerSecond;
+                    enemy.Health = Mathf.Min(enemy.MaxHealth, enemy.Health + regeneration * dt);
+                }
                 enemy.Rotation = SourceEnemyRotationAdvance(enemy.Rotation, enemy.Spin, dt);
 
                 if (enemy.Elite && !enemy.EliteKind.HasValue)
@@ -723,6 +743,10 @@ namespace VoidFall.Runtime
                 else if (enemy.Id == "dasher")
                 {
                     UpdateDasher(ref enemy, dt, distance, direction);
+                }
+                else if (IsCourtEnemy(enemy.Id))
+                {
+                    UpdateMonochromeEnemy(ref enemy, dt, distance, direction);
                 }
                 else if (enemy.Roster == EnemyRoster.Two && enemy.Id == "chaser")
                 {
@@ -1133,6 +1157,7 @@ namespace VoidFall.Runtime
 
         private void UpdateBosses(float dt)
         {
+            StepMonochromeBossEncounter(dt);
             EnsureBossOrderEntries();
             var initialBossOrderCount = _gameSim.BossOrderCount;
             for (var order = 0; order < initialBossOrderCount; order++)
@@ -1161,6 +1186,16 @@ namespace VoidFall.Runtime
                 {
                     boss.StateTimer -= dt;
                     if (boss.StateTimer <= 0) boss.State = 0;
+                    _gameSim.Bosses[i] = boss;
+                    continue;
+                }
+                if (IsCourtGrandmaster(boss.Id))
+                {
+                    boss.Position = _monochromeArenaCentre + new Vector2(
+                        boss.Id == CourtBlackBossId ? -240f : 240f,
+                        135f);
+                    boss.TargetPosition = boss.Position;
+                    boss.Speed = 0f;
                     _gameSim.Bosses[i] = boss;
                     continue;
                 }
@@ -1213,6 +1248,7 @@ namespace VoidFall.Runtime
                 // than a multiplier so slow and fast bosses converge on the same
                 // chase speed instead of the slow ones staying uncatchable.
                 speed = Mathf.Max(speed, BossPursuitSpeed(distance));
+                if (boss.Id == HydraBossId) speed = 0f;
                 var cooldownScale = (phaseTwo ? (float)definition.PhaseTwoCooldownMultiplier : 1f) *
                     (1 - Mathf.Min(0.24f, boss.PressureTier * 0.08f));
                 if (boss.State == 1)
@@ -1230,16 +1266,23 @@ namespace VoidFall.Runtime
                         // Browser authority starts the charge/beam cue when
                         // the telegraph hands off to the active attack, not
                         // when the wind-up begins.
-                        if (boss.ActiveAttack?.Id == "charge" || boss.ActiveAttack?.Id == "beam")
+                        if (boss.ActiveAttack?.Id == "charge" || boss.ActiveAttack?.Id == "beam" ||
+                            boss.ActiveAttack?.Id == "hydra-optic")
                             _audio?.Play(ProceduralAudio.Cue.BossCharge, 0.9f);
                     }
                 }
                 else if (boss.State == 2)
                 {
-                    ApplyBossAttack(ref boss, definition, dt);
+                    if (!ApplyHydraAttack(ref boss, dt))
+                        ApplyBossAttack(ref boss, definition, dt);
                     boss.StateTimer -= dt;
                     if (boss.StateTimer <= 0)
                     {
+                        if (boss.Id == HydraBossId)
+                        {
+                            boss.Position = _hydraBossHome;
+                            boss.TargetPosition = _hydraBossHome;
+                        }
                         boss.State = 3;
                         boss.StateTimer = (float)(boss.ActiveAttack?.RecoverySeconds ?? 0.7);
                     }
@@ -1251,13 +1294,14 @@ namespace VoidFall.Runtime
                 }
                 else
                 {
-                    boss.Position += direction * speed * dt;
+                    if (boss.Id != HydraBossId) boss.Position += direction * speed * dt;
                     boss.AttackCooldown -= dt;
                     // Attack states 1-3 hold the boss still. Committing to one at
                     // long range would hand a fleeing player free distance and
                     // undo the pursuit floor above, so only engage once the
                     // player is close enough for the attack to mean anything.
-                    if (boss.AttackCooldown <= 0 && distance <= BossEngagementDistance &&
+                    if (boss.AttackCooldown <= 0 &&
+                        (boss.Id == HydraBossId || distance <= BossEngagementDistance) &&
                         definition.Attacks != null && definition.Attacks.Length > 0)
                     {
                         boss.ActiveAttack = definition.Attacks[boss.AttackIndex % definition.Attacks.Length];
@@ -1272,7 +1316,7 @@ namespace VoidFall.Runtime
                             var blinkDistance = 230f + (float)_gameSim.Rng.Next() * 100f;
                             boss.TargetPosition = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * blinkDistance;
                         }
-                        else if (boss.ActiveAttack.Id == "beam")
+                        else if (boss.ActiveAttack.Id == "beam" || boss.ActiveAttack.Id == "hydra-optic")
                         {
                             boss.AttackAngle -= 0.7f;
                         }
@@ -1283,6 +1327,7 @@ namespace VoidFall.Runtime
                         boss.State = 1;
                         boss.StateTimer = (float)boss.ActiveAttack.TelegraphSeconds;
                         boss.ActionApplied = false;
+                        if (boss.Id == HydraBossId) PrepareHydraAttack(ref boss);
                     }
                 }
 
@@ -2908,6 +2953,14 @@ namespace VoidFall.Runtime
             var baseXp = splitterFragment || carrierDrone
                 ? 1
                 : standardElite ? ContentCatalog.Elite.Xp : definition.Xp;
+            var mutationGene = HydraRuntimeRules.RollMutation(
+                _gameSim.Rng,
+                _arenaId,
+                _hydraBossEncounterActive,
+                elite,
+                HydraRecombinationStage,
+                definition?.Behavior ?? "direct");
+            var mutation = MutationRules.ModifiersFor(mutationGene);
             var shield = !elite && id == "guard"
                 ? (float)((definition.Shield ?? 0) * healthScale * rosterHealth)
                 : 0;
@@ -2916,15 +2969,16 @@ namespace VoidFall.Runtime
                 Active = true,
                 Id = id,
                 Position = position,
-                MaxHealth = (float)baseHealth * healthScale * (float)rosterHealth,
+                MaxHealth = (float)(baseHealth * mutation.HealthMultiplier) * healthScale * (float)rosterHealth,
                 Radius = (float)baseRadius * (float)rosterRadius,
-                Speed = (float)baseSpeed * speedScale * (float)rosterSpeed * (0.92f + (float)_gameSim.Rng.Next() * 0.16f),
+                Speed = (float)(baseSpeed * mutation.SpeedMultiplier) * speedScale * (float)rosterSpeed * (0.92f + (float)_gameSim.Rng.Next() * 0.16f),
                 Damage = (float)baseDamage * damageScale * (float)rosterDamage,
                 Xp = Mathf.Max(1, SourceRound((float)(baseXp * (roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoXpMultiplier : 1)))),
                 Age = 0,
                 Shield = shield,
                 MaxShield = shield,
                 Roster = roster,
+                MutationGene = mutationGene,
                 Elite = elite,
                 EliteKind = eliteKind,
                 CarrierDrone = carrierDrone,
@@ -3071,16 +3125,25 @@ namespace VoidFall.Runtime
             float speed,
             float curvature,
             bool meteorOwned = false,
-            int visualVariant = -1)
+            int visualVariant = -1,
+            float radiusOverride = 0f)
         {
             // Insertion (curved-cap check, slot find, state write, order
             // append) is GameSim's now; check order matches the browser.
             var slot = _gameSim.TryInsertHostileShot(
                 position, direction, damage, speed, curvature, meteorOwned, visualVariant);
             if (slot < 0) return;
+            if (radiusOverride > 0f)
+            {
+                var shot = _gameSim.HostileShots[slot];
+                shot.Radius = radiusOverride;
+                _gameSim.HostileShots[slot] = shot;
+            }
             var curved = curvature != 0f;
             var view = EnsureHostileShotView(slot);
-            view.sprite = curved
+            view.sprite = visualVariant == HydraRibShotVariant
+                ? ProceduralSpriteFactory.Projectile("hydra-rib")
+                : curved
                 ? ProceduralSpriteFactory.Projectile("curved")
                 : meteorOwned
                     ? ProceduralSpriteFactory.MeteorCore()
@@ -3094,7 +3157,9 @@ namespace VoidFall.Runtime
                 ? ResolveAdditiveSpriteMaterial()
                 : ResolveDefaultSpriteMaterial();
             if (shotMaterial != null) view.sharedMaterial = shotMaterial;
-            view.transform.rotation = Quaternion.identity;
+            view.transform.rotation = visualVariant == HydraRibShotVariant
+                ? Quaternion.Euler(0f, 0f, Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg)
+                : Quaternion.identity;
             // Browser meteor-owned hostile shots draw the hot core at a fixed
             // 18 px square with 0.82 alpha; ordinary and curved shots keep
             // their authored sprite alpha untouched.
@@ -3496,6 +3561,29 @@ namespace VoidFall.Runtime
             if (index < 0 || index >= _gameSim.Bosses.Length) return;
             var boss = _gameSim.Bosses[index];
             if (!boss.Active || boss.State == 4) return;
+            if (!HydraRuntimeRules.BossCanTakeDamage(
+                boss.Id,
+                boss.ActiveAttack?.Id,
+                boss.State))
+            {
+                if (boss.ShieldHitTimer <= 0f)
+                {
+                    boss.ShieldHitTimer = 0.18f;
+                    SpawnFloater(
+                        boss.Position + Vector2.up * boss.Radius,
+                        "EVADING",
+                        new Color(0.62f, 1f, 0.35f, 1f),
+                        11);
+                }
+                _gameSim.Bosses[index] = boss;
+                return;
+            }
+            if (IsCourtGrandmaster(boss.Id))
+            {
+                damage *= PlayerDamageMultiplier();
+                ApplyMonochromeSharedBossDamage(index, damage, weaponIndex, critical);
+                return;
+            }
             damage *= PlayerDamageMultiplier();
             if (IsMatriarchShielded(boss))
             {
@@ -3533,7 +3621,16 @@ namespace VoidFall.Runtime
                     boss.Position + Vector2.up * boss.Radius,
                     appliedDamage,
                     critical);
-                BurstFx(boss.Position, BossParticleColor(boss.Id), critical ? 5 : 3, 180, 0.32f, 0.7f);
+                var burstPosition = boss.Id == HydraBossId
+                    ? HydraDamageBurstPosition(boss)
+                    : boss.Position;
+                BurstFx(
+                    burstPosition,
+                    BossParticleColor(boss.Id),
+                    boss.Id == HydraBossId ? (critical ? 9 : 6) : (critical ? 5 : 3),
+                    boss.Id == HydraBossId ? 230 : 180,
+                    boss.Id == HydraBossId ? 0.46f : 0.32f,
+                    0.7f);
                 _audio?.Play(ProceduralAudio.Cue.Hit, critical ? 1f : 0.9f);
                 if (critical) _audio?.Play(ProceduralAudio.Cue.Crit, 1f);
             }
@@ -3827,7 +3924,7 @@ namespace VoidFall.Runtime
                 _audio?.Play(ProceduralAudio.Cue.Elite, 0.72f);
                 ShowArenaToast("Elite cleared", 2.5f, ToastKind.Reward, "+8 Parts");
             }
-            else if (destroyedExploder && !selfDetonated)
+            else if ((destroyedExploder || enemy.MutationGene == MutationGene.Volatile) && !selfDetonated)
             {
                 // A destroyed Exploder, including the Elite Exploder variant,
                 // produces the browser's friendly-side chain blast. Its self-
@@ -3927,6 +4024,7 @@ namespace VoidFall.Runtime
             boss.Health = 0;
             boss.ActiveAttack = null;
             _gameSim.Bosses[index] = boss;
+            if (boss.Id == HydraBossId) EndHydraBossEncounter();
             var noBossesRemain = ActiveBosses() == 0;
             TriggerFreeze(0.14f);
             AddCameraShake(0.85f);
@@ -4043,6 +4141,10 @@ namespace VoidFall.Runtime
 
         private static Color EnemyParticleColor(EnemyState enemy)
         {
+            if (enemy.MutationGene != MutationGene.None)
+                return enemy.MutationGene == MutationGene.Ballistic
+                    ? SourceDotColor("yellow")
+                    : SourceDotColor("lime");
             // Browser damage/death bursts use ENEMY_PARTICLE, not the actor
             // body definition color. Elite variants retain their base enemy id.
             switch (enemy.Id)
@@ -4072,6 +4174,7 @@ namespace VoidFall.Runtime
             // blue, and warden red. Boss body colors are a separate visual path.
             switch (bossId)
             {
+                case "hydra-prime": return SourceDotColor("lime");
                 case "herald": return SourceDotColor("violet");
                 case "matriarch": return SourceDotColor("emerald");
                 case "reaver": return SourceDotColor("blue");
@@ -4081,6 +4184,17 @@ namespace VoidFall.Runtime
 
         private Color EnemySpriteAccent(EnemyState enemy)
         {
+            if (enemy.MutationGene != MutationGene.None)
+            {
+                switch (enemy.MutationGene)
+                {
+                    case MutationGene.Volatile: return new Color(0.82f, 1f, 0.18f, 1f);
+                    case MutationGene.Rush: return new Color(0.42f, 1f, 0.34f, 1f);
+                    case MutationGene.Ballistic: return new Color(0.92f, 0.86f, 0.24f, 1f);
+                    case MutationGene.Regenerative: return new Color(0.18f, 0.82f, 0.4f, 1f);
+                    default: return new Color(0.55f, 1f, 0.32f, 1f);
+                }
+            }
             var spriteId = SourceEnemySpriteId(enemy);
             if (spriteId == "elite")
                 return ParseColor(ContentCatalog.Elite.Color, Color.yellow);
@@ -5307,13 +5421,13 @@ namespace VoidFall.Runtime
         private static EnemyDefinition FindEnemy(string id)
         {
             foreach (var definition in ContentCatalog.Enemies) if (definition.Id == id) return definition;
-            return null;
+            return MonochromeContent.FindEnemy(id);
         }
 
         private static BossDefinition FindBoss(string id)
         {
             foreach (var definition in ContentCatalog.Bosses) if (definition.Id == id) return definition;
-            return null;
+            return HydraContent.FindBoss(id) ?? MonochromeContent.FindBoss(id);
         }
 
         private double ActiveEnemyThreat()

@@ -9,6 +9,8 @@ namespace VoidFall.Tests.Editor
         [TestCase(ArenaId.Void, "abyss")]
         [TestCase(ArenaId.RedNebula, "red-nebula")]
         [TestCase(ArenaId.WhiteSakura, "white-sakura")]
+        [TestCase(ArenaId.Hydra, "hydra")]
+        [TestCase(ArenaId.MonochromeCourt, "monochrome-court")]
         public void StableIdsBridgeExistingArenaEnum(ArenaId arena, string expected)
         {
             Assert.That(ArenaCatalogRules.StableId(arena), Is.EqualTo(expected));
@@ -44,6 +46,34 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
+        public void Hydra_catalogue_exposes_three_prepared_recipe_addresses()
+        {
+            for (var index = 0; index < ArenaCatalogRules.RecipesPerArena; index++)
+            {
+                var key = new ArenaPackageKey("hydra", index);
+                Assert.That(
+                    ArenaCatalogRules.PackageAddress(key),
+                    Is.EqualTo("VoidFall/Arenas/hydra/recipe-" + (index + 1)));
+            }
+            Assert.That(ArenaCycleRules.At("hydra", 0).CycleId, Is.EqualTo("dormant"));
+            Assert.That(ArenaCycleRules.At("hydra", 43).CycleId, Is.EqualTo("breathing"));
+        }
+
+        [Test]
+        public void Monochrome_catalogue_exposes_three_recipes_and_the_spiral_cycle()
+        {
+            for (var index = 0; index < ArenaCatalogRules.RecipesPerArena; index++)
+            {
+                var key = new ArenaPackageKey("monochrome-court", index);
+                Assert.That(
+                    ArenaCatalogRules.PackageAddress(key),
+                    Is.EqualTo("VoidFall/Arenas/monochrome-court/recipe-" + (index + 1)));
+            }
+            Assert.That(ArenaCycleRules.At("monochrome-court", 0).CycleId, Is.EqualTo("spiral"));
+            Assert.That(ArenaCycleRules.At("monochrome-court", 15).CycleId, Is.EqualTo("black-rule"));
+        }
+
+        [Test]
         public void SteadyResidencyContainsCurrentAndTwoDistinctExits()
         {
             var current = new ArenaPackageKey("abyss", 0);
@@ -56,6 +86,41 @@ namespace VoidFall.Tests.Editor
             Assert.That(plan.Contains(current), Is.True);
             Assert.That(plan.Contains(exitA), Is.True);
             Assert.That(plan.Contains(exitB), Is.True);
+        }
+
+        [Test]
+        public void Menu_catalogue_residency_keeps_hydra_ready_for_the_carousel()
+        {
+            var abyss = new ArenaPackageKey("abyss", 0);
+            var red = new ArenaPackageKey("red-nebula", 1);
+            var sakura = new ArenaPackageKey("white-sakura", 2);
+            var hydra = new ArenaPackageKey("hydra", 0);
+
+            var plan = ArenaResidencyPlanner.MenuCatalogue(abyss, red, sakura, hydra);
+
+            Assert.That(plan.Count, Is.EqualTo(4));
+            Assert.That(plan.Contains(abyss), Is.True);
+            Assert.That(plan.Contains(red), Is.True);
+            Assert.That(plan.Contains(sakura), Is.True);
+            Assert.That(plan.Contains(hydra), Is.True);
+        }
+
+        [Test]
+        public void Menu_catalogue_keeps_all_five_prepared_arenas_ready()
+        {
+            var packages = new[]
+            {
+                new ArenaPackageKey("abyss", 0),
+                new ArenaPackageKey("red-nebula", 0),
+                new ArenaPackageKey("white-sakura", 0),
+                new ArenaPackageKey("hydra", 0),
+                new ArenaPackageKey("monochrome-court", 0),
+            };
+
+            var plan = ArenaResidencyPlanner.MenuCatalogue(packages);
+
+            Assert.That(plan.Count, Is.EqualTo(5));
+            Assert.That(plan.Contains(packages[4]), Is.True);
         }
 
         [Test]

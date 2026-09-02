@@ -40,7 +40,9 @@ The game uses fixed-capacity pools instead of one MonoBehaviour per enemy,
 projectile or pickup. This is a deliberate bullet-heaven performance contract.
 
 The 32-seed PlayMode sweep proves repeated runs are bit-stable. The canonical
-`productionMax` run is pinned by `SimulationGoldenMasterTests`.
+`productionMax` run is pinned by `SimulationGoldenMasterTests`; the prepared
+Monochrome Court catalogue and route-owned roster intentionally re-pin it to
+`13150562237046848063` while the 32-seed sweep remains bit-stable.
 
 ## Runtime composition status
 
@@ -78,14 +80,33 @@ Addressables owns their asynchronous lifetime.
 
 ## Arenas and route
 
-The route state machine currently contains ten conceptual Voids. Three have
-prepared visual packages: Abyss, Red Nebula and White Sakura. Hydra currently
-uses Abyss as a placeholder. A normal player run is forced to begin in Abyss;
+The route state machine currently contains ten conceptual Voids. Five have
+prepared visual packages: Abyss, Red Nebula, White Sakura, Hydra and Monochrome
+Court. A normal
+player run is forced to begin in Abyss;
 finishing its objective opens the first route choice.
 
-Only Abyss and the three Layer-I nodes currently have objective implementations.
-Layer-II objectives, complete transition reset semantics, threat scaling and
-the Final Void escape remain unfinished.
+Hydra Prime is a route-owned stationary boss and never enters the normal
+endless boss rotation. Its encounter reuses the fixed boss/hostile-shot pools,
+suppresses ambient spawning, keeps the central vertebral chain non-colliding,
+and enables collision only at the outer rib-cage boundary. Marrow Barrage,
+Evasion, Rib Guillotine and Optic Rupture use deterministic gameplay RNG;
+ordered pixel disintegration remains a visual-only shader effect. Hydra's
+approved v13 base, bone and boss layers are authored assets; runtime rendering
+must not substitute procedural approximations for them.
+
+Monochrome Court uses the same fixed enemy, boss and hostile-shot pools. Its
+survival phase alternates black units from the left and white units from the
+right: Pawn pressure, hybrid-Rook cardinal charges, Bishop sniper fire, Knight
+L-path harassment and Queen line control/promotion. Its two stationary
+Grandmasters share health and remain simultaneously active and vulnerable.
+White and Black alternate
+control of their matching floor tiles through warning, burning and recovery
+stages; the opposite color is safe. Ambient spawns remain suppressed.
+
+Abyss, the three Layer-I nodes, Hydra and Monochrome Court have objective
+implementations. Other Layer-II objectives, complete transition reset
+semantics, threat scaling and the Final Void escape remain unfinished.
 
 ## Persistence
 

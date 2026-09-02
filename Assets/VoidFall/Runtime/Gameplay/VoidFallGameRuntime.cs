@@ -475,10 +475,10 @@ namespace VoidFall.Runtime
         private int _arenaFarFilamentCount;
         private ArenaId _arenaFarFilamentSeedArena;
         private bool _arenaFarFilamentSeedsReady;
-        private readonly Sprite[] _arenaPlateSprites = new Sprite[3];
-        private readonly Sprite[] _arenaPlateDetailSprites = new Sprite[3];
-        private readonly ArenaPlateAsset[] _preparedArenaPlateAssets = new ArenaPlateAsset[3];
-        private readonly ArenaPackageKey[] _preparedArenaPlateKeys = new ArenaPackageKey[3];
+        private readonly Sprite[] _arenaPlateSprites = new Sprite[ContentOrder.PreparedArenas.Length];
+        private readonly Sprite[] _arenaPlateDetailSprites = new Sprite[ContentOrder.PreparedArenas.Length];
+        private readonly ArenaPlateAsset[] _preparedArenaPlateAssets = new ArenaPlateAsset[ContentOrder.PreparedArenas.Length];
+        private readonly ArenaPackageKey[] _preparedArenaPlateKeys = new ArenaPackageKey[ContentOrder.PreparedArenas.Length];
         private ArenaResidencyManager _arenaResidency;
         private int _arenaPlateBakeWidth = ArenaPlateFactory.DefaultWidth;
         private int _arenaPlateBakeHeight = ArenaPlateFactory.DefaultHeight;
@@ -830,6 +830,10 @@ namespace VoidFall.Runtime
         private string _visualCapturePath;
         private int _visualCaptureFramesRemaining = -1;
         private bool _visualCaptureRun;
+        private bool _visualCaptureHydraBoss;
+        private string _visualCaptureHydraAttack;
+        private bool _visualCaptureCourtBoss;
+        private string _visualCaptureCourtHazard;
         private bool _visualCaptureWorkshop;
         private bool _visualCaptureSettings;
         private bool _visualCaptureRecords;
@@ -1064,6 +1068,7 @@ namespace VoidFall.Runtime
             SetupPlayer();
             SetupAudio();
             SetupFx();
+            SetupHydraPresentation();
             _saveStore = new SaveStore();
             _saveData = _saveStore.Load();
             _gameBridge = new RuntimeGameBridge(this);
@@ -1144,6 +1149,8 @@ namespace VoidFall.Runtime
                     SelectRecipeForCurrentArena();
                     TryInstallPreparedArenaPlate(_arenaId);
                 }
+                if (_visualCaptureHydraBoss) BeginHydraBossEncounterForCapture();
+                if (_visualCaptureCourtBoss) BeginMonochromeBossEncounterForCapture();
             }
             _startupMenuReadyRealtime = Time.realtimeSinceStartupAsDouble;
             _startupMenuSkipNextFrame = true;
@@ -1666,6 +1673,32 @@ namespace VoidFall.Runtime
                 {
                     _visualCaptureRun = true;
                 }
+                else if (string.Equals(argument, "-vfhydra-boss", StringComparison.OrdinalIgnoreCase))
+                {
+                    _visualCaptureRun = true;
+                    _visualCaptureHydraBoss = true;
+                    _visualCaptureArena = "hydra";
+                }
+                else if (argument.StartsWith("-vfhydra-attack=", StringComparison.OrdinalIgnoreCase))
+                {
+                    _visualCaptureRun = true;
+                    _visualCaptureHydraBoss = true;
+                    _visualCaptureArena = "hydra";
+                    _visualCaptureHydraAttack = argument.Substring("-vfhydra-attack=".Length);
+                }
+                else if (string.Equals(argument, "-vfcourt-boss", StringComparison.OrdinalIgnoreCase))
+                {
+                    _visualCaptureRun = true;
+                    _visualCaptureCourtBoss = true;
+                    _visualCaptureArena = "monochrome-court";
+                }
+                else if (argument.StartsWith("-vfcourt-hazard=", StringComparison.OrdinalIgnoreCase))
+                {
+                    _visualCaptureRun = true;
+                    _visualCaptureCourtBoss = true;
+                    _visualCaptureArena = "monochrome-court";
+                    _visualCaptureCourtHazard = argument.Substring("-vfcourt-hazard=".Length);
+                }
                 else if (string.Equals(argument, "-vfcapture-workshop", StringComparison.OrdinalIgnoreCase))
                 {
                     _visualCaptureWorkshop = true;
@@ -1714,6 +1747,7 @@ namespace VoidFall.Runtime
             }
 
             if (string.IsNullOrWhiteSpace(_visualCapturePath)) return;
+            if (_visualCaptureHydraBoss || _visualCaptureCourtBoss) _visualCaptureFramesRemaining = 180;
             Application.runInBackground = true;
             Debug.Log(
                 $"VoidFall visual capture armed: path={_visualCapturePath}, " +
@@ -2308,6 +2342,7 @@ namespace VoidFall.Runtime
             }
             RebuildEnemyGrid();
             MovePlayer(dt);
+            ApplyHydraRibCageCollision();
             // The browser applies current-step movement/iframes/boost effects
             // first, then expires their timers before the remaining systems run.
             _gameSim.Player.Iframes = Mathf.Max(0, _gameSim.Player.Iframes - dt);
@@ -2384,6 +2419,8 @@ namespace VoidFall.Runtime
                 _arenaBannerRemaining = AdvanceArenaBanner(_arenaBannerRemaining, dt);
             UpdateArenaCycleFlash(dt);
             _telemetry.RecordArenaTime(ArenaIdName(_arenaId), dt);
+            StepHydraSurvival(dt);
+            StepMonochromeSurvival(dt);
             UpdateSpawns(dt);
             UpdateEnemies(dt);
             // Relax separation over several passes, rebuilding the grid between
@@ -2401,6 +2438,7 @@ namespace VoidFall.Runtime
             UpdateRailTrails(dt);
             UpdateHostileShots(dt);
             UpdateBosses(dt);
+            StepHydraAttackState(dt);
             UpdatePickups(dt);
             // Keep the browser updateFx() lifecycle order after all gameplay
             // systems have emitted their effects for this fixed step.

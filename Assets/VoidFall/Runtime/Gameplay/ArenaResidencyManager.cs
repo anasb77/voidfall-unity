@@ -16,7 +16,7 @@ namespace VoidFall.Runtime
 
     public sealed class ArenaResidencyManager : IDisposable
     {
-        public const int MaximumResidentPackages = 4;
+        public const int MaximumResidentPackages = ArenaResidencyPlanner.MaximumResidentPackages;
 
         private sealed class Entry
         {

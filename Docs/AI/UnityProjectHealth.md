@@ -1,6 +1,6 @@
 # VoidFall project health
 
-Last verified: 2026-09-01.
+Last verified: 2026-09-02.
 
 ## Overall status
 
@@ -12,7 +12,7 @@ broken build pipeline.
 ## Verified baseline
 
 - `dotnet build VoidFall.Runtime.csproj -t:Rebuild`: zero errors
-- EditMode: 168/168 first-party tests passed
+- EditMode: 242/242 first-party tests passed
 - PlayMode: 5/5 passed
 - 32 deterministic seeds reproduce exactly across consecutive runs
 - Windows release build completed
@@ -27,10 +27,11 @@ Severity: High
 
 Confidence: Confirmed
 
-The first Abyss completion and route choice work, but Layer-II nodes have no
-objectives, Final Void has no escape resolution, route threat multipliers are
-not consumed, and the transition does not yet implement the full fresh-Void
-entity reset described by the product design.
+The first Abyss completion, route choice, Hydra and Monochrome Court work, but
+several other Layer-II nodes have no objectives, Final Void has no escape
+resolution, route threat multipliers are not consumed, and the transition does
+not yet implement the full fresh-Void entity reset described by the product
+design.
 
 ### HF-002 — finish visual arena catalogue
 
@@ -38,9 +39,9 @@ Severity: High
 
 Confidence: Confirmed
 
-Only three route identities have prepared packages. Hydra, Monochrome Court
-and Lost City are the next requested packages; other graph nodes still reuse
-Abyss.
+Five route identities have prepared packages: Abyss, Red Nebula, White Sakura,
+Hydra and Monochrome Court. Lost City is the next requested package; other
+graph nodes still reuse Abyss.
 
 ### HF-003 — runtime ownership remains concentrated
 
@@ -68,8 +69,9 @@ Severity: Low
 
 Confidence: Confirmed
 
-The tracked source is about 54 MiB. Unity `Library` and old profiler/test logs
-account for more than 4 GiB locally and are ignored/regenerable.
+The tracked source remains small relative to Unity's local cache. `Library` and
+old profiler/test logs account for most workspace disk usage and are
+ignored/regenerable.
 
 ### HF-006 — minor compile warnings
 

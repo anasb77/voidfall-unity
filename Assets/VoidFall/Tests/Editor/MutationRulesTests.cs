@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using VoidFall.Core;
+using VoidFall.Runtime;
 
 namespace VoidFall.Tests.Editor
 {
@@ -142,6 +143,39 @@ namespace VoidFall.Tests.Editor
             Assert.That(none.HealthMultiplier, Is.EqualTo(1.0));
             Assert.That(none.SpeedMultiplier, Is.EqualTo(1.0));
             Assert.That(none.DetonatesOnDeath, Is.False);
+        }
+
+        [Test]
+        public void Runtime_rolls_mutations_only_during_hydra_survival()
+        {
+            Assert.That(
+                HydraRuntimeRules.RollMutation(
+                    new Rng(7u), ArenaId.Void, false, false, 2, "direct"),
+                Is.EqualTo(MutationGene.None));
+            Assert.That(
+                HydraRuntimeRules.RollMutation(
+                    new Rng(7u), ArenaId.Hydra, true, false, 2, "direct"),
+                Is.EqualTo(MutationGene.None));
+
+            var sawMutation = false;
+            for (uint seed = 1; seed < 100 && !sawMutation; seed++)
+            {
+                sawMutation = HydraRuntimeRules.RollMutation(
+                    new Rng(seed), ArenaId.Hydra, false, false, 2, "direct") != MutationGene.None;
+            }
+            Assert.That(sawMutation, Is.True);
+        }
+
+        [Test]
+        public void Hydra_elites_only_mutate_at_recombination_stage()
+        {
+            for (uint seed = 1; seed <= 100; seed++)
+            {
+                Assert.That(
+                    HydraRuntimeRules.RollMutation(
+                        new Rng(seed), ArenaId.Hydra, false, true, 1, "direct"),
+                    Is.EqualTo(MutationGene.None));
+            }
         }
     }
 }

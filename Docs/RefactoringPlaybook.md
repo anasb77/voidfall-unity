@@ -19,7 +19,7 @@
 Current canonical `productionMax` hash:
 
 ```text
-12947047772295568886
+11228702319620696623
 ```
 
 ## Verification order

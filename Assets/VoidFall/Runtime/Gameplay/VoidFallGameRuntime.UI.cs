@@ -193,6 +193,10 @@ namespace VoidFall.Runtime
             // visible screen on every procedural combat sprite.
             StartRunInternal(false, false);
             _mainMenuBrowsing = true;
+            // The menu can swipe across the complete four-arena catalogue in
+            // either direction, so unlike gameplay it has no two-exit subset.
+            // Begin all preview loads before the first interactive menu frame.
+            PrepareMenuArenaCatalogue();
             _input.ResetTouch();
             _menuPage = MenuPage.Home;
             _menuScroll = Vector2.zero;

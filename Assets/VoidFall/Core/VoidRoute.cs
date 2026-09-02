@@ -232,7 +232,7 @@ namespace VoidFall.Core
                 new VoidRouteNode(
                     "monochrome-court", "Monochrome Court", 2, 1.50, "HIGH THREAT",
                     "Learn the rules of two chess armies.",
-                    "Survive both board cycles, reach Checkmate",
+                    "Survive both board cycles, defeat the Twins",
                     "White speed or Black durability",
                     "last-gate"),
                 new VoidRouteNode(

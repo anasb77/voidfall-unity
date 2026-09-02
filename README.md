@@ -20,15 +20,16 @@ simulation, UI, audio, rendering, persistence, and diagnostics.
 ## Current gameplay
 
 - Six weapons, evolutions, supports, late upgrades, and workshop progression
-- Fourteen enemy types, elite variants, four bosses, formation events, meteors
+- Nineteen enemy types, elite variants, six bosses, formation events, meteors
 - Boss Roulette, Wild Cards, rare pickups, reactive soundtrack and neon border
 - Objective-driven rift opening and route selection
-- Three prepared arenas: Abyss, Red Nebula, and White Sakura
+- Five prepared arenas: Abyss, Red Nebula, White Sakura, Hydra, and Monochrome Court
 - Three deterministic visual recipes per prepared arena
 
-Hydra, Monochrome Court, and Lost City are the next visual arena packages.
-Their full arena-specific objectives and enemy catalogues remain separate
-future work, except Hydra will reuse the existing mutation rules.
+Lost City is the next visual arena package. Monochrome Court owns its Pawn,
+hybrid Rook, Bishop, Knight and Queen roster exclusively. Its Twin
+Grandmasters share health, fight simultaneously and alternate lethal white and
+black chess tiles after a readable warning.
 
 ## Controls
 
@@ -73,12 +74,13 @@ Unity test commands must not include `-quit`; the test runner exits on its own.
   -logFile Logs/playmode.log
 ```
 
-Validated on 2026-09-01:
+Validated on 2026-09-02:
 
 - C# compilation: zero errors
-- Project EditMode tests: 168 passed
+- Project EditMode tests: 242 passed
 - PlayMode tests: 5 passed
-- Windows release build and `productionMax` smoke run: passed
+- Windows release build, `productionMax` stability sweep, Hydra captures and
+  all four Monochrome Court warning/burning floor states: passed
 
 The build command is:
 

@@ -22,6 +22,24 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
+        public void Hydra_disintegration_shader_exposes_ordered_damage_controls()
+        {
+            var shader = Shader.Find("VoidFall/HydraDisintegrate");
+            Assert.That(shader, Is.Not.Null);
+            var material = new Material(shader);
+            try
+            {
+                Assert.That(material.HasProperty("_DamageProgress"), Is.True);
+                Assert.That(material.HasProperty("_PixelCells"), Is.True);
+                Assert.That(material.HasProperty("_ToxicColor"), Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(material);
+            }
+        }
+
+        [Test]
         public void Filament_instances_are_copies_of_the_explicit_template()
         {
             var filament = VoidFallRenderMaterials.CreateFilamentInstance();

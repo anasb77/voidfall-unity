@@ -251,7 +251,13 @@ namespace VoidFall.Runtime
                     pair.Value);
             }
 
-            entries.Sort((left, right) => string.CompareOrdinal(left.Key, right.Key));
+            entries.Sort((left, right) =>
+            {
+                var leftHydra = IsHydraCatalogKey(left.Key);
+                var rightHydra = IsHydraCatalogKey(right.Key);
+                if (leftHydra != rightHydra) return leftHydra ? 1 : -1;
+                return string.CompareOrdinal(left.Key, right.Key);
+            });
             var catalog = ScriptableObject.CreateInstance<ProceduralSpriteCatalog>();
             catalog.name = "VoidFall Prepared Procedural Sprites";
             catalog.ReplaceEntries(entries);
@@ -378,6 +384,10 @@ namespace VoidFall.Runtime
             return family + "|" + key.Id + "|" + key.Accent.r + "|" + key.Accent.g + "|" +
                    key.Accent.b + "|" + key.Accent.a + "|" + (key.Hit ? "1" : "0");
         }
+
+        private static bool IsHydraCatalogKey(string key) =>
+            key != null && (key.Contains("hydra-rib") ||
+                            key == "arena-vignette|3");
 #endif
 
         private static Sprite _circle;
@@ -499,7 +509,7 @@ namespace VoidFall.Runtime
         private static readonly Dictionary<Color32, Sprite> ArenaDotSprites =
             new Dictionary<Color32, Sprite>();
         private static Sprite _arenaCurrentGlow;
-        private static readonly Sprite[] ArenaVignettes = new Sprite[3];
+        private static readonly Sprite[] ArenaVignettes = new Sprite[ContentOrder.PreparedArenas.Length];
         private static Sprite _redHealthVignette;
         // Red Nebula's red giant is the shared light direction used by the
         // browser meteor sprites and the arena landmark.
@@ -1547,6 +1557,9 @@ namespace VoidFall.Runtime
         {
             switch (id)
             {
+                case "hydra-prime": return 240f;
+                case "court-grandmaster-black":
+                case "court-grandmaster-white": return 210f;
                 case "herald": return 152f;
                 case "warden": return 176f;
                 case "matriarch": return 184f;
@@ -1674,6 +1687,15 @@ namespace VoidFall.Runtime
                 yield return built;
             }
 
+            foreach (var definition in MonochromeContent.Enemies)
+            {
+                Enemy(definition.Id + "-black", Color.white, false);
+                Enemy(definition.Id + "-black", Color.white, true);
+                Enemy(definition.Id + "-white", Color.black, false);
+                Enemy(definition.Id + "-white", Color.black, true);
+                yield return 4;
+            }
+
             // The scheduled charging Elite is the only entity that uses the
             // generic "elite" silhouette instead of a base enemy body.
             var eliteAccent = ParseColor(ContentCatalog.Elite.Color);
@@ -1699,7 +1721,13 @@ namespace VoidFall.Runtime
                 Boss(boss.Id, accent, true);
                 yield return 2;
             }
-
+            foreach (var boss in new[] { MonochromeContent.BlackBoss, MonochromeContent.WhiteBoss })
+            {
+                var accent = ParseColor(boss.Color);
+                Boss(boss.Id, accent, false);
+                Boss(boss.Id, accent, true);
+                yield return 2;
+            }
             for (var tier = 0; tier < 3; tier++)
                 Gem(tier);
             yield return 3;
@@ -1709,9 +1737,10 @@ namespace VoidFall.Runtime
             yield return 6;
 
             Projectile("curved");
+            Projectile("hydra-rib");
             for (var shard = 0; shard < 4; shard++)
                 MeteorShard(shard);
-            yield return 5;
+            yield return 6;
 
             for (var variant = 0; variant < 4; variant++)
             {
@@ -1735,6 +1764,7 @@ namespace VoidFall.Runtime
         {
             switch (kind)
             {
+                case "hydra-rib": return 30f;
                 case "pistol": return 33f;
                 case "scattergun": return 26f;
                 case "railgun": return 64f;
@@ -2037,23 +2067,26 @@ namespace VoidFall.Runtime
 
         private static Sprite BuildEnemy(string id, Color accent, bool hit)
         {
-            var radius = EnemyRadius(id);
+            var sourceId = CourtBaseEnemyId(id);
+            var whiteCourt = CourtWhiteSprite(id);
+            var radius = EnemyRadius(sourceId);
             // React enemySprite() uses cv((r + r * 1.1 + 14) * 2), whose
             // canvas is ceil-sized. Preserve each authored source raster;
             // the runtime renderer still applies SourceEnemySpriteWorldSize.
             var canvas = new RasterCanvas(
                 radius,
                 radius * 1.1f + 14f,
-                Mathf.CeilToInt(EnemyCanvasSize(id)));
+                Mathf.CeilToInt(EnemyCanvasSize(sourceId)));
             if (!hit) canvas.Glow(EnemyGlowRadius(id), accent, 0.3f);
 
             // Browser enemySprite(): hit #f8fafc, normal #080c18.
-            var body = hit ? ParseColor("#f8fafc") : ParseColor("#080c18");
-            FillEnemyShape(canvas, id, radius, body);
-            StrokeEnemyShape(canvas, id, radius, hit ? Color.white : accent, Mathf.Max(2f, radius * 0.14f));
+            var body = hit ? ParseColor("#f8fafc") : whiteCourt ? ParseColor("#f1f0ea") : ParseColor("#080c18");
+            var outline = hit ? Color.white : whiteCourt ? ParseColor("#080c18") : accent;
+            FillEnemyShape(canvas, sourceId, radius, body);
+            StrokeEnemyShape(canvas, sourceId, radius, outline, Mathf.Max(2f, radius * 0.14f));
             canvas.FillCircle(new Vector2(-radius * 0.08f, radius * 0.04f), radius * 0.52f,
-                hit ? ParseColor("#dbeafe") : ParseColor("#111827"));
-            DrawEnemyDetails(canvas, id, radius, accent, hit);
+                hit ? ParseColor("#dbeafe") : whiteCourt ? ParseColor("#d5d4ce") : ParseColor("#111827"));
+            DrawEnemyDetails(canvas, sourceId, radius, outline, hit);
             return canvas.ToAtlasSprite("VoidFall_Enemy_" + id + (hit ? "_Hit" : ""));
         }
 
@@ -2217,6 +2250,7 @@ namespace VoidFall.Runtime
 
         private static float EnemyRadius(string id)
         {
+            id = CourtBaseEnemyId(id);
             switch (id)
             {
                 case "runner": return 10;
@@ -2233,9 +2267,27 @@ namespace VoidFall.Runtime
                 case "harvester": return 18;
                 case "carrier": return 30;
                 case "elite": return 38;
+                case "court-pawn": return 15;
+                case "court-rook": return 30;
+                case "court-bishop": return 18;
+                case "court-knight": return 17;
+                case "court-queen": return 26;
                 default: return 15;
             }
         }
+
+        private static string CourtBaseEnemyId(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return id;
+            if (id.EndsWith("-black", StringComparison.Ordinal))
+                return id.Substring(0, id.Length - 6);
+            if (id.EndsWith("-white", StringComparison.Ordinal))
+                return id.Substring(0, id.Length - 6);
+            return id;
+        }
+
+        private static bool CourtWhiteSprite(string id) =>
+            !string.IsNullOrEmpty(id) && id.EndsWith("-white", StringComparison.Ordinal);
 
         private static readonly Color EnemyColorChaser = ParseColor("#fb7185");
         private static readonly Color EnemyColorRunner = ParseColor("#a78bfa");
@@ -2256,6 +2308,7 @@ namespace VoidFall.Runtime
 
         private static Color SourceEnemyColor(string id)
         {
+            id = CourtBaseEnemyId(id);
             switch (id)
             {
                 case "chaser": return EnemyColorChaser;
@@ -2273,6 +2326,11 @@ namespace VoidFall.Runtime
                 case "harvester": return EnemyColorHarvester;
                 case "carrier": return EnemyColorCarrier;
                 case "elite": return EnemyColorElite;
+                case "court-pawn":
+                case "court-rook":
+                case "court-bishop":
+                case "court-knight":
+                case "court-queen": return Color.white;
                 default: return EnemyColorDefault;
             }
         }
@@ -2418,6 +2476,50 @@ namespace VoidFall.Runtime
                         new Vector2(-r * 0.3f, r), new Vector2(-r, r * 0.28f),
                         new Vector2(-r * 0.76f, -r * 0.62f),
                     };
+                case "court-pawn":
+                    return new[]
+                    {
+                        new Vector2(0, -r), new Vector2(r * 0.36f, -r * 0.52f),
+                        new Vector2(r * 0.92f, -r * 0.42f), new Vector2(r * 0.58f, r * 0.06f),
+                        new Vector2(r * 0.78f, r * 0.7f), new Vector2(r * 0.2f, r * 0.58f),
+                        new Vector2(0, r), new Vector2(-r * 0.25f, r * 0.58f),
+                        new Vector2(-r * 0.82f, r * 0.75f), new Vector2(-r * 0.62f, r * 0.05f),
+                        new Vector2(-r, -r * 0.4f), new Vector2(-r * 0.38f, -r * 0.52f),
+                    };
+                case "court-rook":
+                    return new[]
+                    {
+                        new Vector2(-r * 0.9f, -r * 0.45f), new Vector2(-r * 0.72f, -r * 0.95f),
+                        new Vector2(-r * 0.4f, -r * 0.88f), new Vector2(-r * 0.34f, -r * 0.58f),
+                        new Vector2(-r * 0.08f, -r * 0.78f), new Vector2(0, -r),
+                        new Vector2(r * 0.28f, -r * 0.75f), new Vector2(r * 0.58f, -r * 0.88f),
+                        new Vector2(r * 0.82f, -r * 0.55f), new Vector2(r, -r * 0.1f),
+                        new Vector2(r * 0.78f, r * 0.28f), new Vector2(r * 0.95f, r * 0.65f),
+                        new Vector2(r * 0.38f, r * 0.78f), new Vector2(0, r),
+                        new Vector2(-r * 0.42f, r * 0.76f), new Vector2(-r * 0.92f, r * 0.7f),
+                        new Vector2(-r * 0.76f, r * 0.2f), new Vector2(-r, -r * 0.18f),
+                    };
+                case "court-bishop":
+                    return new[]
+                    {
+                        new Vector2(-r, -r * 0.7f), new Vector2(-r * 0.28f, -r),
+                        new Vector2(r * 0.48f, -r * 0.72f), new Vector2(r * 0.7f, -r * 0.28f),
+                        new Vector2(r * 1.55f, -r * 0.18f), new Vector2(r * 1.55f, r * 0.2f),
+                        new Vector2(r * 0.62f, r * 0.3f), new Vector2(r * 0.34f, r * 0.82f),
+                        new Vector2(-r * 0.42f, r), new Vector2(-r, r * 0.58f),
+                    };
+                case "court-knight":
+                    return new[]
+                    {
+                        new Vector2(-r * 0.8f, -r * 0.42f), new Vector2(-r * 0.18f, -r),
+                        new Vector2(r * 0.46f, -r * 0.78f), new Vector2(r, -r * 0.28f),
+                        new Vector2(r * 0.42f, -r * 0.02f), new Vector2(r * 1.05f, r * 0.52f),
+                        new Vector2(r * 0.28f, r * 0.58f), new Vector2(0, r),
+                        new Vector2(-r * 0.58f, r * 0.7f), new Vector2(-r, r * 0.2f),
+                        new Vector2(-r * 0.56f, -r * 0.05f),
+                    };
+                case "court-queen":
+                    return Ngon(16, r, Mathf.PI / 16f);
                 default:
                     return Ngon(6, r * 0.9f, Mathf.PI / 6f);
             }
@@ -2533,12 +2635,50 @@ namespace VoidFall.Runtime
                     canvas.DrawLine(new Vector2(r * 0.24f, r * 0.52f), new Vector2(r * 0.62f, r * 0.22f), 3f, bright);
                     DrawCore(canvas, -r * 0.06f, r * 0.02f, r * 0.25f, accent, hit);
                     break;
+                case "court-pawn":
+                    DrawCore(canvas, 0, 0, r * 0.31f, accent, hit);
+                    break;
+                case "court-rook":
+                    canvas.StrokePolygon(new[]
+                    {
+                        new Vector2(-r * 0.58f, -r * 0.42f), new Vector2(-r * 0.2f, -r * 0.58f),
+                        new Vector2(r * 0.22f, -r * 0.46f), new Vector2(r * 0.58f, -r * 0.2f),
+                        new Vector2(r * 0.48f, r * 0.42f), new Vector2(0, r * 0.62f),
+                        new Vector2(-r * 0.52f, r * 0.38f),
+                    }, accent, 2.5f);
+                    DrawCore(canvas, -r * 0.05f, 0, r * 0.24f, accent, hit);
+                    canvas.DrawLine(new Vector2(-r * 0.65f, r * 0.55f), new Vector2(-r * 0.35f, r * 0.32f), 2.2f, accent);
+                    canvas.DrawLine(new Vector2(r * 0.32f, r * 0.48f), new Vector2(r * 0.62f, r * 0.62f), 2.2f, accent);
+                    break;
+                case "court-bishop":
+                    canvas.FillRect(new Vector2(r * 1.22f, 0), r * 1.05f, r * 0.22f, accent);
+                    DrawCore(canvas, -r * 0.25f, 0, r * 0.23f, accent, hit);
+                    break;
+                case "court-knight":
+                    canvas.FillPolygon(new[]
+                    {
+                        new Vector2(r * 0.12f, -r * 0.5f), new Vector2(r * 0.88f, -r * 0.24f),
+                        new Vector2(r * 0.42f, r * 0.06f),
+                    }, accent);
+                    DrawCore(canvas, -r * 0.18f, -r * 0.08f, r * 0.22f, accent, hit);
+                    break;
+                case "court-queen":
+                    canvas.StrokeCircle(Vector2.zero, r * 0.72f, accent, 2.2f);
+                    canvas.FillPolygon(new[]
+                    {
+                        new Vector2(-r * 0.42f, -r * 0.72f), new Vector2(-r * 0.2f, -r * 1.08f),
+                        new Vector2(0, -r * 0.8f), new Vector2(r * 0.22f, -r * 1.08f),
+                        new Vector2(r * 0.45f, -r * 0.7f),
+                    }, accent);
+                    DrawCore(canvas, 0, 0, r * 0.28f, accent, hit);
+                    break;
             }
         }
 
         private static Sprite BuildBoss(string id, Color accent, bool hit)
         {
-            var radius = id == "warden" ? 56f : id == "matriarch" ? 62f : id == "reaver" ? 54f : 48f;
+            var court = id == "court-grandmaster-black" || id == "court-grandmaster-white";
+            var radius = id == "hydra-prime" ? 88f : court ? 66f : id == "warden" ? 56f : id == "matriarch" ? 62f : id == "reaver" ? 54f : 48f;
             // The browser boss sprites are authored on fixed canvases, not on
             // one shared padded texture. Keeping the same logical half-size
             // preserves both the silhouette scale and the authored glow falloff.
@@ -2548,6 +2688,9 @@ namespace VoidFall.Runtime
             var body = BossBodyColor(id, hit);
             switch (id)
             {
+                case "hydra-prime":
+                    DrawHydraPrime(canvas, radius, accent, hit, body);
+                    break;
                 case "warden":
                     DrawWarden(canvas, radius, accent, hit, body);
                     break;
@@ -2559,6 +2702,10 @@ namespace VoidFall.Runtime
                     break;
                 case "reaver":
                     DrawReaver(canvas, radius, accent, hit, body);
+                    break;
+                case "court-grandmaster-black":
+                case "court-grandmaster-white":
+                    DrawCourtGrandmaster(canvas, radius, id == "court-grandmaster-white", hit);
                     break;
                 default:
                     canvas.FillCircle(Vector2.zero, radius * 0.9f, body);
@@ -2578,10 +2725,13 @@ namespace VoidFall.Runtime
             if (hit) return ParseColor("#f8fafc");
             switch (id)
             {
+                case "hydra-prime": return ParseColor("#020805");
                 case "warden": return ParseColor("#080b13");
                 case "herald": return ParseColor("#080a12");
                 case "matriarch": return ParseColor("#07110f");
                 case "reaver": return ParseColor("#070b14");
+                case "court-grandmaster-black": return ParseColor("#050607");
+                case "court-grandmaster-white": return ParseColor("#f1f0ea");
                 default: return ParseColor("#080a12");
             }
         }
@@ -2590,10 +2740,13 @@ namespace VoidFall.Runtime
         {
             switch (id)
             {
+                case "hydra-prime": return 104f;
                 case "warden": return 82f;
                 case "herald": return 68f;
                 case "matriarch": return 78f;
                 case "reaver": return 74f;
+                case "court-grandmaster-black":
+                case "court-grandmaster-white": return 92f;
                 default: return 74f;
             }
         }
@@ -2602,10 +2755,13 @@ namespace VoidFall.Runtime
         {
             switch (id)
             {
+                case "hydra-prime": return 0.3f;
                 case "warden": return 0.24f;
                 case "herald": return 0.2f;
                 case "matriarch": return 0.18f;
                 case "reaver": return 0.19f;
+                case "court-grandmaster-black":
+                case "court-grandmaster-white": return 0.24f;
                 default: return 0.2f;
             }
         }
@@ -2614,18 +2770,161 @@ namespace VoidFall.Runtime
         private static readonly Color BossColorHerald = ParseColor("#a78bfa");
         private static readonly Color BossColorMatriarch = ParseColor("#34d399");
         private static readonly Color BossColorReaver = ParseColor("#60a5fa");
+        private static readonly Color BossColorHydra = ParseColor("#78ff5a");
+        private static readonly Color BossColorCourtBlack = ParseColor("#f3f4f6");
+        private static readonly Color BossColorCourtWhite = ParseColor("#111827");
         private static readonly Color BossColorDefault = ParseColor("#e879f9");
 
         private static Color SourceBossColor(string id)
         {
             switch (id)
             {
+                case "hydra-prime": return BossColorHydra;
+                case "court-grandmaster-black": return BossColorCourtBlack;
+                case "court-grandmaster-white": return BossColorCourtWhite;
                 case "warden": return BossColorWarden;
                 case "herald": return BossColorHerald;
                 case "matriarch": return BossColorMatriarch;
                 case "reaver": return BossColorReaver;
                 default: return BossColorDefault;
             }
+        }
+
+        private static void DrawCourtGrandmaster(
+            RasterCanvas canvas,
+            float radius,
+            bool white,
+            bool hit)
+        {
+            var body = hit ? Color.white : white ? ParseColor("#f1f0ea") : ParseColor("#050607");
+            var outline = hit ? Color.white : white ? ParseColor("#080c18") : ParseColor("#f1f0ea");
+            var opposite = white ? ParseColor("#050607") : ParseColor("#f1f0ea");
+            var crown = new[]
+            {
+                new Vector2(0, -radius * 1.28f),
+                new Vector2(-radius * 0.88f, -radius * 0.25f),
+                new Vector2(-radius * 0.38f, -radius * 0.42f),
+                new Vector2(-radius * 0.86f, radius * 0.54f),
+                new Vector2(-radius * 0.24f, radius * 0.2f),
+                new Vector2(-radius * 0.55f, radius * 1.05f),
+                new Vector2(radius * 0.55f, radius * 1.05f),
+                new Vector2(radius * 0.24f, radius * 0.2f),
+                new Vector2(radius * 0.86f, radius * 0.54f),
+                new Vector2(radius * 0.38f, -radius * 0.42f),
+                new Vector2(radius * 0.88f, -radius * 0.25f),
+            };
+            canvas.FillPolygon(crown, body);
+            canvas.StrokePolygon(crown, outline, 4.5f);
+            canvas.DrawArc(Vector2.zero, radius * 1.18f, 0, Mathf.PI * 2f, 7f, outline);
+            canvas.DrawArc(Vector2.zero, radius * 0.93f, 0, Mathf.PI * 2f, 4f, opposite);
+            canvas.FillCircle(Vector2.zero, radius * 0.42f, opposite);
+            canvas.FillCircle(Vector2.zero, radius * 0.23f, body);
+            canvas.FillPolygon(new[]
+            {
+                new Vector2(-radius * 0.55f, radius * 0.72f),
+                new Vector2(radius * 0.55f, radius * 0.72f),
+                new Vector2(radius * 0.48f, radius * 1.28f),
+                new Vector2(-radius * 0.48f, radius * 1.28f),
+            }, body);
+            canvas.StrokePolygon(new[]
+            {
+                new Vector2(-radius * 0.55f, radius * 0.72f),
+                new Vector2(radius * 0.55f, radius * 0.72f),
+                new Vector2(radius * 0.48f, radius * 1.28f),
+                new Vector2(-radius * 0.48f, radius * 1.28f),
+            }, outline, 4f);
+        }
+
+        private static void DrawHydraPrime(
+            RasterCanvas canvas,
+            float radius,
+            Color accent,
+            bool hit,
+            Color body)
+        {
+            var outline = hit ? Color.white : ParseColor("#78ff75");
+            var tissue = hit ? ParseColor("#f8fafc") : ParseColor("#16743a");
+            var tissueLight = hit ? Color.white : ParseColor("#65e85f");
+            var lobeCentres = new[]
+            {
+                new Vector2(0, -40), new Vector2(-38, -31), new Vector2(38, -31),
+                new Vector2(-57, 0), new Vector2(57, 0),
+                new Vector2(-41, 37), new Vector2(41, 37), new Vector2(0, 48),
+            };
+            foreach (var centre in lobeCentres)
+            {
+                canvas.FillCircle(centre, 39f, body);
+                canvas.StrokeCircle(centre, 39f, outline, 5f);
+            }
+            canvas.FillCircle(Vector2.zero, radius * 0.72f, tissue);
+            foreach (var centre in lobeCentres)
+                canvas.FillCircle(centre * 0.86f, 29f, tissue);
+
+            for (var line = -2; line <= 2; line++)
+            {
+                var offset = line * 16f;
+                canvas.DrawLine(
+                    new Vector2(-62f, offset - 10f),
+                    new Vector2(62f, -offset * 0.45f + 8f),
+                    2.2f,
+                    hit ? Color.white : new Color(0.76f, 1f, 0.52f, 0.52f));
+            }
+
+            var eyeOuter = HydraEllipsePoints(Vector2.zero + Vector2.down * 4f, 24f, 38f, 30);
+            var eyeInner = HydraEllipsePoints(Vector2.zero + Vector2.down * 4f, 11f, 29f, 24);
+            canvas.FillPolygon(eyeOuter, ParseColor("#031007"));
+            canvas.StrokePolygon(eyeOuter, hit ? Color.white : ParseColor("#c8ff55"), 5f);
+            canvas.FillPolygon(eyeInner, hit ? Color.white : ParseColor("#d6ff4b"));
+            canvas.FillPolygon(
+                HydraEllipsePoints(Vector2.down * 4f, 4f, 22f, 20),
+                ParseColor("#041008"));
+            canvas.FillCircle(new Vector2(-4f, -19f), 3.5f, Color.white);
+
+            var mouth = new[]
+            {
+                new Vector2(-45f, -42f), new Vector2(45f, -42f),
+                new Vector2(34f, -76f), new Vector2(0f, -84f), new Vector2(-34f, -76f),
+            };
+            canvas.FillPolygon(mouth, ParseColor("#010403"));
+            canvas.StrokePolygon(mouth, hit ? Color.white : ParseColor("#49ef68"), 4f);
+            for (var tooth = 0; tooth < 7; tooth++)
+            {
+                var x = -34f + tooth * 11.3f;
+                var top = tooth % 2 == 0;
+                canvas.FillPolygon(new[]
+                {
+                    new Vector2(x - 5f, top ? -44f : -73f),
+                    new Vector2(x + 5f, top ? -44f : -73f),
+                    new Vector2(x, top ? -68f : -50f),
+                }, hit ? Color.white : ParseColor("#efeccf"));
+            }
+
+            for (var pore = 0; pore < 13; pore++)
+            {
+                var angle = pore * 2.399963f;
+                var distance = 34f + (pore % 3) * 12f;
+                canvas.FillCircle(
+                    new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance,
+                    2.2f + pore % 2,
+                    hit ? Color.white : new Color(tissueLight.r, tissueLight.g, tissueLight.b, 0.58f));
+            }
+        }
+
+        private static Vector2[] HydraEllipsePoints(
+            Vector2 centre,
+            float radiusX,
+            float radiusY,
+            int count)
+        {
+            var points = new Vector2[Mathf.Max(8, count)];
+            for (var index = 0; index < points.Length; index++)
+            {
+                var angle = index / (float)points.Length * Mathf.PI * 2f;
+                points[index] = centre + new Vector2(
+                    Mathf.Cos(angle) * radiusX,
+                    Mathf.Sin(angle) * radiusY);
+            }
+            return points;
         }
 
         private static void DrawWarden(RasterCanvas c, float r, Color accent, bool hit, Color body)
@@ -2797,12 +3096,13 @@ namespace VoidFall.Runtime
             float rotation = 0f,
             string nameSuffix = "")
         {
-            var radius = kind == "railgun" ? 30f : kind == "seeker" ? 20f : kind == "pistol" ? 13f : kind == "scattergun" ? 9f : kind == "curved" ? 10f : 14f;
+            var radius = kind == "railgun" ? 30f : kind == "seeker" ? 20f : kind == "pistol" ? 13f : kind == "scattergun" ? 9f : kind == "curved" ? 10f : kind == "hydra-rib" ? 13f : 14f;
             var padding = kind == "pistol" ? 3.5f
                 : kind == "scattergun" ? 4f
                 : kind == "railgun" ? 2f
                 : kind == "seeker" ? 4f
                 : kind == "curved" ? 0f
+                : kind == "hydra-rib" ? 2f
                 : 4f;
             // orientedFrames() creates one square canvas from the source
             // image's diagonal plus four pixels. Preserve that source raster
@@ -2814,7 +3114,23 @@ namespace VoidFall.Runtime
                 padding,
                 Mathf.RoundToInt(ProjectileCanvasSize(kind)));
             canvas.SetRotation(rotation);
-            if (kind == "pistol")
+            if (kind == "hydra-rib")
+            {
+                var shard = new[]
+                {
+                    new Vector2(-12f, -4f), new Vector2(-5f, -7f),
+                    new Vector2(12f, -2f), new Vector2(15f, 0f),
+                    new Vector2(12f, 2f), new Vector2(-5f, 7f),
+                };
+                canvas.FillPolygon(shard, ParseColor("#d8d7b2"));
+                canvas.StrokePolygon(shard, ParseColor("#78ff5a"), 1.6f);
+                canvas.FillPolygon(new[]
+                {
+                    new Vector2(-8f, -2f), new Vector2(10f, -1f),
+                    new Vector2(13f, 0f), new Vector2(10f, 1f), new Vector2(-8f, 2f),
+                }, ParseColor("#f4f0d2"));
+            }
+            else if (kind == "pistol")
             {
                 canvas.FillPolygon(new[]
                 {

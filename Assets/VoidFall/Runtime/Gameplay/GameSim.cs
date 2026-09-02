@@ -1228,7 +1228,7 @@ namespace VoidFall.Runtime
         private static EnemyDefinition FindEnemy(string id)
         {
             foreach (var definition in ContentCatalog.Enemies) if (definition.Id == id) return definition;
-            return null;
+            return MonochromeContent.FindEnemy(id);
         }
 
         private static Color SourceDotColor(string dot)

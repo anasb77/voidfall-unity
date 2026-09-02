@@ -134,8 +134,7 @@ namespace VoidFall.Runtime
         }
 
         /// <summary>
-        /// Void id to arena. Hydra reuses the Abyss arena as a placeholder
-        /// until its own arena exists; the mutation genes arrive separately.
+        /// Stable Void id to prepared arena identity.
         /// </summary>
         private static ArenaId ArenaIdForVoidId(string voidId)
         {
@@ -143,6 +142,8 @@ namespace VoidFall.Runtime
             {
                 case "red-nebula": return ArenaId.RedNebula;
                 case "white-sakura": return ArenaId.WhiteSakura;
+                case "hydra": return ArenaId.Hydra;
+                case "monochrome-court": return ArenaId.MonochromeCourt;
                 default: return ArenaId.Void;
             }
         }

@@ -54,26 +54,34 @@ Prepared and selectable in the main-menu carousel:
 - Abyss
 - Red Nebula
 - White Sakura
+- Hydra
+- Monochrome Court
 
 Next visual-only packages requested:
 
-- Hydra, including existing mutation behavior
-- Monochrome Court
 - Lost City, using the existing `null-city` route identity for compatibility
 
 ## Validation baseline
 
 - C# build: zero errors
-- EditMode: 168 project tests passing
+- EditMode: 242 project tests passing
 - PlayMode: 5 tests passing
-- Windows release player: build and `productionMax` smoke passing
+- Windows release player: build, `productionMax` smoke, Hydra captures and all
+  four Monochrome Court warning/burning floor states passing
 - No duplicate GUIDs or missing `.meta` files
 
 ## Known gaps
 
-- Route content after Layer I is incomplete.
-- Hydra mutation rules exist but are not wired into live spawning yet.
-- Monochrome Court and Lost City are graph nodes without visual packages.
+- Route content outside Abyss, the three Layer-I arenas, Hydra and Monochrome
+  Court is incomplete.
+- Hydra mutation rules are wired during its survival phase; its boss phase
+  suppresses ambient enemies and spawns route-only Hydra Prime.
+- Hydra's production base, bone and boss visuals are authored from the approved
+  v13 reference; procedural primitives are reserved for attacks and motion.
+- Monochrome Court is prepared and owns its chess roster and route-only Twin
+  Grandmaster encounter. Only its five chess enemy types spawn there; both
+  bosses fight simultaneously and alternate white/black burning floor tiles.
+  Lost City remains graph/data only.
 - HudPresenter is present but not wired as the sole HUD owner.
 - CI Unity tests run only when the repository variable is enabled.
 - Product identity still uses Unity's default company/application identifier.

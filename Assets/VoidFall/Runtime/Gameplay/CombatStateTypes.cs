@@ -37,6 +37,7 @@ namespace VoidFall.Runtime
             public float HollowCooldown;
             public float Seed;
             public EnemyRoster Roster;
+            public MutationGene MutationGene;
             public bool Elite;
             public EliteVariantId? EliteKind;
             public bool CarrierDrone;
@@ -180,6 +181,8 @@ namespace VoidFall.Runtime
             public float BeamHitCooldown;
             public int EncounterIndex;
             public int TelemetryInstanceId;
+            public int HydraStep;
+            public float HydraAttackElapsed;
             public int View;
         }
 

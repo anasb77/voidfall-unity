@@ -32,6 +32,8 @@ namespace VoidFall.Runtime
         /// </summary>
         private void BeginObjectiveForCurrentArena()
         {
+            ResetHydraEncounterState();
+            ResetMonochromeEncounterState();
             // With a route active the objective keys on the Void, not the
             // arena: Hydra shares the Abyss arena as a placeholder but must
             // not share its escape condition.
@@ -64,6 +66,8 @@ namespace VoidFall.Runtime
         {
             if (_objectives == null) return;
             _objectives.Step(deltaTime);
+            SyncHydraEncounterWithObjective();
+            SyncMonochromeEncounterWithObjective();
             if (_objectives.IsComplete && !_objectivesCompletionHandled)
             {
                 _objectivesCompletionHandled = true;

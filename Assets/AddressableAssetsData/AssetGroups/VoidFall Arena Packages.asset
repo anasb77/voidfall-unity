@@ -21,11 +21,35 @@ MonoBehaviour:
     m_SerializedLabels:
     - vf-arena-red-nebula
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 29a553a2ab9752345be00bb3d87ad3df
+    m_Address: VoidFall/Arenas/hydra/recipe-1
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-hydra
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 3ea316517b0097c40bd3e81cc9190224
     m_Address: VoidFall/Arenas/red-nebula/recipe-2
     m_ReadOnly: 0
     m_SerializedLabels:
     - vf-arena-red-nebula
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4c77e88bfe51497498c72adea04e4f5a
+    m_Address: VoidFall/Arenas/monochrome-court/recipe-1
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-monochrome-court
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 65d236143a1fa9846887d7c17203c8d5
+    m_Address: VoidFall/Arenas/hydra/recipe-2
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-hydra
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 666dd332ed8d13446813a3eec97c3ce4
+    m_Address: VoidFall/Arenas/monochrome-court/recipe-2
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-monochrome-court
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 6ef852366d404d24695422ec88cc45cc
     m_Address: VoidFall/Arenas/abyss/recipe-1
@@ -63,11 +87,23 @@ MonoBehaviour:
     m_SerializedLabels:
     - vf-arena-abyss
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a791c10604e435941818db53ea1200f1
+    m_Address: VoidFall/Arenas/hydra/recipe-3
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-hydra
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: c4660644e75c4f04da40e7a7af46b069
     m_Address: VoidFall/Arenas/abyss/recipe-3
     m_ReadOnly: 0
     m_SerializedLabels:
     - vf-arena-abyss
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cee37c8723825524f9015f7dc64454ef
+    m_Address: VoidFall/Arenas/monochrome-court/recipe-3
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-monochrome-court
     FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: c0d6df4ff4e485d40ab0d40784fe82f8, type: 2}

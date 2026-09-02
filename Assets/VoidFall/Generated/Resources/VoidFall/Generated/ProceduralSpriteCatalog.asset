@@ -38,563 +38,617 @@ MonoBehaviour:
     _sprite: {fileID: 21300000, guid: 992fcf644fb4e3341a0b80164b521de9, type: 3}
   - _key: arena-vignette|2
     _sprite: {fileID: 21300000, guid: 1e11a214698836e47a79288b467636ee, type: 3}
+  - _key: arena-vignette|4
+    _sprite: {fileID: 21300000, guid: 08d3ad2914a4f684985fab5a675be6a2, type: 3}
+  - _key: boss|court-grandmaster-black|17|24|39|255|0
+    _sprite: {fileID: 21300000, guid: 5d298a42649fe0a47b5f446a03563b9a, type: 3}
+  - _key: boss|court-grandmaster-black|17|24|39|255|1
+    _sprite: {fileID: 21300000, guid: f05a6ac1c9b2b36448300e328abcd371, type: 3}
+  - _key: boss|court-grandmaster-white|243|244|246|255|0
+    _sprite: {fileID: 21300000, guid: 3312aca76b4f17449aef878bcc0997ae, type: 3}
+  - _key: boss|court-grandmaster-white|243|244|246|255|1
+    _sprite: {fileID: 21300000, guid: 2f49b3ab5800d544e99d7ff80c3985e4, type: 3}
   - _key: boss|herald|167|139|250|255|0
-    _sprite: {fileID: 21300000, guid: afbd50e7795a48141b66b68bfacdaf7d, type: 3}
+    _sprite: {fileID: 21300000, guid: 88f666eae6179904c97dc492b8cb5116, type: 3}
   - _key: boss|herald|167|139|250|255|1
-    _sprite: {fileID: 21300000, guid: 9c92879148af4a34a930d1efb287dc22, type: 3}
+    _sprite: {fileID: 21300000, guid: d3329e46eaec531409ac957166c52e9d, type: 3}
   - _key: boss|matriarch|52|211|153|255|0
-    _sprite: {fileID: 21300000, guid: cfdc48ad01c208248a634987c0cad646, type: 3}
+    _sprite: {fileID: 21300000, guid: 3e9285d3592c6324b898e34c078614eb, type: 3}
   - _key: boss|matriarch|52|211|153|255|1
-    _sprite: {fileID: 21300000, guid: 20b562f9afdc4f54dba3aaf12894bf58, type: 3}
+    _sprite: {fileID: 21300000, guid: f735d3d694e8adc468bc62bc98b34ce6, type: 3}
   - _key: boss|reaver|96|165|250|255|0
-    _sprite: {fileID: 21300000, guid: a5e9d786d34bd6f49851fb132637399b, type: 3}
+    _sprite: {fileID: 21300000, guid: b28a2addf4bf6ce4394ddb13245831e6, type: 3}
   - _key: boss|reaver|96|165|250|255|1
-    _sprite: {fileID: 21300000, guid: 858402f57584ce747891913282f91269, type: 3}
+    _sprite: {fileID: 21300000, guid: 08ad3c6581dde56449d67ccc68d834fe, type: 3}
   - _key: boss|warden|239|68|68|255|0
-    _sprite: {fileID: 21300000, guid: 6bbb8d4a36d1ca146ba3deeefa948c8e, type: 3}
+    _sprite: {fileID: 21300000, guid: af042c6b634cdb04b81558071bacd9f6, type: 3}
   - _key: boss|warden|239|68|68|255|1
-    _sprite: {fileID: 21300000, guid: 36fb24941200b024c9562412efd7ad82, type: 3}
+    _sprite: {fileID: 21300000, guid: 311692213d72d2945ae8078c4d12b78c, type: 3}
   - _key: enemy|brute|251|146|60|255|0
-    _sprite: {fileID: 21300000, guid: 0675ca2e7fc55f142abb11f9d88e2c7e, type: 3}
+    _sprite: {fileID: 21300000, guid: 89a710bde4becd247bb22f1f38b845cf, type: 3}
   - _key: enemy|brute|251|146|60|255|1
-    _sprite: {fileID: 21300000, guid: 5c92764a92dea244f98e5a40cd182724, type: 3}
+    _sprite: {fileID: 21300000, guid: 4092b76b3f70c99468639a19b48c458b, type: 3}
   - _key: enemy|bulwark|56|189|248|255|0
-    _sprite: {fileID: 21300000, guid: 69cebf54075bcc9438fb9f0db0b58687, type: 3}
+    _sprite: {fileID: 21300000, guid: d3b1da37d10c7f54eb8fbe8192985b7d, type: 3}
   - _key: enemy|bulwark|56|189|248|255|1
-    _sprite: {fileID: 21300000, guid: c8e6ce5ce0046174abfedb966afc16ab, type: 3}
+    _sprite: {fileID: 21300000, guid: 8a7211509aaba014ebda50bc05c01310, type: 3}
   - _key: enemy|carrier|234|179|8|255|0
-    _sprite: {fileID: 21300000, guid: 4ea5c00849a2bed4bb9b55e2a0244e64, type: 3}
+    _sprite: {fileID: 21300000, guid: 2faa4bd89be142e46b299986b72118ed, type: 3}
   - _key: enemy|carrier|234|179|8|255|1
-    _sprite: {fileID: 21300000, guid: ae54c189d7880cb409a772ce1d8bd657, type: 3}
+    _sprite: {fileID: 21300000, guid: c7b0f20ad44792d45940e053d143af13, type: 3}
   - _key: enemy|chaser|251|113|133|255|0
-    _sprite: {fileID: 21300000, guid: a4e89ddf2ca373d439690c2170901cb1, type: 3}
+    _sprite: {fileID: 21300000, guid: 392f0282bf2f56f4b9bbcb0fe0d13290, type: 3}
   - _key: enemy|chaser|251|113|133|255|1
-    _sprite: {fileID: 21300000, guid: e5c36db0fc3c1f247b6eca39b4af7314, type: 3}
+    _sprite: {fileID: 21300000, guid: 897aa875169d84a42b48fb56e1df226f, type: 3}
+  - _key: enemy|court-bishop-black|255|255|255|255|0
+    _sprite: {fileID: 21300000, guid: 0b8a6e9b948661147a7f59774097d04d, type: 3}
+  - _key: enemy|court-bishop-black|255|255|255|255|1
+    _sprite: {fileID: 21300000, guid: e993e14f3327881448886c4048a09de6, type: 3}
+  - _key: enemy|court-bishop-white|0|0|0|255|0
+    _sprite: {fileID: 21300000, guid: 88bf1da815c9de641b0145eb266ac0ea, type: 3}
+  - _key: enemy|court-bishop-white|0|0|0|255|1
+    _sprite: {fileID: 21300000, guid: 13da008b1bb7b5842b1996eade09fba8, type: 3}
+  - _key: enemy|court-knight-black|255|255|255|255|0
+    _sprite: {fileID: 21300000, guid: 1b92d955d3788d046b74e08b540d582c, type: 3}
+  - _key: enemy|court-knight-black|255|255|255|255|1
+    _sprite: {fileID: 21300000, guid: 92872e10d83921b43a996e9e61c1bd90, type: 3}
+  - _key: enemy|court-knight-white|0|0|0|255|0
+    _sprite: {fileID: 21300000, guid: 25f4c2d00aef79c4f858ef12e15f6e18, type: 3}
+  - _key: enemy|court-knight-white|0|0|0|255|1
+    _sprite: {fileID: 21300000, guid: c974da6fb64ebc146b930e4a7596d240, type: 3}
+  - _key: enemy|court-pawn-black|255|255|255|255|0
+    _sprite: {fileID: 21300000, guid: e5d73fc3fad12d04291ba764051ff98e, type: 3}
+  - _key: enemy|court-pawn-black|255|255|255|255|1
+    _sprite: {fileID: 21300000, guid: 4271a61520e26f7498e04e2da5bf3555, type: 3}
+  - _key: enemy|court-pawn-white|0|0|0|255|0
+    _sprite: {fileID: 21300000, guid: 9613002f79f70cf4e9784121d056951d, type: 3}
+  - _key: enemy|court-pawn-white|0|0|0|255|1
+    _sprite: {fileID: 21300000, guid: 39740895d3d7198459df7da54aed370d, type: 3}
+  - _key: enemy|court-queen-black|255|255|255|255|0
+    _sprite: {fileID: 21300000, guid: eccc827c27d6f3f458406ab2c86e8fbc, type: 3}
+  - _key: enemy|court-queen-black|255|255|255|255|1
+    _sprite: {fileID: 21300000, guid: 3ed4e79d3a3e9694ea28ff72a8bd45e9, type: 3}
+  - _key: enemy|court-queen-white|0|0|0|255|0
+    _sprite: {fileID: 21300000, guid: b4de53b34f42b2244b263072e0fd0f89, type: 3}
+  - _key: enemy|court-queen-white|0|0|0|255|1
+    _sprite: {fileID: 21300000, guid: 87cfd2b298c44714db0bc7e7757cf525, type: 3}
+  - _key: enemy|court-rook-black|255|255|255|255|0
+    _sprite: {fileID: 21300000, guid: 2c3e47c9b7e3c5a48bd9e7b4aa6d1988, type: 3}
+  - _key: enemy|court-rook-black|255|255|255|255|1
+    _sprite: {fileID: 21300000, guid: 3b74661fec38831408aba4ce2180b546, type: 3}
+  - _key: enemy|court-rook-white|0|0|0|255|0
+    _sprite: {fileID: 21300000, guid: 3e7e2adbbd6a70e438452b97e22397b8, type: 3}
+  - _key: enemy|court-rook-white|0|0|0|255|1
+    _sprite: {fileID: 21300000, guid: 77effe945d01d874581d78f2517adf70, type: 3}
   - _key: enemy|dasher|232|121|249|255|0
-    _sprite: {fileID: 21300000, guid: 9e9b9a596283c8a4e9b22504204f5f94, type: 3}
+    _sprite: {fileID: 21300000, guid: f4f82859f2cf4a248807348aafbce6fc, type: 3}
   - _key: enemy|dasher|232|121|249|255|1
-    _sprite: {fileID: 21300000, guid: 1bef82a0c1889bd46bbcfb5ee21103b4, type: 3}
+    _sprite: {fileID: 21300000, guid: af629216812c473439f9345352f74d63, type: 3}
   - _key: enemy|elite|250|204|21|255|0
-    _sprite: {fileID: 21300000, guid: 0acbf759e86f2614dbae8e35b20ca42f, type: 3}
+    _sprite: {fileID: 21300000, guid: f5c97e5f65b07684d9c133ef16583f8f, type: 3}
   - _key: enemy|elite|250|204|21|255|1
-    _sprite: {fileID: 21300000, guid: bf3c9e6997a4a55458db248d6cb8b853, type: 3}
+    _sprite: {fileID: 21300000, guid: 8e309cb8c859f2f48b50a35333f31340, type: 3}
   - _key: enemy|exploder|245|158|11|255|0
-    _sprite: {fileID: 21300000, guid: ea65ca0fe3fdf7642a4913044d209e68, type: 3}
+    _sprite: {fileID: 21300000, guid: 8c7a8fd5f74befb4ba5bed9fd012478e, type: 3}
   - _key: enemy|exploder|245|158|11|255|1
-    _sprite: {fileID: 21300000, guid: 0308ddbe74fdc9b459b91f7f80be27bb, type: 3}
+    _sprite: {fileID: 21300000, guid: c2bebfa227cbcc543b67513ff7eab163, type: 3}
   - _key: enemy|exploder|255|255|255|255|1
-    _sprite: {fileID: 21300000, guid: 00c9f5fcfb2ca12459b7cf927f96138d, type: 3}
+    _sprite: {fileID: 21300000, guid: e7272756dd1b2474abeedc716393470b, type: 3}
   - _key: enemy|guard|96|165|250|255|0
-    _sprite: {fileID: 21300000, guid: 61d9960249ea8e2469e184190a4f2832, type: 3}
+    _sprite: {fileID: 21300000, guid: 56cef8009d045454899b109e57eedf0e, type: 3}
   - _key: enemy|guard|96|165|250|255|1
-    _sprite: {fileID: 21300000, guid: 3af68eb30b05eb746a35e0d1174ce713, type: 3}
+    _sprite: {fileID: 21300000, guid: 41ba40314fae43b4abd05465a06c8b66, type: 3}
   - _key: enemy|gunner|239|68|68|255|0
-    _sprite: {fileID: 21300000, guid: d94890bd7275ef448a322d1677ad3b19, type: 3}
+    _sprite: {fileID: 21300000, guid: 95d47eeeb9625674c93ab48440b4b57e, type: 3}
   - _key: enemy|gunner|239|68|68|255|1
-    _sprite: {fileID: 21300000, guid: 44bdf97fb59e2564c8243b40359378da, type: 3}
+    _sprite: {fileID: 21300000, guid: 71468b5c2fc8e4c4fb081342ff44768f, type: 3}
   - _key: enemy|harvester|255|255|255|255|1
-    _sprite: {fileID: 21300000, guid: ee7db7b7ba979f94d9f751e23806a8db, type: 3}
+    _sprite: {fileID: 21300000, guid: 0fb186e77726d4548ba3bc4e178d33d5, type: 3}
   - _key: enemy|harvester|52|211|153|255|0
-    _sprite: {fileID: 21300000, guid: 96ffe7d6611d8eb4aa6162068c213d01, type: 3}
+    _sprite: {fileID: 21300000, guid: 38b352b9e7e871a4da0ad7257db0f0c4, type: 3}
   - _key: enemy|harvester|52|211|153|255|1
-    _sprite: {fileID: 21300000, guid: 4a7eaf3348db8e84b991c344aae457be, type: 3}
+    _sprite: {fileID: 21300000, guid: 58afba9fdad192a4394b0d104c00a8d6, type: 3}
   - _key: enemy|mortar|249|115|22|255|0
-    _sprite: {fileID: 21300000, guid: 67defd61cf35eef4db4672482090a5a6, type: 3}
+    _sprite: {fileID: 21300000, guid: 68037b61dddc9a04f813a9b8301dcf46, type: 3}
   - _key: enemy|mortar|249|115|22|255|1
-    _sprite: {fileID: 21300000, guid: 0da4e9065666d8d4f97200704fa53b85, type: 3}
+    _sprite: {fileID: 21300000, guid: c53b0891beddbba45b2d973e94717d25, type: 3}
   - _key: enemy|runner|167|139|250|255|0
-    _sprite: {fileID: 21300000, guid: a81297c150b2b33489e44a12b9db7137, type: 3}
+    _sprite: {fileID: 21300000, guid: 1ebfdd651fa449f45b53c448f925d0a2, type: 3}
   - _key: enemy|runner|167|139|250|255|1
-    _sprite: {fileID: 21300000, guid: 6b2b7b26540766b45808dff98dec0f42, type: 3}
+    _sprite: {fileID: 21300000, guid: 67f91476c9820774892a77b715bf342a, type: 3}
   - _key: enemy|splitter|244|114|182|255|0
-    _sprite: {fileID: 21300000, guid: dab080df84458ed40a674ab58853ed5b, type: 3}
+    _sprite: {fileID: 21300000, guid: 0a76f6b9e54afde40a63e969001af3a2, type: 3}
   - _key: enemy|splitter|244|114|182|255|1
-    _sprite: {fileID: 21300000, guid: a678145fe0cac0741b543df53f44dae0, type: 3}
+    _sprite: {fileID: 21300000, guid: 5813c5f326061734c85a496d020cfcfd, type: 3}
   - _key: enemy|technician|45|212|191|255|0
-    _sprite: {fileID: 21300000, guid: 2495b49cc9ea2ee45b640f7124f48a4c, type: 3}
+    _sprite: {fileID: 21300000, guid: 752eeecd8c31b134a8d76ade303aa204, type: 3}
   - _key: enemy|technician|45|212|191|255|1
-    _sprite: {fileID: 21300000, guid: 613ca1127cfe5c340af679c2ca232591, type: 3}
+    _sprite: {fileID: 21300000, guid: 8584f877e0f29f040a6a03defd465597, type: 3}
   - _key: enemy|twinGunner|220|90|69|255|0
-    _sprite: {fileID: 21300000, guid: 1d3df69b07f65fd4d89c47d5ebf7b335, type: 3}
+    _sprite: {fileID: 21300000, guid: 7c76de6168b980d4bade6fb7528a9a02, type: 3}
   - _key: enemy|twinGunner|220|90|69|255|1
-    _sprite: {fileID: 21300000, guid: c697e50baeb690243b2648a60944431b, type: 3}
+    _sprite: {fileID: 21300000, guid: 91a3bc70a1709da439e7fd928abc3ac1, type: 3}
   - _key: fixed|arena-current-glow
-    _sprite: {fileID: 21300000, guid: b6ee937c675d16244b683274edcdf053, type: 3}
+    _sprite: {fileID: 21300000, guid: 68c99ff894f65564fb49439ffb11cbdb, type: 3}
   - _key: fixed|blade
-    _sprite: {fileID: 21300000, guid: 627748fc20abe8b49a714cefdf78fd73, type: 3}
+    _sprite: {fileID: 21300000, guid: 8c081a364dd849444ab7d1de9ad01ddf, type: 3}
   - _key: fixed|blast-wave
-    _sprite: {fileID: 21300000, guid: 6dcbeb7b384e69d44b44850c67b851c0, type: 3}
+    _sprite: {fileID: 21300000, guid: d6ecd4214feb3834ea0f9c900c6c7c3e, type: 3}
   - _key: fixed|circle
-    _sprite: {fileID: 21300000, guid: 81f992e1219e3564e9a53dfb3494fc3a, type: 3}
+    _sprite: {fileID: 21300000, guid: 8b9bc44606285d441bdbdf8c79a30817, type: 3}
   - _key: fixed|damage-indicator
-    _sprite: {fileID: 21300000, guid: 3424f37af29bbd244ba4bc565ace26e7, type: 3}
+    _sprite: {fileID: 21300000, guid: b2a6d16489cebd148bf73611b5549544, type: 3}
   - _key: fixed|diamond
-    _sprite: {fileID: 21300000, guid: 881450eb802120243984ae5befb1f789, type: 3}
+    _sprite: {fileID: 21300000, guid: 0a915b6e981414e4fa2aee522a4382b3, type: 3}
   - _key: fixed|dot
-    _sprite: {fileID: 21300000, guid: 63cf16fcce525504ea0a9a5b5314dd5c, type: 3}
+    _sprite: {fileID: 21300000, guid: e2f39e28d9c66af438d78954c9a98355, type: 3}
   - _key: fixed|elite-mark
-    _sprite: {fileID: 21300000, guid: fd5af49009f128c4c80dca9f105f1f70, type: 3}
+    _sprite: {fileID: 21300000, guid: ca5d06c5edbbc8e4592bc0f1dc419941, type: 3}
   - _key: fixed|elite-ring
-    _sprite: {fileID: 21300000, guid: d324dfc3d5ee6714a974ea97e93d2ad2, type: 3}
+    _sprite: {fileID: 21300000, guid: c2837f0eae9579847a85590d7159bc23, type: 3}
   - _key: fixed|hollow-blade
-    _sprite: {fileID: 21300000, guid: 7235a769a05024d4d8e1d3b00ac4b88b, type: 3}
+    _sprite: {fileID: 21300000, guid: 23f934d3da5a698418d3f16f17a44988, type: 3}
   - _key: fixed|impact-mark
-    _sprite: {fileID: 21300000, guid: d18a3b2f86eec8e4c971db9ed6415ea3, type: 3}
+    _sprite: {fileID: 21300000, guid: e1382ee6591833b4fa3a4d40fde89162, type: 3}
   - _key: fixed|meteor-core
-    _sprite: {fileID: 21300000, guid: b52aa10f4e32ee74ca0a62d5ad9d5d57, type: 3}
+    _sprite: {fileID: 21300000, guid: be6d6ec45153f344792a5a56e8d6521f, type: 3}
   - _key: fixed|operative
-    _sprite: {fileID: 21300000, guid: 7140cea73b68e8a4c9864cbc143edf55, type: 3}
+    _sprite: {fileID: 21300000, guid: e59683278afa0244ca060242754e21d7, type: 3}
   - _key: fixed|particle-dot
-    _sprite: {fileID: 21300000, guid: f0fd0e9087af31b439fa347c3e72b613, type: 3}
+    _sprite: {fileID: 21300000, guid: 804f33604a06a17418602ac753d888f5, type: 3}
   - _key: fixed|petal
-    _sprite: {fileID: 21300000, guid: 7b4fe4b9a5162994c874163721beba87, type: 3}
+    _sprite: {fileID: 21300000, guid: 3d98d2c481559724e9451ac9c3a90f7a, type: 3}
   - _key: fixed|player-aura
-    _sprite: {fileID: 21300000, guid: 4d3bb07d2ef32cf4b8d5f7b00b66369c, type: 3}
+    _sprite: {fileID: 21300000, guid: 455206431abe929489ac47bfddd769ab, type: 3}
   - _key: fixed|player-aura-adrenal
-    _sprite: {fileID: 21300000, guid: 1002bcc4851f1fe47a82c6fe2e504a3e, type: 3}
+    _sprite: {fileID: 21300000, guid: 985c5f7c1be1dcb448bed1e8ee187838, type: 3}
   - _key: fixed|player-ring
-    _sprite: {fileID: 21300000, guid: 41d880280b9b74747939c46e58b59d19, type: 3}
+    _sprite: {fileID: 21300000, guid: 881bff18838535347bc1c4fc1b044d0f, type: 3}
   - _key: fixed|red-health-vignette
-    _sprite: {fileID: 21300000, guid: 1aa9b57ece8229749b8fc2886ad4f913, type: 3}
+    _sprite: {fileID: 21300000, guid: 6a4557c9ec262a44d964f67110a846d8, type: 3}
   - _key: fixed|ring
-    _sprite: {fileID: 21300000, guid: 9ae4a396c4749b2418b069a3853cb800, type: 3}
+    _sprite: {fileID: 21300000, guid: 44f567d97c8b85d40a1bf770ee0e20d4, type: 3}
   - _key: fixed|rock
-    _sprite: {fileID: 21300000, guid: 297615e5caab4b341826a6fb6334fc94, type: 3}
+    _sprite: {fileID: 21300000, guid: 02f03644e0df31f4d87debbf72b72be2, type: 3}
   - _key: fixed|square
-    _sprite: {fileID: 21300000, guid: 396e64a1f4d1bc044a9294d85fc75f4f, type: 3}
+    _sprite: {fileID: 21300000, guid: cd4ccadab74ca9f45b6d4fdfa29a26ca, type: 3}
   - _key: fixed|stellar-limb
-    _sprite: {fileID: 21300000, guid: b1f503099d9f1014ca0967f66746b93a, type: 3}
+    _sprite: {fileID: 21300000, guid: 9bd49c67b4aadab40aa3283a11287a73, type: 3}
   - _key: fixed|touch-base
-    _sprite: {fileID: 21300000, guid: 272dce05e5d63594abb6a83423c2446b, type: 3}
+    _sprite: {fileID: 21300000, guid: b440f7cf81752f04987665022584244d, type: 3}
   - _key: fixed|workshop-backdrop
-    _sprite: {fileID: 21300000, guid: ef24f75355ecffa46bb1bfd054212ca0, type: 3}
+    _sprite: {fileID: 21300000, guid: f63afb2f08c238a49ac4140b6f864d61, type: 3}
   - _key: fixed|workshop-mobility-trail
-    _sprite: {fileID: 21300000, guid: 97a983db30b98084f8a09c0f000dc22c, type: 3}
+    _sprite: {fileID: 21300000, guid: 7848535f846a79f43a4fb7d2518f08bf, type: 3}
   - _key: fixed|workshop-wide-backdrop
-    _sprite: {fileID: 21300000, guid: 51e3a791455f2d844a044c62c7caba73, type: 3}
+    _sprite: {fileID: 21300000, guid: 09eacd0a77eaa2f40910fe00bdce5151, type: 3}
   - _key: gem|0
-    _sprite: {fileID: 21300000, guid: ece6e7c1aeeda314a8728f6876f712b2, type: 3}
+    _sprite: {fileID: 21300000, guid: 38accf568cf85a748889d718404081e2, type: 3}
   - _key: gem|1
-    _sprite: {fileID: 21300000, guid: b4928dc8328769e459a73336c29145cc, type: 3}
+    _sprite: {fileID: 21300000, guid: ef566dc731b8b134799b96f1cc953e60, type: 3}
   - _key: gem|2
-    _sprite: {fileID: 21300000, guid: c42281ef434a0d4409042805631c66cb, type: 3}
+    _sprite: {fileID: 21300000, guid: b4333eb2266cf8048a0c15a6bd62c970, type: 3}
   - _key: meteor-shard|0
-    _sprite: {fileID: 21300000, guid: 30aad932360387442b581256d42c1788, type: 3}
+    _sprite: {fileID: 21300000, guid: 6634bc81d2387b94e98790a457037592, type: 3}
   - _key: meteor-shard|1
-    _sprite: {fileID: 21300000, guid: 806421613431d64438b42873e5286ed6, type: 3}
+    _sprite: {fileID: 21300000, guid: 537b967862921704d9736dac96b4b81f, type: 3}
   - _key: meteor-shard|2
-    _sprite: {fileID: 21300000, guid: 6a2ea1f9ae4d13d45a62c3cfaae6dc22, type: 3}
+    _sprite: {fileID: 21300000, guid: f8dd0008067846848bce1defd2d11101, type: 3}
   - _key: meteor-shard|3
-    _sprite: {fileID: 21300000, guid: 8a8ba4e408ac2364d8f503937cd74ab8, type: 3}
+    _sprite: {fileID: 21300000, guid: 5fe9d5277155f0c4097a87f145600c32, type: 3}
   - _key: meteor|0/False
-    _sprite: {fileID: 21300000, guid: 2b79d2d104ae98748b6667360da1e4cd, type: 3}
+    _sprite: {fileID: 21300000, guid: 4247784ca394c034398aa11e5cf10c0f, type: 3}
   - _key: meteor|0/True
-    _sprite: {fileID: 21300000, guid: d4eb0bfca82546347aedf17adbdf78b2, type: 3}
+    _sprite: {fileID: 21300000, guid: 6a2663ec3cb2f4a4ca8f60fb3856a4f1, type: 3}
   - _key: meteor|1/False
-    _sprite: {fileID: 21300000, guid: 77c8a5c83cf3f254899e1ea66f90365a, type: 3}
+    _sprite: {fileID: 21300000, guid: 5c92b90102a93d74daa8dc1dfd77e07f, type: 3}
   - _key: meteor|1/True
-    _sprite: {fileID: 21300000, guid: 8fd7fd4b468c89e4c9447402c50a1492, type: 3}
+    _sprite: {fileID: 21300000, guid: aef88516af6ad8a4797a95f37b8170d0, type: 3}
   - _key: meteor|2/False
-    _sprite: {fileID: 21300000, guid: 50d60d5f60466224aacd052406366ba2, type: 3}
+    _sprite: {fileID: 21300000, guid: 94543ad7478c0cc4ca68d187754334c9, type: 3}
   - _key: meteor|2/True
-    _sprite: {fileID: 21300000, guid: 3cce93c29b1c4b54fb34032f6b47fb9c, type: 3}
+    _sprite: {fileID: 21300000, guid: 95127e4c7d3243d44827744b0b7a29a9, type: 3}
   - _key: meteor|3/False
-    _sprite: {fileID: 21300000, guid: 1172b9eb2fb902f488cd52f0d8bc2708, type: 3}
+    _sprite: {fileID: 21300000, guid: 848a59798812f6c47b564693d57debb3, type: 3}
   - _key: meteor|3/True
-    _sprite: {fileID: 21300000, guid: 3c8cb0c085ac02a48a92248ded6f5d71, type: 3}
+    _sprite: {fileID: 21300000, guid: a6f51d5775f228a419109e583f574e8c, type: 3}
   - _key: pickup|bomb
-    _sprite: {fileID: 21300000, guid: 3e48101cd1c7e3b448c4b842fe3b678e, type: 3}
+    _sprite: {fileID: 21300000, guid: f93486fb901d736419370db18bc09425, type: 3}
   - _key: pickup|magnet
-    _sprite: {fileID: 21300000, guid: 0ea2ebc93f883b04bb9acfd1ef9445dc, type: 3}
+    _sprite: {fileID: 21300000, guid: b9f0b07bb9bb5504da755aca035fcda6, type: 3}
   - _key: pickup|overdrive
-    _sprite: {fileID: 21300000, guid: 54e63ab9966b31845b7bc7d11b5e3402, type: 3}
+    _sprite: {fileID: 21300000, guid: 12377da94331c06429672dadc0c95499, type: 3}
   - _key: pickup|part
-    _sprite: {fileID: 21300000, guid: 58eeb3153c6b79e4da2cad798f56818e, type: 3}
+    _sprite: {fileID: 21300000, guid: f0cc0ff0216fa4c49b70b2825e95a242, type: 3}
   - _key: pickup|repair
-    _sprite: {fileID: 21300000, guid: beebba2d2a98d4441a4a4387084fb13d, type: 3}
+    _sprite: {fileID: 21300000, guid: 54fac0b4440abe040863cd095ee12c63, type: 3}
   - _key: pickup|xp
-    _sprite: {fileID: 21300000, guid: 294f841cded569d4a9e6ac3765400dd7, type: 3}
+    _sprite: {fileID: 21300000, guid: 9d1b6c4f9e98f1c478e37d0caba8147f, type: 3}
   - _key: projectile-frame|gunner|0
-    _sprite: {fileID: 21300000, guid: f9b88f7df3bd6074eb5b658c2a25ad6e, type: 3}
+    _sprite: {fileID: 21300000, guid: 1b9b3174cb71afc4cbc2ac2380f4f3bd, type: 3}
   - _key: projectile-frame|gunner|1
-    _sprite: {fileID: 21300000, guid: 3bb2044164ef8a741ad740446ebe97fc, type: 3}
+    _sprite: {fileID: 21300000, guid: 8ace758034b72fe4baa4e008879f28f5, type: 3}
   - _key: projectile-frame|gunner|10
-    _sprite: {fileID: 21300000, guid: 4bcc4f6a097a9cf4d8511137b00e72d1, type: 3}
+    _sprite: {fileID: 21300000, guid: 2ad8f6e119ef0194ab8f9201b52eca46, type: 3}
   - _key: projectile-frame|gunner|11
-    _sprite: {fileID: 21300000, guid: 647674f916d5b36409dc9b883b6f3f87, type: 3}
+    _sprite: {fileID: 21300000, guid: 064f21d46f9252c49a0e263cf0f7873c, type: 3}
   - _key: projectile-frame|gunner|12
-    _sprite: {fileID: 21300000, guid: 33e43e1309ebaed43acb5b3e4120c868, type: 3}
+    _sprite: {fileID: 21300000, guid: 66e4d9178a11da44d9a88da720b11a86, type: 3}
   - _key: projectile-frame|gunner|13
-    _sprite: {fileID: 21300000, guid: 5019b0556fc1b104e9df0bcdfacf58c1, type: 3}
+    _sprite: {fileID: 21300000, guid: 92c340788bdce0c47b2134d979621f9b, type: 3}
   - _key: projectile-frame|gunner|14
-    _sprite: {fileID: 21300000, guid: 11423864b1ef7d341bf65af6899f3760, type: 3}
+    _sprite: {fileID: 21300000, guid: 969369c0ef6c8384daa9dec2d38e10d3, type: 3}
   - _key: projectile-frame|gunner|15
-    _sprite: {fileID: 21300000, guid: 7e93f9213d799be4d922cea114f5dd2b, type: 3}
+    _sprite: {fileID: 21300000, guid: 2f6a0ef79a084824287d04dabd664cad, type: 3}
   - _key: projectile-frame|gunner|16
-    _sprite: {fileID: 21300000, guid: a22d3341ed4071c47ad4688147347fa7, type: 3}
+    _sprite: {fileID: 21300000, guid: a613f8413c3b09642ae96c8e3f3cd70d, type: 3}
   - _key: projectile-frame|gunner|17
-    _sprite: {fileID: 21300000, guid: f645dfa6d1c192346916f21716e4e559, type: 3}
+    _sprite: {fileID: 21300000, guid: 78e38163931bdde439d192aa6fdb6d80, type: 3}
   - _key: projectile-frame|gunner|18
-    _sprite: {fileID: 21300000, guid: e29a2610b18bbc249887014e428fa1c4, type: 3}
+    _sprite: {fileID: 21300000, guid: f766443c0d449764088dc44856d52dce, type: 3}
   - _key: projectile-frame|gunner|19
-    _sprite: {fileID: 21300000, guid: 7a59a8e791a1511409d493f568e02fe9, type: 3}
+    _sprite: {fileID: 21300000, guid: 5d21e6a12239a2e4a9bf3805939c4b42, type: 3}
   - _key: projectile-frame|gunner|2
-    _sprite: {fileID: 21300000, guid: 6bbdde7410937b842bcbacf11fda198b, type: 3}
+    _sprite: {fileID: 21300000, guid: eceb5846feb2814448c4020ff5038573, type: 3}
   - _key: projectile-frame|gunner|20
-    _sprite: {fileID: 21300000, guid: 757d6e9dfb3275a489650ab1d4d70566, type: 3}
+    _sprite: {fileID: 21300000, guid: eb97c11873958f049a6f2749e188da29, type: 3}
   - _key: projectile-frame|gunner|21
-    _sprite: {fileID: 21300000, guid: b6745b6b391e5ff46bde165e7a08897a, type: 3}
+    _sprite: {fileID: 21300000, guid: ddd41697d4918ed479d3c571c09d961b, type: 3}
   - _key: projectile-frame|gunner|22
-    _sprite: {fileID: 21300000, guid: 51a9c5b97e9a33948917b21a1936972e, type: 3}
+    _sprite: {fileID: 21300000, guid: 0ff52d0fc3c24724bb7ba1d848f301b7, type: 3}
   - _key: projectile-frame|gunner|23
-    _sprite: {fileID: 21300000, guid: 04aa449a581e0284a8bc81f22cf5b59f, type: 3}
+    _sprite: {fileID: 21300000, guid: 4fb42f235d0deea48a0d70bbf36ccf9c, type: 3}
   - _key: projectile-frame|gunner|24
-    _sprite: {fileID: 21300000, guid: a1271da5d99e18545bd1764e09a5f1c9, type: 3}
+    _sprite: {fileID: 21300000, guid: 606bf67970a64ac42b063c782b78d8c1, type: 3}
   - _key: projectile-frame|gunner|25
-    _sprite: {fileID: 21300000, guid: be23947681b0ba8479e4b9e0bf65dfc7, type: 3}
+    _sprite: {fileID: 21300000, guid: 8679fdb3484c9364296f066b34993889, type: 3}
   - _key: projectile-frame|gunner|26
-    _sprite: {fileID: 21300000, guid: 7e098187218cdcc4d845ffcde509b524, type: 3}
+    _sprite: {fileID: 21300000, guid: b6a8f3d3b224d484bab9b915b762cb45, type: 3}
   - _key: projectile-frame|gunner|27
-    _sprite: {fileID: 21300000, guid: 97385686a2c45b94aa6908ada700de9e, type: 3}
+    _sprite: {fileID: 21300000, guid: 8db66d8f8e597654b87c3932f34153d2, type: 3}
   - _key: projectile-frame|gunner|28
-    _sprite: {fileID: 21300000, guid: c66bb8fce751b40428da825cbb6cf43b, type: 3}
+    _sprite: {fileID: 21300000, guid: 254e1ffa7e5719b498f6ac0dc5263524, type: 3}
   - _key: projectile-frame|gunner|29
-    _sprite: {fileID: 21300000, guid: 3405ec8e532739244a6088ab272faa65, type: 3}
+    _sprite: {fileID: 21300000, guid: 857f7516ea39f3e4ca0ebc9f56d2d7c2, type: 3}
   - _key: projectile-frame|gunner|3
-    _sprite: {fileID: 21300000, guid: d66a089aa999de84fb5519f158aa41b7, type: 3}
+    _sprite: {fileID: 21300000, guid: bc63c52d631f5ed4e95ed005e2aaa224, type: 3}
   - _key: projectile-frame|gunner|30
-    _sprite: {fileID: 21300000, guid: f7a706cf8b06f544ab54c828c4dc9f3e, type: 3}
+    _sprite: {fileID: 21300000, guid: af0237f6cac421040b990f91ea05f1ab, type: 3}
   - _key: projectile-frame|gunner|31
-    _sprite: {fileID: 21300000, guid: ac0697c2e0f11464aa85b15ee432ec68, type: 3}
+    _sprite: {fileID: 21300000, guid: 9ed29cb2cdb9e6f48b8356c9369f94a6, type: 3}
   - _key: projectile-frame|gunner|4
-    _sprite: {fileID: 21300000, guid: 91536cb5e2ab0974abcdec1a2ea934a8, type: 3}
+    _sprite: {fileID: 21300000, guid: 4d8ae5ecd0bd27246b6b3eefeb6fc4fa, type: 3}
   - _key: projectile-frame|gunner|5
-    _sprite: {fileID: 21300000, guid: 9b5d5f6aedd6d9147890b7ac27bd4512, type: 3}
+    _sprite: {fileID: 21300000, guid: b920d8996933e2f42a290c78fbc9954f, type: 3}
   - _key: projectile-frame|gunner|6
-    _sprite: {fileID: 21300000, guid: d21ec82d09187af4fa130ea914d3d33c, type: 3}
+    _sprite: {fileID: 21300000, guid: 6cf60b3fe42a0e9439665dc45322ad99, type: 3}
   - _key: projectile-frame|gunner|7
-    _sprite: {fileID: 21300000, guid: fe3d16405e95b894aa22146de2441d07, type: 3}
+    _sprite: {fileID: 21300000, guid: b96f6b862b35a914cb30b3066c007a39, type: 3}
   - _key: projectile-frame|gunner|8
-    _sprite: {fileID: 21300000, guid: fade46bf6de766348aa21662888446eb, type: 3}
+    _sprite: {fileID: 21300000, guid: 7b7ec2f214918924fb33f5838c3377ff, type: 3}
   - _key: projectile-frame|gunner|9
-    _sprite: {fileID: 21300000, guid: 861099ae2586a4848b5f7ebc368a78f9, type: 3}
+    _sprite: {fileID: 21300000, guid: 23b017930b5e25c4aa75466de09634ee, type: 3}
   - _key: projectile-frame|pistol|0
-    _sprite: {fileID: 21300000, guid: d47dd916a7cc85847956d07f15f8e2fe, type: 3}
+    _sprite: {fileID: 21300000, guid: f44d5de14c0940943b5ec7577577d751, type: 3}
   - _key: projectile-frame|pistol|1
-    _sprite: {fileID: 21300000, guid: 3fdeb7e680446ca46bd53aa1eea70d99, type: 3}
+    _sprite: {fileID: 21300000, guid: 5000427ab4b33ed4787b2a5754f11d72, type: 3}
   - _key: projectile-frame|pistol|10
-    _sprite: {fileID: 21300000, guid: 1d2e7f91f0ea3da47a63b1e0f27fa53a, type: 3}
+    _sprite: {fileID: 21300000, guid: a1619b46686e4ab47b61ebee7a282d5b, type: 3}
   - _key: projectile-frame|pistol|11
-    _sprite: {fileID: 21300000, guid: 4a52b5d814e4a464580a71f0a010d2be, type: 3}
+    _sprite: {fileID: 21300000, guid: 4634e598aae9290479df1a28910f9d0b, type: 3}
   - _key: projectile-frame|pistol|12
-    _sprite: {fileID: 21300000, guid: 70a59176727d31948b769454d9ea4425, type: 3}
+    _sprite: {fileID: 21300000, guid: 0ab6f42c829b73648beb049009b6b725, type: 3}
   - _key: projectile-frame|pistol|13
-    _sprite: {fileID: 21300000, guid: 5cc24c5749223594983d23a5376d9a3e, type: 3}
+    _sprite: {fileID: 21300000, guid: cfe166cce60b2594f889bc28683b3a52, type: 3}
   - _key: projectile-frame|pistol|14
-    _sprite: {fileID: 21300000, guid: 41c0a4b7f72e8a540b9f21ad9776fd5c, type: 3}
+    _sprite: {fileID: 21300000, guid: 964f861576a32934fa8fb43a9f72f48b, type: 3}
   - _key: projectile-frame|pistol|15
-    _sprite: {fileID: 21300000, guid: 2891a8902f963734d94b77b6fbdc0faa, type: 3}
+    _sprite: {fileID: 21300000, guid: ab7d217ad507b8f4ea7fbc39009ba7cd, type: 3}
   - _key: projectile-frame|pistol|16
-    _sprite: {fileID: 21300000, guid: 29ef09c742366c54bbf2820f0d281320, type: 3}
+    _sprite: {fileID: 21300000, guid: cf9e5b07096eb364fa398663767659aa, type: 3}
   - _key: projectile-frame|pistol|17
-    _sprite: {fileID: 21300000, guid: 6e15cbb2aff94e24190c3c9e80be08bc, type: 3}
+    _sprite: {fileID: 21300000, guid: 2472d6d309027b84cb746617e197c331, type: 3}
   - _key: projectile-frame|pistol|18
-    _sprite: {fileID: 21300000, guid: 9f61d8c31b946d945bf0493995987484, type: 3}
+    _sprite: {fileID: 21300000, guid: 331a489b5d7fd334fa327b57e9f211b3, type: 3}
   - _key: projectile-frame|pistol|19
-    _sprite: {fileID: 21300000, guid: 21fc4c0fce3147c4182f979148662d2b, type: 3}
+    _sprite: {fileID: 21300000, guid: 9a22053533a8e1d4fa7c3e447ac1a8ed, type: 3}
   - _key: projectile-frame|pistol|2
-    _sprite: {fileID: 21300000, guid: 7a0232f849dedde4a9354b62c9bbb701, type: 3}
+    _sprite: {fileID: 21300000, guid: adad356a0f06a744bb7843a1e004a294, type: 3}
   - _key: projectile-frame|pistol|20
-    _sprite: {fileID: 21300000, guid: d23b10666ac870b45b48e7e591b3c0e7, type: 3}
+    _sprite: {fileID: 21300000, guid: 3fa3da84e26b8364eacd9a58d4205126, type: 3}
   - _key: projectile-frame|pistol|21
-    _sprite: {fileID: 21300000, guid: 0756f8dddd9602941abd4cadcc1ed152, type: 3}
+    _sprite: {fileID: 21300000, guid: 2721518b3c996804d8ac5e7c98c58875, type: 3}
   - _key: projectile-frame|pistol|22
-    _sprite: {fileID: 21300000, guid: 636cca6a7edb5d34d935e88d4ff9a7b8, type: 3}
+    _sprite: {fileID: 21300000, guid: 87983f8219f7a6c48a3d63a8cc91f1fa, type: 3}
   - _key: projectile-frame|pistol|23
-    _sprite: {fileID: 21300000, guid: 0fcb4898121585d4198404451e51e622, type: 3}
+    _sprite: {fileID: 21300000, guid: ed8c78ccbe81a8143a186753c700e556, type: 3}
   - _key: projectile-frame|pistol|24
-    _sprite: {fileID: 21300000, guid: 311fe2482938c734b803ba34277dc8c0, type: 3}
+    _sprite: {fileID: 21300000, guid: 64dd459cb73fa7742806b6aa3f765e74, type: 3}
   - _key: projectile-frame|pistol|25
-    _sprite: {fileID: 21300000, guid: a078717f33da7d04890d23b9cf62bd3e, type: 3}
+    _sprite: {fileID: 21300000, guid: dc50875e11d52f2458f3d467fda2b6d3, type: 3}
   - _key: projectile-frame|pistol|26
-    _sprite: {fileID: 21300000, guid: 2caa30a769dbed14096c3612247840e7, type: 3}
+    _sprite: {fileID: 21300000, guid: 6ae0c38471bc5e148967f4666aeb3aae, type: 3}
   - _key: projectile-frame|pistol|27
-    _sprite: {fileID: 21300000, guid: f0f31f595674c66469d23b8222fd72fa, type: 3}
+    _sprite: {fileID: 21300000, guid: c1486d646ca43a54d9608b5a011832f1, type: 3}
   - _key: projectile-frame|pistol|28
-    _sprite: {fileID: 21300000, guid: 81206c0694db43b488909816b440683c, type: 3}
+    _sprite: {fileID: 21300000, guid: 58a8292c1f6454b4c8656d645071c428, type: 3}
   - _key: projectile-frame|pistol|29
-    _sprite: {fileID: 21300000, guid: 1d74630072368614a8b3a3f02c642912, type: 3}
+    _sprite: {fileID: 21300000, guid: d250023c37da76642894f9e127f5b58b, type: 3}
   - _key: projectile-frame|pistol|3
-    _sprite: {fileID: 21300000, guid: 115f61cefa1cd6c498eb7502968f0240, type: 3}
+    _sprite: {fileID: 21300000, guid: 82618948be93caf41aff688dd4c419e2, type: 3}
   - _key: projectile-frame|pistol|30
-    _sprite: {fileID: 21300000, guid: c108409ceba387442b22f87cb9b5a5af, type: 3}
+    _sprite: {fileID: 21300000, guid: 00dc89f11d08be84fbaf81b9ef90000f, type: 3}
   - _key: projectile-frame|pistol|31
-    _sprite: {fileID: 21300000, guid: 42ab4deee80f96a4b9ca1cd3c1087955, type: 3}
+    _sprite: {fileID: 21300000, guid: 7fe784d57dedbe841adc595e67d37201, type: 3}
   - _key: projectile-frame|pistol|4
-    _sprite: {fileID: 21300000, guid: 5a160707bd586614199a6761c47d8bfb, type: 3}
+    _sprite: {fileID: 21300000, guid: 04fea5900220ef24b95556163f9cdeff, type: 3}
   - _key: projectile-frame|pistol|5
-    _sprite: {fileID: 21300000, guid: 2897b89ae5e203241ae7e4ac1ee5b332, type: 3}
+    _sprite: {fileID: 21300000, guid: 7c7970e625e3b8041aba4c86b28a3719, type: 3}
   - _key: projectile-frame|pistol|6
-    _sprite: {fileID: 21300000, guid: 8b77d29bf4cdd514db3dcc36ea8083d1, type: 3}
+    _sprite: {fileID: 21300000, guid: caa5a23fe645b9045a94d5e45333ee01, type: 3}
   - _key: projectile-frame|pistol|7
-    _sprite: {fileID: 21300000, guid: c9ecd7080b48df84b9e712213376fe98, type: 3}
+    _sprite: {fileID: 21300000, guid: 6987d9a6580f1954c8c97a1200c4a18d, type: 3}
   - _key: projectile-frame|pistol|8
-    _sprite: {fileID: 21300000, guid: 26f0872201ea4604f81d40c81ff1a2a6, type: 3}
+    _sprite: {fileID: 21300000, guid: ae51ebab5c5cf2749b87aa919dd1b595, type: 3}
   - _key: projectile-frame|pistol|9
-    _sprite: {fileID: 21300000, guid: d0778e57b2e5a2e4b91df57ca4706dc2, type: 3}
+    _sprite: {fileID: 21300000, guid: b525a7c1f07ec2a4b91c454805043a22, type: 3}
   - _key: projectile-frame|railgun|0
-    _sprite: {fileID: 21300000, guid: f9ec52d7e1bc1a749a3b901e87a6e07a, type: 3}
+    _sprite: {fileID: 21300000, guid: f0909209250931d498074327d6e07005, type: 3}
   - _key: projectile-frame|railgun|1
-    _sprite: {fileID: 21300000, guid: c20216502e38b41498d1534e9ee71e09, type: 3}
+    _sprite: {fileID: 21300000, guid: 04c308f210edaf042b1301e2cc039f4a, type: 3}
   - _key: projectile-frame|railgun|10
-    _sprite: {fileID: 21300000, guid: e77b2986088e4a94daee662ec597209c, type: 3}
+    _sprite: {fileID: 21300000, guid: 24e8d4c315797804c8a9cf204764d72c, type: 3}
   - _key: projectile-frame|railgun|11
-    _sprite: {fileID: 21300000, guid: 19a12281389ba0b4f8147de3b496a208, type: 3}
+    _sprite: {fileID: 21300000, guid: d36789f0d0fee2546a71186584df7236, type: 3}
   - _key: projectile-frame|railgun|12
-    _sprite: {fileID: 21300000, guid: 26d308d136ce9974fbfcda94796a0596, type: 3}
+    _sprite: {fileID: 21300000, guid: b7f397e4ae9d1ab49a6d1788c3856772, type: 3}
   - _key: projectile-frame|railgun|13
-    _sprite: {fileID: 21300000, guid: 927195198a621a14585d66d2aae8e50b, type: 3}
+    _sprite: {fileID: 21300000, guid: c1e08c725abd966459f50938f39fe40c, type: 3}
   - _key: projectile-frame|railgun|14
-    _sprite: {fileID: 21300000, guid: a4e2feb28c09b764bba46f21973c34f0, type: 3}
+    _sprite: {fileID: 21300000, guid: 235b59599a2dff547984c8bd89dd57bb, type: 3}
   - _key: projectile-frame|railgun|15
-    _sprite: {fileID: 21300000, guid: 934db7e768e2bc848a84c1ff4d5b7583, type: 3}
+    _sprite: {fileID: 21300000, guid: c24b9e0082735c14baa864f80aca73b6, type: 3}
   - _key: projectile-frame|railgun|16
-    _sprite: {fileID: 21300000, guid: b2a3643723bb08d4d9b2247abc53b733, type: 3}
+    _sprite: {fileID: 21300000, guid: 7936e9b133f94d2448d173ec0c86bcf6, type: 3}
   - _key: projectile-frame|railgun|17
-    _sprite: {fileID: 21300000, guid: ac466a04dbe97e54a95a39dcffc4e748, type: 3}
+    _sprite: {fileID: 21300000, guid: 90c837f2503109b4eb986a33e876529f, type: 3}
   - _key: projectile-frame|railgun|18
-    _sprite: {fileID: 21300000, guid: a0e3d332ed7425c488cb0afe4f17e62b, type: 3}
+    _sprite: {fileID: 21300000, guid: c677d1743844c2848aad81636bc23580, type: 3}
   - _key: projectile-frame|railgun|19
-    _sprite: {fileID: 21300000, guid: 6ceabd0f2f3d303489ebafd4f16f6956, type: 3}
+    _sprite: {fileID: 21300000, guid: 47716a04e2b5c4142b64a0e23fc76349, type: 3}
   - _key: projectile-frame|railgun|2
-    _sprite: {fileID: 21300000, guid: 3aeded8381094a944b3fa2ce2fbd99a0, type: 3}
+    _sprite: {fileID: 21300000, guid: c893479906200ab4690084ebd62a29f1, type: 3}
   - _key: projectile-frame|railgun|20
-    _sprite: {fileID: 21300000, guid: 3823a739febaabc4bb89a0f325abe432, type: 3}
+    _sprite: {fileID: 21300000, guid: 72a8fd374c1f6e04b84a515d625bbb2f, type: 3}
   - _key: projectile-frame|railgun|21
-    _sprite: {fileID: 21300000, guid: 4cd99d5411e04904bb284b140a715470, type: 3}
+    _sprite: {fileID: 21300000, guid: e43c79333161bd642a69c6b2b51bfa56, type: 3}
   - _key: projectile-frame|railgun|22
-    _sprite: {fileID: 21300000, guid: 79cca38488e388e47aadceaf63dbd6a8, type: 3}
+    _sprite: {fileID: 21300000, guid: 2c8e867dc5421d142886b59368fe5628, type: 3}
   - _key: projectile-frame|railgun|23
-    _sprite: {fileID: 21300000, guid: 4189ecbadc0d304429366434956cfb93, type: 3}
+    _sprite: {fileID: 21300000, guid: 0cc68cb4342d2a0429a7cd215ed2cb3c, type: 3}
   - _key: projectile-frame|railgun|24
-    _sprite: {fileID: 21300000, guid: 7d8579aacc2d0fe48ae192e9fe0dddbc, type: 3}
+    _sprite: {fileID: 21300000, guid: 9240d7da5fc3bb041b8f546757cafd4f, type: 3}
   - _key: projectile-frame|railgun|25
-    _sprite: {fileID: 21300000, guid: 5e664a165f98f8c4eaf18ec62882c03a, type: 3}
+    _sprite: {fileID: 21300000, guid: 36754538d1a88394d9e1c98a4e6cb282, type: 3}
   - _key: projectile-frame|railgun|26
-    _sprite: {fileID: 21300000, guid: cb4abd4d9fb238f49a7ec807a413ae81, type: 3}
+    _sprite: {fileID: 21300000, guid: 3f247443f19e15948b80d71e78435651, type: 3}
   - _key: projectile-frame|railgun|27
-    _sprite: {fileID: 21300000, guid: d3a44a997d56a474fa2b682f5b19afeb, type: 3}
+    _sprite: {fileID: 21300000, guid: 79b648a4647e932439e530a01f0c7837, type: 3}
   - _key: projectile-frame|railgun|28
-    _sprite: {fileID: 21300000, guid: f7af059f222c1e241974838ed9045acc, type: 3}
+    _sprite: {fileID: 21300000, guid: 46945dbac8fa8574d91eb1c247382538, type: 3}
   - _key: projectile-frame|railgun|29
-    _sprite: {fileID: 21300000, guid: 8c2979e941fbe3e458843812fe910387, type: 3}
+    _sprite: {fileID: 21300000, guid: e68fd4d230de2d4448c86cf2d2f7c1f1, type: 3}
   - _key: projectile-frame|railgun|3
-    _sprite: {fileID: 21300000, guid: 71dfa4dcb1c248d45be4a03627ae1299, type: 3}
+    _sprite: {fileID: 21300000, guid: 283b577961387b34292fd233b9780944, type: 3}
   - _key: projectile-frame|railgun|30
-    _sprite: {fileID: 21300000, guid: 671f2614e8f4ee9439906b9f76727302, type: 3}
+    _sprite: {fileID: 21300000, guid: eeeba8b4d86d3a74b9ad87dfd9e7a1f0, type: 3}
   - _key: projectile-frame|railgun|31
-    _sprite: {fileID: 21300000, guid: 195c56acf9f3b774db8c0fff806bc73e, type: 3}
+    _sprite: {fileID: 21300000, guid: 5a328c2d36bd5d64d9717b0837fb11ff, type: 3}
   - _key: projectile-frame|railgun|4
-    _sprite: {fileID: 21300000, guid: 8631fdadf9b9d1340a83fffe39d4b33e, type: 3}
+    _sprite: {fileID: 21300000, guid: 072d212a336bb8443a4f523fa71840f1, type: 3}
   - _key: projectile-frame|railgun|5
-    _sprite: {fileID: 21300000, guid: 5b52f098a17d86c48a84d86fe3da762f, type: 3}
+    _sprite: {fileID: 21300000, guid: e029f49592903244abf4e9723ecb88ac, type: 3}
   - _key: projectile-frame|railgun|6
-    _sprite: {fileID: 21300000, guid: 5de0ce05e6d0d9940b0975583af53593, type: 3}
+    _sprite: {fileID: 21300000, guid: 8cb19f5b73d27744e953fb8f2a4c5afe, type: 3}
   - _key: projectile-frame|railgun|7
-    _sprite: {fileID: 21300000, guid: 715928f3c9aea6f4cabb551b6e3af6fe, type: 3}
+    _sprite: {fileID: 21300000, guid: f6f3dd703e4e294449289a2abeb0d5fa, type: 3}
   - _key: projectile-frame|railgun|8
-    _sprite: {fileID: 21300000, guid: b7ad4757b3f9ca54ea3113a508e385b6, type: 3}
+    _sprite: {fileID: 21300000, guid: ae6a0895c81f2fc4c8858a7976d1ef26, type: 3}
   - _key: projectile-frame|railgun|9
-    _sprite: {fileID: 21300000, guid: 53b5ff439b4b3474aa00adfbce83f3a0, type: 3}
+    _sprite: {fileID: 21300000, guid: d07fbb46606c46349861a7b82daef457, type: 3}
   - _key: projectile-frame|scattergun|0
-    _sprite: {fileID: 21300000, guid: 21a44e06dab26ad4dbb3d7f00bde3906, type: 3}
+    _sprite: {fileID: 21300000, guid: 591e7e28c119d63449208f796c0fd6af, type: 3}
   - _key: projectile-frame|scattergun|1
-    _sprite: {fileID: 21300000, guid: 869ac779830bf5742898b3094817b2df, type: 3}
+    _sprite: {fileID: 21300000, guid: 7a016265b78940949b1a9a4b69d14c7e, type: 3}
   - _key: projectile-frame|scattergun|10
-    _sprite: {fileID: 21300000, guid: 40f8ed77d90b52240aece30a635d11dc, type: 3}
+    _sprite: {fileID: 21300000, guid: 4750bcf2b3b5e1744a060ecb6a1c5d67, type: 3}
   - _key: projectile-frame|scattergun|11
-    _sprite: {fileID: 21300000, guid: d75ef94ea4787ef4aa6a82f431f4591e, type: 3}
+    _sprite: {fileID: 21300000, guid: 16a7f5e50210abd4b998ceb1c1ce761d, type: 3}
   - _key: projectile-frame|scattergun|12
-    _sprite: {fileID: 21300000, guid: e77c67c1dbf7ea84ea2c5ec3ee7777ea, type: 3}
+    _sprite: {fileID: 21300000, guid: 25eca552142fd944b992777cefd3e717, type: 3}
   - _key: projectile-frame|scattergun|13
-    _sprite: {fileID: 21300000, guid: 9f1eb36decbef0a44b1ca1af2bfbd198, type: 3}
+    _sprite: {fileID: 21300000, guid: db7fa1ab07780894ca6b08140f3d67fc, type: 3}
   - _key: projectile-frame|scattergun|14
-    _sprite: {fileID: 21300000, guid: 370de3bde28d78b4cb9226c53f6a3a80, type: 3}
+    _sprite: {fileID: 21300000, guid: b38dca07fa7e4e546be31930a9f44ef0, type: 3}
   - _key: projectile-frame|scattergun|15
-    _sprite: {fileID: 21300000, guid: 0d7172e02080fa84988b03a6e5a9ea86, type: 3}
+    _sprite: {fileID: 21300000, guid: 1ee142ea22905b940a3410e378472f16, type: 3}
   - _key: projectile-frame|scattergun|16
-    _sprite: {fileID: 21300000, guid: 5bbb2ec910aa1f643b3486b73aa7912b, type: 3}
+    _sprite: {fileID: 21300000, guid: c4935e43d4c891f4a9e2d00c799d13c9, type: 3}
   - _key: projectile-frame|scattergun|17
-    _sprite: {fileID: 21300000, guid: feed3d0e5d91e81489f370341ce63994, type: 3}
+    _sprite: {fileID: 21300000, guid: 2263ad42732304148ab578496f290c6e, type: 3}
   - _key: projectile-frame|scattergun|18
-    _sprite: {fileID: 21300000, guid: 037f70627ecdbfa4d9e0725f6498946d, type: 3}
+    _sprite: {fileID: 21300000, guid: 09d08e41e8684cb43bbfa4131ceb18d4, type: 3}
   - _key: projectile-frame|scattergun|19
-    _sprite: {fileID: 21300000, guid: 609e8e7ab6bee374a983edbdf3f41e00, type: 3}
+    _sprite: {fileID: 21300000, guid: f51526ebec3c2f5438e71800a8fe8cfe, type: 3}
   - _key: projectile-frame|scattergun|2
-    _sprite: {fileID: 21300000, guid: 2bdaf8987e6fea24c8bafd3d1a089253, type: 3}
+    _sprite: {fileID: 21300000, guid: 70a37ea18bd738543bd7e66b8ec7862c, type: 3}
   - _key: projectile-frame|scattergun|20
-    _sprite: {fileID: 21300000, guid: dd7736ea2b15a014b9db6a062d51a4fd, type: 3}
+    _sprite: {fileID: 21300000, guid: 08c43680b7a6da047bc7d1957b1b9560, type: 3}
   - _key: projectile-frame|scattergun|21
-    _sprite: {fileID: 21300000, guid: e15a723438d4552499463d67d60aed37, type: 3}
+    _sprite: {fileID: 21300000, guid: c03a721e8054c1a43b465552f7e2fe72, type: 3}
   - _key: projectile-frame|scattergun|22
-    _sprite: {fileID: 21300000, guid: 6f5bb682352778f4e8fbeb18618244ce, type: 3}
+    _sprite: {fileID: 21300000, guid: 4fcd80708ab657d408188bedc7d8e3f9, type: 3}
   - _key: projectile-frame|scattergun|23
-    _sprite: {fileID: 21300000, guid: 17821502fff3eaf4d802bc1c24851bf7, type: 3}
+    _sprite: {fileID: 21300000, guid: 9859ad07c31a71a4b8ad5c060a59ae36, type: 3}
   - _key: projectile-frame|scattergun|24
-    _sprite: {fileID: 21300000, guid: 41e722ea193b21a4eae620f427042741, type: 3}
+    _sprite: {fileID: 21300000, guid: ab34f73498da30b40a15f9cdee478bac, type: 3}
   - _key: projectile-frame|scattergun|25
-    _sprite: {fileID: 21300000, guid: 57c1f355e3bf3e04f9de8583ba993acf, type: 3}
+    _sprite: {fileID: 21300000, guid: 2d682b779d9c382409e9235e621d3cfe, type: 3}
   - _key: projectile-frame|scattergun|26
-    _sprite: {fileID: 21300000, guid: 738c860d4dd76e148802a0649723adc2, type: 3}
+    _sprite: {fileID: 21300000, guid: 2ec69cc2df6706d47a6ed74edcce5117, type: 3}
   - _key: projectile-frame|scattergun|27
-    _sprite: {fileID: 21300000, guid: cb31ff112d0bf6b4685c7e20c9e26dfd, type: 3}
+    _sprite: {fileID: 21300000, guid: 2dae27c9294638b4ba11d5a0a7b0f30a, type: 3}
   - _key: projectile-frame|scattergun|28
-    _sprite: {fileID: 21300000, guid: 187a02652e752d8459fb6d486eec0293, type: 3}
+    _sprite: {fileID: 21300000, guid: 0c7469a89b874744187ff8bf5cb3b3bc, type: 3}
   - _key: projectile-frame|scattergun|29
-    _sprite: {fileID: 21300000, guid: 623bb4340b629b34f80ccc664dc5159b, type: 3}
+    _sprite: {fileID: 21300000, guid: aabc1493c484e2d428d4669b9e087b3b, type: 3}
   - _key: projectile-frame|scattergun|3
-    _sprite: {fileID: 21300000, guid: 3055a719c2371964f9278a032a02d960, type: 3}
+    _sprite: {fileID: 21300000, guid: e5f60dfccea06bd4ab103ca291cdc7a9, type: 3}
   - _key: projectile-frame|scattergun|30
-    _sprite: {fileID: 21300000, guid: 900cd31257e3fb94db3c387160d1f7cc, type: 3}
+    _sprite: {fileID: 21300000, guid: 93d320c50e6ac614c9f8ea6696aca550, type: 3}
   - _key: projectile-frame|scattergun|31
-    _sprite: {fileID: 21300000, guid: e245f1f6a93cffb4988f11ffe14c274d, type: 3}
+    _sprite: {fileID: 21300000, guid: 42e57498f16d4a845bd73937408cfac5, type: 3}
   - _key: projectile-frame|scattergun|4
-    _sprite: {fileID: 21300000, guid: 399674b1cb032034588737aab807cd49, type: 3}
+    _sprite: {fileID: 21300000, guid: ab9510e184ecd104991bb1be5803057a, type: 3}
   - _key: projectile-frame|scattergun|5
-    _sprite: {fileID: 21300000, guid: c99839f59414d214980be9c753962f96, type: 3}
+    _sprite: {fileID: 21300000, guid: b3767ecb3f053c745813bb3b42b3c4b8, type: 3}
   - _key: projectile-frame|scattergun|6
-    _sprite: {fileID: 21300000, guid: 879c9d7a0a7ede04db1050479140453e, type: 3}
+    _sprite: {fileID: 21300000, guid: 99e663aa211306242bb9b79b034a144a, type: 3}
   - _key: projectile-frame|scattergun|7
-    _sprite: {fileID: 21300000, guid: 22f51039ac9e19849a56fb864e5124a2, type: 3}
+    _sprite: {fileID: 21300000, guid: 24b366b363b640443a6cc8b79d16d6ed, type: 3}
   - _key: projectile-frame|scattergun|8
-    _sprite: {fileID: 21300000, guid: 1f9b0896fd0f1df47bdf66f6ac7c8de0, type: 3}
+    _sprite: {fileID: 21300000, guid: 6710f25a10cf66d49ab45b2b9f07ee3f, type: 3}
   - _key: projectile-frame|scattergun|9
-    _sprite: {fileID: 21300000, guid: 11741d5e9b427594e9cb7ca164431dd6, type: 3}
+    _sprite: {fileID: 21300000, guid: bc74e9fc3cf829d46a6429487fa4793e, type: 3}
   - _key: projectile-frame|seeker|0
-    _sprite: {fileID: 21300000, guid: dcbf3e346d946a64594301530b330f43, type: 3}
+    _sprite: {fileID: 21300000, guid: d7276ddd71496f347b287be9252bfb23, type: 3}
   - _key: projectile-frame|seeker|1
-    _sprite: {fileID: 21300000, guid: 3fc2e078da06a40448f514285714ad14, type: 3}
+    _sprite: {fileID: 21300000, guid: d539d010976652141af35fa2d3b13b46, type: 3}
   - _key: projectile-frame|seeker|10
-    _sprite: {fileID: 21300000, guid: e7b467f0283a9df4882c5338befdbef6, type: 3}
+    _sprite: {fileID: 21300000, guid: e2ccc4eeb884041409d6de06c3471d6a, type: 3}
   - _key: projectile-frame|seeker|11
-    _sprite: {fileID: 21300000, guid: ece3f063b1dddf544b42cee3a2fad7c8, type: 3}
+    _sprite: {fileID: 21300000, guid: 0be90408234493c42b9bdaa1014bad9e, type: 3}
   - _key: projectile-frame|seeker|12
-    _sprite: {fileID: 21300000, guid: 44198f2bcaae48043a1e863bc278cec1, type: 3}
+    _sprite: {fileID: 21300000, guid: c9e3b0c305139c04aa6145f8125ec659, type: 3}
   - _key: projectile-frame|seeker|13
-    _sprite: {fileID: 21300000, guid: 9a6ba5567b19578429d1b3674b06c4f3, type: 3}
+    _sprite: {fileID: 21300000, guid: 71c3fa303d93aa24fa4350792e6a76ab, type: 3}
   - _key: projectile-frame|seeker|14
-    _sprite: {fileID: 21300000, guid: c9b166ee29a7d5643ab85e250ac1e277, type: 3}
+    _sprite: {fileID: 21300000, guid: e0c5469629a6d8e48bb67a7565b83291, type: 3}
   - _key: projectile-frame|seeker|15
-    _sprite: {fileID: 21300000, guid: ea3cda9364c3dd341bc329167f6fc6cb, type: 3}
+    _sprite: {fileID: 21300000, guid: 1b199e40a491eb44f82afc0610db3fc6, type: 3}
   - _key: projectile-frame|seeker|16
-    _sprite: {fileID: 21300000, guid: fdcc231af4095ed438718c170d6ba3e5, type: 3}
+    _sprite: {fileID: 21300000, guid: 4f8c91c860f21064786d58a48155485e, type: 3}
   - _key: projectile-frame|seeker|17
-    _sprite: {fileID: 21300000, guid: 345e38b6b103394469fe0f4c914be1a9, type: 3}
+    _sprite: {fileID: 21300000, guid: e934cdf900578ac4785bbe2ab5868f6f, type: 3}
   - _key: projectile-frame|seeker|18
-    _sprite: {fileID: 21300000, guid: 1d9ecbd2176f12b4e881057d5d11b7f1, type: 3}
+    _sprite: {fileID: 21300000, guid: 4faaa624d2588cc4a9e24b56b90e9a70, type: 3}
   - _key: projectile-frame|seeker|19
-    _sprite: {fileID: 21300000, guid: 539faf1b41a945d45ade00ab3d2be777, type: 3}
+    _sprite: {fileID: 21300000, guid: a4cde22388164e844b6f64c0acc660df, type: 3}
   - _key: projectile-frame|seeker|2
-    _sprite: {fileID: 21300000, guid: 9ebbf86b7b8fe93408172908ad7f2380, type: 3}
+    _sprite: {fileID: 21300000, guid: dcbae729fd9682b4aa69a7762b0b65ac, type: 3}
   - _key: projectile-frame|seeker|20
-    _sprite: {fileID: 21300000, guid: f0f7b1cb7d7ea104e9599ddb4ac80eca, type: 3}
+    _sprite: {fileID: 21300000, guid: a2fe63ef65919e046a78847add2d2e10, type: 3}
   - _key: projectile-frame|seeker|21
-    _sprite: {fileID: 21300000, guid: f15adf4662adb784ebec8dd50c737309, type: 3}
+    _sprite: {fileID: 21300000, guid: da8f5aad9a574924baf8d073b24b8b25, type: 3}
   - _key: projectile-frame|seeker|22
-    _sprite: {fileID: 21300000, guid: 6e6078bd3c62b134db9e58908bee6c77, type: 3}
+    _sprite: {fileID: 21300000, guid: 1495b6882ef908c4f8b74ef818146e75, type: 3}
   - _key: projectile-frame|seeker|23
-    _sprite: {fileID: 21300000, guid: 465a2f8d5dbe927428ea1e4e8e586dce, type: 3}
+    _sprite: {fileID: 21300000, guid: 56e2a556664ec2844ba7a9a1cae99e75, type: 3}
   - _key: projectile-frame|seeker|24
-    _sprite: {fileID: 21300000, guid: 8df088e651cdfcb4a9b2aefe8ef77e38, type: 3}
+    _sprite: {fileID: 21300000, guid: 38c7b253fff051042a7145d0c51ccb50, type: 3}
   - _key: projectile-frame|seeker|25
-    _sprite: {fileID: 21300000, guid: 3c9afea6ba54ee0449c6bc5a38a7eb0d, type: 3}
+    _sprite: {fileID: 21300000, guid: 552cbf26342a8b54c81d5a21da8967e6, type: 3}
   - _key: projectile-frame|seeker|26
-    _sprite: {fileID: 21300000, guid: ee31e8766232fe548817159fce64b2b1, type: 3}
+    _sprite: {fileID: 21300000, guid: 5acc493e11394a2489e07ba9d6ac059d, type: 3}
   - _key: projectile-frame|seeker|27
-    _sprite: {fileID: 21300000, guid: 3084635d77401624f9fd98767e675543, type: 3}
+    _sprite: {fileID: 21300000, guid: 647a4ab62fe24e348baec09d3392e3da, type: 3}
   - _key: projectile-frame|seeker|28
-    _sprite: {fileID: 21300000, guid: d3a7e62fa45d80f4a9210a609c9881b1, type: 3}
+    _sprite: {fileID: 21300000, guid: aadf04e5efdb51941b460f2ad093bfdf, type: 3}
   - _key: projectile-frame|seeker|29
-    _sprite: {fileID: 21300000, guid: d8b39ca43214fbe4e889c005ac84b581, type: 3}
+    _sprite: {fileID: 21300000, guid: f09dbf0d3ced4c3428e5fc62c60448e6, type: 3}
   - _key: projectile-frame|seeker|3
-    _sprite: {fileID: 21300000, guid: 77586c86eb72705438e394ff41dd020f, type: 3}
+    _sprite: {fileID: 21300000, guid: ead2d23263e3f544094e807bd9edb67f, type: 3}
   - _key: projectile-frame|seeker|30
-    _sprite: {fileID: 21300000, guid: 6a88252b7514a3049a720e3bf038db04, type: 3}
+    _sprite: {fileID: 21300000, guid: 5fcf0e0956d707e498bff95a83cf7130, type: 3}
   - _key: projectile-frame|seeker|31
-    _sprite: {fileID: 21300000, guid: d2ad24a8010e97448906192cd5d7b3dd, type: 3}
+    _sprite: {fileID: 21300000, guid: 9bb9fd4a64cf4854baf92b4878b5170b, type: 3}
   - _key: projectile-frame|seeker|4
-    _sprite: {fileID: 21300000, guid: b46c92fb5b50f3544bf51ab81615fb74, type: 3}
+    _sprite: {fileID: 21300000, guid: 8a59bc508837cdd4f9b119b879e1e8ee, type: 3}
   - _key: projectile-frame|seeker|5
-    _sprite: {fileID: 21300000, guid: 3932e476d04828c42adc467753b3f43b, type: 3}
+    _sprite: {fileID: 21300000, guid: 1d393eaa8c64abf439e77882d068f153, type: 3}
   - _key: projectile-frame|seeker|6
-    _sprite: {fileID: 21300000, guid: e0b538729db2ad047bc782fd380316c9, type: 3}
+    _sprite: {fileID: 21300000, guid: 8bddd39472877c14789a757a53bbdb9d, type: 3}
   - _key: projectile-frame|seeker|7
-    _sprite: {fileID: 21300000, guid: b86bea3fc64fc0143820001929e805f5, type: 3}
+    _sprite: {fileID: 21300000, guid: 0f7afa0475e80cd4c868b6f27b4f4866, type: 3}
   - _key: projectile-frame|seeker|8
-    _sprite: {fileID: 21300000, guid: 57fc8b14ebc8b254ea7c401cce2e3770, type: 3}
+    _sprite: {fileID: 21300000, guid: de779a7f69cdd114d93cdb433328a02c, type: 3}
   - _key: projectile-frame|seeker|9
-    _sprite: {fileID: 21300000, guid: 149245a537e714f418de46d3bcc2749b, type: 3}
+    _sprite: {fileID: 21300000, guid: 701c62b4345feff4ba27d3aad41d14b6, type: 3}
   - _key: projectile|curved
-    _sprite: {fileID: 21300000, guid: 3dfeb1a574104474fb0bdc25f7364a89, type: 3}
+    _sprite: {fileID: 21300000, guid: 582a634f4c14da644b21787b91ac44c7, type: 3}
   - _key: roster|chaser|0
-    _sprite: {fileID: 21300000, guid: 48f26cddb1a4e7f4f8d5abee5d74491b, type: 3}
+    _sprite: {fileID: 21300000, guid: b013c1723e6db9c46b04afbf5f16692c, type: 3}
   - _key: roster|chaser|1
-    _sprite: {fileID: 21300000, guid: 87782b7e3a4e3d747bfefdeb89a885b7, type: 3}
+    _sprite: {fileID: 21300000, guid: 47c794ec470769b4480468d4ea7deee5, type: 3}
   - _key: roster|exploder|0
-    _sprite: {fileID: 21300000, guid: 6189dda6d97dac34c976bd14ad7ae521, type: 3}
+    _sprite: {fileID: 21300000, guid: 48d485dc3b0cb6c46985f48e0e87cdd8, type: 3}
   - _key: roster|exploder|1
-    _sprite: {fileID: 21300000, guid: 82d3c17ffb5f32c4aba2e0cf373a5367, type: 3}
+    _sprite: {fileID: 21300000, guid: 4165555ca44ae81489650b0b5a8f7f1b, type: 3}
   - _key: roster|guard|0
-    _sprite: {fileID: 21300000, guid: 7c4efbb2f99aa2c46a3f504d7a3e947a, type: 3}
+    _sprite: {fileID: 21300000, guid: 0cdfd1fc03d80c8439f1855e31ea9fbc, type: 3}
   - _key: roster|guard|1
-    _sprite: {fileID: 21300000, guid: 20feb5e9f7ef9d7488bb11a101ecf926, type: 3}
+    _sprite: {fileID: 21300000, guid: a029511d6e8c98145b0b106cd5f85dfd, type: 3}
   - _key: roster|gunner|0
-    _sprite: {fileID: 21300000, guid: 9a40e50ad06793940a7cab13eaeed56c, type: 3}
+    _sprite: {fileID: 21300000, guid: 6c82c7f7d7f8de549908756b4207b293, type: 3}
   - _key: roster|gunner|1
-    _sprite: {fileID: 21300000, guid: feec2a1fd1f874b46b605b95386df129, type: 3}
+    _sprite: {fileID: 21300000, guid: 270479674c924be4a89d9c492d2ef85f, type: 3}
   - _key: workshop-core|0
-    _sprite: {fileID: 21300000, guid: 560813ea251cfce49a1e1bdb093f8e44, type: 3}
+    _sprite: {fileID: 21300000, guid: 21fe16b274c402e4b873a581b134c9a8, type: 3}
   - _key: workshop-core|1
-    _sprite: {fileID: 21300000, guid: af06ba1890096ca44922718aa2400a53, type: 3}
+    _sprite: {fileID: 21300000, guid: 8c061e7e1d18e994abf5c15c1f2d1cde, type: 3}
   - _key: workshop-core|2
-    _sprite: {fileID: 21300000, guid: a03aac16be1baf14f8169c8203b88a17, type: 3}
+    _sprite: {fileID: 21300000, guid: 30899164e79dfb4438e19307244bdf8a, type: 3}
   - _key: workshop-core|3
-    _sprite: {fileID: 21300000, guid: 88c4489ae957d9c48b65bf5737a53681, type: 3}
+    _sprite: {fileID: 21300000, guid: d2bd9136863589441a3aef455d796549, type: 3}
   - _key: workshop-layer|arsenal/1
-    _sprite: {fileID: 21300000, guid: 087b0b4a32fd8754c9aadac028f97191, type: 3}
+    _sprite: {fileID: 21300000, guid: c55334863b72fbd4f830a4dd561052de, type: 3}
   - _key: workshop-layer|arsenal/2
-    _sprite: {fileID: 21300000, guid: 7198fd8c7e0e1a243b13ee8a79bb3905, type: 3}
+    _sprite: {fileID: 21300000, guid: 775da8d3f8ac5a94aa31ed34d0230872, type: 3}
   - _key: workshop-layer|arsenal/3
-    _sprite: {fileID: 21300000, guid: 139e53f00f660ae4484a93d2455387b0, type: 3}
+    _sprite: {fileID: 21300000, guid: 6d5ac005caac7014baf13c51566863e6, type: 3}
   - _key: workshop-layer|integrity/1
-    _sprite: {fileID: 21300000, guid: 02d3fcb2529bcb74f82c59c9b8df07c9, type: 3}
+    _sprite: {fileID: 21300000, guid: bd040c290d0a0d346af7bb8e44a6e974, type: 3}
   - _key: workshop-layer|integrity/2
-    _sprite: {fileID: 21300000, guid: 3c3137ccc64893b40bde2cfa7a173b38, type: 3}
+    _sprite: {fileID: 21300000, guid: 0af0eb2e6b63b2c4abc51ed83952e23c, type: 3}
   - _key: workshop-layer|integrity/3
-    _sprite: {fileID: 21300000, guid: 10b78d5ce1d136c4a90dbf51affbe72c, type: 3}
+    _sprite: {fileID: 21300000, guid: 500f0b34fd9114f4dbc214df89279dff, type: 3}
   - _key: workshop-layer|magnet/1
-    _sprite: {fileID: 21300000, guid: e09a38cf1b0e89340a6c4d3eee85af3d, type: 3}
+    _sprite: {fileID: 21300000, guid: fe6c1e6a5bbcd7340a606c31823ecf93, type: 3}
   - _key: workshop-layer|magnet/2
-    _sprite: {fileID: 21300000, guid: 130337327e5b909438526688345b4065, type: 3}
+    _sprite: {fileID: 21300000, guid: 6f981ba230712b4448b42ff8710e6a4f, type: 3}
   - _key: workshop-layer|magnet/3
-    _sprite: {fileID: 21300000, guid: 41fdb57582f92c44a834feebf97a79ed, type: 3}
+    _sprite: {fileID: 21300000, guid: 484e1079cef61f94896d445d598cf1d5, type: 3}
   - _key: workshop-layer|power/1
-    _sprite: {fileID: 21300000, guid: 7c32ad4bf2845fc4d86db2b5ae26429c, type: 3}
+    _sprite: {fileID: 21300000, guid: 86c8f510bb2857647b25cd1e6cd2ca61, type: 3}
   - _key: workshop-layer|power/2
-    _sprite: {fileID: 21300000, guid: 731c26970947d8a479a770f98e5ab18c, type: 3}
+    _sprite: {fileID: 21300000, guid: d470947a49bcb6046bea97fb3b786463, type: 3}
   - _key: workshop-layer|power/3
-    _sprite: {fileID: 21300000, guid: 8f59173792289fe4387ac1e37a1d41b9, type: 3}
+    _sprite: {fileID: 21300000, guid: 2feb3a177317822418d0ded615ee3041, type: 3}
   - _key: workshop-layer|precision/1
-    _sprite: {fileID: 21300000, guid: fd8322d4577d9834b997533e6a67270a, type: 3}
+    _sprite: {fileID: 21300000, guid: 0de816e0c5a2dd644a780060000100fe, type: 3}
   - _key: workshop-layer|precision/2
-    _sprite: {fileID: 21300000, guid: f433968d86d9a8c439d03f227ccda89b, type: 3}
+    _sprite: {fileID: 21300000, guid: a754b0a4f74c04c47b7dfd095aeb3511, type: 3}
   - _key: workshop-layer|precision/3
-    _sprite: {fileID: 21300000, guid: 2b25d736317691b439ecf3ba446122dd, type: 3}
+    _sprite: {fileID: 21300000, guid: cbc04cdd466086f4bb18c18f61752be2, type: 3}
   - _key: workshop-layer|protocol/1
-    _sprite: {fileID: 21300000, guid: 295027a6c3a73a64da81500fde9bdd2e, type: 3}
+    _sprite: {fileID: 21300000, guid: c43bc0eb6da6eb147aa8cfce9103868d, type: 3}
   - _key: workshop-layer|recovery/1
-    _sprite: {fileID: 21300000, guid: 7697739c7efe39549b8cea7e56e0602e, type: 3}
+    _sprite: {fileID: 21300000, guid: 0d2825f73276e764e99ebef16a7e2726, type: 3}
   - _key: workshop-layer|recovery/2
-    _sprite: {fileID: 21300000, guid: cae19b31d8bf60143ae5153d5840e70c, type: 3}
+    _sprite: {fileID: 21300000, guid: 34e5355022922f546be745dfaecd21ca, type: 3}
   - _key: workshop-layer|recovery/3
-    _sprite: {fileID: 21300000, guid: cea5503a3fea74040a4226baaeac4f86, type: 3}
+    _sprite: {fileID: 21300000, guid: f157ee9b21fbbe04bb39f4d5fe97ff2f, type: 3}
+  - _key: arena-vignette|3
+    _sprite: {fileID: 21300000, guid: 74911bb77a9d87a4d9bd68b9572abfd3, type: 3}
+  - _key: projectile|hydra-rib
+    _sprite: {fileID: 21300000, guid: 1fdaf7cf7f9c3ad48ae0558deb7eff86, type: 3}

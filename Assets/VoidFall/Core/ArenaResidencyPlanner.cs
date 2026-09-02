@@ -40,6 +40,8 @@ namespace VoidFall.Core
 
     public static class ArenaResidencyPlanner
     {
+        public const int MaximumResidentPackages = 5;
+
         public static ArenaResidentSet Steady(
             ArenaPackageKey current,
             ArenaPackageKey exitA = default,
@@ -51,6 +53,29 @@ namespace VoidFall.Core
             AddUnique(items, ref count, exitA);
             AddUnique(items, ref count, exitB);
             if (count == items.Length) return new ArenaResidentSet(items);
+            var compact = new ArenaPackageKey[count];
+            Array.Copy(items, compact, count);
+            return new ArenaResidentSet(compact);
+        }
+
+        /// <summary>
+        /// The menu is a freely scrollable catalogue rather than a route node.
+        /// Keep every prepared preview resident so cycling never exposes the
+        /// lightweight fallback while a newly selected arena starts loading.
+        /// Gameplay continues to use <see cref="Steady"/> and its three-package
+        /// current-plus-exits budget.
+        /// </summary>
+        public static ArenaResidentSet MenuCatalogue(params ArenaPackageKey[] packages)
+        {
+            if (packages == null || packages.Length == 0)
+                return new ArenaResidentSet(Array.Empty<ArenaPackageKey>());
+
+            var items = new ArenaPackageKey[MaximumResidentPackages];
+            var count = 0;
+            for (var index = 0; index < packages.Length && count < items.Length; index++)
+                AddUnique(items, ref count, packages[index]);
+            if (count == items.Length) return new ArenaResidentSet(items);
+
             var compact = new ArenaPackageKey[count];
             Array.Copy(items, compact, count);
             return new ArenaResidentSet(compact);

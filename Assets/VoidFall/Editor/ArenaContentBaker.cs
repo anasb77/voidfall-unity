@@ -20,12 +20,17 @@ namespace VoidFall.Editor
         private const string LegacyArenaResourceRoot =
             GeneratedRoot + "/Resources/VoidFall/Generated/Arenas";
         private const string ArenaPackageRoot = GeneratedRoot + "/ArenaPackages";
+        private const string HydraBasePath = "Assets/VoidFall/Art/Hydra/HydraBase.png";
+        private const string HydraDetailPath = "Assets/VoidFall/Art/Hydra/HydraDetails.png";
+        private const string HydraBossPath = "Assets/VoidFall/Resources/VoidFall/Hydra/HydraPrime.png";
 
         private static readonly ArenaId[] RequiredArenas =
         {
             ArenaId.Void,
             ArenaId.RedNebula,
             ArenaId.WhiteSakura,
+            ArenaId.Hydra,
+            ArenaId.MonochromeCourt,
         };
 
         [MenuItem("Tools/VoidFall/Bake Prepared Arena Content")]
@@ -110,17 +115,29 @@ namespace VoidFall.Editor
         {
             var textureFolder = ArenaTextureRoot + "/" + arena;
             var resourceFolder = ArenaPackageRoot + "/" + arena;
-            EnsureFolderTree(textureFolder);
+            if (arena != ArenaId.Hydra) EnsureFolderTree(textureFolder);
             EnsureFolderTree(resourceFolder);
 
-            var basePath = textureFolder + "/Base.png";
-            var detailPath = textureFolder + "/Details.png";
-            WritePng(basePath, BakeWidth, BakeHeight,
-                ArenaPlateFactory.BuildBasePixels(arena, BakeWidth, BakeHeight));
-            WritePng(detailPath, DetailBakeWidth, DetailBakeHeight,
-                ArenaPlateFactory.BuildDetailPixels(arena, DetailBakeWidth, DetailBakeHeight));
+            var authoredHydra = arena == ArenaId.Hydra;
+            var basePath = authoredHydra ? HydraBasePath : textureFolder + "/Base.png";
+            var detailPath = authoredHydra ? HydraDetailPath : textureFolder + "/Details.png";
+            if (authoredHydra)
+            {
+                if (!File.Exists(basePath) || !File.Exists(detailPath) || !File.Exists(HydraBossPath))
+                    throw new InvalidOperationException("Hydra authored art is incomplete. Re-render the approved reference layers.");
+                if (AssetDatabase.IsValidFolder(textureFolder) && !AssetDatabase.DeleteAsset(textureFolder))
+                    throw new InvalidOperationException("Could not remove obsolete procedural Hydra art: " + textureFolder);
+            }
+            else
+            {
+                WritePng(basePath, BakeWidth, BakeHeight,
+                    ArenaPlateFactory.BuildBasePixels(arena, BakeWidth, BakeHeight));
+                WritePng(detailPath, DetailBakeWidth, DetailBakeHeight,
+                    ArenaPlateFactory.BuildDetailPixels(arena, DetailBakeWidth, DetailBakeHeight));
+            }
             ImportArenaTexture(basePath);
             ImportArenaTexture(detailPath);
+            if (authoredHydra) ImportHydraBossTexture();
 
             var baseSprite = AssetDatabase.LoadAssetAtPath<Sprite>(basePath);
             var detailSprite = AssetDatabase.LoadAssetAtPath<Sprite>(detailPath);
@@ -194,6 +211,33 @@ namespace VoidFall.Editor
             var standalone = importer.GetPlatformTextureSettings("Standalone");
             standalone.overridden = true;
             standalone.maxTextureSize = 4096;
+            standalone.format = TextureImporterFormat.BC7;
+            standalone.textureCompression = TextureImporterCompression.CompressedHQ;
+            standalone.compressionQuality = 100;
+            importer.SetPlatformTextureSettings(standalone);
+            importer.SaveAndReimport();
+        }
+
+        private static void ImportHydraBossTexture()
+        {
+            AssetDatabase.ImportAsset(HydraBossPath, ImportAssetOptions.ForceSynchronousImport);
+            var importer = AssetImporter.GetAtPath(HydraBossPath) as TextureImporter;
+            if (importer == null)
+                throw new InvalidOperationException("No TextureImporter for Hydra Prime art: " + HydraBossPath);
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = 1024f;
+            importer.mipmapEnabled = false;
+            importer.isReadable = false;
+            importer.alphaIsTransparency = true;
+            importer.filterMode = FilterMode.Bilinear;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.npotScale = TextureImporterNPOTScale.None;
+            importer.maxTextureSize = 1024;
+            importer.textureCompression = TextureImporterCompression.CompressedHQ;
+            var standalone = importer.GetPlatformTextureSettings("Standalone");
+            standalone.overridden = true;
+            standalone.maxTextureSize = 1024;
             standalone.format = TextureImporterFormat.BC7;
             standalone.textureCompression = TextureImporterCompression.CompressedHQ;
             standalone.compressionQuality = 100;

@@ -46,6 +46,54 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
+        public void Hydra_prime_uses_authored_reference_art_and_rib_projectile_is_prepared()
+        {
+            var factory = typeof(VoidFallGameRuntime).Assembly.GetType(
+                "VoidFall.Runtime.ProceduralSpriteFactory",
+                true);
+            var boss = Resources.Load<Sprite>("VoidFall/Hydra/HydraPrime");
+            var rib = InvokeFactory(
+                factory,
+                "Projectile",
+                new[] { typeof(string) },
+                "hydra-rib") as Sprite;
+            var ribCanvas = (float)InvokeFactory(
+                factory,
+                "ProjectileCanvasSize",
+                new[] { typeof(string) },
+                "hydra-rib");
+
+            Assert.That(boss, Is.Not.Null);
+            Assert.That(rib, Is.Not.Null);
+            Assert.That(boss.texture.width, Is.EqualTo(1024));
+            Assert.That(
+                ribCanvas * (float)HydraEncounterRules.RibProjectileVisualScale,
+                Is.EqualTo(24f).Within(0.01f));
+        }
+
+        [Test]
+        public void Hydra_runtime_preallocates_exactly_ten_tentacle_views()
+        {
+            var field = typeof(VoidFallGameRuntime).GetField(
+                "_hydraTentacleViews",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            var host = new GameObject("Hydra tentacle allocation test");
+            host.SetActive(false);
+            try
+            {
+                var runtime = host.AddComponent<VoidFallGameRuntime>();
+                var views = field.GetValue(runtime) as Array;
+                Assert.That(views, Is.Not.Null);
+                Assert.That(views.Length, Is.EqualTo(10));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+        }
+
+        [Test]
         public void Prepared_sprite_catalog_hydrates_existing_factory_getters()
         {
             var catalog = ScriptableObject.CreateInstance<ProceduralSpriteCatalog>();
@@ -143,6 +191,42 @@ namespace VoidFall.Tests.Editor
 
             factory.GetMethod("ReleaseCatalogSnapshot", BindingFlags.Public | BindingFlags.Static)
                 .Invoke(null, new object[] { catalog });
+        }
+
+        [Test]
+        public void Hydra_sprite_keys_append_without_renumbering_the_legacy_catalogue()
+        {
+            var factory = typeof(VoidFallGameRuntime).Assembly.GetType(
+                "VoidFall.Runtime.ProceduralSpriteFactory",
+                true);
+            var snapshot = factory.GetMethod(
+                    "BuildCatalogSnapshot",
+                    BindingFlags.Public | BindingFlags.Static)
+                .Invoke(null, null) as ProceduralSpriteCatalog;
+            Assert.That(snapshot, Is.Not.Null);
+            try
+            {
+                var firstHydra = -1;
+                for (var index = 0; index < snapshot.Entries.Count; index++)
+                {
+                    var key = snapshot.Entries[index].Key;
+                    if (key.Contains("hydra-rib") ||
+                        key == "arena-vignette|3")
+                    {
+                        if (firstHydra < 0) firstHydra = index;
+                    }
+                    else if (firstHydra >= 0)
+                    {
+                        Assert.Fail("Legacy key appeared after Hydra append block: " + key);
+                    }
+                }
+                Assert.That(firstHydra, Is.EqualTo(snapshot.Entries.Count - 2));
+            }
+            finally
+            {
+                factory.GetMethod("ReleaseCatalogSnapshot", BindingFlags.Public | BindingFlags.Static)
+                    .Invoke(null, new object[] { snapshot });
+            }
         }
 
         [Test]

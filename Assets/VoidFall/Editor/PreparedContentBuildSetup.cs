@@ -21,6 +21,8 @@ namespace VoidFall.Editor
             "Assets/VoidFall/Generated/Resources/VoidFall/Generated/Arenas/Void/Plate.asset",
             "Assets/VoidFall/Generated/Resources/VoidFall/Generated/Arenas/RedNebula/Plate.asset",
             "Assets/VoidFall/Generated/Resources/VoidFall/Generated/Arenas/WhiteSakura/Plate.asset",
+            "Assets/VoidFall/Generated/Resources/VoidFall/Generated/Arenas/Hydra/Plate.asset",
+            "Assets/VoidFall/Generated/Resources/VoidFall/Generated/Arenas/MonochromeCourt/Plate.asset",
         };
 
         [MenuItem("Tools/VoidFall/Configure Prepared Content Preload")]

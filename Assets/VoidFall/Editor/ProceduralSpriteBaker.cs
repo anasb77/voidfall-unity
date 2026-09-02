@@ -32,6 +32,7 @@ namespace VoidFall.Editor
                     throw new InvalidOperationException("Procedural sprite snapshot is empty or invalid.");
 
                 var importedBySource = new Dictionary<Sprite, Sprite>();
+                var generatedPaths = new HashSet<string>(StringComparer.Ordinal);
                 var safeForAtlas = new List<Object>();
                 var importedEntries = new List<ProceduralSpriteCatalogEntry>(snapshot.Count);
                 var sourceIndex = 0;
@@ -45,6 +46,7 @@ namespace VoidFall.Editor
                         var filename = "Sprite_" + sourceIndex.ToString("D4") + "_" +
                                        SafeFilename(entry.Key) + ".png";
                         var path = SpriteRoot + "/" + filename;
+                        generatedPaths.Add(path);
                         EditorUtility.DisplayProgressBar(
                             "VoidFall sprite bake",
                             "Importing " + entry.Key,
@@ -63,6 +65,8 @@ namespace VoidFall.Editor
 
                     importedEntries.Add(new ProceduralSpriteCatalogEntry(entry.Key, imported));
                 }
+
+                DeleteOrphanedSpriteAssets(generatedPaths);
 
                 WriteCatalog(importedEntries);
                 WriteSpriteAtlas(safeForAtlas);
@@ -335,6 +339,19 @@ namespace VoidFall.Editor
             }
             var safe = new string(chars);
             return safe.Length <= 80 ? safe : safe.Substring(0, 80);
+        }
+
+        private static void DeleteOrphanedSpriteAssets(HashSet<string> generatedPaths)
+        {
+            var guids = AssetDatabase.FindAssets("t:Texture2D", new[] { SpriteRoot });
+            for (var index = 0; index < guids.Length; index++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guids[index]);
+                if (!path.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                    generatedPaths.Contains(path)) continue;
+                if (!AssetDatabase.DeleteAsset(path))
+                    throw new InvalidOperationException("Could not remove orphaned generated sprite: " + path);
+            }
         }
 
         private static void EnsureFolderTree(string folderPath)

@@ -13,7 +13,68 @@ namespace VoidFall.Tests.Editor
             ArenaId.Void,
             ArenaId.RedNebula,
             ArenaId.WhiteSakura,
+            ArenaId.Hydra,
+            ArenaId.MonochromeCourt,
         };
+
+        [Test]
+        public void Monochrome_pixels_are_balanced_black_white_and_keep_a_visible_board_grid()
+        {
+            ArenaPlateFactory.WarmSpecs();
+            var field = ArenaPlateFactory.BuildBasePixels(ArenaId.MonochromeCourt, 160, 90);
+            var detail = ArenaPlateFactory.BuildDetailPixels(ArenaId.MonochromeCourt, 160, 90);
+            var dark = 0;
+            var light = 0;
+            var visibleDetail = 0;
+            foreach (var pixel in field)
+            {
+                var luminance = pixel.r + pixel.g + pixel.b;
+                if (luminance < 165) dark++;
+                if (luminance > 570) light++;
+            }
+            foreach (var pixel in detail) if (pixel.a > 60) visibleDetail++;
+
+            Assert.That(dark, Is.GreaterThan(field.Length * 0.28f));
+            Assert.That(light, Is.GreaterThan(field.Length * 0.28f));
+            Assert.That(visibleDetail, Is.GreaterThan(detail.Length * 0.08f));
+        }
+
+        [Test]
+        public void Hydra_generated_pixels_have_toxic_green_field_and_opaque_bone_detail()
+        {
+            ArenaPlateFactory.WarmSpecs();
+            var field = ArenaPlateFactory.BuildBasePixels(ArenaId.Hydra, 96, 54);
+            var detail = ArenaPlateFactory.BuildDetailPixels(ArenaId.Hydra, 160, 90);
+            var greenDominant = 0;
+            foreach (var pixel in field)
+                if (pixel.g > pixel.r * 1.35f && pixel.g > pixel.b * 1.15f) greenDominant++;
+            Assert.That(greenDominant, Is.GreaterThan(field.Length * 0.55f));
+
+            var ivoryDetail = 0;
+            foreach (var pixel in detail)
+                if (pixel.a > 80 && pixel.r > 150 && pixel.g > 145 && pixel.b > 105) ivoryDetail++;
+            Assert.That(ivoryDetail, Is.GreaterThan(80),
+                "Hydra detail plate must carry visible ivory rib/spine pixels.");
+        }
+
+        [Test]
+        public void Hydra_plate_and_boss_use_the_approved_authored_reference_layers()
+        {
+            var plate = AssetDatabase.LoadAssetAtPath<ArenaPlateAsset>(
+                "Assets/VoidFall/Generated/ArenaPackages/Hydra/Plate.asset");
+            Assert.That(plate, Is.Not.Null);
+            Assert.That(
+                AssetDatabase.GetAssetPath(plate.BaseSprite.texture),
+                Is.EqualTo("Assets/VoidFall/Art/Hydra/HydraBase.png"));
+            Assert.That(
+                AssetDatabase.GetAssetPath(plate.DetailSprite.texture),
+                Is.EqualTo("Assets/VoidFall/Art/Hydra/HydraDetails.png"));
+            var boss = AssetDatabase.LoadAssetAtPath<Sprite>(
+                "Assets/VoidFall/Resources/VoidFall/Hydra/HydraPrime.png");
+            Assert.That(boss, Is.Not.Null);
+            Assert.That(boss.texture.width, Is.EqualTo(1024));
+            Assert.That(boss.texture.height, Is.EqualTo(1024));
+        }
 
         [Test]
         public void Every_current_arena_has_a_valid_imported_plate()

@@ -55,7 +55,13 @@ namespace VoidFall.Core
                     return new MultiPhaseObjective(
                         "HYDRA",
                         new SurviveObjective(300, "Survive the mutation"),
-                        new KillTargetObjective("matriarch", "Kill Hydra Prime"));
+                        new KillTargetObjective("hydra-prime", "Kill Hydra Prime"));
+                case "monochrome-court":
+                    return new MultiPhaseObjective(
+                        "MONOCHROME COURT",
+                        new SurviveObjective(90, "Survive Black rule"),
+                        new SurviveObjective(90, "Survive White rule"),
+                        new KillTargetObjective("court-grandmasters", "Defeat the Twin Grandmasters"));
                 default:
                     return null;
             }
@@ -286,7 +292,7 @@ namespace VoidFall.Core
 
     /// <summary>
     /// Strictly ordered phases (survive then Gatekeeper; nodes then Hydra
-    /// Prime; both board cycles then Checkmate). The next phase begins only
+    /// Prime; both board cycles then the Twin Grandmasters). The next phase begins only
     /// after the current one completes; each tick's feed is consumed by
     /// exactly one phase - the boundary batch goes to the newly begun phase.
     /// </summary>

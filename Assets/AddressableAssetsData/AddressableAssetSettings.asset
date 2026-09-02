@@ -15,7 +15,7 @@ MonoBehaviour:
   m_DefaultGroup: b3e17c828b9b4594487808a6cd4e3bfd
   m_currentHash:
     serializedVersion: 2
-    Hash: 38daf71b477d1bfe7b0845ecb8b9cf1d
+    Hash: 00000000000000000000000000000000
   m_OptimizeCatalogSize: 0
   m_BuildRemoteCatalog: 0
   m_CatalogRequestsTimeout: 0
@@ -104,6 +104,8 @@ MonoBehaviour:
     - vf-arena-abyss
     - vf-arena-red-nebula
     - vf-arena-white-sakura
+    - vf-arena-hydra
+    - vf-arena-monochrome-court
   m_SchemaTemplates: []
   m_GroupTemplateObjects:
   - {fileID: 11400000, guid: c1a45a3059a122d40abad407b84254c6, type: 2}

@@ -159,10 +159,13 @@ namespace VoidFall.Runtime
         {
             width = Mathf.Max(64, width);
             height = Mathf.Max(36, height);
+            if (arena == ArenaId.MonochromeCourt)
+                return BuildMonochromeDetailPixels(width, height);
             var pixels = new Color32[width * height];
             var spec = SpecFor(arena);
             PaintBakedEdgeRocks(pixels, width, height, spec);
             PaintBakedPetals(pixels, width, height, spec);
+            if (arena == ArenaId.Hydra) PaintHydraBoneStructure(pixels, width, height);
             return pixels;
         }
 
@@ -222,6 +225,17 @@ namespace VoidFall.Runtime
             int height,
             bool includeBakedDetails)
         {
+            if (arena == ArenaId.MonochromeCourt)
+            {
+                var monochrome = BuildMonochromeBasePixels(width, height);
+                if (includeBakedDetails)
+                {
+                    var details = BuildMonochromeDetailPixels(width, height);
+                    for (var index = 0; index < monochrome.Length; index++)
+                        monochrome[index] = Blend(monochrome[index], details[index], details[index].a / 255f);
+                }
+                return monochrome;
+            }
             var spec = SpecFor(arena);
             var pixels = new Color32[width * height];
             // paintField seeds its three value sweeps from the arena noise
@@ -583,6 +597,189 @@ namespace VoidFall.Runtime
             pixels[index] = existing;
         }
 
+        private static Color32[] BuildMonochromeBasePixels(int width, int height)
+        {
+            var pixels = new Color32[width * height];
+            var ivory = Parse("#e5e3db");
+            var ink = Parse("#0a0b0d");
+            var shorter = Mathf.Min(width, height);
+            for (var y = 0; y < height; y++)
+            {
+                var dy = y + 0.5f - height * 0.5f;
+                for (var x = 0; x < width; x++)
+                {
+                    var dx = x + 0.5f - width * 0.5f;
+                    var radius = Mathf.Sqrt(dx * dx + dy * dy);
+                    var ring = Mathf.FloorToInt(radius / Mathf.Max(4f, shorter / 9f));
+                    var sector = Mathf.FloorToInt((Mathf.Atan2(dy, dx) + Mathf.PI) /
+                                                  (Mathf.PI * 2f / 24f));
+                    var light = ((ring + sector) & 1) == 0;
+                    var baseColor = light ? ivory : ink;
+                    var scratch = Fbm(x * 0.035f, y * 0.11f, 0x6c31, 3) - 0.5f;
+                    var vignette = Mathf.Clamp01(radius / Mathf.Max(1f, shorter * 0.72f));
+                    var adjusted = new Color(
+                        Mathf.Clamp01(baseColor.r + scratch * (light ? 0.11f : 0.045f)),
+                        Mathf.Clamp01(baseColor.g + scratch * (light ? 0.105f : 0.045f)),
+                        Mathf.Clamp01(baseColor.b + scratch * (light ? 0.095f : 0.05f)),
+                        1f);
+                    pixels[y * width + x] = Color.Lerp(adjusted, Parse("#030405"), vignette * 0.16f);
+                }
+            }
+            return pixels;
+        }
+
+        private static Color32[] BuildMonochromeDetailPixels(int width, int height)
+        {
+            var pixels = new Color32[width * height];
+            var gridX = Mathf.Max(1, width / 12);
+            var gridY = Mathf.Max(1, height / 7);
+            var lineWidth = Mathf.Max(1, Mathf.RoundToInt(Mathf.Min(width, height) * 0.004f));
+            var seamWidth = Mathf.Max(2, Mathf.RoundToInt(width * 0.012f));
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    var grid = x % gridX < lineWidth || y % gridY < lineWidth;
+                    var wave = Mathf.Sin(y * 0.065f) * width * 0.012f +
+                               Mathf.Sin(y * 0.017f + 1.4f) * width * 0.008f;
+                    var seam = Mathf.Abs(x - (width * 0.5f + wave)) <= seamWidth;
+                    var scratch = ((x * 31 + y * 17 + 11) % 211) < 2;
+                    if (seam)
+                        pixels[y * width + x] = new Color32(238, 238, 232, 186);
+                    else if (grid)
+                        pixels[y * width + x] = new Color32(126, 130, 132, 96);
+                    else if (scratch)
+                        pixels[y * width + x] = new Color32(224, 224, 218, 72);
+                }
+            }
+            return pixels;
+        }
+
+        private static void PaintHydraBoneStructure(Color32[] pixels, int width, int height)
+        {
+            var shadow = Parse("#07120b");
+            var bone = Parse("#d8d7b2");
+            var marrow = Parse("#f4f0d2");
+            var rim = Parse("#78ff5a");
+            var outer = new[]
+            {
+                new Vector2(0.035f, 0.96f), new Vector2(0.075f, 0.66f),
+                new Vector2(0.16f, 0.36f), new Vector2(0.31f, 0.12f),
+                new Vector2(0.44f, 0.035f),
+            };
+            var inner = new[]
+            {
+                new Vector2(0.14f, 0.98f), new Vector2(0.18f, 0.68f),
+                new Vector2(0.27f, 0.41f), new Vector2(0.39f, 0.16f),
+                new Vector2(0.47f, 0.07f),
+            };
+            PaintHydraMirroredChain(pixels, width, height, outer, shadow, bone, marrow, rim, 0.019f);
+            PaintHydraMirroredChain(pixels, width, height, inner, shadow, bone, marrow, rim, 0.015f);
+
+            var shorter = Mathf.Min(width, height);
+            for (var index = 0; index < 15; index++)
+            {
+                var t = index / 14f;
+                var centre = new Vector2(width * 0.5f, height * Mathf.Lerp(0.08f, 0.92f, t));
+                var radiusX = shorter * Mathf.Lerp(0.021f, 0.012f, t);
+                var radiusY = shorter * Mathf.Lerp(0.014f, 0.009f, t);
+                PaintHydraEllipse(pixels, width, height, centre, radiusX * 1.7f, radiusY * 1.8f, shadow, 0.78f);
+                PaintHydraEllipse(pixels, width, height, centre, radiusX * 1.28f, radiusY * 1.35f, bone, 0.88f);
+                PaintHydraEllipse(pixels, width, height, centre, radiusX, radiusY, marrow, 0.82f);
+            }
+        }
+
+        private static void PaintHydraMirroredChain(
+            Color32[] pixels,
+            int width,
+            int height,
+            Vector2[] normalized,
+            Color shadow,
+            Color bone,
+            Color marrow,
+            Color rim,
+            float normalizedWidth)
+        {
+            var shorter = Mathf.Min(width, height);
+            for (var mirror = 0; mirror < 2; mirror++)
+            {
+                for (var index = 0; index < normalized.Length - 1; index++)
+                {
+                    var from = normalized[index];
+                    var to = normalized[index + 1];
+                    if (mirror == 1)
+                    {
+                        from.x = 1f - from.x;
+                        to.x = 1f - to.x;
+                    }
+                    var a = new Vector2(from.x * width, from.y * height);
+                    var b = new Vector2(to.x * width, to.y * height);
+                    var radius = shorter * normalizedWidth;
+                    PaintHydraCapsule(pixels, width, height, a, b, radius * 1.7f, shadow, 0.82f);
+                    PaintHydraCapsule(pixels, width, height, a, b, radius * 1.25f, rim, 0.22f);
+                    PaintHydraCapsule(pixels, width, height, a, b, radius, bone, 0.9f);
+                    PaintHydraCapsule(pixels, width, height, a, b, radius * 0.5f, marrow, 0.72f);
+                }
+            }
+        }
+
+        private static void PaintHydraCapsule(
+            Color32[] pixels,
+            int width,
+            int height,
+            Vector2 a,
+            Vector2 b,
+            float radius,
+            Color tint,
+            float alpha)
+        {
+            var minX = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(a.x, b.x) - radius - 1));
+            var maxX = Mathf.Min(width - 1, Mathf.CeilToInt(Mathf.Max(a.x, b.x) + radius + 1));
+            var minY = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(a.y, b.y) - radius - 1));
+            var maxY = Mathf.Min(height - 1, Mathf.CeilToInt(Mathf.Max(a.y, b.y) + radius + 1));
+            var delta = b - a;
+            var lengthSquared = Mathf.Max(0.0001f, delta.sqrMagnitude);
+            for (var y = minY; y <= maxY; y++)
+            {
+                for (var x = minX; x <= maxX; x++)
+                {
+                    var point = new Vector2(x + 0.5f, y + 0.5f);
+                    var t = Mathf.Clamp01(Vector2.Dot(point - a, delta) / lengthSquared);
+                    var distance = Vector2.Distance(point, a + delta * t);
+                    if (distance > radius + 0.75f) continue;
+                    var coverage = Mathf.Clamp01(radius + 0.75f - distance);
+                    BlendPixel(pixels, y * width + x, tint, alpha * coverage);
+                }
+            }
+        }
+
+        private static void PaintHydraEllipse(
+            Color32[] pixels,
+            int width,
+            int height,
+            Vector2 centre,
+            float radiusX,
+            float radiusY,
+            Color tint,
+            float alpha)
+        {
+            var minX = Mathf.Max(0, Mathf.FloorToInt(centre.x - radiusX - 1));
+            var maxX = Mathf.Min(width - 1, Mathf.CeilToInt(centre.x + radiusX + 1));
+            var minY = Mathf.Max(0, Mathf.FloorToInt(centre.y - radiusY - 1));
+            var maxY = Mathf.Min(height - 1, Mathf.CeilToInt(centre.y + radiusY + 1));
+            for (var y = minY; y <= maxY; y++)
+            {
+                for (var x = minX; x <= maxX; x++)
+                {
+                    var nx = (x + 0.5f - centre.x) / Mathf.Max(0.001f, radiusX);
+                    var ny = (y + 0.5f - centre.y) / Mathf.Max(0.001f, radiusY);
+                    var distance = nx * nx + ny * ny;
+                    if (distance > 1.08f) continue;
+                    BlendPixel(pixels, y * width + x, tint, alpha * Mathf.Clamp01((1.08f - distance) * 8f));
+                }
+            }
+        }
+
         private static void PaintBakedPetals(Color32[] pixels, int width, int height, VisualSpec spec)
         {
             if (!spec.Pale) return;
@@ -711,7 +908,7 @@ namespace VoidFall.Runtime
         // which may run off the main thread. BuildSpec calls ColorUtility, which
         // Unity does not document as thread-safe, so cache the results and prime
         // them from the main thread via WarmSpecs before dispatching any bake.
-        private static readonly VisualSpec[] SpecCache = new VisualSpec[3];
+        private static readonly VisualSpec[] SpecCache = new VisualSpec[ContentOrder.PreparedArenas.Length];
 
         /// <summary>
         /// Main-thread only. Primes the spec cache so <see cref="BuildBasePixels"/>
@@ -757,6 +954,26 @@ namespace VoidFall.Runtime
                         Grain = 0.24f, GrainTint = new Vector3(-6, -4, 0), FilamentAngle = 0.5f,
                         FilamentCount = 3, FilamentColors = new[] { Parse("#c4c3c6"), Parse("#cbc8c6"), Parse("#bdbcc2") }, Pale = true,
                         FarRockAlpha = 0.42f, FarRockBody = Parse("#94919a"), FarRockRim = Parse("#f3ede4"), LandmarkLightAngle = -0.72f,
+                    };
+                case ArenaId.Hydra:
+                    return new VisualSpec
+                    {
+                        FieldCentre = Parse("#123c20"), FieldMid = Parse("#06180c"), FieldOuter = Parse("#010503"),
+                        BiasX = 0.5f, BiasY = 0.42f, NoiseSeed = 0x4f31, Clouding = 0.72f,
+                        CloudTint = ParseRgb("24,142,61"), CloudAnisotropy = 5.2f, SweepTint = ParseRgb("4,44,18"),
+                        Grain = 0.28f, GrainTint = new Vector3(-10, 10, -8), FilamentAngle = -0.2f,
+                        FilamentCount = 5, FilamentColors = new[] { Parse("#0d5a2b"), Parse("#197a35"), Parse("#0b4321"), Parse("#2b8f3f"), Parse("#123d24") }, Pale = false,
+                        FarRockAlpha = 0, FarRockBody = Color.black, FarRockRim = Parse("#78ff5a"), LandmarkLightAngle = -0.35f,
+                    };
+                case ArenaId.MonochromeCourt:
+                    return new VisualSpec
+                    {
+                        FieldCentre = Parse("#777774"), FieldMid = Parse("#292a2c"), FieldOuter = Parse("#050607"),
+                        BiasX = 0.5f, BiasY = 0.5f, NoiseSeed = 0x6c31, Clouding = 0.18f,
+                        CloudTint = ParseRgb("196,196,190"), CloudAnisotropy = 1f, SweepTint = ParseRgb("20,20,22"),
+                        Grain = 0.26f, GrainTint = new Vector3(-5, -5, -4), FilamentAngle = 0,
+                        FilamentCount = 0, FilamentColors = new[] { Color.white }, Pale = false,
+                        FarRockAlpha = 0, FarRockBody = Color.black, FarRockRim = Color.white, LandmarkLightAngle = 0,
                     };
                 default:
                     return new VisualSpec

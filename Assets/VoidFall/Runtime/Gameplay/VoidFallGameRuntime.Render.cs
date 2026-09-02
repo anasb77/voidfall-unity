@@ -86,7 +86,10 @@ namespace VoidFall.Runtime
             var variantBaseId = enemy.EliteKind.HasValue
                 ? EliteRules.EliteVariantDef(enemy.EliteKind.Value).BaseId
                 : null;
-            return SourceEnemySpriteId(enemy.Id, enemy.Elite, variantBaseId);
+            var source = SourceEnemySpriteId(enemy.Id, enemy.Elite, variantBaseId);
+            if (IsCourtEnemy(enemy.Id) && !enemy.Elite)
+                return source + (CourtFactionOf(enemy) == CourtFaction.White ? "-white" : "-black");
+            return source;
         }
 
         private static float SourceEnemySpriteWorldSize(
@@ -386,7 +389,8 @@ namespace VoidFall.Runtime
                         _ambientClock);
                 }
                 _enemyViews[i].transform.localScale = Vector3.one *
-                    (SourceEnemySpriteWorldSize(enemy) * enemyVisualScale);
+                    (SourceEnemySpriteWorldSize(enemy) * enemyVisualScale *
+                     (CourtPawnIsPromoted(enemy) ? 1.12f : 1f));
                 if (enemy.Id == "exploder" && enemy.State == 1)
                 {
                     var definition = FindEnemy("exploder");
@@ -518,15 +522,30 @@ namespace VoidFall.Runtime
                 var view = EnsureHostileShotView(i);
                 view.rendererPriority = order;
                 view.transform.position = _gameSim.HostileShots[i].Position;
-                if (!_gameSim.HostileShots[i].MeteorOwned && !_gameSim.HostileShots[i].Curved)
+                var hydraRib = _gameSim.HostileShots[i].Variant == HydraRibShotVariant;
+                if (hydraRib)
+                {
+                    view.sprite = ProceduralSpriteFactory.Projectile("hydra-rib");
+                }
+                else if (!_gameSim.HostileShots[i].MeteorOwned && !_gameSim.HostileShots[i].Curved)
                 {
                     view.sprite = ProceduralSpriteFactory.ProjectileFrame(
                         "gunner",
                         SourceProjectileFrameIndex(_gameSim.HostileShots[i].Velocity));
                 }
-                view.transform.rotation = Quaternion.identity;
+                view.transform.rotation = hydraRib
+                    ? Quaternion.Euler(
+                        0f,
+                        0f,
+                        Mathf.Atan2(
+                            _gameSim.HostileShots[i].Velocity.y,
+                            _gameSim.HostileShots[i].Velocity.x) * Mathf.Rad2Deg)
+                    : Quaternion.identity;
                 view.transform.localScale = Vector3.one *
-                    (_gameSim.HostileShots[i].MeteorOwned
+                    (hydraRib
+                        ? SourceProjectileSpriteWorldSize("hydra-rib") *
+                          (float)HydraEncounterRules.RibProjectileVisualScale
+                        : _gameSim.HostileShots[i].MeteorOwned
                         ? 18f
                         : SourceProjectileSpriteWorldSize(_gameSim.HostileShots[i].Curved ? "curved" : "gunner"));
                 view.enabled = true;
@@ -677,22 +696,53 @@ namespace VoidFall.Runtime
                 var i = _gameSim.BossOrder[bossOrder];
                 var boss = _gameSim.Bosses[i];
                 if ((!boss.Active && boss.DeathTimer <= 0) || _bossViews[i] == null) continue;
-                _bossViews[i].sprite = ProceduralSpriteFactory.Boss(
-                    boss.Id,
-                    BossAccent(boss),
-                    boss.HitTimer > 0);
-                _bossViews[i].transform.position = boss.Position;
+                var hydra = boss.Id == HydraBossId;
+                _bossViews[i].sprite = hydra && _hydraBossSprite != null
+                    ? _hydraBossSprite
+                    : ProceduralSpriteFactory.Boss(
+                        boss.Id,
+                        BossAccent(boss),
+                        boss.HitTimer > 0);
+                var shakeStrength = hydra && boss.Active && boss.State == 2 &&
+                    boss.ActiveAttack?.Id != "hydra-evasion" ? 9f : hydra ? 1.5f : 0f;
+                var hydraShake = shakeStrength > 0f
+                    ? new Vector2(
+                        Mathf.Sin(_ambientClock * (shakeStrength > 2f ? 47f : 3.7f)),
+                        Mathf.Sin(_ambientClock * (shakeStrength > 2f ? 61f : 2.9f) + 1.4f)) * shakeStrength
+                    : Vector2.zero;
+                _bossViews[i].transform.position = boss.Position + hydraShake;
                 var introProgress = boss.Active && boss.State == 4
                     ? BackOut(Mathf.Clamp01(1f - boss.StateTimer / 1.6f))
                     : 1f;
                 var deathAlpha = boss.Active ? 1f : Mathf.Clamp01(boss.DeathTimer / 1.4f);
-                _bossViews[i].color = new Color(1f, 1f, 1f, deathAlpha);
+                _bossViews[i].color = new Color(1f, 1f, 1f,
+                    hydra ? 1f : deathAlpha);
+                if (hydra && _hydraBossMaterial != null)
+                {
+                    _bossViews[i].sharedMaterial = _hydraBossMaterial;
+                    var damageProgress = boss.Active
+                        ? 1f - boss.Health / Mathf.Max(1f, boss.MaxHealth)
+                        : 0.92f + (1f - Mathf.Clamp01(boss.DeathTimer / 1.4f)) * 0.08f;
+                    _hydraBossMaterial.SetFloat(HydraDamageProgressProperty, Mathf.Clamp01(damageProgress));
+                }
+                else
+                {
+                    var defaultMaterial = ResolveDefaultSpriteMaterial();
+                    if (defaultMaterial != null) _bossViews[i].sharedMaterial = defaultMaterial;
+                }
                 _bossViews[i].transform.localScale = Vector3.one *
-                    (SourceBossSpriteWorldSize(boss.Id, boss.Radius) * introProgress);
+                    (SourceBossSpriteWorldSize(boss.Id, boss.Radius) * introProgress *
+                     (hydra
+                         ? (boss.ActiveAttack?.Id == "hydra-evasion" && boss.State == 2
+                             ? HydraRuntimeRules.EvasionPresentationScale
+                             : HydraRuntimeRules.BossPresentationScale)
+                         : 1f));
                 _bossViews[i].transform.rotation = Quaternion.Euler(
                     0,
                     0,
-                    SourceBossBodyRotationRadians(_ambientClock) * Mathf.Rad2Deg);
+                    hydra
+                        ? Mathf.Sin(_ambientClock * 1.6f) * 1.2f
+                        : SourceBossBodyRotationRadians(_ambientClock) * Mathf.Rad2Deg);
                 _bossViews[i].enabled = true;
             }
             for (var i = 0; i < _arcEffects.Length; i++)
@@ -713,6 +763,8 @@ namespace VoidFall.Runtime
             }
 
             RenderArena();
+            RenderHydraPresentation();
+            RenderMonochromePresentation();
             RenderDeathGhosts();
             RenderDamageIndicators();
             RenderFloaters();
@@ -4467,9 +4519,47 @@ namespace VoidFall.Runtime
                             1.4f + progress,
                             new Color(0.376f, 0.647f, 0.98f, 0.36f + progress * 0.34f));
                     }
-                    else if (attack.Id == "beam")
+                    else if (attack.Id == "beam" || attack.Id == "hydra-optic")
                     {
-                        BuildBossBeamMesh(index, boss, attack, 0.1f + progress * 0.12f);
+                        if (attack.Id == "hydra-optic")
+                            BuildHydraOpticBeamMesh(index, boss, attack, 0.1f + progress * 0.16f);
+                        else
+                            BuildBossBeamMesh(index, boss, attack, 0.1f + progress * 0.12f);
+                        SetBossTelegraphMesh(index);
+                    }
+                    else if (attack.Id == "hydra-ribs")
+                    {
+                        var color = new Color(0.72f, 1f, 0.32f, 0.08f + progress * 0.18f);
+                        var halfHeight = 34f * (float)HydraEncounterRules.RibProjectileVisualScale;
+                        AddQuad(
+                            vertices, triangles, colors,
+                            _hydraArenaCentre + new Vector2(-500f, -170f),
+                            _hydraArenaCentre + new Vector2(0f, -halfHeight),
+                            _hydraArenaCentre + new Vector2(0f, halfHeight),
+                            _hydraArenaCentre + new Vector2(-500f, 170f),
+                            color);
+                        AddQuad(
+                            vertices, triangles, colors,
+                            _hydraArenaCentre + new Vector2(500f, -170f),
+                            _hydraArenaCentre + new Vector2(0f, -halfHeight),
+                            _hydraArenaCentre + new Vector2(0f, halfHeight),
+                            _hydraArenaCentre + new Vector2(500f, 170f),
+                            color);
+                        SetBossTelegraphMesh(index);
+                    }
+                    else if (attack.Id == "hydra-marrow")
+                    {
+                        var radius = (float)(attack.Radius ?? 64) * (0.72f + progress * 0.28f);
+                        AddFan(
+                            vertices,
+                            triangles,
+                            colors,
+                            boss.TargetPosition,
+                            radius,
+                            0f,
+                            Mathf.PI * 2f,
+                            32,
+                            new Color(0.58f, 1f, 0.27f, 0.08f + progress * 0.2f));
                         SetBossTelegraphMesh(index);
                     }
                     else if (attack.Id == "volley")
@@ -4513,9 +4603,13 @@ namespace VoidFall.Runtime
                             new Color(color.r, color.g, color.b, 0.28f + progress * 0.24f));
                     }
                 }
-                else if (attack != null && boss.State == 2 && attack.Id == "beam")
+                else if (attack != null && boss.State == 2 &&
+                         (attack.Id == "beam" || attack.Id == "hydra-optic"))
                 {
-                    BuildBossBeamMesh(index, boss, attack, 0.34f);
+                    if (attack.Id == "hydra-optic")
+                        BuildHydraOpticBeamMesh(index, boss, attack, 0.5f);
+                    else
+                        BuildBossBeamMesh(index, boss, attack, 0.34f);
                     SetBossTelegraphMesh(index);
                 }
 
@@ -4581,6 +4675,47 @@ namespace VoidFall.Runtime
                         inner);
                 }
             }
+        }
+
+        private void BuildHydraOpticBeamMesh(
+            int index,
+            BossState boss,
+            BossAttackDefinition attack,
+            float alpha)
+        {
+            var vertices = _bossTelegraphVertices[index];
+            var triangles = _bossTelegraphTriangles[index];
+            var colors = _bossTelegraphColors[index];
+            vertices.Clear();
+            triangles.Clear();
+            colors.Clear();
+
+            var length = (float)(attack.BeamLength ?? 760);
+            var width = (float)(attack.BeamWidth ?? 38);
+            var direction = new Vector2(Mathf.Cos(boss.AttackAngle), Mathf.Sin(boss.AttackAngle));
+            var normal = new Vector2(-direction.y, direction.x);
+            var start = boss.Position + direction * 24f;
+            var end = boss.Position + direction * length;
+            AddHydraBeamLayer(vertices, triangles, colors, start, end, normal, width * 2.7f,
+                new Color(0.08f, 1f, 0.28f, alpha * 0.18f));
+            AddHydraBeamLayer(vertices, triangles, colors, start, end, normal, width * 1.45f,
+                new Color(0.55f, 1f, 0.3f, alpha * 0.48f));
+            AddHydraBeamLayer(vertices, triangles, colors, start, end, normal, width * 0.32f,
+                new Color(0.96f, 1f, 0.78f, Mathf.Min(1f, alpha * 1.65f)));
+        }
+
+        private static void AddHydraBeamLayer(
+            List<Vector3> vertices,
+            List<int> triangles,
+            List<Color> colors,
+            Vector2 start,
+            Vector2 end,
+            Vector2 normal,
+            float width,
+            Color color)
+        {
+            var half = normal * width * 0.5f;
+            AddQuad(vertices, triangles, colors, start - half, end - half, end + half, start + half, color);
         }
 
         private static void AddQuad(
@@ -4676,14 +4811,15 @@ namespace VoidFall.Runtime
             _backdropView.sprite = _arenaPlateSprites[(int)_arenaId];
             _backdropView.color = Color.white;
             var recipe = ArenaCatalogRules.RecipeLayout(_arenaRecipeIndex);
+            var skyOverscan = _arenaId == ArenaId.Hydra ? 1f : ArenaSkyOverscan;
             var skyOffset = ArenaParallaxOffsetForViewport(
                 cameraCentre,
                 ArenaSkyParallax,
-                ArenaSkyOverscan);
+                skyOverscan);
             _backdropView.transform.localScale = new Vector3(
                 (recipe.MirrorX ? -1f : 1f) *
-                    viewportHalf.x * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateBakeWidth),
-                viewportHalf.y * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateBakeHeight),
+                    viewportHalf.x * 2f * skyOverscan / Mathf.Max(1, _arenaPlateBakeWidth),
+                viewportHalf.y * 2f * skyOverscan / Mathf.Max(1, _arenaPlateBakeHeight),
                 1);
             _backdropView.transform.position = new Vector3(
                 cameraCentre.x - skyOffset.x,
@@ -4692,13 +4828,18 @@ namespace VoidFall.Runtime
             if (_arenaBakedDetailView != null)
             {
                 _arenaBakedDetailView.sprite = _arenaPlateDetailSprites[(int)_arenaId];
-                _arenaBakedDetailView.color = Color.white;
+                _arenaBakedDetailView.color = _arenaId == ArenaId.Hydra
+                    ? new Color(1f, 1f, 1f, _hydraBossEncounterActive ? 1f : 0.61f)
+                    : Color.white;
                 _arenaBakedDetailView.transform.localScale = new Vector3(
                     (recipe.MirrorX ? -1f : 1f) *
-                        viewportHalf.x * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateDetailBakeWidth),
-                    viewportHalf.y * 2f * ArenaSkyOverscan / Mathf.Max(1, _arenaPlateDetailBakeHeight),
+                        viewportHalf.x * 2f * skyOverscan / Mathf.Max(1, _arenaPlateDetailBakeWidth),
+                    viewportHalf.y * 2f * skyOverscan / Mathf.Max(1, _arenaPlateDetailBakeHeight),
                     1) * recipe.DetailScale;
-                _arenaBakedDetailView.transform.position = _backdropView.transform.position +
+                var detailOrigin = _arenaId == ArenaId.Hydra && _hydraBossEncounterActive
+                    ? (Vector3)_hydraArenaCentre
+                    : _backdropView.transform.position;
+                _arenaBakedDetailView.transform.position = detailOrigin +
                     new Vector3(
                         viewportHalf.x * recipe.DetailOffsetX,
                         viewportHalf.y * recipe.DetailOffsetY,

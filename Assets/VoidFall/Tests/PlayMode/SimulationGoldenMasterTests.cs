@@ -104,7 +104,10 @@ namespace VoidFall.Tests.PlayMode
         // Meteor terrain/size variance (4c89e57) changes spawned meteor state
         // during the ten-second productionMax window without changing RNG draw
         // order. Re-pinned after confirming the 32-seed sweep remains stable.
-        internal const ulong GoldenMasterHash = 12947047772295568886;
+        // Monochrome Court adds the fifth prepared arena plus its route-owned
+        // roster and twin encounter. Re-pinned after the 32-seed stability
+        // sweep remained deterministic and legacy endless arena order stayed fixed.
+        internal const ulong GoldenMasterHash = 13150562237046848063;
 
         internal static ulong HashRuntimeState(object runtime)
         {

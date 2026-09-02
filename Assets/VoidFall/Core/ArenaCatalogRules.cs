@@ -19,6 +19,8 @@ namespace VoidFall.Core
             {
                 case ArenaId.RedNebula: return "red-nebula";
                 case ArenaId.WhiteSakura: return "white-sakura";
+                case ArenaId.Hydra: return "hydra";
+                case ArenaId.MonochromeCourt: return "monochrome-court";
                 default: return "abyss";
             }
         }
@@ -29,6 +31,8 @@ namespace VoidFall.Core
             {
                 case "red-nebula": return ArenaId.RedNebula;
                 case "white-sakura": return ArenaId.WhiteSakura;
+                case "hydra": return ArenaId.Hydra;
+                case "monochrome-court": return ArenaId.MonochromeCourt;
                 default: return ArenaId.Void;
             }
         }
