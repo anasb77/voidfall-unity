@@ -2573,7 +2573,10 @@ namespace VoidFall.Runtime
             }
             var weapon = ContentCatalog.Weapons[3];
             var stats = weapon.Ranks[Mathf.Clamp(rank, 1, weapon.Ranks.Length) - 1].Stats;
-            _bladeAngle += dt * (float)stats.OrbitSpeed;
+            // Overclocked fire rate applies to blade spin just like every
+            // other weapon's cadence (tiers 1.00/1.35/1.70/2.15).
+            _bladeAngle += dt * (float)stats.OrbitSpeed *
+                (float)OverclockRules.FireRateMultiplier(_overclock.PowerTier);
             var recoveryScale = WeaponRecoveryScale();
             var evolved = _upgradeProgress.Evolved[3];
             if (evolved)

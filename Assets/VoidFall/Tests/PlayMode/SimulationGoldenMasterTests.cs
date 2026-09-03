@@ -111,7 +111,10 @@ namespace VoidFall.Tests.PlayMode
         // Amplifier now scales projectiles with blast/orbit size. Re-pinned for
         // those intentional simulation changes; the 32-seed sweep remains the
         // determinism gate.
-        internal const ulong GoldenMasterHash = 17563185683496835661;
+        // Orbit Blades OrbitSpeed +5% across all six ranks and overclock fire
+        // rate now scales blade spin. Re-pinned for that intentional balance
+        // change; the 32-seed sweep passed unchanged.
+        internal const ulong GoldenMasterHash = 14713629958221367877;
 
         internal static ulong HashRuntimeState(object runtime)
         {
