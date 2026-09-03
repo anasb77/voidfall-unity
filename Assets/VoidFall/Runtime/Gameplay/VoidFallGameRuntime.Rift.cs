@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using VoidFall.Core;
 using VoidFall.UI;
@@ -21,6 +22,11 @@ namespace VoidFall.Runtime
         private const float RiftPortalWorldSize = 120f;
         private const float RiftCollapseSeconds = 0.72f;
         private const float RiftSettleSeconds = 1.1f;
+        // Each portal texture is a sheet of cells (columns x rows), not one
+        // frame. Sheets a-e are color variants; the animation loops the
+        // first sheet's cells in row-major order.
+        private const int RiftPortalSheetColumns = 5;
+        private const int RiftPortalSheetRows = 3;
 
         private VoidRouteRun _voidRoute;
         private RouteSelectController _routeController;
@@ -33,6 +39,12 @@ namespace VoidFall.Runtime
         private bool _riftTransitionSwapped;
         private string _riftTransitionVoidId;
         private bool _openRouteAfterRoulette;
+        // True while the route-choice overlay owns the run: pause toggles
+        // must not dismiss it (dismissing strands the run with a completed
+        // objective, no boss scheduling, and no way forward).
+        private bool _routeSelectOpen;
+        // Single-destination voids teleport directly with no portal or cards.
+        private string _riftAutoVoidId;
 
         private Sprite[] _riftPortalFrames;
         private SpriteRenderer _riftPortal;
@@ -53,6 +65,8 @@ namespace VoidFall.Runtime
             _riftTransitionSwapped = false;
             _riftTransitionVoidId = null;
             _openRouteAfterRoulette = false;
+            _routeSelectOpen = false;
+            _riftAutoVoidId = null;
             HideRiftPortal();
         }
 
@@ -66,13 +80,17 @@ namespace VoidFall.Runtime
             _lastObjectiveLine = null;
             ShowArenaToast(completedName + " COMPLETE", 3.2f, ToastKind.Reward);
             _completedVoids++;
-            if (_voidRoute.NodesInState(RouteNodeState.Available).Count == 0)
+            var available = _voidRoute.NodesInState(RouteNodeState.Available);
+            if (available.Count == 0)
             {
                 // Terminal Voids (or mid-flow states with no pending choice)
                 // complete without a rift; escape handling arrives with the
                 // Final Void.
                 return;
             }
+            // One exit: teleport straight there when the delay expires. No
+            // portal, no cards - the portal is the multi-destination choice.
+            _riftAutoVoidId = available.Count == 1 ? available[0] : null;
             _voidCompletionDelayRemaining = VoidProgressionRules.PostBossDelaySeconds(
                 _runSeed,
                 _completedVoids - 1);
@@ -98,6 +116,11 @@ namespace VoidFall.Runtime
 
         private void OpenCompletedVoidRift()
         {
+            if (!string.IsNullOrEmpty(_riftAutoVoidId))
+            {
+                EnterVoidThroughRift(_riftAutoVoidId);
+                return;
+            }
             ShowArenaToast("THE RIFT OPENS", 3f);
             SpawnRingWave(
                 _gameSim.Player.Position, 30f, 640f, 0.95f,
@@ -161,6 +184,7 @@ namespace VoidFall.Runtime
         {
             var cards = _routeController.BuildCards(_voidRoute);
             if (cards.Count == 0) return;
+            _routeSelectOpen = true;
             _paused = true;
             _ui.SetScreen(UIScreen.RouteSelect);
             _ui.RouteSelect.Show(
@@ -186,6 +210,8 @@ namespace VoidFall.Runtime
         /// <summary>Starts the playable fold between the selected Voids.</summary>
         private void EnterVoidThroughRift(string voidId)
         {
+            _routeSelectOpen = false;
+            _riftAutoVoidId = null;
             var node = _voidRoute.Node(voidId);
             ShowArenaToast("ENTERING " + node.DisplayName.ToUpperInvariant(), 2.5f);
             _arenaFlash = Mathf.Max(_arenaFlash, 0.62f);
@@ -401,27 +427,14 @@ namespace VoidFall.Runtime
         {
             if (_riftPortalFrames == null || _riftPortalFrames.Length == 0)
             {
-                // The frames import as plain textures (the editor's sprite
-                // slicing fragmented them); full-frame Sprites are created
-                // here once, sized directly in world units.
+                // Each portal texture is a sheet of cells; slice the first
+                // sheet into per-cell Sprites so the animation loops frames
+                // instead of flashing whole sheets. (Editor sprite slicing
+                // fragmented these, so cells are cut here once at runtime.)
                 var textures = Resources.LoadAll<Texture2D>(RiftPortalResourcePath);
-                if (textures == null || textures.Length == 0)
-                {
-                    _riftPortalFrames = new Sprite[0];
-                    return;
-                }
-                _riftPortalFrames = new Sprite[textures.Length];
-                for (var i = 0; i < textures.Length; i++)
-                {
-                    var texture = textures[i];
-                    _riftPortalFrames[i] = Sprite.Create(
-                        texture,
-                        new Rect(0f, 0f, texture.width, texture.height),
-                        new Vector2(0.5f, 0.5f),
-                        Mathf.Max(1f, texture.height / RiftPortalWorldSize));
-                }
+                _riftPortalFrames = BuildRiftPortalFrames(textures);
+                if (_riftPortalFrames.Length == 0) return;
             }
-            if (_riftPortalFrames.Length == 0) return;
 
             if (_riftPortal == null)
             {
@@ -441,6 +454,39 @@ namespace VoidFall.Runtime
             position.y = Mathf.Clamp(position.y, -280f, 280f);
             _riftPortal.transform.position = position;
             _riftPortal.enabled = true;
+        }
+
+        private static Sprite[] BuildRiftPortalFrames(Texture2D[] textures)
+        {
+            if (textures == null || textures.Length == 0) return new Sprite[0];
+            Array.Sort(textures, (a, b) => string.CompareOrdinal(
+                a != null ? a.name : null, b != null ? b.name : null));
+            var sheet = textures[0];
+            var cols = Mathf.Max(1, RiftPortalSheetColumns);
+            var rows = Mathf.Max(1, RiftPortalSheetRows);
+            if (sheet == null || sheet.width < cols || sheet.height < rows)
+                return new Sprite[0];
+            var cellWidth = sheet.width / cols;
+            var cellHeight = sheet.height / rows;
+            // One gate fills RiftPortalWorldSize world units vertically.
+            var pixelsPerUnit = Mathf.Max(1f, cellHeight / RiftPortalWorldSize);
+            var frames = new Sprite[cols * rows];
+            for (var row = 0; row < rows; row++)
+            {
+                for (var col = 0; col < cols; col++)
+                {
+                    frames[row * cols + col] = Sprite.Create(
+                        sheet,
+                        new Rect(
+                            col * cellWidth,
+                            sheet.height - (row + 1) * cellHeight,
+                            cellWidth,
+                            cellHeight),
+                        new Vector2(0.5f, 0.5f),
+                        pixelsPerUnit);
+                }
+            }
+            return frames;
         }
 
         private void HideRiftPortal()

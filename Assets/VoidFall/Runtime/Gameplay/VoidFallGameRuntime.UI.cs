@@ -155,6 +155,7 @@ namespace VoidFall.Runtime
             else if (_levelUpActive) screen = UIScreen.LevelUp;
             else if (_revivePending) screen = UIScreen.Revive;
             else if (_gameOver) screen = UIScreen.GameOver;
+            else if (_routeSelectOpen) screen = UIScreen.RouteSelect;
             else if (_paused) screen = UIScreen.Pause;
             else screen = UIScreen.None;
 
@@ -452,6 +453,9 @@ namespace VoidFall.Runtime
         private void TogglePause()
         {
             if (_revivePending || _gameOver || _levelUpActive || _menuPage != MenuPage.None) return;
+            // The route choice owns the run until a Void is picked: dismissing
+            // it strands the run with a completed objective and no way forward.
+            if (_routeSelectOpen) return;
             if (_paused)
             {
                 _paused = false;
