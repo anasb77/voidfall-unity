@@ -57,6 +57,34 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Expired_post_boss_delay_delivers_an_unclaimed_roulette_before_route_selection()
+        {
+            var runtime = UnityEngine.Object.FindAnyObjectByType<VoidFallGameRuntime>();
+            Assert.That(runtime, Is.Not.Null);
+            yield return null;
+
+            Invoke(runtime, "StartRun");
+            Invoke(runtime, "OnVoidObjectiveCompleted");
+            Invoke(runtime, "SpawnRouletteChest", Vector2.zero);
+            SetField(runtime, "_voidCompletionDelayRemaining", 0f);
+
+            Invoke(runtime, "StepVoidCompletionDelay", 0f);
+
+            Assert.That(GetField(runtime, "_rouletteChestActive"), Is.False);
+            Assert.That(GetField(runtime, "_rouletteActive"), Is.True);
+            Assert.That(GetField(runtime, "_openRouteAfterRoulette"), Is.True);
+
+            var session = GetField(runtime, "_rouletteSession");
+            Invoke(runtime, "OnRouletteComplete", session);
+            Invoke(runtime, "ClosePrizeReveal");
+
+            Assert.That(GetField(runtime, "_openRouteAfterRoulette"), Is.False);
+            Assert.That(GetField(runtime, "_paused"), Is.True);
+            var ui = (UIManager)GetField(runtime, "_ui");
+            Assert.That(ui.CurrentScreen, Is.EqualTo(UIScreen.RouteSelect));
+        }
+
+        [UnityTest]
         public IEnumerator Roulette_view_initializes_with_one_live_canvas_group()
         {
             var root = new GameObject("Roulette Regression", typeof(RectTransform));
@@ -82,15 +110,44 @@ namespace VoidFall.Tests.PlayMode
             return field.GetValue(target);
         }
 
+        private static void SetField(object target, string name, object value)
+        {
+            var field = target.GetType().GetField(
+                name,
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            Assert.That(field, Is.Not.Null, "Missing field '" + name + "'.");
+            field.SetValue(target, value);
+        }
+
         private static void Invoke(object target, string name)
+        {
+            Invoke(target, name, Array.Empty<object>());
+        }
+
+        private static void Invoke(object target, string name, params object[] arguments)
         {
             var method = target.GetType().GetMethod(
                 name,
-                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
+                null,
+                Array.ConvertAll(arguments, argument => argument?.GetType() ?? typeof(object)),
+                null);
+            if (method == null)
+            {
+                foreach (var candidate in target.GetType().GetMethods(
+                             BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+                {
+                    if (candidate.Name == name && candidate.GetParameters().Length == arguments.Length)
+                    {
+                        method = candidate;
+                        break;
+                    }
+                }
+            }
             Assert.That(method, Is.Not.Null, "Missing method '" + name + "'.");
             try
             {
-                method.Invoke(target, null);
+                method.Invoke(target, arguments);
             }
             catch (TargetInvocationException exception)
             {

@@ -2105,6 +2105,7 @@ namespace VoidFall.Runtime
             _arenaId = playStartCue ? ArenaId.Void : ArenaIdFromName(_saveData?.arena);
             SelectRecipeForCurrentArena();
             EnsureVoidRouteForRun();
+            _nextBossTime = float.PositiveInfinity;
             BeginObjectiveForCurrentArena();
             PrepareArenaNeighborhood();
             _arenaTransitionState = ArenaRules.CreateTransitionState(_runSeed);
@@ -2354,13 +2355,16 @@ namespace VoidFall.Runtime
             UpdateCameraFollow(dt);
             UpdateWeapons(dt);
 
-            var arenaStep = ArenaRules.Step(
-                _arenaTransitionState,
-                dt,
-                _time,
-                _runSeed,
-                _arenaId,
-                ArenaTransitionBlocked());
+            if (_voidRoute != null) StepRiftTransition(dt);
+            var arenaStep = _voidRoute == null
+                ? ArenaRules.Step(
+                    _arenaTransitionState,
+                    dt,
+                    _time,
+                    _runSeed,
+                    _arenaId,
+                    ArenaTransitionBlocked())
+                : new ArenaStepResult(_arenaTransitionState, ArenaTransitionEvent.None);
             var previousArena = _arenaId;
             _arenaTransitionState = arenaStep.State;
             var transitionCue = ArenaTransitionCueFor(arenaStep.Event);
@@ -2433,6 +2437,7 @@ namespace VoidFall.Runtime
             }
             RebuildEnemyGrid();
             UpdateMeteors(dt);
+            UpdateNebulaStrikes(dt);
             UpdateBlades(dt);
             UpdateBullets(dt);
             UpdateRailTrails(dt);
@@ -3059,7 +3064,8 @@ namespace VoidFall.Runtime
             for (var index = 0; index < _gameSim.Enemies.Length; index++)
             {
                 var enemy = _gameSim.Enemies[index];
-                if (!enemy.Active || enemy.SummonedByBossTelemetryId != boss.TelemetryInstanceId) continue;
+                if (!enemy.Active || !enemy.MatriarchBodyguard ||
+                    enemy.SummonedByBossTelemetryId != boss.TelemetryInstanceId) continue;
                 livingSummons++;
                 if (livingSummons >= 3) return true;
             }
@@ -4441,6 +4447,11 @@ namespace VoidFall.Runtime
                 case "frame": return 8; // Shield
                 case "optics": return 0; // Crosshair
                 case "overload": return 2; // Zap
+                case "dodge": return 8; // Shield
+                case "scholar": return 4; // Sparkles / insight
+                case "fortune": return 10; // Magnet
+                case "projectileSpeed": return 5; // Rocket
+                case "spatialAwareness": return 12; // Expand
                 default: return -1;
             }
         }
@@ -4463,6 +4474,11 @@ namespace VoidFall.Runtime
                 case "collector": return "\u2328"; // Magnet
                 case "optics": return "\u2316"; // Crosshair
                 case "overload": return "\u26a1"; // Zap
+                case "dodge": return "\u25c7"; // Shield
+                case "scholar": return "\u2726"; // Sparkles / insight
+                case "fortune": return "\u2328"; // Magnet
+                case "projectileSpeed": return "\u2191"; // Rocket
+                case "spatialAwareness": return "\u2194"; // Expand
                 case "adrenal": return "\u2668"; // Flame
                 case "amplifier": return "\u2194"; // Expand
                 case "regenerator": return "\u2665"; // HeartPlus

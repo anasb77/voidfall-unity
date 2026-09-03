@@ -13,6 +13,8 @@ namespace VoidFall.Core
         public int StructuresDestroyed;
         public string SpawnedId;
         public string KilledId;
+        public int BossesSpawned;
+        public int BossesKilled;
         public double ZoneHoldSeconds;
 
         public void Reset()
@@ -21,6 +23,8 @@ namespace VoidFall.Core
             StructuresDestroyed = 0;
             SpawnedId = null;
             KilledId = null;
+            BossesSpawned = 0;
+            BossesKilled = 0;
             ZoneHoldSeconds = 0;
         }
     }

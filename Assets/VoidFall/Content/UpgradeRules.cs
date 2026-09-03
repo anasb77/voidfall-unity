@@ -131,8 +131,7 @@ namespace VoidFall.Core
                 var current = progress.SupportRanks[index];
                 if (current >= support.MaxRank) continue;
                 var next = current + 1;
-                var descriptions = support.Descriptions ?? new string[0];
-                var description = descriptions.Length >= next ? descriptions[next - 1] : support.Name;
+                var description = SupportUpgradeDescription(support, current, next);
                 pool.Add(new UpgradeOptionDefinition
                 {
                     Id = "support:" + support.Id,
@@ -165,7 +164,7 @@ namespace VoidFall.Core
                         TargetId = late.Id,
                         Kind = UpgradeOptionKind.Late,
                         Name = late.Name,
-                        Description = late.Description,
+                        Description = LateUpgradeDescription(late, current, current + 1),
                         CurrentRank = current,
                         NextRank = current + 1,
                         MaxRank = late.MaxRank,
@@ -221,7 +220,7 @@ namespace VoidFall.Core
             AppendStatChange(changes, "Orbit speed", previous.OrbitSpeed, current.OrbitSpeed, "", 1);
             AppendStatChange(changes, "Repeat delay", previous.HitCooldown, current.HitCooldown, " seconds", 2);
             AppendStatChange(changes, "Arc jumps", previous.ChainCount, current.ChainCount);
-            return string.Join(". ", changes) + ".";
+            return string.Join("\n", changes);
         }
 
         private static string WeaponAcquisitionDescription(WeaponDefinition weapon)
@@ -230,31 +229,30 @@ namespace VoidFall.Core
             switch (weapon.Kind)
             {
                 case "orbit":
-                    return first.OrbitCount + " " + (first.OrbitCount == 1 ? "blade" : "blades") + ", " +
-                        FormatSourceNumber(first.Damage) + " damage per hit, " +
-                        FormatFixed(first.HitCooldown, 2) + " second repeat delay.";
+                    return "Blades " + first.OrbitCount + "\nDamage " +
+                        FormatSourceNumber(first.Damage) + "\nRepeat delay " +
+                        FormatFixed(first.HitCooldown, 2) + " seconds";
                 case "scatter":
-                    return FormatSourceNumber(first.ProjectileCount) + " pellets at " +
-                        FormatSourceNumber(first.Damage) + " damage each, " +
-                        FormatFixed(first.Cooldown, 2) + " second fire delay.";
+                    return "Pellets " + FormatSourceNumber(first.ProjectileCount) + "\nDamage " +
+                        FormatSourceNumber(first.Damage) + " each\nFire delay " +
+                        FormatFixed(first.Cooldown, 2) + " seconds";
                 case "rail":
-                    return FormatSourceNumber(first.Damage) + " damage, passes through " +
-                        FormatSourceNumber(first.Pierce) + " targets, " +
-                        FormatFixed(first.Cooldown, 2) + " second fire delay.";
+                    return "Damage " + FormatSourceNumber(first.Damage) + "\nTargets passed through " +
+                        FormatSourceNumber(first.Pierce) + "\nFire delay " +
+                        FormatFixed(first.Cooldown, 2) + " seconds";
                 case "chain":
-                    return FormatSourceNumber(first.Damage) + " damage, jumps to " +
-                        FormatSourceNumber(first.ChainCount) + " more enemies, " +
-                        FormatFixed(first.Cooldown, 2) + " second fire delay.";
+                    return "Damage " + FormatSourceNumber(first.Damage) + "\nArc jumps " +
+                        FormatSourceNumber(first.ChainCount) + "\nFire delay " +
+                        FormatFixed(first.Cooldown, 2) + " seconds";
                 case "homing":
-                    return FormatSourceNumber(first.ProjectileCount) + " homing " +
-                        (first.ProjectileCount == 1 ? "missile" : "missiles") + " at " +
-                        FormatSourceNumber(first.Damage) + " damage, " +
-                        FormatSourceNumber(first.BlastRadius) + " blast, " +
-                        FormatFixed(first.Cooldown, 2) + " second fire delay.";
+                    return "Homing missiles " + FormatSourceNumber(first.ProjectileCount) + "\nDamage " +
+                        FormatSourceNumber(first.Damage) + "\nBlast radius " +
+                        FormatSourceNumber(first.BlastRadius) + "\nFire delay " +
+                        FormatFixed(first.Cooldown, 2) + " seconds";
                 default:
-                    return FormatSourceNumber(first.Damage) + " damage, " +
-                        FormatFixed(first.Cooldown, 2) + " second fire delay, " +
-                        FormatSourceNumber(first.Range) + " range.";
+                    return "Damage " + FormatSourceNumber(first.Damage) + "\nFire delay " +
+                        FormatFixed(first.Cooldown, 2) + " seconds\nRange " +
+                        FormatSourceNumber(first.Range);
             }
         }
 
@@ -269,7 +267,91 @@ namespace VoidFall.Core
             if (before == after) return;
             var beforeText = fixedDigits < 0 ? FormatSourceNumber(before) : FormatFixed(before, fixedDigits);
             var afterText = fixedDigits < 0 ? FormatSourceNumber(after) : FormatFixed(after, fixedDigits);
-            changes.Add(label + " " + beforeText + " to " + afterText + suffix);
+            changes.Add(label + " " + beforeText + " \u2192 " + afterText + suffix);
+        }
+
+        private static string SupportUpgradeDescription(
+            SupportDefinition support,
+            int currentRank,
+            int nextRank)
+        {
+            var before = Math.Max(0, currentRank);
+            var after = Math.Max(before, nextRank);
+            switch (support.Id)
+            {
+                case "calibration": return MultiplierLine("Weapon damage", 1.12, before, after);
+                case "cycling": return MultiplierLine("Fire delay", 0.92, before, after);
+                case "plating": return BonusLine("Maximum integrity", 20, before, after) + "\nRepair 20";
+                case "mobility": return MultiplierLine("Move speed", 1.08, before, after);
+                case "collector": return MultiplierLine("Pickup range", 1.25, before, after);
+                case "optics": return BonusPercentLine("Critical chance", 6, before, after);
+                case "overload": return BonusPercentLine("Critical burst damage", 25, before, after);
+                case "adrenal":
+                    return BonusPercentLine("Fire recovery after hit", 10, before, after) +
+                           "\n" + BonusPercentLine("Move speed after hit", 6, before, after) +
+                           "\nDuration 5 seconds";
+                case "amplifier":
+                    var multiplier = MultiplierValues(1.12, before, after);
+                    return "Projectile size " + multiplier + "\nBlast size " + multiplier +
+                           "\nOrbit size " + multiplier;
+                case "regenerator": return DecimalBonusLine("Integrity per second", 0.6, before, after);
+                case "dodge": return BonusPercentLine("Dodge chance", 4, before, after);
+                case "scholar": return BonusPercentLine("Experience gained", 8, before, after);
+                case "fortune": return BonusPercentLine("Power-up drop chance", 5, before, after);
+                case "projectileSpeed": return MultiplierLine("Projectile speed", 1.10, before, after);
+                case "spatialAwareness": return BonusPercentLine("Camera dezoom", 5, before, after);
+                default:
+                    var descriptions = support.Descriptions ?? new string[0];
+                    return descriptions.Length >= nextRank ? descriptions[nextRank - 1] : support.Name;
+            }
+        }
+
+        private static string LateUpgradeDescription(
+            LateUpgradeDefinition late,
+            int currentRank,
+            int nextRank)
+        {
+            switch (late.Id)
+            {
+                case "output": return MultiplierLine("Weapon damage", 1.05, currentRank, nextRank);
+                case "cooling": return MultiplierLine("Fire delay", 0.97, currentRank, nextRank);
+                case "frame": return BonusLine("Maximum integrity", 8, currentRank, nextRank) + "\nRepair 8";
+                default: return late.Description;
+            }
+        }
+
+        private static string MultiplierLine(string label, double perRank, int beforeRank, int afterRank)
+        {
+            return label + " " + MultiplierValues(perRank, beforeRank, afterRank);
+        }
+
+        private static string MultiplierValues(double perRank, int beforeRank, int afterRank)
+        {
+            return Percent(Math.Pow(perRank, beforeRank)) + " \u2192 " + Percent(Math.Pow(perRank, afterRank));
+        }
+
+        private static string BonusPercentLine(string label, double perRank, int beforeRank, int afterRank)
+        {
+            return label + " +" + FormatSourceNumber(beforeRank * perRank) + "% \u2192 +" +
+                   FormatSourceNumber(afterRank * perRank) + "%";
+        }
+
+        private static string BonusLine(string label, double perRank, int beforeRank, int afterRank)
+        {
+            return label + " +" + FormatSourceNumber(beforeRank * perRank) + " \u2192 +" +
+                   FormatSourceNumber(afterRank * perRank);
+        }
+
+        private static string DecimalBonusLine(string label, double perRank, int beforeRank, int afterRank)
+        {
+            return label + " " + FormatSourceNumber(beforeRank * perRank) + " \u2192 " +
+                   FormatSourceNumber(afterRank * perRank);
+        }
+
+        private static string Percent(double multiplier)
+        {
+            return Math.Round(multiplier * 100, MidpointRounding.AwayFromZero)
+                .ToString("0", CultureInfo.InvariantCulture) + "%";
         }
 
         private static string FormatSourceNumber(double value)
@@ -335,7 +417,8 @@ namespace VoidFall.Core
                     TargetId = evolution.WeaponId,
                     Kind = UpgradeOptionKind.Evolution,
                     Name = evolution.Name,
-                    Description = evolution.Description + " Requires " + weapon.Name + " VI and " + support.Name + " " + support.MaxRank + ".",
+                    Description = evolution.Description.Replace(". ", ".\n") + "\nRequires " +
+                        weapon.Name + " VI\nRequires " + support.Name + " " + support.MaxRank,
                     CurrentRank = 0,
                     NextRank = 1,
                     MaxRank = 1,

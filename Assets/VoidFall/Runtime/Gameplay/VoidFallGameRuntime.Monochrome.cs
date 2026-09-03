@@ -7,7 +7,6 @@ namespace VoidFall.Runtime
     {
         private const string CourtBlackBossId = "court-grandmaster-black";
         private const string CourtWhiteBossId = "court-grandmaster-white";
-        private const string CourtObjectiveBossId = "court-grandmasters";
         private const int CourtBoardColumns = 14;
         private const int CourtBoardRows = 9;
 
@@ -501,7 +500,6 @@ namespace VoidFall.Runtime
             var white = _courtWhiteBossSlot;
             if (black >= 0 && _gameSim.Bosses[black].Active) KillBoss(black);
             if (white >= 0 && _gameSim.Bosses[white].Active) KillBoss(white);
-            NotifyObjectiveBossKilled(CourtObjectiveBossId);
             EndMonochromeBossEncounter();
         }
 

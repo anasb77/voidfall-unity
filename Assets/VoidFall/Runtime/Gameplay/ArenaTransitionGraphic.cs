@@ -12,10 +12,10 @@ namespace VoidFall.Runtime
     internal sealed class ArenaTransitionGraphic : MaskableGraphic
     {
         private const float Tilt = -0.12f;
-        private const int FoldSegments = 10;
-        private const int RingSegments = 40;
-        private const float CollapseSeconds = 0.55f;
-        private const float SettleSeconds = 0.85f;
+        private const int FoldSegments = 14;
+        private const int RingSegments = 56;
+        private const float CollapseSeconds = 0.72f;
+        private const float SettleSeconds = 1.1f;
 
         private readonly Vector2[] _horizonPoints = new Vector2[FoldSegments + 1];
         private ArenaPhase _phase;
@@ -72,12 +72,13 @@ namespace VoidFall.Runtime
                 _horizonPoints[step] = FoldPoint(step / (float)FoldSegments, side, width, height, gap);
             }
 
-            var darkAlpha = 0.58f + intensity * 0.34f;
-            var dark = new Color(0.008f, 0.012f, 0.04f, darkAlpha);
+            var darkAlpha = 0.55f + intensity * 0.4f;
+            var dark = new Color(0.006f, 0.009f, 0.03f, darkAlpha);
             AddFoldPanel(vertexHelper, width, height, gap, -1, dark);
             AddFoldPanel(vertexHelper, width, height, gap, 1, dark);
 
             var seam = new Color(_accent.r, _accent.g, _accent.b, intensity * 0.8f);
+            var whiteSeam = new Color(0.9f, 0.98f, 1f, intensity * intensity * 0.72f);
             for (var step = 1; step <= FoldSegments; step++)
             {
                 var from = FoldSeamPoint(
@@ -93,13 +94,24 @@ namespace VoidFall.Runtime
                     height,
                     gap);
                 AddLine(vertexHelper, from, to, 1.5f + intensity * 2.5f, seam);
+                var normal = new Vector2(-(to - from).y, (to - from).x).normalized;
+                AddLine(
+                    vertexHelper,
+                    from + normal * 3f,
+                    to + normal * 3f,
+                    0.8f + intensity * 1.2f,
+                    whiteSeam);
             }
+
+            var flash = Mathf.Clamp01((intensity - 0.72f) / 0.28f);
+            if (flash > 0f)
+                AddRect(vertexHelper, width, height, new Color(_accent.r, _accent.g, _accent.b, flash * 0.16f));
 
             if (!_reducedMotion && _quality > 0)
             {
                 var streakColor = new Color(0.86f, 0.92f, 1f, intensity * 0.34f);
                 var diagonal = Mathf.Sqrt(width * width + height * height);
-                var streakCount = _quality > 1 ? 24 : 14;
+                var streakCount = _quality > 1 ? 36 : 20;
                 for (var streak = 0; streak < streakCount; streak++)
                 {
                     var angle = streak / (float)streakCount * Mathf.PI * 2f + _transitionIndex * 0.37f;
@@ -109,7 +121,7 @@ namespace VoidFall.Runtime
                     var squash = 0.72f + (streak % 3) * 0.13f;
                     var from = new Vector2(Mathf.Cos(angle) * inner, Mathf.Sin(angle) * inner * squash);
                     var to = new Vector2(Mathf.Cos(angle) * outer, Mathf.Sin(angle) * outer * squash);
-                    AddLine(vertexHelper, from, to, 1f, streakColor);
+                    AddLine(vertexHelper, from, to, 0.8f + (streak % 3) * 0.35f, streakColor);
                 }
             }
 
@@ -119,6 +131,8 @@ namespace VoidFall.Runtime
                 var reach = 28f + progress * Mathf.Sqrt(width * width + height * height) * 0.52f;
                 var ringColor = new Color(_accent.r, _accent.g, _accent.b, (1f - progress) * 0.58f * (_reducedMotion ? 0.35f : 1f));
                 AddEllipse(vertexHelper, reach, reach * 0.66f, Tilt, 4f - progress * 2.5f, ringColor);
+                var innerColor = new Color(0.9f, 0.98f, 1f, ringColor.a * 0.55f);
+                AddEllipse(vertexHelper, reach * 0.72f, reach * 0.48f, -Tilt, 2.5f - progress, innerColor);
             }
         }
 

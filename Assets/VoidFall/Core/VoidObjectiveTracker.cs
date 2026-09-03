@@ -43,11 +43,15 @@ namespace VoidFall.Core
         /// </summary>
         public void NotifyNamedSpawned(string id)
         {
+            if (string.IsNullOrEmpty(id)) return;
+            _feed.BossesSpawned++;
             if (_feed.SpawnedId == null) _feed.SpawnedId = id;
         }
 
         public void NotifyNamedKilled(string id)
         {
+            if (string.IsNullOrEmpty(id)) return;
+            _feed.BossesKilled++;
             if (_feed.KilledId == null) _feed.KilledId = id;
         }
 

@@ -737,12 +737,19 @@ namespace VoidFall.Runtime
                              ? HydraRuntimeRules.EvasionPresentationScale
                              : HydraRuntimeRules.BossPresentationScale)
                          : 1f));
+                var wardenRushing = boss.Id == "warden" && boss.Active && boss.State == 2 &&
+                    boss.ActiveAttack?.Id == "charge";
+                var bodyRotation = wardenRushing
+                    ? (float)CombatTweakRules.WardenRushRotationDegrees(
+                        boss.StateTimer,
+                        boss.ActiveAttack.ActiveSeconds)
+                    : SourceBossBodyRotationRadians(_ambientClock) * Mathf.Rad2Deg;
                 _bossViews[i].transform.rotation = Quaternion.Euler(
                     0,
                     0,
                     hydra
                         ? Mathf.Sin(_ambientClock * 1.6f) * 1.2f
-                        : SourceBossBodyRotationRadians(_ambientClock) * Mathf.Rad2Deg);
+                        : bodyRotation);
                 _bossViews[i].enabled = true;
             }
             for (var i = 0; i < _arcEffects.Length; i++)
@@ -3639,19 +3646,22 @@ namespace VoidFall.Runtime
                     continue;
                 }
 
-                var mark = EnsureEliteMarkView(index);
                 var eliteVariant = enemy.EliteKind.HasValue;
-                mark.sprite = eliteVariant
-                    ? ProceduralSpriteFactory.EliteMark()
-                    : ProceduralSpriteFactory.EliteRing();
-                mark.transform.position = enemy.Position;
-                mark.transform.localScale = Vector3.one * SourceEliteRingSize(_ambientClock);
-                mark.color = new Color(
-                    1f,
-                    1f,
-                    1f,
-                    SourceEliteRingAlpha(eliteVariant));
-                mark.enabled = true;
+                if (eliteVariant || CombatTweakRules.ShowStandardEliteOverlay())
+                {
+                    var mark = EnsureEliteMarkView(index);
+                    mark.sprite = eliteVariant
+                        ? ProceduralSpriteFactory.EliteMark()
+                        : ProceduralSpriteFactory.EliteRing();
+                    mark.transform.position = enemy.Position;
+                    mark.transform.localScale = Vector3.one * SourceEliteRingSize(_ambientClock);
+                    mark.color = new Color(1f, 1f, 1f, SourceEliteRingAlpha(eliteVariant));
+                    mark.enabled = true;
+                }
+                else
+                {
+                    Hide(_eliteMarkViews[index]);
+                }
 
                 if (enemy.EliteKind.HasValue || enemy.State != 1)
                 {
@@ -3943,6 +3953,7 @@ namespace VoidFall.Runtime
                     var color = pincer
                         ? new Color(251f / 255f, 113f / 255f, 133f / 255f, 0.09f + progress * 0.15f)
                         : new Color(232f / 255f, 121f / 255f, 249f / 255f, 0.09f + progress * 0.15f);
+                    color.a = (float)CombatTweakRules.RusherPreviewAlpha(color.a);
                     Hide(_enemyTelegraphLineViews[index]);
                     var lane = EnsureEnemyTelegraphFillView(index);
                     SetTelegraphMesh(
@@ -3960,7 +3971,7 @@ namespace VoidFall.Runtime
                     var arrowTip = TelegraphPoint(enemy.Position, direction, normal, enemy.Radius + reach + 16f, 0);
                     var arrowLeft = TelegraphPoint(enemy.Position, direction, normal, enemy.Radius + reach - 4f, -10f);
                     var arrowRight = TelegraphPoint(enemy.Position, direction, normal, enemy.Radius + reach - 4f, 10f);
-                    color.a = 0.28f + progress * 0.4f;
+                    color.a = (float)CombatTweakRules.RusherPreviewAlpha(0.28f + progress * 0.4f);
                     SetTelegraphMesh(
                         arrow,
                         _enemyTelegraphArrowFillRenderers[index],
@@ -3991,6 +4002,7 @@ namespace VoidFall.Runtime
                     secondary.SetPosition(1, enemy.Position + direction * 390f + normal * 42f);
                     var progress = Mathf.Clamp01(1f - enemy.StateTimer / 0.68f);
                     var color = new Color(251f / 255f, 113f / 255f, 133f / 255f, 0.18f + progress * 0.42f);
+                    color.a = (float)CombatTweakRules.RangedPreviewAlpha(color.a);
                     line.startColor = color;
                     line.endColor = color;
                     line.startWidth = 1.5f + progress;
@@ -4022,6 +4034,7 @@ namespace VoidFall.Runtime
                     tertiary.SetPosition(1, enemy.Position + new Vector2(Mathf.Cos(angle + 0.2f), Mathf.Sin(angle + 0.2f)) * 360f);
                     var progress = Mathf.Clamp01(1f - enemy.StateTimer / 0.78f);
                     var color = new Color(245f / 255f, 158f / 255f, 11f / 255f, 0.16f + progress * 0.4f);
+                    color.a = (float)CombatTweakRules.RangedPreviewAlpha(color.a);
                     line.startColor = color;
                     line.endColor = color;
                     line.startWidth = 1.2f + progress;
@@ -4471,7 +4484,9 @@ namespace VoidFall.Runtime
                         var direction = SourceVisualDirection(boss.DashDirection);
                         var normal = new Vector2(-direction.y, direction.x);
                         var start = boss.Position + direction * 18f;
-                        var end = boss.Position + direction * 135f;
+                        var reach = BossChargeSpeed(BossEncounterCycle(boss.TelemetryInstanceId)) *
+                            (float)attack.ActiveSeconds;
+                        var end = boss.Position + direction * reach;
                         var startHalfWidth = boss.Radius * 0.6f;
                         var color = new Color(0.973f, 0.443f, 0.443f, 0.12f + progress * 0.18f);
                         AddQuad(

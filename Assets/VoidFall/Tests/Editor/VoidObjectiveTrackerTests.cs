@@ -12,12 +12,12 @@ namespace VoidFall.Tests.Editor
         [Test]
         public void Arena_factory_maps_the_built_voids()
         {
-            foreach (var voidId in new[] { "abyss", "red-nebula", "white-sakura", "hydra" })
+            foreach (var voidId in new[] { "abyss", "red-nebula", "white-sakura", "hydra", "monochrome-court" })
             {
                 var objective = VoidObjectives.ForArena(voidId);
                 Assert.That(objective, Is.Not.Null, voidId + " must open a rift");
                 Assert.That(objective, Is.InstanceOf<MultiPhaseObjective>(),
-                    voidId + " composes survive + named-kill phases");
+                    voidId + " composes survive + encounter phases");
             }
 
             // Layer II and beyond stay endless until their Voids are built.
@@ -90,28 +90,39 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
-        public void End_to_end_abyss_flow_reaches_checkmate_style_completion()
+        public void Every_built_void_survives_five_minutes_before_its_boss_encounter()
+        {
+            foreach (var voidId in new[] { "abyss", "red-nebula", "white-sakura", "hydra", "monochrome-court" })
+            {
+                var objective = (MultiPhaseObjective)VoidObjectives.ForArena(voidId);
+                objective.BeginObjective();
+                objective.TickObjective(299.75, new VoidObjectiveFeed());
+                Assert.That(objective.PhaseIndex, Is.EqualTo(0), voidId);
+                Assert.That(objective.GetObjectiveText(), Does.Contain("04:59"), voidId);
+
+                objective.TickObjective(0.25, new VoidObjectiveFeed());
+                Assert.That(objective.PhaseIndex, Is.EqualTo(1), voidId);
+            }
+        }
+
+        [Test]
+        public void Boss_encounter_completes_only_after_every_spawned_boss_dies()
         {
             var tracker = new VoidObjectiveTracker();
             tracker.Begin(VoidObjectives.ForArena("abyss"));
+            tracker.Step(300);
 
-            // 180 seconds of opening escalation at 4 Hz (0.25 s is exact in
-            // binary, so the survive phase completes without float drift);
-            // kills happen but only the boss matters for the escape.
-            var dt = 0.25;
-            for (var tick = 0; tick < 720; tick++)
-            {
-                tracker.NotifyKill();
-                if (tick == 480) tracker.NotifyNamedSpawned("herald");
-                tracker.Step(dt);
-            }
-            Assert.That(tracker.IsComplete, Is.False, "the Gatekeeper still lives");
-            Assert.That(tracker.Text, Does.Contain("Kill the Gatekeeper"));
+            tracker.NotifyNamedSpawned("warden");
+            tracker.NotifyNamedSpawned("matriarch");
+            tracker.Step(0);
+            Assert.That(tracker.Text, Does.Contain("Defeat the Void Boss"));
 
-            // The Herald dies only after the survive phase completes: the
-            // kill lands in phase 2 and completes the escape.
-            tracker.NotifyNamedKilled("herald");
-            tracker.Step(dt);
+            tracker.NotifyNamedKilled("warden");
+            tracker.Step(0);
+            Assert.That(tracker.IsComplete, Is.False, "second boss still lives");
+
+            tracker.NotifyNamedKilled("matriarch");
+            tracker.Step(0);
             Assert.That(tracker.IsComplete, Is.True);
             Assert.That(tracker.Text, Does.Contain("COMPLETE"));
         }

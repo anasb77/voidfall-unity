@@ -107,7 +107,11 @@ namespace VoidFall.Tests.PlayMode
         // Monochrome Court adds the fifth prepared arena plus its route-owned
         // roster and twin encounter. Re-pinned after the 32-seed stability
         // sweep remained deterministic and legacy endless arena order stayed fixed.
-        internal const ulong GoldenMasterHash = 13150562237046848063;
+        // Objective-driven boss encounters remove endless boss scheduling and
+        // Amplifier now scales projectiles with blast/orbit size. Re-pinned for
+        // those intentional simulation changes; the 32-seed sweep remains the
+        // determinism gate.
+        internal const ulong GoldenMasterHash = 17563185683496835661;
 
         internal static ulong HashRuntimeState(object runtime)
         {

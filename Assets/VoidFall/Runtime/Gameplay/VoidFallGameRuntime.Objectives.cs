@@ -49,9 +49,13 @@ namespace VoidFall.Runtime
             }
             if (_objectives == null) _objectives = new VoidObjectiveTracker();
             _objectives.Begin(objective);
+            ClearNebulaStrikes();
             _objectiveLine = objective.GetObjectiveText();
             _objectiveLineTimer = ObjectiveLineRebuildSeconds;
             _objectivesCompletionHandled = false;
+            _voidBossEncounterSpawned = false;
+            _voidCompletionPending = false;
+            _voidCompletionDelayRemaining = 0f;
         }
 
         private void NotifyObjectiveKill() => _objectives?.NotifyKill();
@@ -66,13 +70,13 @@ namespace VoidFall.Runtime
         {
             if (_objectives == null) return;
             _objectives.Step(deltaTime);
-            SyncHydraEncounterWithObjective();
-            SyncMonochromeEncounterWithObjective();
+            SyncVoidBossEncounterWithObjective();
             if (_objectives.IsComplete && !_objectivesCompletionHandled)
             {
                 _objectivesCompletionHandled = true;
                 OnVoidObjectiveCompleted();
             }
+            StepVoidCompletionDelay((float)deltaTime);
             _objectiveLineTimer -= (float)deltaTime;
             if (_objectiveLineTimer > 0) return;
             _objectiveLineTimer = ObjectiveLineRebuildSeconds;

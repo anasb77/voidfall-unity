@@ -56,18 +56,6 @@ namespace VoidFall.Core
             },
             new SupportDefinition
             {
-                Id = "projectileSize",
-                Name = "Mass Driver",
-                MaxRank = 3,
-                Accent = "#f0abfc",
-                Weight = 7,
-                Descriptions = new[]
-                {
-                    "+10% projectile size", "+10% projectile size", "+10% projectile size"
-                },
-            },
-            new SupportDefinition
-            {
                 Id = "projectileSpeed",
                 Name = "Velocity Coils",
                 MaxRank = 3,

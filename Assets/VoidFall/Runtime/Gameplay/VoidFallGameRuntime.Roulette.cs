@@ -113,6 +113,12 @@ namespace VoidFall.Runtime
 
         private void ClosePrizeReveal()
         {
+            if (_openRouteAfterRoulette)
+            {
+                _openRouteAfterRoulette = false;
+                OpenCompletedVoidRift();
+                return;
+            }
             _paused = false;
             _ui?.SetScreen(UIScreen.None);
         }

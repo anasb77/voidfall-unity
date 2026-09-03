@@ -43,8 +43,13 @@ namespace VoidFall.Editor
                     var source = entry.Sprite;
                     if (!importedBySource.TryGetValue(source, out var imported))
                     {
-                        var filename = "Sprite_" + sourceIndex.ToString("D4") + "_" +
-                                       SafeFilename(entry.Key) + ".png";
+                        // Append-only prepared art must not renumber every
+                        // existing generated filename and GUID.
+                        var appendOnlyExtra = entry.Key == "pickup|trackshift";
+                        var filename = appendOnlyExtra
+                            ? "Sprite_extra_" + SafeFilename(entry.Key) + ".png"
+                            : "Sprite_" + sourceIndex.ToString("D4") + "_" +
+                              SafeFilename(entry.Key) + ".png";
                         var path = SpriteRoot + "/" + filename;
                         generatedPaths.Add(path);
                         EditorUtility.DisplayProgressBar(
@@ -52,7 +57,7 @@ namespace VoidFall.Editor
                             "Importing " + entry.Key,
                             entryIndex / (float)snapshot.Entries.Count);
                         WriteSpritePng(path, source);
-                        var atlasSafe = IsAtlasSafe(source);
+                        var atlasSafe = !appendOnlyExtra && IsAtlasSafe(source);
                         ImportSprite(path, source, atlasSafe);
                         imported = AssetDatabase.LoadAssetAtPath<Sprite>(path);
                         if (imported == null)
@@ -60,7 +65,7 @@ namespace VoidFall.Editor
 
                         importedBySource.Add(source, imported);
                         if (atlasSafe) safeForAtlas.Add(imported);
-                        sourceIndex++;
+                        if (!appendOnlyExtra) sourceIndex++;
                     }
 
                     importedEntries.Add(new ProceduralSpriteCatalogEntry(entry.Key, imported));

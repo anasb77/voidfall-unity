@@ -43,6 +43,8 @@ namespace VoidFall.Runtime
             public bool CarrierDrone;
             public bool SplitterFragment;
             public int SummonedByBossTelemetryId;
+            public bool MatriarchBodyguard;
+            public int MatriarchBodyguardSlot;
             public int SummonedByCarrierSpawnId;
             public int SpawnId;
             public int State;

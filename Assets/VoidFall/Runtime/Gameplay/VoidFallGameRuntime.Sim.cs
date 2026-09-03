@@ -168,6 +168,11 @@ namespace VoidFall.Runtime
 
         private void UpdateSpawns(float dt)
         {
+            if (_riftTransitionActive)
+            {
+                _spawnTimer = Mathf.Max(_spawnTimer, 0.35f);
+                return;
+            }
             if (CurrentVoidIsMonochrome)
             {
                 if (_monochromeBossEncounterActive)
@@ -698,9 +703,20 @@ namespace VoidFall.Runtime
                     var regeneration = (float)MutationRules.ModifiersFor(enemy.MutationGene).RegenPerSecond;
                     enemy.Health = Mathf.Min(enemy.MaxHealth, enemy.Health + regeneration * dt);
                 }
-                enemy.Rotation = SourceEnemyRotationAdvance(enemy.Rotation, enemy.Spin, dt);
+                var standardEliteMoving = enemy.Elite && !enemy.EliteKind.HasValue &&
+                    enemy.Velocity.sqrMagnitude > 1f;
+                enemy.Rotation = SourceEnemyRotationAdvance(
+                    enemy.Rotation,
+                    enemy.Spin * (float)CombatTweakRules.StandardEliteSpinMultiplier(standardEliteMoving),
+                    dt);
 
-                if (enemy.Elite && !enemy.EliteKind.HasValue)
+                var bodyguardOrbiting = enemy.MatriarchBodyguard &&
+                    TryUpdateMatriarchBodyguard(ref enemy, dt, distance, direction);
+                if (bodyguardOrbiting)
+                {
+                    enemy.Knockback = Vector2.zero;
+                }
+                else if (enemy.Elite && !enemy.EliteKind.HasValue)
                 {
                     UpdateStandardElite(ref enemy, dt, distance, direction);
                 }
@@ -774,8 +790,11 @@ namespace VoidFall.Runtime
                     enemy.Velocity = rotated * enemy.Speed;
                 }
 
-                enemy.Knockback *= Mathf.Exp(-8f * dt);
-                enemy.Position += (enemy.Velocity + enemy.Knockback) * dt;
+                if (!bodyguardOrbiting)
+                {
+                    enemy.Knockback *= Mathf.Exp(-8f * dt);
+                    enemy.Position += (enemy.Velocity + enemy.Knockback) * dt;
+                }
                 if ((!enemy.Elite || enemy.EliteKind.HasValue) && distance > 1750f)
                 {
                     var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
@@ -806,6 +825,41 @@ namespace VoidFall.Runtime
         }
 
         private void UpdateDasher(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateDasher(ref enemy, dt, distance, direction);
+
+        private bool TryUpdateMatriarchBodyguard(
+            ref EnemyState enemy,
+            float dt,
+            float distance,
+            Vector2 direction)
+        {
+            var matriarch = default(BossState);
+            var found = false;
+            for (var index = 0; index < _gameSim.Bosses.Length; index++)
+            {
+                var candidate = _gameSim.Bosses[index];
+                if (!candidate.Active || candidate.Id != "matriarch" ||
+                    candidate.TelemetryInstanceId != enemy.SummonedByBossTelemetryId) continue;
+                matriarch = candidate;
+                found = true;
+                break;
+            }
+            if (!found)
+            {
+                enemy.MatriarchBodyguard = false;
+                enemy.MatriarchBodyguardSlot = -1;
+                return false;
+            }
+
+            _gameSim.UpdateGunner(ref enemy, dt, distance, direction);
+            var angle = (float)CombatTweakRules.MatriarchBodyguardOrbitAngle(
+                _time,
+                enemy.MatriarchBodyguardSlot);
+            var radial = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+            enemy.Position = matriarch.Position + radial * CombatTweakRules.MatriarchBodyguardOrbitRadius;
+            enemy.Velocity = new Vector2(-radial.y, radial.x) *
+                (CombatTweakRules.MatriarchBodyguardOrbitRadius * CombatTweakRules.MatriarchBodyguardOrbitSpeed);
+            return true;
+        }
 
         private void UpdateRosterPincer(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateRosterPincer(ref enemy, dt, distance, direction);
 
@@ -1469,6 +1523,26 @@ namespace VoidFall.Runtime
             if (attack.Id == "charge")
             {
                 var chargeSpeed = BossChargeSpeed(encounterCycle);
+                if (!boss.ActionApplied)
+                {
+                    boss.ActionApplied = true;
+                    AddCameraShake(boss.Id == "warden" ? 0.58f : 0.34f);
+                    var accent = BossAccent(boss);
+                    accent.a = 0.88f;
+                    SpawnRingWave(
+                        boss.Position,
+                        boss.Radius,
+                        boss.Id == "warden" ? 430f : 300f,
+                        0.42f,
+                        accent);
+                    BurstFx(
+                        boss.Position,
+                        BossParticleColor(boss.Id),
+                        boss.Id == "warden" ? 18 : 10,
+                        280f,
+                        0.42f,
+                        0.85f);
+                }
                 boss.Position += boss.DashDirection * chargeSpeed * dt;
                 return;
             }
@@ -1527,20 +1601,28 @@ namespace VoidFall.Runtime
                 SpawnRingWave(boss.Position, 20f, 180f, 0.35f, BossAccent(boss));
                 _audio?.Play(ProceduralAudio.Cue.GunnerShot, 0.9f);
             }
+            else if (attack.Id == "bodyguard")
+            {
+                SpawnMatriarchBodyguards(boss);
+                SpawnRingWave(boss.Position, 28f, 320f, 0.52f, BossAccent(boss));
+                BurstFx(boss.Position, BossParticleColor(boss.Id), 16, 230f, 0.48f, 0.84f);
+                _audio?.Play(ProceduralAudio.Cue.Warning, 0.94f);
+            }
             else if (attack.Id == "summon")
             {
                 var count = BossSummonCount(attack.SummonCount ?? 6, encounterCycle);
                 for (var index = 0; index < count; index++)
                 {
                     var angle = index / (float)count * Mathf.PI * 2 + (float)_gameSim.Rng.Next() * 0.16f;
+                    var position = boss.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 105;
+                    var launch = SourceNormalizedDirection(_gameSim.Player.Position - position) *
+                        CombatTweakRules.MatriarchSummonLaunchSpeed;
                     SpawnEnemy(
                         index % 3 == 0 ? "runner" : "chaser",
-                        boss.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 105,
-                        null,
-                        false,
-                        false,
-                        boss.TelemetryInstanceId,
-                        0.78f);
+                        position,
+                        summonedByBossTelemetryId: boss.TelemetryInstanceId,
+                        healthMultiplier: 0.78f,
+                        initialKnockback: launch);
                 }
                 SpawnRingWave(boss.Position, 24f, 250f, 0.5f, BossAccent(boss));
                 _audio?.Play(ProceduralAudio.Cue.Warning, 0.9f);
@@ -1556,6 +1638,34 @@ namespace VoidFall.Runtime
                     14, 270, 0.48f, 0.8f);
                 if (delta.magnitude < radius + AttackPlayerRadius) DamagePlayer(attackDamage, delta);
                 _audio?.Play(ProceduralAudio.Cue.Dash, 0.94f);
+            }
+        }
+
+        private void SpawnMatriarchBodyguards(BossState boss)
+        {
+            for (var slot = 0; slot < CombatTweakRules.MatriarchBodyguardCount; slot++)
+            {
+                var occupied = false;
+                for (var index = 0; index < _gameSim.Enemies.Length; index++)
+                {
+                    var enemy = _gameSim.Enemies[index];
+                    if (!enemy.Active || !enemy.MatriarchBodyguard ||
+                        enemy.SummonedByBossTelemetryId != boss.TelemetryInstanceId ||
+                        enemy.MatriarchBodyguardSlot != slot) continue;
+                    occupied = true;
+                    break;
+                }
+                if (occupied) continue;
+
+                var angle = (float)CombatTweakRules.MatriarchBodyguardOrbitAngle(_time, slot);
+                var position = boss.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) *
+                    CombatTweakRules.MatriarchBodyguardOrbitRadius;
+                SpawnEnemy(
+                    "gunner",
+                    position,
+                    summonedByBossTelemetryId: boss.TelemetryInstanceId,
+                    healthMultiplier: 0.82f,
+                    matriarchBodyguardSlot: slot);
             }
         }
 
@@ -2284,7 +2394,7 @@ namespace VoidFall.Runtime
                 : (float)stats.ProjectileRadius * radiusScale;
             // COLOSSUS ARSENAL: double projectile size (spec 44.4).
             if (HasWildCard(WildCardId.ColossusArsenal)) radius *= 2f;
-            radius *= (float)SupportEffectRules.ProjectileSizeMultiplier(SupportRank("projectileSize"));
+            radius *= (float)SupportEffectRules.ProjectileSizeMultiplier(SupportRank("amplifier"));
             var blastRadius = blastRadiusOverride.HasValue
                 ? blastRadiusOverride.Value * _areaMultiplier
                 : (float)stats.BlastRadius * _areaMultiplier;
@@ -2891,7 +3001,9 @@ namespace VoidFall.Runtime
             bool splitterFragment = false,
             int summonedByBossTelemetryId = 0,
             float healthMultiplier = 1f,
-            EnemyRoster? forcedRoster = null)
+            EnemyRoster? forcedRoster = null,
+            int matriarchBodyguardSlot = -1,
+            Vector2? initialKnockback = null)
         {
             if (id == "harvester" && ActiveEnemyTypeCount(id) >= 3) return false;
             var slot = FindInactive(_gameSim.Enemies);
@@ -2964,6 +3076,11 @@ namespace VoidFall.Runtime
             var shield = !elite && id == "guard"
                 ? (float)((definition.Shield ?? 0) * healthScale * rosterHealth)
                 : 0;
+            if (matriarchBodyguardSlot >= 0)
+            {
+                var guardShield = FindEnemy("guard")?.Shield ?? 38;
+                shield = Mathf.Max(shield, (float)(guardShield * healthScale * rosterHealth));
+            }
             var enemy = new EnemyState
             {
                 Active = true,
@@ -2984,6 +3101,8 @@ namespace VoidFall.Runtime
                 CarrierDrone = carrierDrone,
                 SplitterFragment = splitterFragment,
                 SummonedByBossTelemetryId = summonedByBossTelemetryId,
+                MatriarchBodyguard = matriarchBodyguardSlot >= 0,
+                MatriarchBodyguardSlot = matriarchBodyguardSlot,
                 SummonedByCarrierSpawnId = 0,
                 SpawnId = enemyId,
                 Facing = (_gameSim.Player.Position - position).sqrMagnitude > 0.001f
@@ -3003,6 +3122,7 @@ namespace VoidFall.Runtime
                     ? 1.2f + (float)_gameSim.Rng.Next()
                     : 0,
                 Rotation = (float)(_gameSim.Rng.Next() * Math.PI * 2),
+                Knockback = initialKnockback ?? Vector2.zero,
                 Spin = !elite && id == "exploder"
                     ? (_gameSim.Rng.Next() < 0.5 ? -0.48f : 0.48f)
                     : ((float)_gameSim.Rng.Next() - 0.5f) * 2.2f,
@@ -4031,12 +4151,20 @@ namespace VoidFall.Runtime
             _telemetry.RecordBossDefeat(boss.TelemetryInstanceId, (float)_time);
             if (noBossesRemain)
             {
-                var schedule = DirectorRules.BossScheduleAfterClear(
-                    _time,
-                    _nextBossTime,
-                    _gameSim.Rng.Next());
-                _bossRecoveryUntil = (float)schedule.RecoveryUntil;
-                _nextBossTime = (float)schedule.NextBossTime;
+                if (_voidRoute == null)
+                {
+                    var schedule = DirectorRules.BossScheduleAfterClear(
+                        _time,
+                        _nextBossTime,
+                        _gameSim.Rng.Next());
+                    _bossRecoveryUntil = (float)schedule.RecoveryUntil;
+                    _nextBossTime = (float)schedule.NextBossTime;
+                }
+                else
+                {
+                    _bossRecoveryUntil = 0f;
+                    _nextBossTime = float.PositiveInfinity;
+                }
                 _bossWarned = false;
                 _pendingDoubleBoss = false;
             }

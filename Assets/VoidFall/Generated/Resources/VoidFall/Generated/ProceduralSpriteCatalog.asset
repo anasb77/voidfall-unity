@@ -262,6 +262,8 @@ MonoBehaviour:
     _sprite: {fileID: 21300000, guid: f0cc0ff0216fa4c49b70b2825e95a242, type: 3}
   - _key: pickup|repair
     _sprite: {fileID: 21300000, guid: 54fac0b4440abe040863cd095ee12c63, type: 3}
+  - _key: pickup|trackshift
+    _sprite: {fileID: 21300000, guid: 32f82dd31d6fb4c49a07b083f6028e78, type: 3}
   - _key: pickup|xp
     _sprite: {fileID: 21300000, guid: 9d1b6c4f9e98f1c478e37d0caba8147f, type: 3}
   - _key: projectile-frame|gunner|0

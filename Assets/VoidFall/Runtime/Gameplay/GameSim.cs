@@ -1004,7 +1004,7 @@ namespace VoidFall.Runtime
             {
                 var index = EnemyOrder[order];
                 var enemy = Enemies[index];
-                if (!enemy.Active) continue;
+                if (!enemy.Active || enemy.MatriarchBodyguard) continue;
                 var candidateCount = EnemyGrid.QueryNeighborhood(
                     enemy.Position.x,
                     enemy.Position.y,
@@ -1017,7 +1017,8 @@ namespace VoidFall.Runtime
                     // The browser resolves each pair once using the immutable
                     // spawn ID, not the pooled array slot. Slot reuse would
                     // otherwise reverse the push order for a live pair.
-                    if (!IsCurrentGridEnemy(otherIndex) || other.SpawnId <= enemy.SpawnId) continue;
+                    if (!IsCurrentGridEnemy(otherIndex) || other.MatriarchBodyguard ||
+                        other.SpawnId <= enemy.SpawnId) continue;
 
                     var delta = other.Position - enemy.Position;
                     var distanceSquared = delta.sqrMagnitude;

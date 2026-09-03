@@ -8,16 +8,15 @@ namespace VoidFall.Tests.Editor
     public sealed class HydraRuntimeRulesTests
     {
         [Test]
-        public void Hydra_objective_rejects_matriarch_and_completes_for_hydra_prime()
+        public void Hydra_objective_survives_five_minutes_then_completes_after_its_authored_boss()
         {
             var objective = VoidObjectives.ForArena("hydra");
             objective.BeginObjective();
-            objective.TickObjective(300, new VoidObjectiveFeed());
-            objective.TickObjective(0, new VoidObjectiveFeed());
+            objective.TickObjective(360, new VoidObjectiveFeed());
+            objective.TickObjective(0, new VoidObjectiveFeed { BossesSpawned = 1, SpawnedId = "hydra-prime" });
 
-            objective.TickObjective(0, new VoidObjectiveFeed { KilledId = "matriarch" });
-            Assert.That(objective.IsComplete, Is.False);
-            objective.TickObjective(0, new VoidObjectiveFeed { KilledId = "hydra-prime" });
+            Assert.That(VoidProgressionRules.SpecialBossId("hydra"), Is.EqualTo("hydra-prime"));
+            objective.TickObjective(0, new VoidObjectiveFeed { BossesKilled = 1, KilledId = "hydra-prime" });
             Assert.That(objective.IsComplete, Is.True);
         }
 

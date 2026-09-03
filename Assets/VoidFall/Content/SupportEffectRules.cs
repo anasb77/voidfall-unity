@@ -31,11 +31,11 @@ namespace VoidFall.Core
             return Math.Max(0, Math.Min(4, rank)) * FortuneDropPerRank;
         }
 
-        // 46.3 Mass Driver (projectile size)
-        public const double ProjectileSizePerRank = 0.10;
+        // Projectile size now shares Amplifier's multiplicative 12% rank.
+        public const double ProjectileSizePerRank = 0.12;
         public static double ProjectileSizeMultiplier(int rank)
         {
-            return 1.0 + Math.Max(0, Math.Min(3, rank)) * ProjectileSizePerRank;
+            return Math.Pow(1.0 + ProjectileSizePerRank, Math.Max(0, Math.Min(3, rank)));
         }
 
         // 46.6 Velocity Coils (projectile speed)

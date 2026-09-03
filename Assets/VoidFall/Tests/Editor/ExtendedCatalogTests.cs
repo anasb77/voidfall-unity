@@ -15,7 +15,7 @@ namespace VoidFall.Tests.Editor
         public void Parity_supports_keep_their_indices_and_extras_append()
         {
             var all = ExtendedCatalog.AllSupports();
-            Assert.That(all.Length, Is.EqualTo(ContentCatalog.Supports.Length + 6));
+            Assert.That(all.Length, Is.EqualTo(ContentCatalog.Supports.Length + 5));
             for (var index = 0; index < ContentCatalog.Supports.Length; index++)
             {
                 Assert.That(all[index], Is.SameAs(ContentCatalog.Supports[index]),
@@ -47,7 +47,7 @@ namespace VoidFall.Tests.Editor
             Assert.That(SupportEffectRules.DodgeChance(0), Is.EqualTo(0.0));
             Assert.That(SupportEffectRules.DodgeChance(3), Is.EqualTo(0.12).Within(1e-9));
 
-            Assert.That(SupportEffectRules.ProjectileSizeMultiplier(2), Is.EqualTo(1.2).Within(1e-9));
+            Assert.That(SupportEffectRules.ProjectileSizeMultiplier(2), Is.EqualTo(1.2544).Within(1e-9));
             Assert.That(SupportEffectRules.ProjectileSpeedMultiplier(3), Is.EqualTo(1.3).Within(1e-9));
             Assert.That(SupportEffectRules.FortuneDropBonus(4), Is.EqualTo(0.20).Within(1e-9));
             Assert.That(SupportEffectRules.SpatialAwarenessZoom(0), Is.EqualTo(1.0));
@@ -65,13 +65,37 @@ namespace VoidFall.Tests.Editor
                     seen.Add(option.Id);
             }
 
-            foreach (var id in new[] { "dodge", "scholar", "fortune", "projectileSize", "projectileSpeed", "spatialAwareness" })
+            foreach (var id in new[] { "dodge", "scholar", "fortune", "projectileSpeed", "spatialAwareness" })
             {
                 Assert.That(seen.Contains("support:" + id), Is.True,
                     id + " never appears in the level-up pool");
             }
+            Assert.That(seen.Contains("support:projectileSize"), Is.False,
+                "projectile size must be merged into Amplifier instead of consuming another card slot");
             // The parity pool is untouched.
             Assert.That(seen.Contains("support:calibration"), Is.True);
+        }
+
+        [Test]
+        public void Upgrade_cards_use_compact_before_after_lines()
+        {
+            var progress = new UpgradeProgress();
+            progress.WeaponRanks[0] = 1;
+            var options = UpgradeRules.RollProgressionOptions(progress, new Rng(7), 100);
+            UpgradeOptionDefinition pistol = null;
+            UpgradeOptionDefinition amplifier = null;
+            foreach (var option in options)
+            {
+                if (option.Id == "weapon:pistol") pistol = option;
+                if (option.Id == "support:amplifier") amplifier = option;
+            }
+
+            Assert.That(pistol, Is.Not.Null);
+            Assert.That(pistol.Description, Is.EqualTo(
+                "Damage 12 \u2192 15\nFire delay 0.42 \u2192 0.40 seconds"));
+            Assert.That(amplifier, Is.Not.Null);
+            Assert.That(amplifier.Description, Is.EqualTo(
+                "Projectile size 100% \u2192 112%\nBlast size 100% \u2192 112%\nOrbit size 100% \u2192 112%"));
         }
 
         [Test]

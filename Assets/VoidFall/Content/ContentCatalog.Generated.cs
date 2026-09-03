@@ -1603,7 +1603,7 @@ namespace VoidFall.Core
 
                         TelegraphSeconds = 0.81999999999999995,
 
-                        ActiveSeconds = 0.41999999999999998,
+                        ActiveSeconds = 1.2600000000000000,
 
                         RecoverySeconds = 0.84999999999999998,
 
@@ -1677,6 +1677,22 @@ namespace VoidFall.Core
 
                 Attacks = new BossAttackDefinition[]
                 {
+                    new BossAttackDefinition
+                    {
+                        Id = "bodyguard",
+
+                        TelegraphSeconds = 0.84999999999999998,
+
+                        ActiveSeconds = 0.10000000000000001,
+
+                        RecoverySeconds = 0.69999999999999996,
+
+                        CooldownSeconds = 6.2000000000000002,
+
+                        Damage = 0,
+
+                        SummonCount = 8,
+                    },
                     new BossAttackDefinition
                     {
                         Id = "summon",
@@ -2559,7 +2575,7 @@ namespace VoidFall.Core
 
                 Weight = 7,
 
-                Descriptions = new string[] { "+12% blast and orbit size", "+12% blast and orbit size", "+12% blast and orbit size" },
+                Descriptions = new string[] { "+12% projectile, blast, and orbit size", "+12% projectile, blast, and orbit size", "+12% projectile, blast, and orbit size" },
 
             },
             new SupportDefinition

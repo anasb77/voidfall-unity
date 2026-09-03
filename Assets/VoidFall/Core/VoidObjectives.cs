@@ -20,17 +20,9 @@ namespace VoidFall.Core
         /// ("abyss", "red-nebula", ...). Voids without a built objective
         /// return null and the run keeps its endless behavior there.
         ///
-        /// Abyss (spec §11): survive the opening escalation (~3 minutes),
-        /// then kill the Gatekeeper. The Herald is the first boss the
-        /// director schedules; the Gatekeeper maps onto its first death
-        /// until real rift transitions replace the endless clock.
-        ///
-        /// The Layer I entries are documented placeholders: each is survive
-        /// a duration, then defeat the next boss on the global clock (the
-        /// Warden at 300 s, the Matriarch at 450 s). They exist so every
-        /// branch of the prototype route opens a rift; they are replaced by
-        /// the real per-Void objectives (Anchors, Rift Zones, Gene Nodes)
-        /// as those structures land in the simulation.
+        /// Every built Void now shares one cadence: survive five minutes, then
+        /// clear its complete boss encounter. Standard Voids choose bosses at
+        /// runtime; special Voids retain their authored encounters.
         /// </summary>
         public static IVoidObjective ForArena(string arenaStableId)
         {
@@ -39,32 +31,69 @@ namespace VoidFall.Core
                 case "abyss":
                     return new MultiPhaseObjective(
                         "ABYSS",
-                        new SurviveObjective(180, "Survive"),
-                        new KillTargetObjective("herald", "Kill the Gatekeeper"));
+                        new SurviveObjective(VoidProgressionRules.SurvivalSeconds, "Survive"),
+                        new BossEncounterObjective("Defeat the Void Boss"));
                 case "red-nebula":
                     return new MultiPhaseObjective(
                         "RED NEBULA",
-                        new SurviveObjective(240, "Endure the storm"),
-                        new KillTargetObjective("warden", "Destroy the Warden"));
+                        new SurviveObjective(VoidProgressionRules.SurvivalSeconds, "Survive"),
+                        new BossEncounterObjective("Defeat the Void Boss"));
                 case "white-sakura":
                     return new MultiPhaseObjective(
                         "WHITE SAKURA",
-                        new SurviveObjective(240, "Hold the dreamscape"),
-                        new KillTargetObjective("warden", "Silence the Warden"));
+                        new SurviveObjective(VoidProgressionRules.SurvivalSeconds, "Survive"),
+                        new BossEncounterObjective("Defeat the Void Boss"));
                 case "hydra":
                     return new MultiPhaseObjective(
                         "HYDRA",
-                        new SurviveObjective(300, "Survive the mutation"),
-                        new KillTargetObjective("hydra-prime", "Kill Hydra Prime"));
+                        new SurviveObjective(VoidProgressionRules.SurvivalSeconds, "Survive"),
+                        new BossEncounterObjective("Defeat the Void Boss"));
                 case "monochrome-court":
                     return new MultiPhaseObjective(
                         "MONOCHROME COURT",
-                        new SurviveObjective(90, "Survive Black rule"),
-                        new SurviveObjective(90, "Survive White rule"),
-                        new KillTargetObjective("court-grandmasters", "Defeat the Twin Grandmasters"));
+                        new SurviveObjective(VoidProgressionRules.SurvivalSeconds, "Survive"),
+                        new BossEncounterObjective("Defeat the Void Boss"));
                 default:
                     return null;
             }
+        }
+    }
+
+    /// <summary>Completes after every boss spawned for one encounter is dead.</summary>
+    public sealed class BossEncounterObjective : IVoidObjective
+    {
+        private readonly string _label;
+        private int _spawned;
+        private int _killed;
+        private bool _begun;
+
+        public BossEncounterObjective(string label)
+        {
+            _label = string.IsNullOrEmpty(label) ? "Defeat the Void Boss" : label;
+        }
+
+        public bool IsComplete => _begun && _spawned > 0 && _killed >= _spawned;
+        public double Progress01 => _spawned <= 0 ? 0 : Math.Max(0, Math.Min(1, (double)_killed / _spawned));
+
+        public void BeginObjective()
+        {
+            _spawned = 0;
+            _killed = 0;
+            _begun = true;
+        }
+
+        public void TickObjective(double deltaTime, in VoidObjectiveFeed feed)
+        {
+            if (!_begun || IsComplete) return;
+            _spawned += Math.Max(0, feed.BossesSpawned);
+            _killed = Math.Min(_spawned, _killed + Math.Max(0, feed.BossesKilled));
+        }
+
+        public string GetObjectiveText()
+        {
+            if (_spawned <= 0) return _label;
+            if (IsComplete) return _label + " — COMPLETE";
+            return _spawned > 1 ? _label + ": " + _killed + " / " + _spawned : _label;
         }
     }
 
@@ -369,7 +398,7 @@ namespace VoidFall.Core
         public string GetObjectiveText()
         {
             if (_phases.Length == 0) return _title;
-            if (IsComplete) return _title + " — COMPLETE";
+            if (IsComplete) return _title + " COMPLETE";
             var builder = new StringBuilder();
             if (_title.Length > 0) builder.Append(_title).Append(" | ");
             builder.Append("Phase ").Append(_index + 1).Append('/').Append(_phases.Length)

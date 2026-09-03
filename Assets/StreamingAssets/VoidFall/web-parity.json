@@ -144,6 +144,15 @@
       "attacks": [
         {
           "activeSeconds": 0.1,
+          "cooldownSeconds": 6.2,
+          "damage": 0,
+          "id": "bodyguard",
+          "recoverySeconds": 0.7,
+          "summonCount": 8,
+          "telegraphSeconds": 0.85
+        },
+        {
+          "activeSeconds": 0.1,
           "cooldownSeconds": 5.4,
           "damage": 0,
           "id": "summon",
@@ -215,7 +224,7 @@
     "warden": {
       "attacks": [
         {
-          "activeSeconds": 0.42,
+          "activeSeconds": 1.26,
           "cooldownSeconds": 3.4,
           "damage": 24,
           "id": "charge",
@@ -2741,9 +2750,9 @@
     {
       "accent": "#f0abfc",
       "descriptions": [
-        "+12% blast and orbit size",
-        "+12% blast and orbit size",
-        "+12% blast and orbit size"
+        "+12% projectile, blast, and orbit size",
+        "+12% projectile, blast, and orbit size",
+        "+12% projectile, blast, and orbit size"
       ],
       "id": "amplifier",
       "maxRank": 3,

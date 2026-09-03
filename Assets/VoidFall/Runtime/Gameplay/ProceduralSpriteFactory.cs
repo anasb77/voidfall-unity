@@ -1758,6 +1758,9 @@ namespace VoidFall.Runtime
             PlayerAura(false);
             PlayerAura(true);
             yield return 2;
+
+            Pickup("trackshift");
+            yield return 1;
         }
 
         public static float ProjectileCanvasSize(string kind)
@@ -2093,8 +2096,10 @@ namespace VoidFall.Runtime
         private static Sprite BuildRosterTwoEnemy(string id, bool hit)
         {
             var radius = id == "guard" ? 18f : id == "gunner" ? 14f : 15f;
-            var accent = id == "gunner"
-                ? ParseColor("#f59e0b")
+            var accent = id == "chaser"
+                ? ParseColor(CombatTweakRules.RosterTwoRusherAccent())
+                : id == "gunner"
+                    ? ParseColor("#f59e0b")
                 : id == "guard"
                     ? ParseColor("#38bdf8")
                     : id == "exploder"
@@ -3013,6 +3018,7 @@ namespace VoidFall.Runtime
                 : kind == "magnet" ? ParseColor("#22d3ee")
                 : kind == "repair" ? ParseColor("#4ade80")
                 : kind == "overdrive" ? ParseColor("#facc15")
+                : kind == "trackshift" ? ParseColor("#67e8f9")
                 : kind == "xp" ? ParseColor("#34d399")
                 : ParseColor("#fb923c");
             // pickupSprite() uses cv(42), so preserve its authored source
@@ -3068,6 +3074,17 @@ namespace VoidFall.Runtime
                 };
                 c.FillPolygon(bolt, color);
                 c.StrokePolygon(bolt, new Color(1, 0.99f, 0.88f, 1), 1.5f);
+            }
+            else if (kind == "trackshift")
+            {
+                var dark = ParseColor("#050b16");
+                var bright = ParseColor("#ecfeff");
+                c.FillCircle(Vector2.zero, 14f, dark);
+                c.StrokeCircle(Vector2.zero, 14f, color, 2.4f);
+                c.DrawLine(new Vector2(2, -8), new Vector2(2, 9), 3.4f, bright);
+                c.DrawLine(new Vector2(2, 9), new Vector2(10, 6), 3.2f, bright);
+                c.DrawLine(new Vector2(10, 6), new Vector2(8, 1), 3.2f, bright);
+                c.FillCircle(new Vector2(-3, -8), 5.2f, color);
             }
             else
             {

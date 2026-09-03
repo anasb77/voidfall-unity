@@ -55,8 +55,8 @@ public static class ArenaRules
     public const int MinIntervalSeconds = 600;
     public const int MaxIntervalSeconds = 900;
     public const double WarningSeconds = 6;
-    public const double CollapseSeconds = 0.55;
-    public const double SettleSeconds = 0.85;
+    public const double CollapseSeconds = 0.72;
+    public const double SettleSeconds = 1.1;
     public const double DeferRetrySeconds = 12;
 
     public static int ArenaIntervalSeconds(uint seed, int index)

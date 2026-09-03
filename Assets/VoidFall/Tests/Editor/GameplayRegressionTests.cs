@@ -178,6 +178,7 @@ namespace VoidFall.Tests.Editor
             Assert.That(keys, Does.Contain("fixed|operative"));
             Assert.That(keys, Does.Contain("fixed|particle-dot"));
             Assert.That(keys, Does.Contain("gem|2"));
+            Assert.That(keys, Does.Contain("pickup|trackshift"));
             Assert.That(keys, Does.Contain("arena-rock|5"));
             Assert.That(keys, Does.Contain("arena-vignette|2"));
             Assert.That(keys, Does.Contain("workshop-layer|protocol/1"));
