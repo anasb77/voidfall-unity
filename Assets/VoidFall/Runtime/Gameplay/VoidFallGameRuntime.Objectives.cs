@@ -41,6 +41,7 @@ namespace VoidFall.Runtime
                 ? _voidRoute.CurrentVoidId
                 : ArenaCatalogRules.StableId(_arenaId);
             var objective = VoidObjectives.ForArena(key);
+            Debug.Log($"VOIDFLOW begin key={key} null={objective == null} t={_time:F1}");
             if (objective == null)
             {
                 _objectives?.Clear();

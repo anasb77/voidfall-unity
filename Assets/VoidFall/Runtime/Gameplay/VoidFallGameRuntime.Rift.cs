@@ -189,19 +189,20 @@ namespace VoidFall.Runtime
         }
 
         /// <summary>Last-resort re-opener: if the objective has been complete
-        /// for 45s but no route is open, no transition runs, and no ceremony
-        /// owns the run, re-fire the rift. A stranded run must be impossible.
-        /// </summary>
+        /// for 60s but no route is open, no transition runs, and no ceremony
+        /// owns the run, force the delay to zero so the normal flow fires.
+        /// A stranded run must be impossible.</summary>
         private void StepRiftSafetyNet()
         {
-            if (_objectiveCompleteAt < 0 || _time - _objectiveCompleteAt < 45f) return;
-            if (_objectives == null || !_objectives.IsComplete) return;
-            if (_routeSelectOpen || _riftTransitionActive || _voidCompletionPending) return;
+            if (_objectiveCompleteAt < 0 || _objectives == null || !_objectives.IsComplete) return;
+            if (_routeSelectOpen || _riftTransitionActive) return;
             if (_rouletteActive || _rouletteChestActive || _openRouteAfterRoulette) return;
             if (_gameOver || _revivePending || _levelUpActive || _paused) return;
             if (_voidRoute == null ||
                 _voidRoute.NodesInState(RouteNodeState.Available).Count == 0) return;
-            Debug.Log($"VOIDFLOW safety-net t={_time:F1}");
+            if (_time - _objectiveCompleteAt < 60f) return;
+            Debug.Log($"VOIDFLOW safety-force pending={_voidCompletionPending} remaining={_voidCompletionDelayRemaining:F1} t={_time:F1}");
+            _objectiveCompleteAt = -1f;
             OpenCompletedVoidRift();
         }
 
@@ -236,6 +237,7 @@ namespace VoidFall.Runtime
         /// <summary>Starts the playable fold between the selected Voids.</summary>
         private void EnterVoidThroughRift(string voidId)
         {
+            if (_riftTransitionActive) return;
             Debug.Log($"VOIDFLOW choice void={voidId} t={_time:F1}");
             _routeSelectOpen = false;
             _riftAutoVoidId = null;
