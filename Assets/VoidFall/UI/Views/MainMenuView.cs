@@ -45,6 +45,36 @@ namespace VoidFall.UI
             BuildArenaSelector(content, cursor);
 
             content.sizeDelta = new Vector2(ContentWidth, cursor + 40f);
+
+            BuildQuitButton();
+        }
+
+        /// <summary>
+        /// The corner close control. An icon-only X rather than a labelled
+        /// button, mirroring the mute control in the opposite corner; it opens
+        /// the modal exit confirmation instead of quitting immediately.
+        /// </summary>
+        private void BuildQuitButton()
+        {
+            var quit = UIBuilder.CreateIconButton(
+                Root,
+                "QuitButton",
+                "\u2715",
+                () => Manager?.QuitConfirm?.Show(),
+                28.6f);
+
+            var rect = quit.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(1f, 1f);
+            // Top-right corner, mirrored vertically from the mute button's
+            // (-14, 14) bottom-right placement.
+            rect.anchoredPosition = new Vector2(-14f, -14f);
+
+            // The icon button's 17px glyph is sized for the 44px control; scale
+            // it with the 35%-reduced frame so the X keeps its proportions.
+            var glyph = quit.transform.Find("Glyph")?.GetComponent<Text>();
+            if (glyph != null) glyph.fontSize = 11;
         }
 
         /// <summary>Places a child at a vertical offset from the container's top.</summary>

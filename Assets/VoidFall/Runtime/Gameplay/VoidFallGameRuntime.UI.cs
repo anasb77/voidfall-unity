@@ -550,14 +550,19 @@ namespace VoidFall.Runtime
                     _toastStates[index - 1] = _toastStates[index];
                 targetSlot = _toastStates.Length - 1;
             }
+            var upperText = (text ?? string.Empty).ToUpperInvariant();
+            var detailText = string.IsNullOrEmpty(detail) ? null : detail.ToUpperInvariant();
             _toastStates[targetSlot] = new ToastState
             {
                 Active = true,
-                Text = (text ?? string.Empty).ToUpperInvariant(),
-                Detail = string.IsNullOrEmpty(detail) ? null : detail.ToUpperInvariant(),
+                Text = upperText,
+                Detail = detailText,
                 Remaining = Mathf.Max(0.1f, seconds),
                 Duration = Mathf.Max(0.1f, seconds),
                 Kind = kind,
+                Formatted = detailText == null
+                    ? upperText
+                    : upperText + "\n<size=10>" + detailText + "</size>",
             };
             // Combat toasts stay on the runtime's own canvas, which already
             // renders this queue. Routing them through the menu layer as well

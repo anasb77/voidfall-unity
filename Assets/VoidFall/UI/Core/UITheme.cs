@@ -40,6 +40,9 @@ namespace VoidFall.UI
         /// <summary>rgba(2, 5, 15, 0.59) - the scrim behind gameplay overlays.</summary>
         public static readonly Color OverlayScrim = Rgba(2, 5, 15, 0.59f);
 
+        /// <summary>rgba(2, 5, 15, 0.95) - the near-opaque scrim behind the quit confirmation, which must fully cover the menu.</summary>
+        public static readonly Color MenuDialogScrim = Rgba(2, 5, 15, 0.95f);
+
         /// <summary>rgba(3, 6, 11, 0.10) - the much lighter menu-layer scrim.</summary>
         public static readonly Color MenuScrim = Rgba(3, 6, 11, 0.10f);
 

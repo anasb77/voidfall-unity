@@ -159,6 +159,7 @@ namespace VoidFall.Runtime
 
             var doubleBoss = VoidProgressionRules.ShouldSpawnDoubleBoss(_runSeed, _completedVoids);
             var first = DirectorRules.BossEncounter(_runSeed, _bossSequence++);
+            Debug.Log($"VOIDFLOW encounter void={voidId} double={doubleBoss} first={first.Id} t={_time:F1}");
             SpawnBoss(first.Id, first.HealthScale, first.DamageScale, first.Cycle);
             string secondName = null;
             if (doubleBoss)

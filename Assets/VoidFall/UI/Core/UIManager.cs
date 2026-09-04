@@ -77,6 +77,15 @@ namespace VoidFall.UI
         public Action AcceptRevive;
         public Action DeclineRevive;
         public Action RerollUpgrades;
+
+        /// <summary>Confirmed exit from the home screen's close control.</summary>
+        public Action QuitGame;
+
+        /// <summary>
+        /// Menu music muffle tracking the quit dialog's visibility. Invoked with
+        /// false on every dismissal path, including SetScreen sweeps.
+        /// </summary>
+        public Action<bool> SetQuitDialogOpen;
     }
 
     /// <summary>Current audio and display preferences, pushed by the runtime.</summary>
@@ -146,6 +155,13 @@ namespace VoidFall.UI
 
         /// <summary>The single-card prize reveal after a roulette lands.</summary>
         public PrizeRevealView PrizeReveal { get; private set; }
+
+        /// <summary>
+        /// Exit confirmation for the home screen's corner close control. A modal
+        /// session rather than a navigation state: it is dismissed by any
+        /// SetScreen sweep instead of occupying a UIScreen slot.
+        /// </summary>
+        public QuitConfirmView QuitConfirm { get; private set; }
 
         public UICallbacks Callbacks { get; private set; }
 
@@ -254,6 +270,9 @@ namespace VoidFall.UI
 
             PrizeReveal = CreateView<PrizeRevealView>(_overlayLayerRect, "Prize Reveal");
             PrizeReveal.Initialize(this);
+
+            QuitConfirm = CreateView<QuitConfirmView>(_overlayLayerRect, "Quit Confirm");
+            QuitConfirm.Initialize(this);
 
             Evolution = CreateView<EvolutionRevealView>(effectLayer, "Evolution Reveal");
             Evolution.Initialize(this);
@@ -390,6 +409,10 @@ namespace VoidFall.UI
             Roulette?.SetVisible(screen == UIScreen.Roulette);
             RouteSelect?.SetVisible(screen == UIScreen.RouteSelect);
             PrizeReveal?.SetVisible(screen == UIScreen.PrizeReveal);
+
+            // The quit confirmation is modal over the home screen only; any
+            // navigation (Tab toggle, starting a run, pause) dismisses it.
+            QuitConfirm?.SetVisible(false);
         }
 
         public UIScreen CurrentScreen => _screen;

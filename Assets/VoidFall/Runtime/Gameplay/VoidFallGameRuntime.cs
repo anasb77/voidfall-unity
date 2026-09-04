@@ -271,6 +271,8 @@ namespace VoidFall.Runtime
             public float Remaining;
             public float Duration;
             public ToastKind Kind;
+            // Pre-formatted at enqueue so per-frame views never concatenate.
+            public string Formatted;
         }
 
         private enum MenuPage
@@ -619,6 +621,12 @@ namespace VoidFall.Runtime
         private Text _bossText;
         private Text _bossNameText;
         private Text _bossHealthText;
+        // Change-gate cache: boss HUD text rewrites only when the visible
+        // value actually changes (was: string allocs + rebuilds every frame).
+        private string _bossHudName = string.Empty;
+        private int _bossHudHp = -1;
+        private int _bossHudCount = -1;
+        private int _toastFontSize = -1;
         private Image _bossBarBackground;
         private Image _bossBarFill;
         private Text _toastText;
@@ -1124,7 +1132,10 @@ namespace VoidFall.Runtime
 
                 AcceptRevive = AcceptRevive,
                 DeclineRevive = DeclineRevive,
-                RerollUpgrades = RerollLevelOptions
+                RerollUpgrades = RerollLevelOptions,
+
+                QuitGame = QuitGameFromUi,
+                SetQuitDialogOpen = open => _music?.SetMenuDialog(open)
             });
             ConfigureVisualCapture();
             EnterMainMenu();
@@ -1165,6 +1176,17 @@ namespace VoidFall.Runtime
         {
             CommitSettings();
             SaveRun();
+        }
+
+        /// <summary>
+        /// Confirmed exit from the home screen's close control. Persistence is
+        /// owned by OnApplicationQuit, which runs on a normal engine quit, so
+        /// nothing else is needed here — the confirm dialog has already gated
+        /// the intent.
+        /// </summary>
+        private void QuitGameFromUi()
+        {
+            Application.Quit();
         }
 
         private void OnDestroy()

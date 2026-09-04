@@ -272,29 +272,38 @@ namespace VoidFall.Runtime
                 : 0;
             if (_bossText != null)
             {
-                if (activeBossCount == 0)
-                {
-                    _bossText.text = "";
-                    _bossText.enabled = false;
-                    if (_bossNameText != null) _bossNameText.enabled = false;
-                    if (_bossHealthText != null) _bossHealthText.enabled = false;
-                }
-                else
-                {
-                    var bossName = activeBossCount == 1
+                var bossHpInt = activeBossCount > 0 ? Mathf.CeilToInt(bossHealth) : 0;
+                var bossName = activeBossCount == 0
+                    ? string.Empty
+                    : activeBossCount == 1
                         ? (FindBoss(firstBoss.Id)?.Name ?? firstBoss.Id).ToUpperInvariant()
-                        : $"{activeBossCount} BOSSES";
-                    _bossText.text = $"{bossName}    {Mathf.CeilToInt(bossHealth)}";
-                    _bossText.enabled = false;
-                    if (_bossNameText != null)
+                        : activeBossCount + " BOSSES";
+                if (bossName != _bossHudName || bossHpInt != _bossHudHp || activeBossCount != _bossHudCount)
+                {
+                    _bossHudName = bossName;
+                    _bossHudHp = bossHpInt;
+                    _bossHudCount = activeBossCount;
+                    if (activeBossCount == 0)
                     {
-                        _bossNameText.text = bossName;
-                        _bossNameText.enabled = true;
+                        _bossText.text = "";
+                        _bossText.enabled = false;
+                        if (_bossNameText != null) _bossNameText.enabled = false;
+                        if (_bossHealthText != null) _bossHealthText.enabled = false;
                     }
-                    if (_bossHealthText != null)
+                    else
                     {
-                        _bossHealthText.text = Mathf.CeilToInt(bossHealth).ToString();
-                        _bossHealthText.enabled = true;
+                        _bossText.text = bossName + "    " + bossHpInt;
+                        _bossText.enabled = false;
+                        if (_bossNameText != null)
+                        {
+                            _bossNameText.text = bossName;
+                            _bossNameText.enabled = true;
+                        }
+                        if (_bossHealthText != null)
+                        {
+                            _bossHealthText.text = bossHpInt.ToString();
+                            _bossHealthText.enabled = true;
+                        }
                     }
                 }
             }
@@ -627,6 +636,10 @@ namespace VoidFall.Runtime
                 !_revivePending &&
                 !_paused;
             var highContrast = _saveData?.settings != null && _saveData.settings.highContrast;
+            // Font size only depends on screen width: rewrite views only on change.
+            var fontSize = ToastFontSize(Screen.width);
+            var fontSizeChanged = fontSize != _toastFontSize;
+            if (fontSizeChanged) _toastFontSize = fontSize;
             for (var index = 0; index < _toastViews.Length; index++)
             {
                 var view = _toastViews[index];
@@ -634,8 +647,11 @@ namespace VoidFall.Runtime
                 var toast = _toastStates[index];
                 if (!visible || !toast.Active || toast.Remaining <= 0)
                 {
-                    view.text = string.Empty;
-                    view.enabled = false;
+                    if (view.enabled)
+                    {
+                        view.text = string.Empty;
+                        view.enabled = false;
+                    }
                     view.rectTransform.localScale = Vector3.one;
                     continue;
                 }
@@ -644,7 +660,7 @@ namespace VoidFall.Runtime
                 var alpha = ToastAnimationAlphaAt(elapsed, toast.Duration);
                 var color = highContrast ? Color.white : ToastColor(toast.Kind);
                 color.a *= alpha;
-                view.fontSize = ToastFontSize(Screen.width);
+                if (fontSizeChanged) view.fontSize = fontSize;
                 var scale = ToastAnimationScaleAt(elapsed, toast.Duration);
                 view.rectTransform.localScale = new Vector3(scale, scale, 1f);
                 var scaleFactor = _canvas != null ? Mathf.Max(0.0001f, _canvas.scaleFactor) : 1f;
@@ -661,9 +677,7 @@ namespace VoidFall.Runtime
                         ? new Color(0f, 0f, 0f, 0.7f * alpha)
                         : new Color(color.r, color.g, color.b, 0.52f * alpha);
                 }
-                view.text = string.IsNullOrEmpty(toast.Detail)
-                    ? toast.Text
-                    : toast.Text + "\n<size=10>" + toast.Detail + "</size>";
+                if (view.text != toast.Formatted) view.text = toast.Formatted;
                 view.enabled = true;
             }
         }

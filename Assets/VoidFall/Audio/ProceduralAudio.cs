@@ -66,6 +66,12 @@ namespace VoidFall.Runtime
         private AudioSource _musicSource;
         private AudioClip _musicClip;
         private bool _muted;
+        // Overlap-driven bus limiter: dense fights stack up to 16 voices, so
+        // each new voice is ducked by how many started in the last 80ms.
+        // Quiet moments play untouched; only pile-ups get pulled back, which
+        // keeps the requested loudness without hard clipping.
+        private readonly float[] _voiceStartTimes = new float[16];
+        private int _voiceStartIndex;
         // Headroom reserved on top of the master setting. The browser used 0.58;
         // raised 35% because the port's SFX bed sat too quietly against the
         // authored soundtrack, then a further 20% on top of that (0.783 -> 0.9396).
@@ -285,7 +291,19 @@ namespace VoidFall.Runtime
             // call-site metadata, so source-backed variation uses same-length
             // generated clips instead of AudioSource.pitch.
             source.pitch = 1f;
-            source.PlayOneShot(variationClip ?? clip, CueVolume(cue));
+            source.PlayOneShot(variationClip ?? clip, CueVolume(cue) * BusLimiterGain());
+        }
+
+        private float BusLimiterGain()
+        {
+            var now = Time.unscaledTime;
+            _voiceStartTimes[_voiceStartIndex] = now;
+            _voiceStartIndex = (_voiceStartIndex + 1) % _voiceStartTimes.Length;
+            var overlapping = 0;
+            for (var index = 0; index < _voiceStartTimes.Length; index++)
+                if (now - _voiceStartTimes[index] < 0.08f) overlapping++;
+            // 1 voice: 1.0. 4 voices: ~0.7. 8+: ~0.45 floor.
+            return 1f / (1f + 0.15f * Mathf.Max(0, overlapping - 1));
         }
 
         // Per-cue loudness on top of the shared SFX bus: everything +20%,

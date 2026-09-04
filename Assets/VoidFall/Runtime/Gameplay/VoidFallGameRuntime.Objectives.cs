@@ -61,11 +61,17 @@ namespace VoidFall.Runtime
 
         private void NotifyObjectiveKill() => _objectives?.NotifyKill();
 
-        private void NotifyObjectiveBossSpawned(string bossId) =>
+        private void NotifyObjectiveBossSpawned(string bossId)
+        {
+            Debug.Log($"VOIDFLOW boss-spawned id={bossId} t={_time:F1}");
             _objectives?.NotifyNamedSpawned(bossId);
+        }
 
-        private void NotifyObjectiveBossKilled(string bossId) =>
+        private void NotifyObjectiveBossKilled(string bossId)
+        {
+            Debug.Log($"VOIDFLOW boss-killed id={bossId} t={_time:F1}");
             _objectives?.NotifyNamedKilled(bossId);
+        }
 
         private void StepObjectiveTracker(double deltaTime)
         {

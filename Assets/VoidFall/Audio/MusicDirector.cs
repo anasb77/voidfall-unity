@@ -58,6 +58,10 @@ namespace VoidFall.Runtime
         // first playtest, then 25% to 0.2475, then 15% to 0.2104 once the SFX
         // bed was raised, then back up 10% to keep the track present.
         private const float MusicGain = 0.2314f;
+        // Menu tracks get a 20% lift on top of MusicGain. The home screen has
+        // no combat SFX bed competing for attention, so the theme can carry the
+        // landing screen; the OST keeps the tuned level under gameplay audio.
+        private const float MainMenuGainBoost = 1.2f;
 
         // Bomb duck. The pickup drops the track out and lets it swell back, so
         // the detonation reads in the music and not just the SFX. Fast attack
@@ -125,6 +129,9 @@ namespace VoidFall.Runtime
         // resonance from it keeps the two in lockstep through the sweep.
         private float _submersion;
         private MusicReactiveState _reactiveState;
+        // The quit dialog on the main menu muffles the theme like the upgrade
+        // screen submerges the OST; toggled by the UI through SetMenuDialog.
+        private bool _menuDialogMuffle;
         private MusicMixTargets _mixTargets = MusicStateComposer.Compose(default, 0f);
         private MusicSpectrumAnalyzer _spectrumAnalyzer;
         private MusicDspFilter _dspFilter;
@@ -263,6 +270,17 @@ namespace VoidFall.Runtime
         {
             _masterVolume = Mathf.Clamp01(master);
             _musicVolume = Mathf.Clamp01(music);
+        }
+
+        /// <summary>
+        /// Engages or releases the quit-dialog mix: the menu theme is submerged
+        /// the same way the upgrade screen muffles the OST, at 20% more
+        /// intensity. Release glides back through the same exponential
+        /// smoothing as every other mix change, so it never clicks.
+        /// </summary>
+        public void SetMenuDialog(bool open)
+        {
+            _menuDialogMuffle = open;
         }
 
         public void SetMuted(bool muted)
@@ -482,7 +500,12 @@ namespace VoidFall.Runtime
         private float ResolveVolume()
         {
             if (_muted || _channel == Channel.None) return 0f;
-            return _masterVolume * _musicVolume * MusicGain;
+            // Per-channel gain: menu tracks ride 20% hotter, gameplay keeps
+            // the tuned MusicGain under the SFX bed. The cross-fade glides
+            // toward whichever level the active channel resolves, so the
+            // menu-to-run transition stays smooth.
+            var gain = _channel == Channel.MainMenu ? MusicGain * MainMenuGainBoost : MusicGain;
+            return _masterVolume * _musicVolume * gain;
         }
 
         /// <summary>
@@ -497,7 +520,9 @@ namespace VoidFall.Runtime
             var pulse = _reactiveState.CriticalHealth
                 ? 0.5f + Mathf.Sin(_criticalPulseClock * Mathf.PI * 2f) * 0.5f
                 : 0f;
-            _mixTargets = MusicStateComposer.Compose(_reactiveState, pulse);
+            _mixTargets = _menuDialogMuffle
+                ? MusicStateComposer.ComposeMenuDialog()
+                : MusicStateComposer.Compose(_reactiveState, pulse);
             _rateSurge = Mathf.MoveTowards(_rateSurge, 0f, dt * 0.22f);
             _source.pitch = Mathf.Lerp(
                 _source.pitch,

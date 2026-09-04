@@ -96,6 +96,30 @@ namespace VoidFall.Runtime
         {
             return (float)Math.Exp(Math.Log(from) + (Math.Log(to) - Math.Log(from)) * amount);
         }
+
+        // Menu-dialog submersion. The quit confirmation muffles the menu theme
+        // the same way the upgrade screen submerges the combat OST, pushed 20%
+        // deeper into the log-space filter sweep because the menu theme has no
+        // combat SFX bed competing for the muffle to read against.
+        public const float MenuDialogSubmersion = 1.2f;
+
+        /// <summary>
+        /// Mix for the main menu's quit dialog: same shape as the level-up
+        /// submersion (rate pinned to 1, deep low-pass, raised resonance), with
+        /// the submersion pushed past the authored filter point.
+        /// </summary>
+        public static MusicMixTargets ComposeMenuDialog()
+        {
+            var lowPass = LogLerp(OpenFilterHz, SubmergedFilterHz, MenuDialogSubmersion);
+            return new MusicMixTargets(
+                1f,
+                lowPass,
+                1f + MenuDialogSubmersion,
+                1f,
+                0f,
+                MenuDialogSubmersion,
+                1f);
+        }
     }
 
     public static class MusicReactiveMath
