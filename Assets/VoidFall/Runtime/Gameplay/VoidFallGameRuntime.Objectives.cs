@@ -53,6 +53,7 @@ namespace VoidFall.Runtime
             _objectiveLine = objective.GetObjectiveText();
             _objectiveLineTimer = ObjectiveLineRebuildSeconds;
             _objectivesCompletionHandled = false;
+            _objectiveCompleteAt = -1f;
             _voidBossEncounterSpawned = false;
             _voidCompletionPending = false;
             _voidCompletionDelayRemaining = 0f;
@@ -74,6 +75,7 @@ namespace VoidFall.Runtime
             if (_objectives.IsComplete && !_objectivesCompletionHandled)
             {
                 _objectivesCompletionHandled = true;
+                _objectiveCompleteAt = (float)_time;
                 OnVoidObjectiveCompleted();
             }
             StepVoidCompletionDelay((float)deltaTime);

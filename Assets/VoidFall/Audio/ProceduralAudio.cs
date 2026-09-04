@@ -285,7 +285,20 @@ namespace VoidFall.Runtime
             // call-site metadata, so source-backed variation uses same-length
             // generated clips instead of AudioSource.pitch.
             source.pitch = 1f;
-            source.PlayOneShot(variationClip ?? clip, 1f);
+            source.PlayOneShot(variationClip ?? clip, CueVolume(cue));
+        }
+
+        // Per-cue loudness on top of the shared SFX bus: everything +20%,
+        // hitmarker (Hit) +50%, notifications (Milestone/MilestoneMajor) +65%.
+        private static float CueVolume(Cue cue)
+        {
+            switch (cue)
+            {
+                case Cue.Hit: return 1.5f;
+                case Cue.Milestone:
+                case Cue.MilestoneMajor: return 1.65f;
+                default: return 1.2f;
+            }
         }
 
         private AudioClip SelectSourceVariation(Cue cue)

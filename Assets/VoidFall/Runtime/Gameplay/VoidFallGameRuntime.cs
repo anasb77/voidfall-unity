@@ -2356,6 +2356,7 @@ namespace VoidFall.Runtime
             UpdateWeapons(dt);
 
             if (_voidRoute != null) StepRiftTransition(dt);
+            if (_voidRoute != null) StepRiftSafetyNet();
             var arenaStep = _voidRoute == null
                 ? ArenaRules.Step(
                     _arenaTransitionState,

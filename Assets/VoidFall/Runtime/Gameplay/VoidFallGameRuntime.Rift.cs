@@ -45,6 +45,9 @@ namespace VoidFall.Runtime
         private bool _routeSelectOpen;
         // Single-destination voids teleport directly with no portal or cards.
         private string _riftAutoVoidId;
+        // Set when the objective completes; the safety net re-fires the rift
+        // if nothing owns the run 45s later. -1 while a Void is in progress.
+        private float _objectiveCompleteAt = -1f;
 
         private Sprite[] _riftPortalFrames;
         private SpriteRenderer _riftPortal;
@@ -67,6 +70,7 @@ namespace VoidFall.Runtime
             _openRouteAfterRoulette = false;
             _routeSelectOpen = false;
             _riftAutoVoidId = null;
+            _objectiveCompleteAt = -1f;
             HideRiftPortal();
         }
 
@@ -76,6 +80,7 @@ namespace VoidFall.Runtime
             if (_voidRoute == null) return;
             if (!_voidRoute.NotifyVoidCompleted(_voidRoute.CurrentVoidId)) return;
             var completedName = _voidRoute.Node(_voidRoute.CurrentVoidId).DisplayName.ToUpperInvariant();
+            Debug.Log($"VOIDFLOW objective-complete void={_voidRoute.CurrentVoidId} t={_time:F1}");
             _objectiveLine = completedName + " COMPLETE";
             _lastObjectiveLine = null;
             ShowArenaToast(completedName + " COMPLETE", 3.2f, ToastKind.Reward);
@@ -118,9 +123,11 @@ namespace VoidFall.Runtime
         {
             if (!string.IsNullOrEmpty(_riftAutoVoidId))
             {
+                Debug.Log($"VOIDFLOW auto-teleport to={_riftAutoVoidId} t={_time:F1}");
                 EnterVoidThroughRift(_riftAutoVoidId);
                 return;
             }
+            Debug.Log($"VOIDFLOW rift-open t={_time:F1}");
             ShowArenaToast("THE RIFT OPENS", 3f);
             SpawnRingWave(
                 _gameSim.Player.Position, 30f, 640f, 0.95f,
@@ -180,10 +187,28 @@ namespace VoidFall.Runtime
             _audio?.Play(ProceduralAudio.Cue.Boss, 0.9f);
         }
 
+        /// <summary>Last-resort re-opener: if the objective has been complete
+        /// for 45s but no route is open, no transition runs, and no ceremony
+        /// owns the run, re-fire the rift. A stranded run must be impossible.
+        /// </summary>
+        private void StepRiftSafetyNet()
+        {
+            if (_objectiveCompleteAt < 0 || _time - _objectiveCompleteAt < 45f) return;
+            if (_objectives == null || !_objectives.IsComplete) return;
+            if (_routeSelectOpen || _riftTransitionActive || _voidCompletionPending) return;
+            if (_rouletteActive || _rouletteChestActive || _openRouteAfterRoulette) return;
+            if (_gameOver || _revivePending || _levelUpActive || _paused) return;
+            if (_voidRoute == null ||
+                _voidRoute.NodesInState(RouteNodeState.Available).Count == 0) return;
+            Debug.Log($"VOIDFLOW safety-net t={_time:F1}");
+            OpenCompletedVoidRift();
+        }
+
         private void OpenRouteSelection()
         {
             var cards = _routeController.BuildCards(_voidRoute);
             if (cards.Count == 0) return;
+            Debug.Log($"VOIDFLOW route-open cards={cards.Count} t={_time:F1}");
             _routeSelectOpen = true;
             _paused = true;
             _ui.SetScreen(UIScreen.RouteSelect);
@@ -210,6 +235,7 @@ namespace VoidFall.Runtime
         /// <summary>Starts the playable fold between the selected Voids.</summary>
         private void EnterVoidThroughRift(string voidId)
         {
+            Debug.Log($"VOIDFLOW choice void={voidId} t={_time:F1}");
             _routeSelectOpen = false;
             _riftAutoVoidId = null;
             var node = _voidRoute.Node(voidId);
@@ -298,6 +324,7 @@ namespace VoidFall.Runtime
         private void CommitRiftTransitionSwap()
         {
             if (_riftTransitionSwapped || string.IsNullOrEmpty(_riftTransitionVoidId)) return;
+            Debug.Log($"VOIDFLOW swap to={_riftTransitionVoidId} t={_time:F1}");
             _riftTransitionSwapped = true;
             DestroyEnemiesForVoidTransition();
             ClearTransitionProjectiles();
