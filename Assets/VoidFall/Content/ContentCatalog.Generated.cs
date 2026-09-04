@@ -1691,7 +1691,7 @@ namespace VoidFall.Core
 
                         Damage = 0,
 
-                        SummonCount = 8,
+                        SummonCount = 6,
                     },
                     new BossAttackDefinition
                     {

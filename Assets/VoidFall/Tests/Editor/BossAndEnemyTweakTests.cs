@@ -22,7 +22,7 @@ namespace VoidFall.Tests.Editor
             Assert.That(matriarch, Is.Not.Null);
             Assert.That(matriarch.Attacks.Length, Is.EqualTo(3));
             Assert.That(matriarch.Attacks[0].Id, Is.EqualTo("bodyguard"));
-            Assert.That(matriarch.Attacks[0].SummonCount, Is.EqualTo(8));
+            Assert.That(matriarch.Attacks[0].SummonCount, Is.EqualTo(6));
             Assert.That(warden, Is.Not.Null);
             Assert.That(warden.Attacks[0].Id, Is.EqualTo("charge"));
             Assert.That(warden.Attacks[0].ActiveSeconds, Is.EqualTo(1.26).Within(1e-9));
@@ -45,7 +45,7 @@ namespace VoidFall.Tests.Editor
             Assert.That(
                 Invoke<double>(rules, "MatriarchBodyguardOrbitAngle", 0.0, 1) -
                 Invoke<double>(rules, "MatriarchBodyguardOrbitAngle", 0.0, 0),
-                Is.EqualTo(Math.PI / 4.0).Within(1e-9));
+                Is.EqualTo(Math.PI / 3.0).Within(1e-9));
             Assert.That(
                 Invoke<double>(rules, "WardenRushRotationDegrees", 0.63, 1.26),
                 Is.EqualTo(720.0).Within(1e-9));

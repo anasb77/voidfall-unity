@@ -5,7 +5,7 @@ namespace VoidFall.Runtime
     /// <summary>Small, allocation-free constants shared by combat simulation and presentation.</summary>
     public static class CombatTweakRules
     {
-        public const int MatriarchBodyguardCount = 8;
+        public const int MatriarchBodyguardCount = 6;
         public const float MatriarchBodyguardOrbitRadius = 108f;
         public const float MatriarchBodyguardOrbitSpeed = 4.8f;
         public const float MatriarchSummonLaunchSpeed = 480f;

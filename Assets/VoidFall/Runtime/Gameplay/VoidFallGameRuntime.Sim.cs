@@ -2574,9 +2574,12 @@ namespace VoidFall.Runtime
             var weapon = ContentCatalog.Weapons[3];
             var stats = weapon.Ranks[Mathf.Clamp(rank, 1, weapon.Ranks.Length) - 1].Stats;
             // Overclocked fire rate applies to blade spin just like every
-            // other weapon's cadence (tiers 1.00/1.35/1.70/2.15).
+            // other weapon's cadence (tiers 1.00/1.35/1.70/2.15), and so
+            // does the Velocity Coils projectile speed multiplier - spin is
+            // the blades' equivalent of projectile velocity.
             _bladeAngle += dt * (float)stats.OrbitSpeed *
-                (float)OverclockRules.FireRateMultiplier(_overclock.PowerTier);
+                (float)OverclockRules.FireRateMultiplier(_overclock.PowerTier) *
+                (float)SupportEffectRules.ProjectileSpeedMultiplier(SupportRank("projectileSpeed"));
             var recoveryScale = WeaponRecoveryScale();
             var evolved = _upgradeProgress.Evolved[3];
             if (evolved)
@@ -3079,11 +3082,7 @@ namespace VoidFall.Runtime
             var shield = !elite && id == "guard"
                 ? (float)((definition.Shield ?? 0) * healthScale * rosterHealth)
                 : 0;
-            if (matriarchBodyguardSlot >= 0)
-            {
-                var guardShield = FindEnemy("guard")?.Shield ?? 38;
-                shield = Mathf.Max(shield, (float)(guardShield * healthScale * rosterHealth));
-            }
+            // Matriarch bodyguards orbit and shoot; they carry no shields.
             var enemy = new EnemyState
             {
                 Active = true,
