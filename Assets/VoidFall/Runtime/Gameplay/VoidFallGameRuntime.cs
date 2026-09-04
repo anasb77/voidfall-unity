@@ -1137,6 +1137,7 @@ namespace VoidFall.Runtime
                 QuitGame = QuitGameFromUi,
                 SetQuitDialogOpen = open => _music?.SetMenuDialog(open)
             });
+            AttachWorkshopFramePreview();
             ConfigureVisualCapture();
             EnterMainMenu();
             if (_visualCaptureWorkshop) _menuPage = MenuPage.Workshop;
@@ -1187,6 +1188,25 @@ namespace VoidFall.Runtime
         private void QuitGameFromUi()
         {
             Application.Quit();
+        }
+
+        /// <summary>
+        /// Mounts the live frame preview inside the Workshop's preview column.
+        /// Ranks are queried live (including the focused row's +1 preview), so
+        /// hovering and buying instantly update the frame shown.
+        /// </summary>
+        private void AttachWorkshopFramePreview()
+        {
+            var stage = _ui?.Workshop?.PreviewStage;
+            if (stage == null) return;
+            var preview = stage.GetComponent<PlayerFramePreview>();
+            if (preview == null)
+            {
+                preview = stage.gameObject.AddComponent<PlayerFramePreview>();
+            }
+            preview.Bind(
+                id => PreviewWorkshopRank(id, _workshopPreviewId),
+                () => _saveData?.settings?.reducedMotion == true);
         }
 
         private void OnDestroy()
@@ -1975,10 +1995,7 @@ namespace VoidFall.Runtime
             _gameSim.Player.Position = Vector2.zero;
             _gameSim.Player.Velocity = Vector2.zero;
             _cameraFollowPosition = Vector2.zero;
-            _workshopIntegrity = WorkshopRank("integrity");
-            _workshopPower = WorkshopRank("power");
-            _workshopMobility = WorkshopRank("mobility");
-            _workshopMagnet = WorkshopRank("magnet");
+            RefreshWorkshopCosmeticRanks();
             _gameSim.Player.MaxHealth = (float)ContentCatalog.Operative.MaxHealth + _workshopIntegrity * 5;
             _gameSim.Player.Health = _gameSim.Player.MaxHealth;
             _healthGhostFraction = 1f;
@@ -5056,6 +5073,8 @@ namespace VoidFall.Runtime
                 "Operative Ring",
                 ProceduralSpriteFactory.PlayerRing(),
                 32);
+
+            SetupPlayerCosmetics();
         }
 
         private static bool HasCommandLineArgument(string expected)

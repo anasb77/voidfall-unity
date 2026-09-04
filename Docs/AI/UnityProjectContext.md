@@ -1,13 +1,15 @@
 # VoidFall Unity project context
 
-Last analyzed: 2026-09-01
+Last analyzed: 2026-09-04
 
-Source state: `f97a180` plus the verified route/UI working tree
+Source state: `049500d` plus existing audio/cosmetics edits and September 4 audit fixes.
 
 ## Product
 
 `voidfall-unity` is the active game. The browser project is deprecated.
 Current target is Windows Standalone; mobile remains a future platform pass.
+The current goal is a full-game release on October 15, subject to readiness.
+See `Docs/AI/ReleaseReadiness-2026-09-04.md` for release gates and remaining work.
 
 ## Environment
 
@@ -15,6 +17,7 @@ Current target is Windows Standalone; mobile remains a future platform pass.
 - URP `17.5.0`
 - Addressables `2.8.1`
 - Input System `1.20.0`
+- Unity Test Framework `1.7.0`; six first-party runtime assemblies and two test assemblies
 - uGUI + TextMeshPro package, with many runtime labels still using uGUI Text
 - GitHub: `https://github.com/anasb77/voidfall-unity`
 
@@ -45,6 +48,8 @@ save, prepares arena residency, and enters the menu.
 - Arena textures are generated in Editor code and loaded as packages at runtime.
 - Arena identity effects must not tint the player or HUD.
 - Save failures must never overwrite unreadable progression.
+- Missing/corrupt primary saves recover the last valid backup before legacy files.
+- Both card-selected and automatic rift travel must commit the route choice.
 - Do not add per-enemy or per-projectile MonoBehaviours.
 
 ## Current arena state
@@ -63,17 +68,20 @@ Next visual-only packages requested:
 
 ## Validation baseline
 
-- C# build: zero errors
-- EditMode: 242 project tests passing
-- PlayMode: 5 tests passing
-- Windows release player: build, `productionMax` smoke, Hydra captures and all
-  four Monochrome Court warning/burning floor states passing
-- No duplicate GUIDs or missing `.meta` files
+- September 4 EditMode: 259/259 passing, including nine save recovery tests.
+- September 4 PlayMode: 7/7 passing, including the repaired automatic-travel
+  regression, pinned hash and 32-seed sweep.
+- Windows build and startup capture pass. Stress performance is not validated:
+  combat counts stay identical while the probe reports elapsed wall time.
+- Detailed verification and remaining visual risks are in the release report.
+- Asset metadata scan: 658 metadata files, no duplicate GUIDs or missing file metadata.
+- Unity Editor installed locally; no Unity MCP package or callable provider found.
 
 ## Known gaps
 
-- Route content outside Abyss, the three Layer-I arenas, Hydra and Monochrome
-  Court is incomplete.
+- Only Abyss, Red Nebula, White Sakura, Hydra and Monochrome Court have objectives.
+  Dead Orbit, Graveyard, Null City, Last Gate and Final Void do not. Runtime
+  victory/escape resolution is absent, despite `VoidRouteRun.HasEscaped`.
 - Hydra mutation rules are wired during its survival phase; its boss phase
   suppresses ambient enemies and spawns route-only Hydra Prime.
 - Hydra's production base, bone and boss visuals are authored from the approved
@@ -84,11 +92,17 @@ Next visual-only packages requested:
   Lost City remains graph/data only.
 - HudPresenter is present but not wired as the sole HUD owner.
 - CI Unity tests run only when the repository variable is enabled.
-- Product identity still uses Unity's default company/application identifier.
-- Android/mobile, controller navigation and safe-area behavior need device work.
+- CI now selects all PlayMode tests; hosted execution and a hosted player build remain unverified.
+- Product identity is `Voidfall` / `VoidFall`, application ID `com.voidfall.game`.
+- Combat auto-targets and auto-fires. Gamepad left-stick movement exists; controller
+  Start/pause handling and menu focus/navigation are incomplete.
+- Runs are not resumable; live-run rewards are committed only on terminal game over.
+- URP uses 2x MSAA, HDR off, automatic intermediate texture, and SRP Batcher.
 
 ## Workspace hygiene
 
 `Library`, `Logs`, `TestResults`, `.vs`, generated project files and player
-builds are local artifacts. They must not be committed. `Assets` is roughly
-50 MiB; a multi-gigabyte local folder is generated cache, not source size.
+builds are local artifacts. They must not be committed. Audit evidence and a
+copy of the preceding Windows build are under `Logs/Audit-2026-09-04/`.
+Existing user edits to audio, player cosmetics, Workshop and Player Settings
+were present before the audit and must be preserved.

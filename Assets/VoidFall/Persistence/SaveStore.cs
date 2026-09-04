@@ -135,12 +135,22 @@ namespace VoidFall.Persistence
             "integrity", "power", "mobility", "recovery", "magnet", "precision", "arsenal", "protocol",
         };
 
-        private static readonly string[] BestiaryOrder =
+        private static readonly string[] BestiaryOrder = BuildBestiaryOrder();
+
+        private static string[] BuildBestiaryOrder()
         {
-            "chaser", "runner", "gunner", "twinGunner", "dasher", "brute", "exploder", "guard",
-            "technician", "mortar", "splitter", "bulwark", "harvester", "carrier", "elite",
-            "herald", "warden", "matriarch", "reaver",
-        };
+            // Keep legacy entries in order and append Unity-authored content.
+            // Discovery and sanitization must share the live content IDs.
+            var ids = new List<string>();
+            foreach (var enemy in ContentCatalog.Enemies) ids.Add(enemy.Id);
+            ids.Add(ContentCatalog.Elite.Id);
+            foreach (var boss in ContentCatalog.Bosses) ids.Add(boss.Id);
+            foreach (var enemy in MonochromeContent.Enemies) ids.Add(enemy.Id);
+            ids.Add(HydraContent.Boss.Id);
+            ids.Add(MonochromeContent.BlackBoss.Id);
+            ids.Add(MonochromeContent.WhiteBoss.Id);
+            return ids.ToArray();
+        }
 
         private readonly string _path;
 
@@ -151,6 +161,7 @@ namespace VoidFall.Persistence
         /// than replacing it with the default profile the player is looking at.
         /// </summary>
         private bool _storageUnreadable;
+        private bool _preserveBackupUntilSave;
 
         public SaveStore(string path = null)
         {
@@ -165,6 +176,9 @@ namespace VoidFall.Persistence
 
         public SaveData Load()
         {
+            // A migrated legacy file can still exist, but the current backup
+            // contains newer progression and takes priority over that file.
+            if (!File.Exists(_path) && TryRecoverBackup(out var backup)) return backup;
             var sourcePath = FindLoadPath();
             if (sourcePath == null)
             {
@@ -228,6 +242,7 @@ namespace VoidFall.Persistence
             catch (Exception exception)
             {
                 BackupCorruptFile(raw, exception.Message);
+                if (TryRecoverBackup(out var recovered)) return recovered;
                 if (TryLoadLegacyScores(out var legacyScores))
                     return PersistRecovery(legacyScores);
                 return PersistRecovery(CreateDefault());
@@ -238,6 +253,54 @@ namespace VoidFall.Persistence
             // usable profile even when its safeSet() cannot write.
             if (persistMigration) TryPersistMigration(resolved);
             return resolved;
+        }
+
+        private bool TryRecoverBackup(out SaveData recovered)
+        {
+            recovered = null;
+            var backupPath = _path + ".bak";
+            if (!File.Exists(backupPath)) return false;
+
+            string raw;
+            try
+            {
+                raw = File.ReadAllText(backupPath);
+            }
+            catch (Exception exception)
+            {
+                // An unreadable backup may be the only remaining progression.
+                // Do not let a default profile replace it on a later save.
+                _storageUnreadable = true;
+                recovered = CreateDefault();
+                Debug.LogError("VoidFall save backup could not be read and was left untouched: " + exception.Message);
+                return true;
+            }
+
+            try
+            {
+                var data = BrowserSaveImporter.TryConvert(raw, out var browserData)
+                    ? browserData
+                    : JsonUtility.FromJson<SaveData>(raw);
+                if (data == null) throw new FormatException("Save backup root is not an object.");
+                recovered = Sanitize(data);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("VoidFall save backup could not be parsed: " + exception.Message);
+                return false;
+            }
+
+            _preserveBackupUntilSave = true;
+            try
+            {
+                // Do not rotate the corrupt primary over the last good backup.
+                Save(recovered);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("VoidFall recovered save could not be persisted: " + exception.Message);
+            }
+            return true;
         }
 
         private void TryPersistMigration(SaveData data)
@@ -372,7 +435,12 @@ namespace VoidFall.Persistence
         /// </param>
         public void Save(SaveData data, bool allowOverwriteUnreadable = false)
         {
-            if (_storageUnreadable && !allowOverwriteUnreadable && File.Exists(_path))
+            Save(data, allowOverwriteUnreadable, _preserveBackupUntilSave);
+        }
+
+        private void Save(SaveData data, bool allowOverwriteUnreadable, bool preserveBackup)
+        {
+            if (_storageUnreadable && !allowOverwriteUnreadable)
             {
                 throw new IOException(
                     "Refusing to overwrite the save file because it could not be read this session.");
@@ -406,8 +474,9 @@ namespace VoidFall.Persistence
             // allowed to reach the caller; every call site handles it.
             try
             {
-                if (File.Exists(_path)) File.Replace(temporaryPath, _path, _path + ".bak");
+                if (File.Exists(_path)) File.Replace(temporaryPath, _path, preserveBackup ? null : _path + ".bak");
                 else File.Move(temporaryPath, _path);
+                _preserveBackupUntilSave = false;
             }
             catch
             {

@@ -38,7 +38,14 @@ namespace VoidFall.UI
         private Text _previewRank;
         private RectTransform _listContent;
         private RectTransform _rankStripRow;
+        private RectTransform _previewStage;
         private string _focusedId;
+
+        /// <summary>
+        /// The rect the runtime mounts the live frame preview on.
+        /// Requires <see cref="BuildPreviewColumn"/> to have run.
+        /// </summary>
+        public RectTransform PreviewStage => _previewStage;
 
         private sealed class RowWidgets
         {
@@ -153,12 +160,21 @@ namespace VoidFall.UI
             UIBuilder.CreateRule(header, "Rule", UITheme.WithAlpha(UITheme.CyanLight, 0.12f))
                 .rectTransform.anchoredPosition = Vector2.zero;
 
-            // The middle of the column carries the focused track's readout.
+            // The middle of the column carries the live frame preview; the
+            // runtime mounts PlayerFramePreview on this stage.
+            _previewStage = UIBuilder.CreateRect(body.rectTransform, "FramePreviewStage");
+            _previewStage.anchorMin = new Vector2(0.5f, 1f);
+            _previewStage.anchorMax = new Vector2(0.5f, 1f);
+            _previewStage.pivot = new Vector2(0.5f, 1f);
+            _previewStage.sizeDelta = new Vector2(320f, 186f);
+            _previewStage.anchoredPosition = new Vector2(0f, -55f);
+
+            // The readout (rank caption + focused detail) sits below the stage.
             var readout = UIBuilder.CreateRect(body.rectTransform, "Readout");
             readout.anchorMin = Vector2.zero;
             readout.anchorMax = Vector2.one;
             readout.offsetMin = new Vector2(18f, 48f);
-            readout.offsetMax = new Vector2(-18f, -58f);
+            readout.offsetMax = new Vector2(-18f, -238f);
 
             _previewRank = UIBuilder.CreateText(
                 readout,
@@ -246,6 +262,18 @@ namespace VoidFall.UI
         {
             if (_partsBadge != null) _partsBadge.text = FormatNumber(totalParts);
 
+            if (items != null && CanReuseRows(items))
+            {
+                for (var index = 0; index < items.Count; index++)
+                {
+                    UpdateRow(_rows[index], items[index]);
+                    UpdateRankCell(items[index]);
+                }
+
+                ApplyFocus(_focusedId, true);
+                return;
+            }
+
             ClearChildren(_listContent);
             ClearChildren(_rankStripRow);
             _rows.Clear();
@@ -260,6 +288,50 @@ namespace VoidFall.UI
             }
 
             ApplyFocus(_focusedId, true);
+        }
+
+        private bool CanReuseRows(IReadOnlyList<WorkshopItemData> items)
+        {
+            if (_rows.Count != items.Count || _listContent == null || _rankStripRow == null)
+                return false;
+            for (var index = 0; index < items.Count; index++)
+            {
+                var row = _rows[index];
+                if (row == null || row.Root == null || row.Id != items[index].Id)
+                    return false;
+                if (!_rankStrip.ContainsKey(items[index].Id))
+                    return false;
+            }
+            return true;
+        }
+
+        private void UpdateRow(RowWidgets row, WorkshopItemData item)
+        {
+            if (row.Name != null)
+                row.Name.text = item.Name + "   " + item.CurrentRank + "/" + item.MaxRank;
+            if (row.Description != null)
+                row.Description.text = item.Description;
+            if (row.PipRow != null)
+            {
+                ClearChildren(row.PipRow);
+                UIBuilder.CreateRankPips(row.PipRow, "PipRow", item.MaxRank, item.CurrentRank);
+            }
+            var maxed = item.Cost < 0;
+            if (row.BuyLabel != null)
+            {
+                row.BuyLabel.text = maxed ? "Complete" : FormatNumber(item.Cost);
+                row.BuyLabel.color = maxed
+                    ? UITheme.TextDisabledDeep
+                    : (item.CanAfford ? UITheme.CyanPale : UITheme.TextDisabledDeep);
+            }
+            if (row.Buy != null)
+                row.Buy.interactable = !maxed && item.CanAfford;
+        }
+
+        private void UpdateRankCell(WorkshopItemData item)
+        {
+            if (_rankStrip.TryGetValue(item.Id, out var label) && label != null)
+                label.text = item.CurrentRank.ToString();
         }
 
         private void BuildRow(WorkshopItemData item)
@@ -435,7 +507,9 @@ namespace VoidFall.UI
             }
 
             RefreshPreview();
-            if (_focusedId != null) Callbacks?.PreviewWorkshop?.Invoke(_focusedId);
+            // Mirror focus into the runtime whether or not a row is focused:
+            // null releases the +1 next-rank preview, matching the browser.
+            Callbacks?.PreviewWorkshop?.Invoke(_focusedId);
         }
 
         private void RefreshPreview()

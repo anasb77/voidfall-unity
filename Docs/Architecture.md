@@ -1,6 +1,6 @@
 # VoidFall architecture
 
-Last verified: 2026-09-01, Unity `6000.5.7f1`.
+Last inspected: 2026-09-04, Unity `6000.5.7f1`.
 
 ## Boot and lifetime
 
@@ -42,7 +42,8 @@ projectile or pickup. This is a deliberate bullet-heaven performance contract.
 The 32-seed PlayMode sweep proves repeated runs are bit-stable. The canonical
 `productionMax` run is pinned by `SimulationGoldenMasterTests`; the prepared
 Monochrome Court catalogue and route-owned roster intentionally re-pin it to
-`13150562237046848063` while the 32-seed sweep remains bit-stable.
+`14713629958221367877` after subsequent documented combat changes. See the
+test's change history; audit fixes must not silently update this hash.
 
 ## Runtime composition status
 
@@ -70,7 +71,7 @@ URP 17.5 is active through `VoidFallURP.asset` and
 `VoidFallUniversalRenderer.asset`. The current PC presentation uses:
 
 - Linear color space
-- 4x MSAA
+- 2x MSAA, HDR disabled, automatic intermediate texture
 - Bloom and chromatic aberration exposed in video settings
 - World-space arena vignette below gameplay actors
 - Unlit/additive custom shaders for sprites and effects
@@ -104,14 +105,19 @@ White and Black alternate
 control of their matching floor tiles through warning, burning and recovery
 stages; the opposite color is safe. Ambient spawns remain suppressed.
 
-Abyss, the three Layer-I nodes, Hydra and Monochrome Court have objective
-implementations. Other Layer-II objectives, complete transition reset
-semantics, threat scaling and the Final Void escape remain unfinished.
+Abyss, Red Nebula, White Sakura, Hydra and Monochrome Court have objective
+implementations. Other Layer-II objectives, Last Gate, route threat scaling
+and the Final Void escape remain unfinished. The rift swap clears enemies,
+shots and meteors; automatic single-exit travel now commits the route selection
+before initializing the incoming objective.
 
 ## Persistence
 
 `SaveStore` owns schema-v5 JSON under `Application.persistentDataPath`.
 Writes use a temporary file, forced flush, atomic replacement and one backup.
+Missing/corrupt primary files recover that backup before stale legacy profiles;
+recovery never rotates corrupt primary data over the good backup, including
+when the initial recovery write fails. Bestiary IDs include Unity-authored content.
 Unreadable storage is latched so a blank runtime profile cannot overwrite
 progression that failed to load. The live route is not yet serialized.
 

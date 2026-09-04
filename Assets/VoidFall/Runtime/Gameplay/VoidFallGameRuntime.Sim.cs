@@ -4345,6 +4345,24 @@ namespace VoidFall.Runtime
             return ParseColor(FindBoss(boss.Id)?.Color, Color.magenta);
         }
 
+        private static readonly string[] DamageNumberTextCache = BuildDamageNumberTextCache();
+
+        private static string[] BuildDamageNumberTextCache()
+        {
+            const int capacity = 4096;
+            var cache = new string[capacity];
+            for (var i = 0; i < capacity; i++)
+                cache[i] = i.ToString();
+            return cache;
+        }
+
+        private static string DamageNumberText(int value)
+        {
+            return value >= 0 && value < DamageNumberTextCache.Length
+                ? DamageNumberTextCache[value]
+                : value.ToString();
+        }
+
         private void SpawnFloater(
             Vector2 position,
             string text,
@@ -4365,7 +4383,7 @@ namespace VoidFall.Runtime
                     if (!existing.Active || existing.TargetKey != targetKey || existing.Value <= 0 ||
                         existing.Life <= existing.MaxLife - 0.3f) continue;
                     existing.Value += value;
-                    existing.Text = existing.Value.ToString();
+                    existing.Text = DamageNumberText(existing.Value);
                     existing.Position = (existing.Position + position) * 0.5f;
                     existing.Critical |= critical;
                     existing.Color = existing.Critical
@@ -4433,7 +4451,7 @@ namespace VoidFall.Runtime
             var value = Mathf.Max(1, SourceRound(damage));
             SpawnFloater(
                 position,
-                value.ToString(),
+                DamageNumberText(value),
                 critical
                     ? new Color(0.969f, 0.443f, 0.443f, 1f)
                     : new Color(0.886f, 0.91f, 0.941f, 1f),

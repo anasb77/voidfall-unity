@@ -124,7 +124,9 @@ namespace VoidFall.Runtime
             if (!string.IsNullOrEmpty(_riftAutoVoidId))
             {
                 Debug.Log($"VOIDFLOW auto-teleport to={_riftAutoVoidId} t={_time:F1}");
-                EnterVoidThroughRift(_riftAutoVoidId);
+                // Automatic travel must commit the route choice just like a
+                // card click, before the swap initializes its objective.
+                OnRouteVoidChosen(_riftAutoVoidId);
                 return;
             }
             Debug.Log($"VOIDFLOW rift-open t={_time:F1}");

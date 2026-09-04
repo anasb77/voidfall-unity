@@ -34,9 +34,9 @@ black chess tiles after a readable warning.
 ## Controls
 
 - Move: WASD, arrows, or left stick
-- Aim: mouse or right stick
-- Fire: left mouse, Space, or right trigger
-- Pause: Escape, P, or controller Start
+- Combat automatically targets nearby enemies and fires equipped weapons.
+- Pause: Escape or P
+- Controller menu navigation and Start-button pause are not yet complete.
 
 ## Architecture
 
@@ -74,13 +74,17 @@ Unity test commands must not include `-quit`; the test runner exits on its own.
   -logFile Logs/playmode.log
 ```
 
-Validated on 2026-09-02:
+Validated on 2026-09-04:
 
 - C# compilation: zero errors
-- Project EditMode tests: 242 passed
-- PlayMode tests: 5 passed
-- Windows release build, `productionMax` stability sweep, Hydra captures and
-  all four Monochrome Court warning/burning floor states: passed
+- Project EditMode tests: 259 passed
+- PlayMode tests: 7 passed, including the unchanged golden master and 32-seed sweep
+- Windows release build and startup/render captures: passed
+- Dense-combat performance remains unverified: the standalone stress probe
+  reported identical combat counts throughout measurement.
+
+Full-release blockers and audit evidence are in
+[the September 4 release report](Docs/AI/ReleaseReadiness-2026-09-04.md).
 
 The build command is:
 

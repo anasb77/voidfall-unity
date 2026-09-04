@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using VoidFall.Core;
+using VoidFall.Runtime.Rendering;
 
 namespace VoidFall.Runtime
 {
@@ -962,6 +963,299 @@ namespace VoidFall.Runtime
                 1f);
             _playerRing = canvas.ToSprite("VoidFall_Player_Ring", true);
             return _playerRing;
+        }
+
+        // ------------------------------------------------------------------
+        // Workshop frame cosmetics. One sprite per track/rank, baked at 1
+        // design pixel == 1 world unit, sharing the legacy browser preview's
+        // exact colours and layout so the in-game player matches the frame
+        // preview. The whole radial arrangement is baked in so a single
+        // SpriteRenderer/Image + rotation reproduces the preview animation.
+        // ------------------------------------------------------------------
+
+        private static Sprite _playerMobilityTrail;
+
+        /// <summary>
+        /// One cyan streak used by the mobility trail. Bright end at +y
+        /// (towards the player), fading to transparent at -y.
+        /// </summary>
+        public static Sprite PlayerMobilityTrail()
+        {
+            if (_playerMobilityTrail != null) return _playerMobilityTrail;
+            const float length = PlayerCosmetics.MobilityTrailSpriteLength;
+            var canvas = new RasterCanvas(length * 0.5f, 0f, Mathf.RoundToInt(length));
+            canvas.DrawGradientLine(
+                new Vector2(0f, length * 0.5f),
+                new Vector2(0f, -length * 0.5f),
+                PlayerCosmetics.MobilityTrailWidth,
+                new Color(0.404f, 0.91f, 0.976f, 0.78f),
+                new Color(0.133f, 0.827f, 0.933f, 0f));
+            _playerMobilityTrail = canvas.ToAtlasSprite("VoidFall_Cosmetic_MobilityTrail");
+            return _playerMobilityTrail;
+        }
+
+        private static readonly Dictionary<int, Sprite> _playerMagnetSprites =
+            new Dictionary<int, Sprite>();
+
+        /// <summary>Dashed violet orbit ring with alternating diamond markers.</summary>
+        public static Sprite PlayerMagnet(int rank)
+        {
+            rank = Mathf.Clamp(rank, 1, 3);
+            if (_playerMagnetSprites.TryGetValue(rank, out var cached)) return cached;
+
+            var radius = PlayerCosmetics.MagnetBaseRadius + rank * PlayerCosmetics.MagnetRadiusPerRank;
+            const float margin = 16f;
+            var extent = radius + margin;
+            var size = Mathf.RoundToInt(extent * 2f);
+            var canvas = new RasterCanvas(extent, 0f, size);
+
+            var ringColor = new Color(0.655f, 0.545f, 0.98f, 0.22f + rank * 0.08f);
+            canvas.DrawDashedArc(
+                Vector2.zero, radius, 0f, Mathf.PI * 2f, 2f, ringColor, 5f, 12f);
+
+            for (var index = 0; index < rank * 2; index++)
+            {
+                var angle = index / (rank * 2f) * Mathf.PI * 2f;
+                var position = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                canvas.Glow(position, 7f, new Color(0.655f, 0.545f, 0.98f, 0.5f), 0.35f);
+                var diamond = index % 2 == 0
+                    ? new Color(0.769f, 0.71f, 0.992f, 0.95f)
+                    : new Color(0.404f, 0.91f, 0.976f, 0.95f);
+                canvas.FillPolygon(new[]
+                {
+                    position + new Vector2(0f, 5f),
+                    position + new Vector2(4f, 0f),
+                    position + new Vector2(0f, -5f),
+                    position + new Vector2(-4f, 0f),
+                }, diamond);
+            }
+
+            var sprite = canvas.ToAtlasSprite("VoidFall_Cosmetic_Magnet_" + rank);
+            _playerMagnetSprites[rank] = sprite;
+            return sprite;
+        }
+
+        private static readonly Dictionary<int, Sprite> _playerIntegritySprites =
+            new Dictionary<int, Sprite>();
+
+        /// <summary>Sky-blue arc segments guarding the Operative.</summary>
+        public static Sprite PlayerIntegrity(int rank)
+        {
+            rank = Mathf.Clamp(rank, 1, 3);
+            if (_playerIntegritySprites.TryGetValue(rank, out var cached)) return cached;
+
+            var width = PlayerCosmetics.IntegrityArcBaseWidth + rank * PlayerCosmetics.IntegrityArcWidthPerRank;
+            var segments = 3 + rank * 2;
+            const float margin = 8f;
+            var extent = PlayerCosmetics.IntegrityRadius + width * 0.5f + margin;
+            var size = Mathf.RoundToInt(extent * 2f);
+            var canvas = new RasterCanvas(extent, 0f, size);
+
+            var alpha = 0.42f + rank * 0.13f;
+            var bright = new Color(0.49f, 0.827f, 0.988f, alpha);
+            var halo = new Color(0.22f, 0.741f, 0.973f, alpha * 0.35f);
+            for (var index = 0; index < segments; index++)
+            {
+                var start = index / (float)segments * Mathf.PI * 2f;
+                canvas.DrawArc(
+                    Vector2.zero,
+                    PlayerCosmetics.IntegrityRadius,
+                    start,
+                    start + PlayerCosmetics.IntegrityArcSpan,
+                    width + 4f,
+                    halo);
+                canvas.DrawArcRound(
+                    Vector2.zero,
+                    PlayerCosmetics.IntegrityRadius,
+                    start,
+                    start + PlayerCosmetics.IntegrityArcSpan,
+                    width,
+                    bright);
+            }
+
+            var sprite = canvas.ToAtlasSprite("VoidFall_Cosmetic_Integrity_" + rank);
+            _playerIntegritySprites[rank] = sprite;
+            return sprite;
+        }
+
+        private static readonly Dictionary<int, Sprite> _playerRecoverySprites =
+            new Dictionary<int, Sprite>();
+
+        /// <summary>Rotating green cross-blocks, one per recovery rank.</summary>
+        public static Sprite PlayerRecovery(int rank)
+        {
+            rank = Mathf.Clamp(rank, 1, 3);
+            if (_playerRecoverySprites.TryGetValue(rank, out var cached)) return cached;
+
+            const float margin = 10f;
+            var extent = PlayerCosmetics.RecoveryRadius + margin;
+            var size = Mathf.RoundToInt(extent * 2f);
+            var canvas = new RasterCanvas(extent, 0f, size);
+
+            var block = new Color(0.431f, 0.906f, 0.718f, 0.95f);
+            var dark = new Color(0.02f, 0.18f, 0.17f, 1f);
+            for (var index = 0; index < rank; index++)
+            {
+                var angle = index / (float)rank * Mathf.PI * 2f;
+                var position = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * PlayerCosmetics.RecoveryRadius;
+                canvas.Glow(position, 8f, new Color(0.204f, 0.827f, 0.718f, 0.5f), 0.4f);
+                canvas.FillRect(position, PlayerCosmetics.RecoveryBlockSize, PlayerCosmetics.RecoveryBlockSize, block);
+                canvas.FillRect(position, 2f, 6f, dark);
+                canvas.FillRect(position, 6f, 2f, dark);
+            }
+
+            var sprite = canvas.ToAtlasSprite("VoidFall_Cosmetic_Recovery_" + rank);
+            _playerRecoverySprites[rank] = sprite;
+            return sprite;
+        }
+
+        private static readonly Dictionary<int, Sprite> _playerPowerSprites =
+            new Dictionary<int, Sprite>();
+
+        /// <summary>Static orange thruster fins, one pair per rank.</summary>
+        public static Sprite PlayerPower(int rank)
+        {
+            rank = Mathf.Clamp(rank, 1, 3);
+            if (_playerPowerSprites.TryGetValue(rank, out var cached)) return cached;
+
+            var maxX = PlayerCosmetics.PowerFinScaleOffset + rank * PlayerCosmetics.PowerFinScalePerRank + 6f;
+            const float margin = 8f;
+            var extent = maxX + margin;
+            var size = Mathf.RoundToInt(extent * 2f);
+            var canvas = new RasterCanvas(extent, 0f, size);
+
+            var finFill = new Color(0.984f, 0.573f, 0.235f, 0.18f);
+            var finLine = new Color(0.984f, 0.573f, 0.235f, 0.95f);
+            for (var side = -1; side <= 1; side += 2)
+            {
+                for (var index = 0; index < rank; index++)
+                {
+                    var y = (index - (rank - 1) * 0.5f) * PlayerCosmetics.PowerFinVerticalSpacing;
+                    var host = side * (PlayerCosmetics.PowerFinHostOffset + index * PlayerCosmetics.PowerFinHostOffsetPerRank);
+                    canvas.Glow(new Vector2(host, y), 7f, new Color(0.984f, 0.573f, 0.235f, 0.6f), 0.4f);
+                    canvas.FillRect(
+                        new Vector2(host, y),
+                        PlayerCosmetics.PowerFinRectWidth,
+                        PlayerCosmetics.PowerFinRectHeight,
+                        finFill);
+                    var tipX = side * (PlayerCosmetics.PowerFinScaleOffset + index * PlayerCosmetics.PowerFinScalePerRank);
+                    canvas.DrawLine(
+                        new Vector2(host + side * (PlayerCosmetics.PowerFinRectWidth + 1f), y),
+                        new Vector2(tipX, y),
+                        PlayerCosmetics.PowerFinLineWidth,
+                        finLine);
+                }
+            }
+
+            var sprite = canvas.ToAtlasSprite("VoidFall_Cosmetic_Power_" + rank);
+            _playerPowerSprites[rank] = sprite;
+            return sprite;
+        }
+
+        private static readonly Dictionary<int, Sprite> _playerPrecisionSprites =
+            new Dictionary<int, Sprite>();
+
+        /// <summary>Yellow targeting ticks radiating from the Operative.</summary>
+        public static Sprite PlayerPrecision(int rank)
+        {
+            rank = Mathf.Clamp(rank, 1, 3);
+            if (_playerPrecisionSprites.TryGetValue(rank, out var cached)) return cached;
+
+            var ticks = 2 + rank * 2;
+            const float margin = 6f;
+            var extent = PlayerCosmetics.PrecisionTipRadius + margin;
+            var size = Mathf.RoundToInt(extent * 2f);
+            var canvas = new RasterCanvas(extent, 0f, size);
+
+            var color = new Color(0.992f, 0.902f, 0.541f, 0.4f + rank * 0.14f);
+            for (var index = 0; index < ticks; index++)
+            {
+                var angle = index / (float)ticks * Mathf.PI * 2f;
+                var direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                canvas.DrawLine(
+                    direction * PlayerCosmetics.PrecisionRadius,
+                    direction * PlayerCosmetics.PrecisionTipRadius,
+                    PlayerCosmetics.PrecisionTickWidth,
+                    color);
+            }
+
+            var sprite = canvas.ToAtlasSprite("VoidFall_Cosmetic_Precision_" + rank);
+            _playerPrecisionSprites[rank] = sprite;
+            return sprite;
+        }
+
+        private static readonly Dictionary<int, Sprite> _playerArsenalSprites =
+            new Dictionary<int, Sprite>();
+
+        /// <summary>Orbiting host blades, one per arsenal rank.</summary>
+        public static Sprite PlayerArsenal(int rank)
+        {
+            rank = Mathf.Clamp(rank, 1, 3);
+            if (_playerArsenalSprites.TryGetValue(rank, out var cached)) return cached;
+
+            const float margin = 8f;
+            var extent = PlayerCosmetics.ArsenalRadius + 22f + margin;
+            var size = Mathf.RoundToInt(extent * 2f);
+            var canvas = new RasterCanvas(extent, 0f, size);
+
+            // Escape-hatch blade, scaled to the preview's 32x16 draw size.
+            var bladeScale = 32f / 44f;
+            var blade = new[]
+            {
+                new Vector2(-19f, 2f), new Vector2(-12f, -4f), new Vector2(15f, -6f),
+                new Vector2(21f, -2f), new Vector2(11f, 2f), new Vector2(-13f, 6f),
+            };
+            var fill = new Color(94f / 255f, 234f / 255f, 212f / 255f, 0.3f);
+            var stroke = ParseColor("#ccfbf1");
+            for (var index = 0; index < rank; index++)
+            {
+                var angle = index / (float)rank * Mathf.PI * 2f;
+                var orbit = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * PlayerCosmetics.ArsenalRadius;
+                var rotAngle = angle + Mathf.PI * 0.5f;
+                var rotCos = Mathf.Cos(rotAngle) * bladeScale;
+                var rotSin = Mathf.Sin(rotAngle) * bladeScale;
+                var points = new Vector2[blade.Length];
+                for (var point = 0; point < blade.Length; point++)
+                {
+                    points[point] = orbit + new Vector2(
+                        blade[point].x * rotCos - blade[point].y * rotSin,
+                        blade[point].x * rotSin + blade[point].y * rotCos);
+                }
+                canvas.Glow(orbit, 9f, new Color(0.729f, 0.902f, 0.992f, 0.5f), 0.4f);
+                canvas.FillPolygon(points, fill);
+                canvas.StrokePolygon(points, stroke, 1.8f);
+            }
+
+            var sprite = canvas.ToAtlasSprite("VoidFall_Cosmetic_Arsenal_" + rank);
+            _playerArsenalSprites[rank] = sprite;
+            return sprite;
+        }
+
+        private static Sprite _playerProtocolSprite;
+
+        /// <summary>The single-rank dashed rose ring worn by a maxed protocol.</summary>
+        public static Sprite PlayerProtocol()
+        {
+            if (_playerProtocolSprite != null) return _playerProtocolSprite;
+
+            var radius = PlayerCosmetics.ProtocolBaseRadius + PlayerCosmetics.ProtocolRadiusPerRank;
+            const float margin = 6f;
+            var extent = radius + margin;
+            var size = Mathf.RoundToInt(extent * 2f);
+            var canvas = new RasterCanvas(extent, 0f, size);
+
+            canvas.DrawDashedArc(
+                Vector2.zero,
+                radius,
+                0f,
+                Mathf.PI * 2f,
+                PlayerCosmetics.ProtocolTickWidth,
+                new Color(0.984f, 0.443f, 0.522f, 0.32f),
+                7f,
+                9f);
+
+            _playerProtocolSprite = canvas.ToAtlasSprite("VoidFall_Cosmetic_Protocol");
+            return _playerProtocolSprite;
         }
 
         public static Sprite PlayerAura()

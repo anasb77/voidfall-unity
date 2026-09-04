@@ -333,6 +333,10 @@ namespace VoidFall.Runtime
                 _playerRingView.enabled = true;
             }
 
+            // Workshop frame cosmetics track the player the same way (and share
+            // the exact sprites with the Workshop preview).
+            UpdatePlayerCosmetics(playerVisible);
+
             // The browser draws its compact enemy array forward. Pooled Unity
             // slots are not that array after swap-removal, so keep the visual
             // refresh in logical source order and mirror that order inside the

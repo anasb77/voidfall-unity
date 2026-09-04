@@ -85,6 +85,36 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Single_exit_travel_advances_route_before_initializing_the_next_objective()
+        {
+            var runtime = UnityEngine.Object.FindAnyObjectByType<VoidFallGameRuntime>();
+            Assert.That(runtime, Is.Not.Null);
+            yield return null;
+            Invoke(runtime, "StartRun");
+            // Use two implemented arenas so this isolates travel from the
+            // unfinished objectives later in the production route.
+            var route = new VoidRouteRun(new[]
+            {
+                new VoidRouteNode("abyss", "Abyss", 0, 1, "", "", "", "", "hydra"),
+                new VoidRouteNode("hydra", "Hydra", 1, 1, "", "", "", ""),
+            }, "abyss");
+            SetField(runtime, "_voidRoute", route);
+            Invoke(runtime, "OnVoidObjectiveCompleted");
+            SetField(runtime, "_voidCompletionDelayRemaining", 0f);
+
+            Invoke(runtime, "StepVoidCompletionDelay", 0f);
+            Invoke(runtime, "CommitRiftTransitionSwap");
+
+            Assert.That(route.CurrentVoidId, Is.EqualTo("hydra"));
+            Assert.That(route.StateOf("hydra"), Is.EqualTo(RouteNodeState.Selected));
+            Assert.That(route.History, Is.EqualTo(new[] { "abyss", "hydra" }));
+            var tracker = (VoidObjectiveTracker)GetField(runtime, "_objectives");
+            Assert.That(tracker.Text, Does.Contain("HYDRA"));
+            Invoke(runtime, "OnVoidObjectiveCompleted");
+            Assert.That(route.HasEscaped, Is.True);
+        }
+
+        [UnityTest]
         public IEnumerator Roulette_view_initializes_with_one_live_canvas_group()
         {
             var root = new GameObject("Roulette Regression", typeof(RectTransform));

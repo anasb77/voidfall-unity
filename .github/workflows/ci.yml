@@ -66,7 +66,7 @@ jobs:
           testMode: EditMode
           artifactsPath: test-results/editmode
 
-      - name: Run PlayMode tests (golden master)
+      - name: Run PlayMode tests (flow, golden master, and 32-seed sweep)
         uses: game-ci/unity-test-runner@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -75,7 +75,6 @@ jobs:
           UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
         with:
           testMode: PlayMode
-          testFilter: VoidFall.Tests.PlayMode.SimulationGoldenMasterTests
           artifactsPath: test-results/playmode
 
       - uses: actions/upload-artifact@v4

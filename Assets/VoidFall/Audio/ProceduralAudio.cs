@@ -53,6 +53,8 @@ namespace VoidFall.Runtime
         private const int EffectVoiceCount = 16;
         private static int SampleRate = DefaultSampleRate;
         private static readonly double[] MusicPadFrequencies = { 55d, 82.41d, 110d, 164.81d };
+        private static readonly double[] DetunedMusicPadFrequencies = BuildDetunedPadFrequencies();
+        private static readonly double LowpassQDivisor = 2d * Math.Pow(10d, 0.9d / 20d);
         private static float[] SharedNoiseBuffer = CreateSharedNoiseBuffer(DefaultSampleRate);
         private readonly AudioClip[] _clips = new AudioClip[Enum.GetValues(typeof(Cue)).Length];
         private readonly AudioClip[] _fireClips = new AudioClip[17];
@@ -845,6 +847,18 @@ namespace VoidFall.Runtime
             return Math.Sin(omega) / (2d * Math.Pow(10d, qDb / 20d));
         }
 
+        private static double[] BuildDetunedPadFrequencies()
+        {
+            var detuned = new double[MusicPadFrequencies.Length];
+            for (var voice = 0; voice < detuned.Length; voice++)
+            {
+                detuned[voice] = MusicPadFrequencies[voice] * Math.Pow(
+                    2d,
+                    ((voice - 1.5d) * 7d) / 1200d);
+            }
+            return detuned;
+        }
+
         private static float[] CreateSharedNoiseBuffer(int sampleRate)
         {
             var buffer = new float[Mathf.Max(1, sampleRate / 2)];
@@ -885,7 +899,8 @@ namespace VoidFall.Runtime
                 // WebAudio's lowpass branch uses its Q value as a dB-style
                 // resonance parameter (alpha_QdB), not the bandpass
                 // alpha_Q formula used by the cue filters below.
-                var alpha = WebAudioLowpassAlpha(omega, 0.9d);
+                // LowpassQDivisor hoists the time-invariant Pow out of the loop.
+                var alpha = Math.Sin(omega) / LowpassQDivisor;
                 var cosine = Math.Cos(omega);
                 var a0 = 1d + alpha;
                 var b0 = ((1d - cosine) * 0.5d) / a0;
@@ -894,13 +909,10 @@ namespace VoidFall.Runtime
                 var a1 = (-2d * cosine) / a0;
                 var a2 = (1d - alpha) / a0;
                 var input = 0d;
-                for (var voice = 0; voice < MusicPadFrequencies.Length; voice++)
+                for (var voice = 0; voice < DetunedMusicPadFrequencies.Length; voice++)
                 {
-                    var detuned = MusicPadFrequencies[voice] * Math.Pow(
-                        2d,
-                        ((voice - 1.5d) * 7d) / 1200d);
-                    var phase = 2d * Math.PI * detuned * time;
-                    var phaseCycles = phase / (2d * Math.PI);
+                    var detuned = DetunedMusicPadFrequencies[voice];
+                    var phaseCycles = detuned * time;
                     var triangle = 2d * Math.Abs(
                         2d * (phaseCycles - Math.Floor(phaseCycles + 0.5d))) - 1d;
                     var saw = 2d * (phaseCycles - Math.Floor(phaseCycles + 0.5d));
