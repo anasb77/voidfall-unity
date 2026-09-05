@@ -1077,7 +1077,7 @@ namespace VoidFall.Runtime
             SetupAudio();
             SetupFx();
             SetupHydraPresentation();
-            _saveStore = new SaveStore();
+            _saveStore = new SaveStore(OverclockHudProbe.ProfilePath);
             _saveData = _saveStore.Load();
             _gameBridge = new RuntimeGameBridge(this);
             _settingsController = new SettingsController(_gameBridge);
@@ -1139,6 +1139,7 @@ namespace VoidFall.Runtime
             });
             AttachWorkshopFramePreview();
             ConfigureVisualCapture();
+            PrepareNullCityCaptureProfile();
             EnterMainMenu();
             if (_visualCaptureWorkshop) _menuPage = MenuPage.Workshop;
             if (_visualCaptureSettings) _menuPage = MenuPage.Settings;
@@ -1163,6 +1164,7 @@ namespace VoidFall.Runtime
                 }
                 if (_visualCaptureHydraBoss) BeginHydraBossEncounterForCapture();
                 if (_visualCaptureCourtBoss) BeginMonochromeBossEncounterForCapture();
+                BeginNullCityCapture();
             }
             _startupMenuReadyRealtime = Time.realtimeSinceStartupAsDouble;
             _startupMenuSkipNextFrame = true;
@@ -1216,6 +1218,9 @@ namespace VoidFall.Runtime
             // cleanup that also belongs to the surviving runtime.
             if (!_ownsGlobalResources || _instance != this) return;
             _ownsGlobalResources = false;
+            ResetRouletteLuck();
+            DestroyRouletteRelic();
+            DestroyJourneyVisuals();
             DestroyVideoVolumeResources();
             _arenaResidency?.Dispose();
             _arenaResidency = null;
@@ -1348,6 +1353,7 @@ namespace VoidFall.Runtime
         private void Update()
         {
             RecordStartupMenuFrame();
+            ReadNullCityDashInput();
             var startupUpdateStarted = Time.realtimeSinceStartupAsDouble;
             // Debounce settings disk write so slider drags don't save every pixel (audit #14).
             _settingsController?.Tick(Time.unscaledDeltaTime);
@@ -1362,7 +1368,7 @@ namespace VoidFall.Runtime
 
                 if (keyboard.tabKey.wasPressedThisFrame)
                 {
-                    ToggleMenu();
+                    ToggleRouteMap();
                 }
                 if (keyboard.mKey.wasPressedThisFrame)
                     ToggleMute();
@@ -1375,7 +1381,11 @@ namespace VoidFall.Runtime
 
                 if (keyboard.escapeKey.wasPressedThisFrame)
                 {
-                    if (_revivePending)
+                    if (_routeMapOpen)
+                    {
+                        CloseRouteMap();
+                    }
+                    else if (_revivePending || _prizeRevealActive)
                     {
                         // Revive is an explicit choice and cannot be dismissed as a pause.
                     }
@@ -1427,7 +1437,8 @@ namespace VoidFall.Runtime
                 }
             }
 
-            if (!_paused && !_gameOver)
+            UpdateJourneyFlow(Time.unscaledDeltaTime);
+            if (!_paused && !_gameOver && !JourneyStopsCombat)
             {
                 if (_stressScenario != null)
                     DriveStress(Time.unscaledDeltaTime);
@@ -1436,7 +1447,7 @@ namespace VoidFall.Runtime
             ApplyFxSimulationSpeed();
 
             var frameDt = Time.unscaledDeltaTime;
-            if ((_paused || _gameOver) && !_mainMenuBrowsing)
+            if ((_paused || _gameOver || JourneyStopsCombat) && !_mainMenuBrowsing)
                 UpdatePhaseFx(frameDt);
             var frameMs = Mathf.Clamp(frameDt * 1000f, 0.1f, 100f);
             _ambientClock += Mathf.Clamp(frameDt, 0f, 0.1f);
@@ -1489,6 +1500,7 @@ namespace VoidFall.Runtime
             if (_musicPerimeter != null)
             {
                 var analysis = _music != null ? _music.AnalysisFrame : MusicAnalysisFrame.Zero;
+                _musicPerimeter.SetSpectrum(_music?.SpectrumBands);
                 _musicPerimeter.SetPresentation(
                     analysis.Bass,
                     analysis.Mids,
@@ -1500,7 +1512,7 @@ namespace VoidFall.Runtime
                     criticalHealth,
                     _magnetIntensity,
                     _music != null ? _music.CurrentMixTargets.VisualDamping : 1f,
-                    frameDt);
+                    frameDt, analysis.Transient);
             }
 
             var startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
@@ -1508,6 +1520,7 @@ namespace VoidFall.Runtime
             LogSlowStartupPhase("arena-decor", startupPhaseStarted);
             startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
             Render();
+            RenderJunction();
             LogSlowStartupPhase("render", startupPhaseStarted);
             startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
             UpdateHud();
@@ -1595,6 +1608,8 @@ namespace VoidFall.Runtime
 
         private void ResumeRunFromUi()
         {
+            if (_prizeRevealActive || _rouletteActive || _routeMapOpen) return;
+            RetryJourneyArenaLoad();
             if (_paused && !_gameOver)
             {
                 _paused = false;
@@ -1715,6 +1730,12 @@ namespace VoidFall.Runtime
                 {
                     _visualCaptureRun = true;
                 }
+                else if (argument.StartsWith("-vfnullcity=", StringComparison.OrdinalIgnoreCase))
+                {
+                    _visualCaptureNullCity = argument.Substring("-vfnullcity=".Length).ToLowerInvariant();
+                    _visualCaptureRun = true;
+                    _visualCaptureArena = "null-city";
+                }
                 else if (string.Equals(argument, "-vfhydra-boss", StringComparison.OrdinalIgnoreCase))
                 {
                     _visualCaptureRun = true;
@@ -1824,6 +1845,12 @@ namespace VoidFall.Runtime
 
         private void StartRun()
         {
+            if (_gameOver && !_runSaved)
+            {
+                SaveRun();
+                if (_runSaved) ReturnToMenuAfterResult();
+                return;
+            }
             StartRunInternal(true);
         }
 
@@ -1840,7 +1867,8 @@ namespace VoidFall.Runtime
             ResetRouletteLuck();
             _spatialZoomScale = 1f;
             HideRouletteChest();
-            _musicPerimeter?.Configure(
+            ResetOverclockPresentation();
+            _musicPerimeter?.ResetRun(
                 unchecked((int)_runSeed),
                 _qualityPreset.Detail,
                 _saveData?.settings != null && _saveData.settings.reducedMotion);
@@ -2369,6 +2397,7 @@ namespace VoidFall.Runtime
 
         private void Simulate(double fixedDt)
         {
+            if (_mainMenuBrowsing || JourneyStopsCombat) return;
             var realDt = (float)fixedDt;
             var frozen = _freezeTimer > 0;
             if (frozen) _freezeTimer = Mathf.Max(0, _freezeTimer - realDt);
@@ -2394,8 +2423,7 @@ namespace VoidFall.Runtime
             UpdateCameraFollow(dt);
             UpdateWeapons(dt);
 
-            if (_voidRoute != null) StepRiftTransition(dt);
-            if (_voidRoute != null) StepRiftSafetyNet();
+            // Route travel is advanced by UpdateJourneyFlow, independent of combat ticks.
             var arenaStep = _voidRoute == null
                 ? ArenaRules.Step(
                     _arenaTransitionState,
@@ -2465,6 +2493,7 @@ namespace VoidFall.Runtime
             _telemetry.RecordArenaTime(ArenaIdName(_arenaId), dt);
             StepHydraSurvival(dt);
             StepMonochromeSurvival(dt);
+            StepNullCity(dt);
             UpdateSpawns(dt);
             UpdateEnemies(dt);
             // Relax separation over several passes, rebuilding the grid between
@@ -2497,59 +2526,7 @@ namespace VoidFall.Runtime
             UpdateRingWaves(dt);
             UpdateFloaters(dt);
             CheckMilestones();
-            while (!_levelUpActive && _levelUpTimer < 0 && _xp >= _xpNeed)
-            {
-                _xp -= _xpNeed;
-                _level++;
-                _xpNeed = BalanceRules.XpNeededForLevel(_level);
-                ApplyLevelRecovery();
-                _telemetry.RecordLevel((float)_time, _level, _xpNeed, Mathf.FloorToInt(_xp));
-                OpenLevelUp();
-            }
-
-            // The browser gives the level-up burst a short real-time slowdown
-            // before it opens the choice screen. Gameplay continues at the
-            // eased time scale during that window; only the prompt transition
-            // uses real fixed time.
-            if (_levelUpTimer >= 0)
-            {
-                _levelUpTimer -= realDt;
-                if (_levelUpTimer <= 0)
-                {
-                    _levelUpTimer = -1;
-                    _levelOptions = RollLevelOptions();
-                    if (_levelOptions.Length == 0)
-                    {
-                        _partsEarned += 2;
-                        _score += 150;
-                        _gameSim.Player.Health = Mathf.Min(_gameSim.Player.MaxHealth, _gameSim.Player.Health + 12);
-                        _targetTimeScale = 1;
-                        if (_xp >= _xpNeed)
-                        {
-                            _xp -= _xpNeed;
-                            _level++;
-                            _xpNeed = BalanceRules.XpNeededForLevel(_level);
-                            ApplyLevelRecovery();
-                            _telemetry.RecordLevel((float)_time, _level, _xpNeed, Mathf.FloorToInt(_xp));
-                            OpenLevelUp();
-                        }
-                    }
-                    else
-                    {
-                        _levelUpPromptOpenedAt = Time.realtimeSinceStartup;
-                        _levelUpScroll = Vector2.zero;
-                        _levelUpActive = true;
-                        _paused = true;
-                        if (_ui != null && _levelOptions != null)
-                        {
-                            _ui.LevelUp?.ShowUpgrades(
-                                BuildUpgradeCards(_levelOptions),
-                                _rerollsRemaining,
-                                SelectLevelOption);
-                        }
-                    }
-                }
-            }
+            AdvanceRunLevelUps(realDt);
 
             // The browser resolves the defeat/revive transition after the
             // current simulation systems, so damage dealt in this step still
@@ -3195,11 +3172,11 @@ namespace VoidFall.Runtime
             // game-over report, including the final frame sample.
             RecordTelemetrySample(Mathf.Max(0.0001f, _debugFrameEmaMs / 1000f));
             SaveRun();
-            if (_ui != null)
+            _returnToMenuAfterRun = true;
             if (_ui != null)
             {
                 var summary = GameOverSummaryBuilder.Build(
-                    victory: false,
+                    victory: _runVictory,
                     score: CurrentScore(),
                     elapsedSeconds: _time,
                     kills: _kills,
@@ -5029,6 +5006,7 @@ namespace VoidFall.Runtime
 
         private Vector2 GameplayViewportHalfExtent()
         {
+            if (_arenaId == ArenaId.NullCity) return NullCityViewportHalfExtent();
             if (Screen.width > 0 && Screen.height > 0)
                 return GameplayViewportHalfExtent(Screen.width, Screen.height);
             if (_camera != null && _camera.orthographic)

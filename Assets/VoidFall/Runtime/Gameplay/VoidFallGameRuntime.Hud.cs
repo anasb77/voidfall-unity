@@ -17,41 +17,6 @@ namespace VoidFall.Runtime
     public sealed partial class VoidFallGameRuntime
     {
 
-        private void UpdateOverclockHudAnimation(bool active)
-        {
-            _overclockHudPunch = Mathf.MoveTowards(
-                _overclockHudPunch,
-                0f,
-                Mathf.Max(0f, Time.unscaledDeltaTime) * 4.8f);
-            if (_boostText != null)
-            {
-                var scale = active ? 1f + _overclockHudPunch * 0.28f : 1f;
-                _boostText.rectTransform.localScale = new Vector3(scale, scale, 1f);
-                _boostText.color = _overclock.PowerTier >= 3
-                    ? Color.Lerp(new Color(0.28f, 0.94f, 1f), new Color(1f, 0.32f, 0.84f), _overclockHudPunch)
-                    : new Color(0.45f, 0.94f, 1f, 1f);
-            }
-
-            var ghostsVisible = active && _overclock.Streak >= 2 && _overclockHudPunch > 0.01f;
-            if (_boostGhostA != null)
-            {
-                _boostGhostA.enabled = ghostsVisible;
-                _boostGhostA.rectTransform.anchoredPosition = new Vector2(-24f - 5f * _overclockHudPunch, 34f);
-                _boostGhostA.color = new Color(0.08f, 0.9f, 1f, _overclockHudPunch * 0.65f);
-            }
-            if (_boostGhostB != null)
-            {
-                _boostGhostB.enabled = ghostsVisible && _overclock.Streak >= 3;
-                _boostGhostB.rectTransform.anchoredPosition = new Vector2(-24f + 5f * _overclockHudPunch, 34f);
-                _boostGhostB.color = new Color(1f, 0.05f, 0.68f, _overclockHudPunch * 0.58f);
-            }
-            if (!active)
-            {
-                _lastOverclockHudStreak = -1;
-                _lastOverclockHudSecond = -1;
-            }
-        }
-
         private void UpdateHud()
         {
             var hudVisible = ShouldShowHud();            if (_hudGroup != null)
@@ -85,13 +50,15 @@ namespace VoidFall.Runtime
             if (_healthBarGhost != null) _healthBarGhost.fillAmount = Mathf.Clamp01(_healthGhostFraction);
             if (_healthText != null && (_lastHudHealth != _gameSim.Player.Health || _lastHudMaxHealth != _gameSim.Player.MaxHealth))
             {
-                _lastHudHealth = _gameSim.Player.Health;
-                _lastHudMaxHealth = _gameSim.Player.MaxHealth;
+
+
                 _healthText.text = $"INTEGRITY   {Mathf.CeilToInt(Mathf.Max(0, _gameSim.Player.Health))}/{Mathf.CeilToInt(_gameSim.Player.MaxHealth)}";
             }
             if (_healthLabelText != null) _healthLabelText.text = "INTEGRITY";
             if (_healthValueText != null && (_lastHudHealth != _gameSim.Player.Health || _lastHudMaxHealth != _gameSim.Player.MaxHealth))
                 _healthValueText.text = $"{Mathf.CeilToInt(Mathf.Max(0, _gameSim.Player.Health))}/{Mathf.CeilToInt(_gameSim.Player.MaxHealth)}";
+            _lastHudHealth = _gameSim.Player.Health;
+            _lastHudMaxHealth = _gameSim.Player.MaxHealth;
             if (_timeText != null)
             {
                 var seconds = Mathf.Max(0, Mathf.FloorToInt(_time));
@@ -115,6 +82,8 @@ namespace VoidFall.Runtime
                 _objectiveText.text = _objectiveLine;
                 _objectiveText.enabled = !string.IsNullOrEmpty(_objectiveLine);
             }
+            if (_objectiveText != null && CurrentVoidIsNullCity && _nullCityBossActive)
+                _objectiveText.enabled = false;
             AnimateRiftPortal(Time.unscaledDeltaTime);
             UpdateRouletteChest(Time.unscaledDeltaTime);
             var hudScore = CurrentScore();
@@ -140,55 +109,6 @@ namespace VoidFall.Runtime
             // writing "||" here as well drew both on top of each other.
             if (_pauseButtonText != null)
                 _pauseButtonText.text = ControlIconTexture() == null ? "||" : string.Empty;
-            var overdriveActive = _overclock.Active && !_gameOver;
-            if (_boostPanel != null) _boostPanel.enabled = overdriveActive;
-            if (_boostIcon != null)
-            {
-                _boostIcon.enabled = overdriveActive;
-                _boostIcon.color = _overclock.PowerTier >= 3
-                    ? new Color(1f, 0.24f, 0.78f, 1f)
-                    : new Color(0.12f, 0.9f, 1f, 1f);
-            }
-            if (_boostText != null)
-            {
-                _boostText.enabled = overdriveActive;
-                if (overdriveActive && _lastOverclockHudStreak != _overclock.Streak)
-                {
-                    _lastOverclockHudStreak = _overclock.Streak;
-                    var label = _overclock.Streak > 1
-                        ? "OVERCLOCKED ×" + _overclock.Streak
-                        : "OVERCLOCKED";
-                    _boostText.text = label;
-                    if (_boostGhostA != null) _boostGhostA.text = label;
-                    if (_boostGhostB != null) _boostGhostB.text = label;
-                }
-            }
-            if (_boostSecondsText != null)
-            {
-                _boostSecondsText.enabled = overdriveActive;
-                if (overdriveActive)
-                {
-                    var seconds = Mathf.CeilToInt(_overclock.RemainingSeconds);
-                    if (_lastOverclockHudSecond != seconds)
-                    {
-                        _lastOverclockHudSecond = seconds;
-                        _boostSecondsText.text = seconds + "s";
-                    }
-                }
-            }
-            if (_boostBar != null)
-            {
-                _boostBar.enabled = overdriveActive;
-                _boostBar.color = _overclock.PowerTier >= 3
-                    ? new Color(1f, 0.15f, 0.68f, 0.96f)
-                    : _overclock.PowerTier == 2
-                        ? new Color(0.58f, 0.24f, 1f, 0.95f)
-                        : new Color(0.08f, 0.86f, 1f, 0.94f);
-                _boostBar.fillAmount = Mathf.Clamp01(
-                    _overclock.RemainingSeconds /
-                    Mathf.Max(OverclockRules.StackDurationSeconds, _overclock.Streak * OverclockRules.StackDurationSeconds));
-            }
-            UpdateOverclockHudAnimation(overdriveActive);
             if (_loadoutText != null && Time.unscaledTime >= _nextLoadoutHudRefresh)
             {
                 _nextLoadoutHudRefresh = Time.unscaledTime + 0.25f;
@@ -320,6 +240,8 @@ namespace VoidFall.Runtime
                     _bossBarFill.rectTransform.anchoredPosition = new Vector2(-barWidth * 0.5f, -105f);
                 }
             }
+            UpdateBossHudRemaster(activeBossCount, bossFraction);
+            UpdateUnifiedOverclockHud();
             UpdateToastViews();
             UpdateTouchHud();
         }
@@ -388,10 +310,10 @@ namespace VoidFall.Runtime
             // 44px pause button, two 8px gaps, and 12px outer margins. Keep
             // the source minimum of 120px instead of leaving the desktop
             // 240px panel stranded beside the clock.
-            var healthWidth = narrow ? Mathf.Max(120f, Screen.width - 162f) : 240f;
+            var healthWidth = narrow ? Mathf.Max(120f, Screen.width - 162f) : 252f;
             if (_healthPanel != null)
             {
-                _healthPanel.rectTransform.sizeDelta = new Vector2(healthWidth, 43f);
+                _healthPanel.rectTransform.sizeDelta = new Vector2(healthWidth, 48f);
                 if (_healthBarBackground != null)
                     _healthBarBackground.rectTransform.sizeDelta = new Vector2(healthWidth - 20f, 10f);
                 if (_healthBarGhost != null)
@@ -408,7 +330,7 @@ namespace VoidFall.Runtime
 
             if (_clockPanel != null)
             {
-                var clockWidth = narrow ? 78f : 94f;
+                var clockWidth = narrow ? 78f : 116f;
                 _clockPanel.rectTransform.sizeDelta = new Vector2(clockWidth, 52f);
                 SetTopHudAnchor(_clockPanel.rectTransform, narrow, clockWidth, -13f);
                 if (_timeText != null)
@@ -666,6 +588,7 @@ namespace VoidFall.Runtime
                 var scaleFactor = _canvas != null ? Mathf.Max(0.0001f, _canvas.scaleFactor) : 1f;
                 var safeTopInset = Mathf.Max(0f, Screen.height - Screen.safeArea.yMax);
                 var stackTop = ToastStackTop(Screen.height, safeTopInset) / scaleFactor;
+                if (_overclockHudBottom > 0) stackTop = Mathf.Max(stackTop, _overclockHudBottom + 24f);
                 view.rectTransform.anchoredPosition = new Vector2(
                     0f,
                     -stackTop - index * ToastStackRowSpacing / scaleFactor +
@@ -1262,6 +1185,7 @@ namespace VoidFall.Runtime
             _touchKnobImage.color = new Color(0.404f, 0.91f, 0.976f, 0.42f);
             SetupHudFxViews();
             CreateBuildChipHud(canvasObject.transform);
+            SetupOverclockRemaster();
         }
     }
 }

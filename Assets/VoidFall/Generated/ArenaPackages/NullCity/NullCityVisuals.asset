@@ -1,0 +1,171 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 102719e298b24d14ba0240749e47cecf, type: 3}
+  m_Name: NullCityVisuals
+  m_EditorClassIdentifier: VoidFall.Runtime::VoidFall.Runtime.NullCityVisualAsset
+  _schema: 1
+  _units:
+  - _id: null-patrol
+    _worldSize: {x: 64, y: 64}
+    _frames:
+    - {fileID: 21300000, guid: fa649c40ad69d3d40b8f582dd4f63972, type: 3}
+    - {fileID: 21300000, guid: fb782aef35e3725488f2f5c5f88c8fa9, type: 3}
+    - {fileID: 21300000, guid: 8aefdb4978ff0d2409936c0cf224a6e3, type: 3}
+    - {fileID: 21300000, guid: 3a80cb080db5a344582e24eb210154e9, type: 3}
+    _hitFrame: {fileID: 21300000, guid: 0609691752e2bc94d85bfcaa0db776ef, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-enforcer
+    _worldSize: {x: 80, y: 80}
+    _frames:
+    - {fileID: 21300000, guid: 31a07bdde0faaad4c9bcaa8022f09b69, type: 3}
+    - {fileID: 21300000, guid: 39795cd41cce9784c9704944b507d653, type: 3}
+    - {fileID: 21300000, guid: 4a4b987fcc643a346b8fc3b404722745, type: 3}
+    - {fileID: 21300000, guid: 1406502e4a997b440ab96609500e21b2, type: 3}
+    _hitFrame: {fileID: 21300000, guid: 1c14e15414c745045b66e77e84cdf21b, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-sentinel
+    _worldSize: {x: 96, y: 72}
+    _frames:
+    - {fileID: 21300000, guid: c16615ab51bdff146be253ea261af1b4, type: 3}
+    - {fileID: 21300000, guid: 3035384d70aad0443bab075842a092f7, type: 3}
+    - {fileID: 21300000, guid: 93d9cce7df90fa444b08af9defa82d19, type: 3}
+    - {fileID: 21300000, guid: 80e21685964b65a42811888639587020, type: 3}
+    _hitFrame: {fileID: 21300000, guid: 4aad19c8da96be546959bfb358e2bf6f, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-crawler
+    _worldSize: {x: 80, y: 80}
+    _frames:
+    - {fileID: 21300000, guid: 6e0144821fc643c48a66135f24d02e7b, type: 3}
+    - {fileID: 21300000, guid: a4a132aead6652645ae47439a2b8eb57, type: 3}
+    - {fileID: 21300000, guid: 4abfe588f1ae04f41b35fe776c381584, type: 3}
+    - {fileID: 21300000, guid: db3dbdd270036ea4c99e2de26647fc79, type: 3}
+    _hitFrame: {fileID: 21300000, guid: b49e31f9726ee1a4e9abf522437585bf, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-volatile
+    _worldSize: {x: 112, y: 112}
+    _frames:
+    - {fileID: 21300000, guid: 293339ab9ad9d624280d3eef07230702, type: 3}
+    - {fileID: 21300000, guid: 5de1e581f5a2a054da09fc302a0ddc0e, type: 3}
+    - {fileID: 21300000, guid: 8ddf05810bbd7a648992c13e3409a2c7, type: 3}
+    - {fileID: 21300000, guid: ad2d662233dd81e44afd64ede61811f2, type: 3}
+    _hitFrame: {fileID: 21300000, guid: 0aff25c8d88a38744b07f72a3bb069be, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-gunship
+    _worldSize: {x: 136, y: 120}
+    _frames:
+    - {fileID: 21300000, guid: 51f5ae1b88090fa42a68b3b6cd29b925, type: 3}
+    - {fileID: 21300000, guid: 39a0aef403e5c7e489052bda54f1da0e, type: 3}
+    - {fileID: 21300000, guid: fc1e4db697176f749a6800d402598b98, type: 3}
+    - {fileID: 21300000, guid: c10f54bdb23942c439417fea25a63841, type: 3}
+    _hitFrame: {fileID: 21300000, guid: 7f3af6b82abfb4b4ebfaf49d40951165, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-mech
+    _worldSize: {x: 128, y: 128}
+    _frames:
+    - {fileID: 21300000, guid: 10f69c435b2958b41b444b4096057000, type: 3}
+    - {fileID: 21300000, guid: 50ebf731243c54e419a7a9a2448870a4, type: 3}
+    - {fileID: 21300000, guid: fc80cde2849538243b4f529257306ecb, type: 3}
+    - {fileID: 21300000, guid: f699bc6c0452067458d9ea57f28997b6, type: 3}
+    _hitFrame: {fileID: 21300000, guid: 378c8e2b81e3ea64e92872ef43f13ea7, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-broodmother
+    _worldSize: {x: 200, y: 184}
+    _frames:
+    - {fileID: 21300000, guid: 159874bdd4315a44e831d935dc230805, type: 3}
+    - {fileID: 21300000, guid: 3b47096de1f8ccb429da969e24363933, type: 3}
+    - {fileID: 21300000, guid: 1f75dca81beeb474c8cb01f1f1fb5718, type: 3}
+    - {fileID: 21300000, guid: d3edec828458b084bb9b2531a61a7006, type: 3}
+    _hitFrame: {fileID: 21300000, guid: fdde5929270741349bd0ad1dd843cff9, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-light-gunship
+    _worldSize: {x: 112, y: 96}
+    _frames:
+    - {fileID: 21300000, guid: d114831804cdc0b419cfeaf3000205b1, type: 3}
+    - {fileID: 21300000, guid: e439e7c3923b8b84bb23e6796e94c41a, type: 3}
+    - {fileID: 21300000, guid: 6a35dfa06f87f79439fdcb26575c4b42, type: 3}
+    - {fileID: 21300000, guid: c0297f4c3468bb549a4eab653e0e31b8, type: 3}
+    _hitFrame: {fileID: 21300000, guid: 9db0af5c302d4b44498886550babfd6b, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-interceptor
+    _worldSize: {x: 80, y: 80}
+    _frames:
+    - {fileID: 21300000, guid: d5d0a9571f197db4a9b008a6c099dcd2, type: 3}
+    - {fileID: 21300000, guid: 63d1b9e73a5646a45b557a5884c045f1, type: 3}
+    - {fileID: 21300000, guid: 41887410431f0764ba3ad51acc5d1c0d, type: 3}
+    - {fileID: 21300000, guid: fc13a309e65204e48994b1bd3c28a02a, type: 3}
+    _hitFrame: {fileID: 21300000, guid: 7c2ae18216fc35047b9fd372edefac0e, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-marshal
+    _worldSize: {x: 104, y: 104}
+    _frames:
+    - {fileID: 21300000, guid: 5b4db8dbc4b270748ba28c798b085694, type: 3}
+    - {fileID: 21300000, guid: 26ef07ade90645943b0d4387b2c90110, type: 3}
+    - {fileID: 21300000, guid: 66b0b7b914470874cbed6eadb48bf7f8, type: 3}
+    - {fileID: 21300000, guid: 5f5b27223e89cf8408e90bfa8911435c, type: 3}
+    _hitFrame: {fileID: 21300000, guid: 71be885b6dcb9a64f8f417b77abe8920, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-suppressor
+    _worldSize: {x: 96, y: 88}
+    _frames:
+    - {fileID: 21300000, guid: 8b8a959b32d710740ba9e256949da9ff, type: 3}
+    - {fileID: 21300000, guid: f1deaf75e991e4c4cbe3535c5a267c4c, type: 3}
+    - {fileID: 21300000, guid: 293c9b1397c8c06458f1ec8fd7530a22, type: 3}
+    - {fileID: 21300000, guid: 91ce396d4b4f42c4ea256229e7c7274f, type: 3}
+    _hitFrame: {fileID: 21300000, guid: 37a34c07c1fc3204a8d1704472420c06, type: 3}
+    _exposedFrames: []
+    _tractorFrames: []
+  - _id: null-motherload
+    _worldSize: {x: 440, y: 320}
+    _frames:
+    - {fileID: 21300000, guid: 361da733a056d1149b2a1fcfa28162d1, type: 3}
+    - {fileID: 21300000, guid: 881a622f5155b2347b7620ad396cbf54, type: 3}
+    - {fileID: 21300000, guid: 6b0ebb1ecff0eff4990e2cb182a9dd42, type: 3}
+    - {fileID: 21300000, guid: 7f1e0f5955410524a8c5ea4310571995, type: 3}
+    _hitFrame: {fileID: 21300000, guid: ba1bc1be7c93c7844b19a85d03cfedfa, type: 3}
+    _exposedFrames:
+    - {fileID: 21300000, guid: 092ccba7e04d5de4f8e538b2daeed4c2, type: 3}
+    - {fileID: 21300000, guid: 0b5b304ff2151cd4a8c37f94b03fe96d, type: 3}
+    - {fileID: 21300000, guid: da5c824fadd7ae742bc92b370ba8d09e, type: 3}
+    - {fileID: 21300000, guid: 947e704372762ff42a8c9b58e0dc9246, type: 3}
+    _tractorFrames:
+    - {fileID: 21300000, guid: c51f21489e1404942b4bccd484d0c922, type: 3}
+    - {fileID: 21300000, guid: 716a837c1253b5142b1023859969828e, type: 3}
+    - {fileID: 21300000, guid: 3bbd58c0e066e77409cb2848dea65019, type: 3}
+    - {fileID: 21300000, guid: 0cafa8dea9f69744cb94569d21842ac4, type: 3}
+  _transit: {fileID: 21300000, guid: 4d38423fac87ef349ab18b35920411a8, type: 3}
+  _hangarOpen: {fileID: 21300000, guid: 31da8cc3d8c66f449ab80659fe79545c, type: 3}
+  _hangarClosed: {fileID: 21300000, guid: 0d0da27289722f0499142eed22c19dcd, type: 3}
+  _traffic: {fileID: 21300000, guid: ae4396ae854378648b5df1e39a578494, type: 3}
+  _trafficLockdown: {fileID: 21300000, guid: 7d886175d389d3f43ae7da461bd6ef01, type: 3}
+  _lcdSurveillance: {fileID: 21300000, guid: 027cd400af2428f46b3f57f8182a8e40, type: 3}
+  _lcdLockdown: {fileID: 21300000, guid: 258741708df45494c8d487249ae612b3, type: 3}
+  _motherloadTractorWarningFrames:
+  - {fileID: 21300000, guid: 66aec63d52fb77f4da4e51be12a2ecfd, type: 3}
+  - {fileID: 21300000, guid: c09ab147e442eaa40aee037466c0c661, type: 3}
+  - {fileID: 21300000, guid: 90f9b88d3f563cf47a78ba9188bcf836, type: 3}
+  - {fileID: 21300000, guid: 0b0ef61485664d4498597a8287e71330, type: 3}
+  _marshalBracedFrames:
+  - {fileID: 21300000, guid: f465dc8d510bbb940bb73121c847a461, type: 3}
+  - {fileID: 21300000, guid: 30d112ca491f67d44b12002370f22b40, type: 3}
+  - {fileID: 21300000, guid: 285bc5be2cb5cb74a8bc4f68b02078e0, type: 3}
+  - {fileID: 21300000, guid: 5459c2956011d5b40b445e4003d0197f, type: 3}

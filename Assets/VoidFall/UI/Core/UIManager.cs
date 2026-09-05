@@ -23,7 +23,8 @@ namespace VoidFall.UI
         GameOver,
         Roulette,
         RouteSelect,
-        PrizeReveal
+        PrizeReveal,
+        RouteMap
     }
 
     /// <summary>
@@ -152,6 +153,7 @@ namespace VoidFall.UI
         /// roulette it is a modal session, not a navigation page.
         /// </summary>
         public RouteSelectView RouteSelect { get; private set; }
+        public RouteMapView RouteMap { get; private set; }
 
         /// <summary>The single-card prize reveal after a roulette lands.</summary>
         public PrizeRevealView PrizeReveal { get; private set; }
@@ -267,6 +269,9 @@ namespace VoidFall.UI
 
             RouteSelect = CreateView<RouteSelectView>(_overlayLayerRect, "Route Select");
             RouteSelect.Initialize(this);
+
+            RouteMap = CreateView<RouteMapView>(_overlayLayerRect, "Void Map");
+            RouteMap.Initialize(this);
 
             PrizeReveal = CreateView<PrizeRevealView>(_overlayLayerRect, "Prize Reveal");
             PrizeReveal.Initialize(this);
@@ -404,10 +409,11 @@ namespace VoidFall.UI
             var decisionOverlay = screen == UIScreen.LevelUp || screen == UIScreen.Revive ||
                 screen == UIScreen.Pause || screen == UIScreen.GameOver ||
                 screen == UIScreen.Roulette || screen == UIScreen.RouteSelect ||
-                screen == UIScreen.PrizeReveal;
+                screen == UIScreen.PrizeReveal || screen == UIScreen.RouteMap;
             Toasts?.SetObscured(decisionOverlay);
             Roulette?.SetVisible(screen == UIScreen.Roulette);
             RouteSelect?.SetVisible(screen == UIScreen.RouteSelect);
+            RouteMap?.SetVisible(screen == UIScreen.RouteMap);
             PrizeReveal?.SetVisible(screen == UIScreen.PrizeReveal);
 
             // The quit confirmation is modal over the home screen only; any

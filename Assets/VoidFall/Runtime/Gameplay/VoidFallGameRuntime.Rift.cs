@@ -57,7 +57,8 @@ namespace VoidFall.Runtime
         /// <summary>Called from run start; the prototype graph is fixed (§3).</summary>
         private void EnsureVoidRouteForRun()
         {
-            _voidRoute = VoidRouteRun.PrototypeGraph();
+            ResetJourney();
+            _voidRoute = PlayableVoidRoutes.Create(_runSeed);
             _routeController = new RouteSelectController();
             _objectivesCompletionHandled = false;
             _completedVoids = 0;
@@ -77,7 +78,7 @@ namespace VoidFall.Runtime
         /// <summary>Edge fired once per Void when its objective completes.</summary>
         private void OnVoidObjectiveCompleted()
         {
-            if (_voidRoute == null) return;
+            if (_voidRoute == null || _gameOver || _stressScenario != null) return;
             if (!_voidRoute.NotifyVoidCompleted(_voidRoute.CurrentVoidId)) return;
             var completedName = _voidRoute.Node(_voidRoute.CurrentVoidId).DisplayName.ToUpperInvariant();
             Debug.Log($"VOIDFLOW objective-complete void={_voidRoute.CurrentVoidId} t={_time:F1}");
@@ -85,42 +86,50 @@ namespace VoidFall.Runtime
             _lastObjectiveLine = null;
             ShowArenaToast(completedName + " COMPLETE", 3.2f, ToastKind.Reward);
             _completedVoids++;
+            _journeyStage = JourneyStage.Rewards;
+            _routeMapOpen = false;
+            ClearCombatForJourney();
+            CollectJourneyPickups();
             var available = _voidRoute.NodesInState(RouteNodeState.Available);
-            if (available.Count == 0)
-            {
-                // Terminal Voids (or mid-flow states with no pending choice)
-                // complete without a rift; escape handling arrives with the
-                // Final Void.
-                return;
-            }
             // One exit: teleport straight there when the delay expires. No
             // portal, no cards - the portal is the multi-destination choice.
             _riftAutoVoidId = available.Count == 1 ? available[0] : null;
-            _voidCompletionDelayRemaining = VoidProgressionRules.PostBossDelaySeconds(
-                _runSeed,
-                _completedVoids - 1);
+            _voidCompletionDelayRemaining = 1.2f;
             _voidCompletionPending = true;
         }
 
         private void StepVoidCompletionDelay(float dt)
         {
             if (!_voidCompletionPending || _riftTransitionActive) return;
+            if (_gameOver || _revivePending || _rouletteActive || _prizeRevealActive ||
+                _routeMapOpen || _levelUpActive || _paused || _menuPage != MenuPage.None) return;
             _voidCompletionDelayRemaining -= Mathf.Max(0f, dt);
             if (_voidCompletionDelayRemaining > 0f) return;
 
-            _voidCompletionPending = false;
             if (_rouletteChestActive)
             {
                 _openRouteAfterRoulette = true;
-                CollectRouletteChest();
-                if (_rouletteActive) return;
-                _openRouteAfterRoulette = false;
+                // The relic remains at the defeated boss. The safe reward phase
+                // allows the player to approach it; a timer never claims it remotely.
+                return;
+            }
+            _voidCompletionPending = false;
+            // A simultaneous boss/player death postpones pickup collection until revive.
+            // Sweep before draining upgrades, including on the terminal node.
+            CollectJourneyPickups();
+            AdvanceRunLevelUps(Mathf.Max(0f, dt));
+            if (_levelUpActive || _levelUpTimer >= 0)
+            {
+                _voidCompletionPending = true;
+                return;
             }
             OpenCompletedVoidRift();
         }
 
         private void OpenCompletedVoidRift()
         {
+            if (_riftTransitionActive || _journeyStage == JourneyStage.Junction) return;
+            if (_voidRoute.HasEscaped) { FinishJourney(); return; }
             if (!string.IsNullOrEmpty(_riftAutoVoidId))
             {
                 Debug.Log($"VOIDFLOW auto-teleport to={_riftAutoVoidId} t={_time:F1}");
@@ -137,8 +146,7 @@ namespace VoidFall.Runtime
             BurstFx(
                 _gameSim.Player.Position, SourceDotColor("cyan"),
                 16, 300, 0.55f, 0.9f);
-            ShowRiftPortal();
-            OpenRouteSelection();
+            BeginPortalJunction();
         }
 
         private void SyncVoidBossEncounterWithObjective()
@@ -156,6 +164,11 @@ namespace VoidFall.Runtime
             if (voidId == "monochrome-court")
             {
                 BeginMonochromeBossEncounter();
+                return;
+            }
+            if (voidId == "null-city")
+            {
+                BeginNullCityBossEncounter();
                 return;
             }
 
@@ -240,6 +253,15 @@ namespace VoidFall.Runtime
         private void EnterVoidThroughRift(string voidId)
         {
             if (_riftTransitionActive) return;
+            HideJunction();
+            _journeyStage = JourneyStage.Travel;
+            _routeMapOpen = false;
+            _plannedRouteId = null;
+            _gameSim.Player.Velocity = Vector2.zero;
+            _gameSim.Player.Position = Vector2.zero;
+            _cameraFollowPosition = Vector2.zero;
+            _telemetry.RecordArenaWarning(_completedVoids - 1,
+                ArenaIdName(_arenaId), ArenaIdName(ArenaIdForVoidId(voidId)), (float)_time);
             Debug.Log($"VOIDFLOW choice void={voidId} t={_time:F1}");
             _routeSelectOpen = false;
             _riftAutoVoidId = null;
@@ -293,6 +315,19 @@ namespace VoidFall.Runtime
                     return;
                 }
 
+                var incoming = _arenaTransitionState.Incoming ?? _arenaId;
+                if (_arenaResidency != null && !TryInstallPreparedArenaPlate(incoming))
+                {
+                    if (_arenaResidency.Status(ArenaPackageFor(incoming)) == ArenaPackageLoadStatus.Failed && !_journeyLoadFailed)
+                    {
+                        _journeyLoadFailed = true;
+                        _paused = true;
+                        _objectiveLine = "ARENA LOAD FAILED — RESUME TO RETRY";
+                        Debug.LogWarning("VoidFall arena load failed: " + _riftTransitionVoidId);
+                    }
+                    else _objectiveLine = "ENTERING VOID — LOADING ARENA";
+                    return;
+                }
                 CommitRiftTransitionSwap();
                 _arenaTransitionState = new ArenaTransitionState(
                     _arenaTransitionState.Index,
@@ -451,6 +486,7 @@ namespace VoidFall.Runtime
                 case "white-sakura": return ArenaId.WhiteSakura;
                 case "hydra": return ArenaId.Hydra;
                 case "monochrome-court": return ArenaId.MonochromeCourt;
+                case "null-city": return ArenaId.NullCity;
                 default: return ArenaId.Void;
             }
         }

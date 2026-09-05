@@ -52,6 +52,15 @@ namespace VoidFall.Core
             return new MusicPerimeterRunLayout(layout, a, b, c);
         }
 
+        public static MusicPerimeterRunLayout CreateActivationLayout(int runSeed, int activation, int previousLayout)
+        {
+            var key = Mix(unchecked((uint)runSeed) ^ unchecked((uint)Math.Max(1, activation) * 0x85ebca6bu));
+            var mapping = CreateRunLayout(unchecked((int)key));
+            var layout = mapping.LayoutIndex;
+            if (layout == previousLayout) layout = (layout + 1 + (int)(key % 3u)) % LayoutCount;
+            return new MusicPerimeterRunLayout(layout, mapping.LongBand, mapping.CornerBand, mapping.FragmentBand);
+        }
+
         private static uint Mix(uint value)
         {
             value ^= value >> 16;

@@ -15,6 +15,7 @@ namespace VoidFall.Tests.Editor
             ArenaId.WhiteSakura,
             ArenaId.Hydra,
             ArenaId.MonochromeCourt,
+            ArenaId.NullCity,
         };
 
         [Test]

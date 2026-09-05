@@ -53,6 +53,11 @@ namespace VoidFall.Core
                         "MONOCHROME COURT",
                         new SurviveObjective(VoidProgressionRules.SurvivalSeconds, "Survive"),
                         new BossEncounterObjective("Defeat the Void Boss"));
+                case "null-city":
+                    return new MultiPhaseObjective(
+                        "NULL CITY",
+                        new SurviveObjective(VoidProgressionRules.SurvivalSeconds, "Survive"),
+                        new BossEncounterObjective("Defeat Motherload"));
                 default:
                     return null;
             }

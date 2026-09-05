@@ -9,7 +9,7 @@ namespace VoidFall.Core
 
         private static readonly double[] Movement = { 1.00, 2.00, 2.30, 2.60 };
         private static readonly double[] FireRate = { 1.00, 1.35, 1.70, 2.15 };
-        private static readonly double[] MusicRates = { 1.00, 1.40, 1.48, 1.56 };
+        private static readonly double[] MusicRates = { 1.00, 2.00, 2.00, 2.00 };
 
         public static double MovementMultiplier(int tier) => Movement[ClampTier(tier)];
         public static double FireRateMultiplier(int tier) => FireRate[ClampTier(tier)];

@@ -77,11 +77,9 @@ namespace VoidFall.Runtime
             // FAST + DRAGGED combination without pretending this is true
             // pitch-independent time stretching.
             var rate = tierRate;
-            if (state.CriticalHealth)
+            if (state.CriticalHealth && state.OverclockTier <= 0)
             {
-                rate = state.OverclockTier > 0
-                    ? tierRate * (0.72f + critical * 0.26f)
-                    : 0.50f + critical * 0.14f;
+                rate = 0.50f + critical * 0.14f;
             }
             if (state.LevelUpOpen) rate = 1f;
             var criticalDarkening = state.CriticalHealth ? 0.48f + critical * 0.22f : 0f;

@@ -18,9 +18,23 @@ namespace VoidFall.Runtime
 
         private void UpdatePhaseFx(float realDt)
         {
-            var speed = _gameOver ? 0.35f : 0.12f;
+            var rewardPhase = _journeyStage == JourneyStage.Rewards;
+            var speed = _gameOver ? 0.35f : rewardPhase ? 1f : 0.12f;
             var dt = Mathf.Clamp(realDt, 0, 0.1f) * speed;
             if (dt <= 0) return;
+            if (rewardPhase)
+            {
+                // Combat has stopped, but the guardian must finish dissolving
+                // before the relic can be collected. Never run boss AI here.
+                for (var index = 0; index < _gameSim.Bosses.Length; index++)
+                {
+                    var boss = _gameSim.Bosses[index];
+                    if (boss.Active || boss.DeathTimer <= 0) continue;
+                    boss.DeathTimer = Mathf.Max(0, boss.DeathTimer - dt);
+                    _gameSim.Bosses[index] = boss;
+                    if (boss.DeathTimer <= 0) Hide(_bossViews[index]);
+                }
+            }
             // Keep the browser updateFx() lifecycle order: bolts, damage
             // indicators, impact marks, blast waves, death ghosts, particles,
             // then floaters. Meteor shards and ring waves are Unity's pooled
@@ -38,6 +52,7 @@ namespace VoidFall.Runtime
 
         private void UpdateVisualCapture()
         {
+            MaintainNullCityCapture();
             if (_visualCaptureIssued || string.IsNullOrWhiteSpace(_visualCapturePath)) return;
             if (_visualCaptureFramesRemaining > 0)
             {
@@ -74,6 +89,7 @@ namespace VoidFall.Runtime
             _gameSim.Player.Velocity += (targetVelocity - _gameSim.Player.Velocity) * movementBlend;
             var velocity = _gameSim.Player.Velocity;
             _gameSim.Player.Position += velocity * dt;
+            ApplyNullCityMovement(dt, input);
             _playerTrailTimer -= dt;
             if (_qualityPreset.PlayerTrail &&
                 !(_saveData?.settings != null && _saveData.settings.reducedMotion) &&
@@ -171,6 +187,11 @@ namespace VoidFall.Runtime
             if (_riftTransitionActive)
             {
                 _spawnTimer = Mathf.Max(_spawnTimer, 0.35f);
+                return;
+            }
+            if (CurrentVoidIsNullCity)
+            {
+                UpdateNullCitySpawns(dt);
                 return;
             }
             if (CurrentVoidIsMonochrome)
@@ -764,6 +785,10 @@ namespace VoidFall.Runtime
                 {
                     UpdateMonochromeEnemy(ref enemy, dt, distance, direction);
                 }
+                else if (IsNullCityEnemy(enemy.Id))
+                {
+                    UpdateNullCityEnemy(ref enemy, dt, distance, direction);
+                }
                 else if (enemy.Roster == EnemyRoster.Two && enemy.Id == "chaser")
                 {
                     UpdateRosterPincer(ref enemy, dt, distance, direction);
@@ -794,6 +819,7 @@ namespace VoidFall.Runtime
                 {
                     enemy.Knockback *= Mathf.Exp(-8f * dt);
                     enemy.Position += (enemy.Velocity + enemy.Knockback) * dt;
+                    ConstrainNullCityEnemy(ref enemy);
                 }
                 if ((!enemy.Elite || enemy.EliteKind.HasValue) && distance > 1750f)
                 {
@@ -957,6 +983,7 @@ namespace VoidFall.Runtime
         private void UpdateExploder(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateExploder(ref enemy, dt, distance, direction);
         private void UpdateMeteors(float dt)
         {
+            if (CurrentVoidIsNullCity) return;
             // Browser updateMeteors keeps its timer active during the warning;
             // only the collapse and settle phases are the on-screen fold.
             if (ArenaHasFeature("meteors") && !IsArenaFolding(_arenaTransitionState.Phase))
@@ -1240,6 +1267,12 @@ namespace VoidFall.Runtime
                 {
                     boss.StateTimer -= dt;
                     if (boss.StateTimer <= 0) boss.State = 0;
+                    _gameSim.Bosses[i] = boss;
+                    continue;
+                }
+                if (IsMotherload(boss.Id))
+                {
+                    UpdateNullCityMotherload(ref boss, dt);
                     _gameSim.Bosses[i] = boss;
                     continue;
                 }
@@ -2093,6 +2126,7 @@ namespace VoidFall.Runtime
                     {
                         var previousStreak = _overclock.Streak;
                         _overclock.ApplyPickup();
+                        RegisterOverclockPickup(previousStreak);
                         _overclockHudPunch = 1f;
                         _overclockVisualSurge = _overclock.Streak >= 4 ? 1f : 0.72f;
                         _music?.NotifyOverclockStreak(previousStreak, _overclock.Streak);
@@ -2102,12 +2136,7 @@ namespace VoidFall.Runtime
                             new Color(0.35f, 0.95f, 1f, 0.72f));
                         BurstFx(_gameSim.Player.Position, SourceDotColor("yellow"), 16, 260, 0.5f, 0.8f);
                         BurstFx(_gameSim.Player.Position, SourceDotColor("white"), 7, 180, 0.3f, 0.65f);
-                        ShowArenaToast(
-                            _overclock.Streak > 1
-                                ? "OVERCLOCKED ×" + _overclock.Streak
-                                : "OVERCLOCKED",
-                            2.5f,
-                            ToastKind.Reward);
+                        // The notification itself is now the persistent counter.
                     }
                     else if (pickup.Kind == PickupKind.TrackShift)
                     {
@@ -3149,7 +3178,7 @@ namespace VoidFall.Runtime
                 : standardElite
                     ? ParseColor(ContentCatalog.Elite.Color, Color.yellow)
                 : ParseColor(definition.Color, Color.magenta);
-            view.sprite = ProceduralSpriteFactory.Enemy(
+            view.sprite = IsNullCityEnemy(id) ? NullCityUnitSprite(id, 0f) : ProceduralSpriteFactory.Enemy(
                 SourceEnemySpriteId(id, elite, variantDefinition?.BaseId),
                 CachedEnemySpriteAccent(enemy),
                 false);
@@ -3218,7 +3247,7 @@ namespace VoidFall.Runtime
                 boss.MaxHealth,
                 Mathf.Max(0, ActiveBosses() - 1));
             var view = EnsureBossView(slot);
-            view.sprite = ProceduralSpriteFactory.Boss(
+            view.sprite = IsMotherload(id) ? NullCityUnitSprite(id, 0f) : ProceduralSpriteFactory.Boss(
                 id,
                 ParseColor(definition.Color, Color.magenta),
                 false);
@@ -3529,6 +3558,7 @@ namespace VoidFall.Runtime
         private void DamagePlayer(float damage, Vector2 sourceDirection)
         {
             if (_gameOver || _revivePending || _gameSim.Player.DyingTimer > 0 || _gameSim.Player.Iframes > 0) return;
+            if (CurrentVoidIsNullCity && _nullCityBossActive) damage *= (float)NullCityRules.BossIncomingDamageMultiplier;
             var dodgeRank = SupportRank("dodge");
             if (dodgeRank > 0 && _gameSim.Rng.Next() < SupportEffectRules.DodgeChance(dodgeRank))
             {
@@ -3599,8 +3629,11 @@ namespace VoidFall.Runtime
         {
             var enemy = _gameSim.Enemies[index];
             if (!enemy.Active) return;
+            if (IsNullCityEnemy(enemy.Id) && _nullCityUnits[index].Identity == enemy.SpawnId && _nullCityUnits[index].Grace > 0f) return;
             damage *= PlayerDamageMultiplier();
             var appliedDamage = Mathf.Max(0, damage);
+            if (enemy.Id == "null-marshal" && enemy.Age % 6f < 3f && direction.sqrMagnitude > .001f &&
+                Vector2.Dot(enemy.Facing, -direction.normalized) > .25f) appliedDamage *= .3f;
             if (enemy.Id == "bulwark" && direction.sqrMagnitude > 0.001f)
             {
                 var sourceDirection = -direction.normalized;
@@ -3707,6 +3740,7 @@ namespace VoidFall.Runtime
                 return;
             }
             damage *= PlayerDamageMultiplier();
+            if (IsMotherload(boss.Id)) damage *= _nullCityVentClock > 0f ? 2.1f : .7f;
             if (IsMatriarchShielded(boss))
             {
                 if (boss.ShieldHitTimer <= 0)
@@ -3946,6 +3980,7 @@ namespace VoidFall.Runtime
             enemy.Active = false;
             _gameSim.Enemies[index] = enemy;
             RemoveEnemyOrder(index);
+            OnNullCityEnemyDeath(enemy);
             var enemyDefinition = FindEnemy(enemy.Id);
             SpawnDeathGhost(enemy, index);
             var destroyedExploder = enemy.Id == "exploder";
@@ -4147,6 +4182,7 @@ namespace VoidFall.Runtime
             boss.ActiveAttack = null;
             _gameSim.Bosses[index] = boss;
             if (boss.Id == HydraBossId) EndHydraBossEncounter();
+            if (IsMotherload(boss.Id)) EndNullCityBossEncounter();
             var noBossesRemain = ActiveBosses() == 0;
             TriggerFreeze(0.14f);
             AddCameraShake(0.85f);
@@ -4510,7 +4546,7 @@ namespace VoidFall.Runtime
                 Radius = enemy.Radius,
                 // Browser spawnDeathGhost uses sprites.enemy[enemy.type], not
                 // the Roster II silhouette canvas used by the live actor.
-                VisualSize = SourceEnemySpriteWorldSize(
+                VisualSize = IsNullCityEnemy(enemy.Id) ? NullCityUnitScale(enemy.Id, NullCityUnitSprite(enemy.Id, enemy.Age)) : SourceEnemySpriteWorldSize(
                     enemy.Id,
                     enemy.Elite,
                     enemy.EliteKind.HasValue
@@ -4532,7 +4568,7 @@ namespace VoidFall.Runtime
             var view = _deathGhostViews[slot];
             if (view != null)
             {
-                view.sprite = ProceduralSpriteFactory.Enemy(
+                view.sprite = IsNullCityEnemy(enemy.Id) ? NullCityUnitSprite(enemy.Id, enemy.Age) : ProceduralSpriteFactory.Enemy(
                     SourceEnemySpriteId(enemy),
                     CachedEnemySpriteAccent(enemy),
                     false);
@@ -5569,13 +5605,13 @@ namespace VoidFall.Runtime
         private static EnemyDefinition FindEnemy(string id)
         {
             foreach (var definition in ContentCatalog.Enemies) if (definition.Id == id) return definition;
-            return MonochromeContent.FindEnemy(id);
+            return MonochromeContent.FindEnemy(id) ?? NullCityContent.FindEnemy(id);
         }
 
         private static BossDefinition FindBoss(string id)
         {
             foreach (var definition in ContentCatalog.Bosses) if (definition.Id == id) return definition;
-            return HydraContent.FindBoss(id) ?? MonochromeContent.FindBoss(id);
+            return HydraContent.FindBoss(id) ?? MonochromeContent.FindBoss(id) ?? NullCityContent.FindBoss(id);
         }
 
         private double ActiveEnemyThreat()

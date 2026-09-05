@@ -5,8 +5,10 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "VoidFall.Core",
+        "VoidFall.Content",
         "VoidFall.Runtime",
-        "VoidFall.UI"
+        "VoidFall.UI",
+        "VoidFall.Persistence"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

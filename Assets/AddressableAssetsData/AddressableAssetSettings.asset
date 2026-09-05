@@ -106,6 +106,7 @@ MonoBehaviour:
     - vf-arena-white-sakura
     - vf-arena-hydra
     - vf-arena-monochrome-court
+    - vf-arena-null-city
   m_SchemaTemplates: []
   m_GroupTemplateObjects:
   - {fileID: 11400000, guid: c1a45a3059a122d40abad407b84254c6, type: 2}

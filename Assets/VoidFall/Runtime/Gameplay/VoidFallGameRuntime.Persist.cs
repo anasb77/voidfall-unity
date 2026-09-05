@@ -148,7 +148,7 @@ namespace VoidFall.Runtime
                     previousLastRunRank);
                 Debug.LogError("VoidFall run save failed: " + exception.Message);
             }
-            ExportTelemetrySnapshot(_gameOver ? "gameover" : "active");
+            ExportTelemetrySnapshot(_runVictory ? "escaped" : _gameOver ? "gameover" : "active");
             if (!_lastRunSaved) SetMenuNotice("Progress was not saved.");
         }
 
@@ -177,7 +177,8 @@ namespace VoidFall.Runtime
                 BuildTelemetryProgress(),
                 BuildTelemetryDamage(),
                 Mathf.FloorToInt(XpOnGround()),
-                XpHeldByHarvesters());
+                XpHeldByHarvesters(),
+                _saveStore == null ? null : System.IO.Path.GetDirectoryName(_saveStore.PathOnDisk));
             if (!string.IsNullOrEmpty(_lastTelemetryPath))
             {
                 EnqueueToast("Run data exported", _lastTelemetryPath, 2.2f, ToastKind.Info);

@@ -12,7 +12,7 @@ namespace VoidFall.Tests.Editor
         [Test]
         public void Arena_factory_maps_the_built_voids()
         {
-            foreach (var voidId in new[] { "abyss", "red-nebula", "white-sakura", "hydra", "monochrome-court" })
+            foreach (var voidId in new[] { "abyss", "red-nebula", "white-sakura", "hydra", "monochrome-court", "null-city" })
             {
                 var objective = VoidObjectives.ForArena(voidId);
                 Assert.That(objective, Is.Not.Null, voidId + " must open a rift");
@@ -21,7 +21,6 @@ namespace VoidFall.Tests.Editor
             }
 
             // Layer II and beyond stay endless until their Voids are built.
-            Assert.That(VoidObjectives.ForArena("null-city"), Is.Null);
             Assert.That(VoidObjectives.ForArena("last-gate"), Is.Null);
             Assert.That(VoidObjectives.ForArena(null), Is.Null);
         }

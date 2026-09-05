@@ -18,6 +18,7 @@ namespace VoidFall.Runtime
         // schema-1 assets report the base dimensions for both.
         [SerializeField] private int _detailWidth;
         [SerializeField] private int _detailHeight;
+        [SerializeField] private NullCityVisualAsset _nullCityVisuals;
         [SerializeField] private int _schema = CurrentSchema;
 
         public ArenaId Arena => _arena;
@@ -27,6 +28,7 @@ namespace VoidFall.Runtime
         public int Height => _height;
         public int DetailWidth => _detailWidth > 0 ? _detailWidth : _width;
         public int DetailHeight => _detailHeight > 0 ? _detailHeight : _height;
+        public NullCityVisualAsset NullCityVisuals => _nullCityVisuals;
         public int Schema => _schema;
 
         public bool IsValidFor(ArenaId arena)

@@ -28,6 +28,8 @@ namespace VoidFall.Core
         public string Description;
         public string ObjectiveSummary;
         public string RewardSummary;
+        // Seeded identity concealment; views reveal it on entry using the run state/history.
+        public bool IsMystery;
         public List<string> Outgoing = new List<string>();
 
         public VoidRouteNode(
@@ -65,15 +67,19 @@ namespace VoidFall.Core
         private readonly Dictionary<string, RouteNodeState> _states =
             new Dictionary<string, RouteNodeState>(StringComparer.Ordinal);
         private readonly List<string> _history = new List<string>();
+        private readonly IReadOnlyList<VoidRouteNode> _orderedNodes;
 
         public VoidRouteRun(IEnumerable<VoidRouteNode> nodes, string startId)
         {
+            var orderedNodes = new List<VoidRouteNode>();
             foreach (var node in nodes)
             {
                 if (node == null || string.IsNullOrEmpty(node.Id))
                     throw new ArgumentException("route node without id");
                 _nodes.Add(node.Id, node);
+                orderedNodes.Add(node);
             }
+            _orderedNodes = orderedNodes.AsReadOnly();
             if (!_nodes.ContainsKey(startId))
                 throw new ArgumentException("start node '" + startId + "' not in graph");
             StartId = startId;
@@ -93,6 +99,8 @@ namespace VoidFall.Core
         public string CurrentVoidId { get; private set; }
         public bool HasEscaped { get; private set; }
         public IReadOnlyList<string> History => _history;
+        /// <summary>Graph nodes in their construction order, independent of dictionary enumeration.</summary>
+        public IReadOnlyList<VoidRouteNode> Nodes => _orderedNodes;
 
         public bool IsFinalVoid(string voidId) =>
             _nodes.TryGetValue(voidId, out var node) && node.Outgoing.Count == 0;

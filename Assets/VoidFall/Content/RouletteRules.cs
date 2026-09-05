@@ -306,6 +306,7 @@ namespace VoidFall.Core
             cost = 0;
             refundLine = null;
             if (session == null || session.Spun) return false;
+            if (improveOdds && !CanImproveOdds(session.Wedges)) return false;
 
             var uses = improveOdds ? session.ImproveOddsUses : session.RaiseStakesUses;
             if (uses >= MaxUsesPerPurchase) return false;
@@ -340,6 +341,16 @@ namespace VoidFall.Core
         {
             return RefundLines[Math.Abs(index) % RefundLines.Length];
         }
+
+        public static bool CanImproveOdds(RouletteWedgeDefinition[] table)
+        {
+            if (table == null) return false;
+            foreach (var wedge in table)
+                if (wedge.Tier == RouletteTier.Mediocre) return true;
+            return false;
+        }
+
+        public static int PartsReward(RouletteTier tier) => tier == RouletteTier.Mediocre ? 60 : 90;
 
         /// <summary>Luck pity applied to a base table for the next ceremony.</summary>
         public static RouletteWedgeDefinition[] ApplyLuck(

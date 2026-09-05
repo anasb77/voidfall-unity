@@ -25,6 +25,7 @@ namespace VoidFall.Editor
             ArenaId.WhiteSakura,
             ArenaId.Hydra,
             ArenaId.MonochromeCourt,
+            ArenaId.NullCity,
         };
 
         [MenuItem("Tools/VoidFall/Migrate Arenas To Addressables")]

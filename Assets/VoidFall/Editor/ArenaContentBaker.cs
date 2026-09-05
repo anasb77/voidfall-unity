@@ -31,6 +31,7 @@ namespace VoidFall.Editor
             ArenaId.WhiteSakura,
             ArenaId.Hydra,
             ArenaId.MonochromeCourt,
+            ArenaId.NullCity,
         };
 
         [MenuItem("Tools/VoidFall/Bake Prepared Arena Content")]
@@ -107,12 +108,19 @@ namespace VoidFall.Editor
 
                 ValidateTexture(asset.BaseSprite, arena + " base", errors);
                 ValidateTexture(asset.DetailSprite, arena + " details", errors);
+                if (arena == ArenaId.NullCity) NullCityContentBaker.Validate(asset, errors);
             }
             return errors;
         }
 
         private static void BakeArena(ArenaId arena)
         {
+            if (arena == ArenaId.NullCity)
+            {
+                NullCityContentBaker.Bake();
+                return;
+            }
+
             var textureFolder = ArenaTextureRoot + "/" + arena;
             var resourceFolder = ArenaPackageRoot + "/" + arena;
             if (arena != ArenaId.Hydra) EnsureFolderTree(textureFolder);

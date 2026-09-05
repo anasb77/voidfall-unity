@@ -36,6 +36,8 @@ black chess tiles after a readable warning.
 - Move: WASD, arrows, or left stick
 - Combat automatically targets nearby enemies and fires equipped weapons.
 - Pause: Escape or P
+- Void map: Tab; Tab or Escape closes it. Click a node to plan; walk into a
+  named portal at a junction to commit your next destination.
 - Controller menu navigation and Start-button pause are not yet complete.
 
 ## Architecture

@@ -12,9 +12,12 @@
     <type fullname="UnityEngine.Object" preserve="all" />
     <type fullname="UnityEngine.Sprite" preserve="all" />
     <type fullname="UnityEngine.Texture2D" preserve="all" />
+    <type fullname="UnityEngine.Vector2" preserve="nothing" serialized="true" />
   </assembly>
   <assembly fullname="VoidFall.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
     <type fullname="VoidFall.Runtime.ArenaPlateAsset" preserve="all" />
     <type fullname="VoidFall.Runtime.ArenaRecipeAsset" preserve="all" />
+    <type fullname="VoidFall.Runtime.NullCityVisualAsset" preserve="all" />
+    <type fullname="VoidFall.Runtime.NullCityVisualAsset/UnitVisual" preserve="nothing" serialized="true" />
   </assembly>
 </linker>

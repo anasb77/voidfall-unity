@@ -367,7 +367,7 @@ namespace VoidFall.Runtime
                     enemy.Seed,
                     _ambientClock);
                 var spriteId = SourceEnemySpriteId(enemy);
-                _enemyViews[i].sprite = rosterTwoVisual
+                _enemyViews[i].sprite = IsNullCityEnemy(enemy.Id) ? NullCityUnitSprite(enemy.Id, enemy.Age, flash) : rosterTwoVisual
                     ? ProceduralSpriteFactory.RosterTwoEnemy(enemy.Id, flash)
                     : ProceduralSpriteFactory.Enemy(
                         spriteId,
@@ -393,7 +393,7 @@ namespace VoidFall.Runtime
                         _ambientClock);
                 }
                 _enemyViews[i].transform.localScale = Vector3.one *
-                    (SourceEnemySpriteWorldSize(enemy) * enemyVisualScale *
+                    ((IsNullCityEnemy(enemy.Id) ? NullCityUnitScale(enemy.Id, _enemyViews[i].sprite) : SourceEnemySpriteWorldSize(enemy)) * enemyVisualScale *
                      (CourtPawnIsPromoted(enemy) ? 1.12f : 1f));
                 if (enemy.Id == "exploder" && enemy.State == 1)
                 {
@@ -701,7 +701,7 @@ namespace VoidFall.Runtime
                 var boss = _gameSim.Bosses[i];
                 if ((!boss.Active && boss.DeathTimer <= 0) || _bossViews[i] == null) continue;
                 var hydra = boss.Id == HydraBossId;
-                _bossViews[i].sprite = hydra && _hydraBossSprite != null
+                _bossViews[i].sprite = IsMotherload(boss.Id) ? NullCityUnitSprite(boss.Id, _nullCityBossElapsed, boss.HitTimer > 0f) : hydra && _hydraBossSprite != null
                     ? _hydraBossSprite
                     : ProceduralSpriteFactory.Boss(
                         boss.Id,
@@ -735,7 +735,7 @@ namespace VoidFall.Runtime
                     if (defaultMaterial != null) _bossViews[i].sharedMaterial = defaultMaterial;
                 }
                 _bossViews[i].transform.localScale = Vector3.one *
-                    (SourceBossSpriteWorldSize(boss.Id, boss.Radius) * introProgress *
+                    ((IsMotherload(boss.Id) ? NullCityUnitScale(boss.Id, _bossViews[i].sprite) : SourceBossSpriteWorldSize(boss.Id, boss.Radius)) * introProgress *
                      (hydra
                          ? (boss.ActiveAttack?.Id == "hydra-evasion" && boss.State == 2
                              ? HydraRuntimeRules.EvasionPresentationScale
@@ -751,7 +751,7 @@ namespace VoidFall.Runtime
                 _bossViews[i].transform.rotation = Quaternion.Euler(
                     0,
                     0,
-                    hydra
+                    IsMotherload(boss.Id) ? boss.AttackAngle * Mathf.Rad2Deg : hydra
                         ? Mathf.Sin(_ambientClock * 1.6f) * 1.2f
                         : bodyRotation);
                 _bossViews[i].enabled = true;
@@ -4471,6 +4471,8 @@ namespace VoidFall.Runtime
                 var boss = _gameSim.Bosses[index];
                 if (!boss.Active) continue;
 
+                if (IsMotherload(boss.Id)) continue;
+
                 var attack = boss.ActiveAttack;
                 if (attack != null && boss.State == 1)
                 {
@@ -4808,6 +4810,13 @@ namespace VoidFall.Runtime
         private void RenderArena()
         {
             if (_backdropView == null) return;
+            if (_arenaId == ArenaId.NullCity)
+            {
+                RenderNullCityArena();
+                return;
+            }
+            if (_nullCityPresentationVisible) HideNullCityPresentation();
+            UpdateGameplayCameraViewport();
             EnsureArenaPlateViewport();
             var cameraCentre = RenderCameraCentre();
             var viewportHalf = RenderViewportHalfExtent();

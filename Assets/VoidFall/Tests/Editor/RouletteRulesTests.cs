@@ -64,12 +64,12 @@ namespace VoidFall.Tests.Editor
             int spent = 0;
             string line;
 
-            Assert.That(RouletteRules.Purchase(session, true, 10_000, rng, out _, out line), Is.True);
+            Assert.That(RouletteRules.Purchase(session, false, 10_000, rng, out _, out line), Is.True);
             spent += 25;
-            Assert.That(RouletteRules.Purchase(session, true, 10_000, rng, out _, out line), Is.True);
+            Assert.That(RouletteRules.Purchase(session, false, 10_000, rng, out _, out line), Is.True);
             spent += 50;
-            Assert.That(session.ImproveOddsUses, Is.EqualTo(RouletteRules.MaxUsesPerPurchase));
-            Assert.That(RouletteRules.Purchase(session, true, 10_000, rng, out _, out line),
+            Assert.That(session.RaiseStakesUses, Is.EqualTo(RouletteRules.MaxUsesPerPurchase));
+            Assert.That(RouletteRules.Purchase(session, false, 10_000, rng, out _, out line),
                 Is.False, "purchase cap was not enforced");
 
             // Unaffordable purchases are rejected without state changes.
@@ -128,6 +128,17 @@ namespace VoidFall.Tests.Editor
                 Assert.That(wedge.Tier, Is.Not.EqualTo(RouletteTier.Mediocre),
                     wedge.Name + " survived Improve Odds as mediocre");
             }
+        }
+
+        [Test]
+        public void Improve_odds_rejects_a_purchase_when_no_weak_segments_remain()
+        {
+            var session = new RouletteSession(1, 0, RouletteRules.DefaultTable());
+            var rng = new Rng(999);
+            Assert.That(RouletteRules.Purchase(session, true, 1000, rng, out _, out _), Is.True);
+            var spent = session.PartsSpent;
+            Assert.That(RouletteRules.Purchase(session, true, 1000, rng, out _, out _), Is.False);
+            Assert.That(session.PartsSpent, Is.EqualTo(spent));
         }
 
         [Test]

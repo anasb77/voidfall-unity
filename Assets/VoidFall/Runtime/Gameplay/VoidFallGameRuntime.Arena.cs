@@ -1171,6 +1171,8 @@ namespace VoidFall.Runtime
 
         private double ArenaCycleElapsedSeconds()
         {
+            if (_arenaId == ArenaId.NullCity)
+                return _mainMenuBrowsing ? _ambientClock : _nullCityBossActive ? 22.0 + _nullCityBossElapsed % 24.0 : _nullCityElapsed;
             // Gameplay cycles follow simulation time. The paused menu uses the
             // render clock so browsing an arena previews the same loop without
             // advancing a saved run.
@@ -1391,11 +1393,24 @@ namespace VoidFall.Runtime
             var exitB = default(ArenaPackageKey);
             var exitCount = 0;
             var arenas = ContentOrder.PreparedArenas;
-            for (var index = 0; index < arenas.Length && exitCount < 2; index++)
+            if (_voidRoute != null && _voidRoute.CurrentVoidId == ArenaCatalogRules.StableId(_arenaId))
             {
-                if (arenas[index] == _arenaId) continue;
-                if (exitCount++ == 0) exitA = ArenaPackageFor(arenas[index]);
-                else exitB = ArenaPackageFor(arenas[index]);
+                foreach (var exit in _voidRoute.Node(_voidRoute.CurrentVoidId).Outgoing)
+                {
+                    if (exitCount >= 2) break;
+                    var key = ArenaPackageFor(ArenaIdForVoidId(exit));
+                    if (exitCount++ == 0) exitA = key;
+                    else exitB = key;
+                }
+            }
+            else
+            {
+                for (var index = 0; index < arenas.Length && exitCount < 2; index++)
+                {
+                    if (arenas[index] == _arenaId) continue;
+                    if (exitCount++ == 0) exitA = ArenaPackageFor(arenas[index]);
+                    else exitB = ArenaPackageFor(arenas[index]);
+                }
             }
             ReconcileArenaResidency(ArenaResidencyPlanner.Steady(current, exitA, exitB));
         }
@@ -1412,6 +1427,9 @@ namespace VoidFall.Runtime
 
         private void ReconcileArenaResidency(ArenaResidentSet target)
         {
+            var cityIndex = (int)ArenaId.NullCity;
+            if (_preparedArenaPlateKeys[cityIndex].IsValid && !target.Contains(_preparedArenaPlateKeys[cityIndex]))
+                DetachNullCityAssetConsumers();
             if (!_arenaResidency.Reconcile(target))
                 Debug.LogWarning(_arenaResidency.LastFailure);
             for (var index = 0; index < _preparedArenaPlateKeys.Length; index++)
@@ -1433,6 +1451,7 @@ namespace VoidFall.Runtime
                 case ArenaId.WhiteSakura: return "whiteSakura";
                 case ArenaId.Hydra: return "hydra";
                 case ArenaId.MonochromeCourt: return "monochrome-court";
+                case ArenaId.NullCity: return "null-city";
                 default: return "void";
             }
         }
@@ -1445,6 +1464,7 @@ namespace VoidFall.Runtime
                 case "whiteSakura": return ArenaId.WhiteSakura;
                 case "hydra": return ArenaId.Hydra;
                 case "monochrome-court": return ArenaId.MonochromeCourt;
+                case "null-city": return ArenaId.NullCity;
                 default: return ArenaId.Void;
             }
         }
@@ -1457,6 +1477,7 @@ namespace VoidFall.Runtime
                 case ArenaId.WhiteSakura: return "White Sakura";
                 case ArenaId.Hydra: return "Hydra";
                 case ArenaId.MonochromeCourt: return "Monochrome Court";
+                case ArenaId.NullCity: return "Null City";
                 default: return "Abyss";
             }
         }
@@ -1464,7 +1485,7 @@ namespace VoidFall.Runtime
         private static ArenaDefinition FindArena(string id)
         {
             foreach (var definition in ContentCatalog.Arenas) if (definition.Id == id) return definition;
-            return HydraContent.FindArena(id) ?? MonochromeContent.FindArena(id);
+            return HydraContent.FindArena(id) ?? MonochromeContent.FindArena(id) ?? NullCityContent.FindArena(id);
         }
     }
 }

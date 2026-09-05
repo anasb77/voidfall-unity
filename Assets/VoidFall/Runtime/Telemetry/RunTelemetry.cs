@@ -562,7 +562,8 @@ namespace VoidFall.Runtime
             UnityTelemetryProgress progress = null,
             UnityTelemetryDamageValue[] weaponDamage = null,
             int xpOnGround = 0,
-            float xpHeldByHarvesters = 0)
+            float xpHeldByHarvesters = 0,
+            string outputDirectory = null)
         {
             var safeWeaponDamage = weaponDamage ?? Array.Empty<UnityTelemetryDamageValue>();
             long attributedDamage = 0;
@@ -645,7 +646,7 @@ namespace VoidFall.Runtime
 
             try
             {
-                var directory = Application.persistentDataPath;
+                var directory = string.IsNullOrEmpty(outputDirectory) ? Application.persistentDataPath : outputDirectory;
                 Directory.CreateDirectory(directory);
                 var filename = $"voidfall-run-{_seed}-{Mathf.Max(0, Mathf.FloorToInt(timeSeconds))}s.json";
                 var path = Path.Combine(directory, filename);

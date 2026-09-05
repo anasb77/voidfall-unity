@@ -1,144 +1,92 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using VoidFall.Core;
 
 namespace VoidFall.UI
 {
-    /// <summary>
-    /// The single-card prize reveal: after the roulette lands, the won prize
-    /// is presented as one full card - the same visual language as the
-    /// level-up choice, but with exactly one option. No toast popups: this
-    /// screen IS the announcement.
-    /// </summary>
+    /// <summary>The single acceptance screen. The runtime has already applied this exact reward once.</summary>
     public sealed class PrizeRevealView : UIViewBase
     {
-        private Text _kicker;
-        private Text _title;
-        private Text _detail;
-        private Text _tierLabel;
+        private Text _title, _detail, _tierLabel, _sigil;
         private Image _cardFill;
+        private RectTransform _content, _card;
         private Button _continueButton;
         private Action _onContinue;
         private float _revealElapsed;
+        private Font _titleFont;
 
         protected override void Build()
         {
-            var scrim = UIBuilder.CreateScrim(Root, "Scrim", UITheme.OverlayScrim);
-            scrim.raycastTarget = true;
-
-            var card = UIBuilder.CreateRect(Root, "Prize Card");
-            card.anchorMin = new Vector2(0.5f, 0.5f);
-            card.anchorMax = new Vector2(0.5f, 0.5f);
-            card.pivot = new Vector2(0.5f, 0.5f);
-            card.sizeDelta = new Vector2(430f, 560f);
-
-            _cardFill = UIBuilder.CreateSurface(
-                card, "Fill", UISprites.Rounded(
-                    UITheme.RadiusCard, UITheme.PreviewFill, UITheme.PreviewFill,
-                    UITheme.BorderPreview));
+            UIBuilder.CreateScrim(Root, "Scrim", new Color(0.018f, 0.026f, 0.045f, 0.97f));
+            _content = RouletteView.Place(Root, "Reveal", 0, 0, 1280, 800);
+            RouletteView.Label(_content, "Kicker", "FORTUNE ANSWERS", 0, 345, 800, 22, 12, RouletteWheelGraphic.Gold);
+            _titleFont = Font.CreateDynamicFontFromOSFont(new[] { "Georgia", "Times New Roman" }, 48);
+            var heading = RouletteView.Label(_content, "Heading", "It belongs to you.", 0, 298, 1100, 65, 38, new Color(0.96f, 0.93f, 0.86f));
+            heading.font = _titleFont;
+            var wheel = RouletteView.Place(_content, "Relic silhouette", 0, -3, 610, 610);
+            var silhouette = wheel.gameObject.AddComponent<RouletteWheelGraphic>();
+            silhouette.Configure(RouletteRules.DefaultTable(), default);
+            var group = UIBuilder.EnsureGroup(wheel.gameObject);
+            group.alpha = 0.15f;
+            _card = RouletteView.Place(_content, "Prize Card", 0, -10, 440, 462);
+            _cardFill = UIBuilder.CreateSurface(_card, "Fill", UISprites.Rounded(2,
+                new Color(0.09f, 0.1f, 0.15f), new Color(0.025f, 0.03f, 0.05f), new Color(0.5f, 0.42f, 0.28f)));
             UIBuilder.Stretch(_cardFill.rectTransform);
-            _cardFill.color = new Color(0.05f, 0.07f, 0.12f, 0.97f);
-            _cardFill.raycastTarget = true;
-
-            _kicker = UIBuilder.CreateText(
-                card, "Kicker", "THE VOID YIELDS", 13f,
-                UITheme.CyanPale, TextAnchor.UpperCenter, true, FontStyle.Bold, 0.3f);
-            _kicker.rectTransform.anchorMin = new Vector2(0.5f, 1f);
-            _kicker.rectTransform.anchorMax = new Vector2(0.5f, 1f);
-            _kicker.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _kicker.rectTransform.anchoredPosition = new Vector2(0f, -34f);
-            _kicker.rectTransform.sizeDelta = new Vector2(400f, 20f);
-
-            _title = UIBuilder.CreateText(
-                card, "Title", string.Empty, 34f,
-                Color.white, TextAnchor.UpperCenter, true, FontStyle.Bold);
-            _title.rectTransform.anchorMin = new Vector2(0.08f, 1f);
-            _title.rectTransform.anchorMax = new Vector2(0.92f, 1f);
-            _title.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _title.rectTransform.anchoredPosition = new Vector2(0f, -110f);
-            _title.rectTransform.sizeDelta = new Vector2(0f, 90f);
-
-            _detail = UIBuilder.CreateText(
-                card, "Detail", string.Empty, 15f,
-                UITheme.WithAlpha(Color.white, 0.82f), TextAnchor.UpperCenter, true);
-            _detail.rectTransform.anchorMin = new Vector2(0.1f, 0.34f);
-            _detail.rectTransform.anchorMax = new Vector2(0.9f, 0.66f);
-
-            _tierLabel = UIBuilder.CreateText(
-                card, "Tier", string.Empty, 12f,
-                UITheme.CyanPale, TextAnchor.UpperCenter, true, FontStyle.Bold, 0.25f);
-            _tierLabel.rectTransform.anchorMin = new Vector2(0.5f, 0f);
-            _tierLabel.rectTransform.anchorMax = new Vector2(0.5f, 0f);
-            _tierLabel.rectTransform.pivot = new Vector2(0.5f, 0f);
-            _tierLabel.rectTransform.anchoredPosition = new Vector2(0f, 118f);
-            _tierLabel.rectTransform.sizeDelta = new Vector2(400f, 18f);
-
-            _continueButton = UIBuilder.CreatePrimaryAction(
-                card, "Continue", "CONTINUE", string.Empty, OnContinue, 50f);
-            var rect = _continueButton.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0f);
-            rect.anchorMax = new Vector2(0.5f, 0f);
-            rect.pivot = new Vector2(0.5f, 0f);
-            rect.anchoredPosition = new Vector2(0f, 34f);
-            rect.sizeDelta = new Vector2(240f, 50f);
-
-            var group = UIBuilder.EnsureGroup(gameObject);
-            group.blocksRaycasts = true;
-            SetVisible(false);
+            RouletteView.Label(_card, "Card Kicker", "THE VOID YIELDS", 0, 184, 390, 24, 12, RouletteWheelGraphic.Gold);
+            _sigil = RouletteView.Label(_card, "Sigil", "◆", 0, 102, 160, 100, 64, RouletteWheelGraphic.Gold);
+            _tierLabel = RouletteView.Label(_card, "Tier", string.Empty, 0, 30, 390, 24, 12, RouletteWheelGraphic.Gold);
+            _title = RouletteView.Label(_card, "Title", string.Empty, 0, -25, 392, 70, 28, Color.white);
+            _title.font = _titleFont;
+            _title.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _title.resizeTextForBestFit = true;
+            _title.resizeTextMinSize = 20;
+            _title.resizeTextMaxSize = 32;
+            RouletteView.Surface(_card, "Divider", 0, -80, 338, 1, new Color(0.45f, 0.4f, 0.3f, 0.4f));
+            _detail = RouletteView.Label(_card, "Detail", string.Empty, 0, -145, 356, 110, 16, new Color(0.74f, 0.78f, 0.84f));
+            _detail.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _continueButton = RouletteView.MakeButton(_content, "Continue", 0, -320, 280, 62, true, OnContinue, out _);
         }
 
         public void Show(string title, string detail, RouletteTier tier, Action onContinue)
         {
             _onContinue = onContinue;
-            _revealElapsed = 0f;
+            _revealElapsed = 0;
             _title.text = title;
             _detail.text = detail;
-            _tierLabel.text = TierName(tier);
-            _cardFill.color = TierColor(tier);
-            gameObject.SetActive(true);
+            _tierLabel.text = tier == RouletteTier.Mediocre ? "COMMON" : tier.ToString().ToUpperInvariant();
+            var accent = RouletteWheelGraphic.Accent(new RouletteWedgeDefinition(RoulettePrizeKind.RareBoon, tier, 1, "", "", ""));
+            _tierLabel.color = _sigil.color = accent;
+            _continueButton.interactable = false;
             SetVisible(true);
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(_continueButton.gameObject);
         }
 
         private void Update()
         {
-            // Landing pop: the card settles 1.08x -> 1x over half a second.
-            if (!gameObject.activeSelf || _title == null) return;
+            if (_card == null) return;
             _revealElapsed += Time.unscaledDeltaTime;
-            var t = Mathf.Clamp01(_revealElapsed / 0.5f);
-            var scale = Mathf.Lerp(1.08f, 1f, 1f - Mathf.Pow(1f - t, 3f));
-            var card = _title.transform.parent.GetComponent<RectTransform>();
-            if (card != null) card.localScale = new Vector3(scale, scale, 1f);
+            var t = Mathf.Clamp01(_revealElapsed / 0.55f);
+            _card.localScale = Vector3.one * Mathf.Lerp(0.94f, 1, 1 - Mathf.Pow(1 - t, 3));
+            _content.localScale = Vector3.one * Mathf.Max(0.1f, Mathf.Min(Root.rect.width / 1280f, Root.rect.height / 820f));
+            // Do not let the same held submit that started the spin dismiss its reward.
+            _continueButton.interactable = _revealElapsed >= 0.45f;
         }
 
         private void OnContinue()
         {
+            if (_revealElapsed < 0.45f) return;
             var handler = _onContinue;
             _onContinue = null;
             SetVisible(false);
             handler?.Invoke();
         }
 
-        private static string TierName(RouletteTier tier)
+        private void OnDestroy()
         {
-            switch (tier)
-            {
-                case RouletteTier.Mediocre: return "COMMON";
-                case RouletteTier.Standard: return "STANDARD";
-                case RouletteTier.Premium: return "PREMIUM";
-                default: return "LEGENDARY";
-            }
-        }
-
-        private static Color TierColor(RouletteTier tier)
-        {
-            switch (tier)
-            {
-                case RouletteTier.Mediocre: return new Color(0.09f, 0.10f, 0.13f, 0.97f);
-                case RouletteTier.Standard: return new Color(0.06f, 0.12f, 0.16f, 0.97f);
-                case RouletteTier.Premium: return new Color(0.13f, 0.10f, 0.04f, 0.97f);
-                default: return new Color(0.16f, 0.07f, 0.03f, 0.97f);
-            }
+            if (_titleFont == null) return;
+            if (Application.isPlaying) Destroy(_titleFont); else DestroyImmediate(_titleFont);
         }
     }
 }

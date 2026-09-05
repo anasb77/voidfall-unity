@@ -1,5 +1,11 @@
 # VoidFall release readiness — September 4, 2026
 
+Historical audit. Subsequent owner clarification rejected unapproved filler
+arena names and approved a finite route using existing arenas. The Tab map,
+physical portal crossings and interim last-node victory have since been
+implemented; consult `Docs/Design/RunJourney.md` and its implementation record
+before treating the route/ending findings below as current release requirements.
+
 ## Decision and scope
 
 **The current project is not ready for a full release.** The combat foundation

@@ -19,6 +19,7 @@ namespace VoidFall.Runtime
         private RouletteSession _rouletteSession;
         private Rng _rouletteRng;
         private bool _rouletteActive;
+        private bool _prizeRevealActive;
         private bool _roulettePendingAfterRevive;
 
         // Per-run ceremony history: drives the luck pity (each ceremony
@@ -30,6 +31,12 @@ namespace VoidFall.Runtime
 
         private void ResetRouletteLuck()
         {
+            if (_ui?.Roulette != null) _ui.Roulette.CeremonyComplete -= OnRouletteComplete;
+            UnbindRouletteAudio();
+            _rouletteActive = false;
+            _prizeRevealActive = false;
+            _rouletteSession = null;
+            _rouletteRng = null;
             _rouletteCeremoniesSeen = 0;
             _rouletteHasLast = false;
             _roulettePendingAfterRevive = false;
@@ -55,6 +62,10 @@ namespace VoidFall.Runtime
             _paused = true;
             _ui.Roulette.CeremonyComplete -= OnRouletteComplete;
             _ui.Roulette.CeremonyComplete += OnRouletteComplete;
+            UnbindRouletteAudio();
+            _ui.Roulette.Tick += PlayRouletteTick;
+            _ui.Roulette.WagerChanged += PlayRouletteWager;
+            _ui.Roulette.Landed += PlayRouletteLanding;
             _ui.SetScreen(UIScreen.Roulette);
             _ui.Roulette.Present(
                 _rouletteSession,
@@ -72,7 +83,9 @@ namespace VoidFall.Runtime
 
         private void OnRouletteComplete(RouletteSession session)
         {
+            if (!_rouletteActive || session != _rouletteSession || session == null || !session.Spun) return;
             if (_ui != null) _ui.Roulette.CeremonyComplete -= OnRouletteComplete;
+            UnbindRouletteAudio();
             RouletteTier revealTier = RouletteTier.Standard;
             string revealTitle = "NOTHING";
             string revealDetail = "The Void kept its prize.";
@@ -97,6 +110,8 @@ namespace VoidFall.Runtime
             _rouletteSession = null;
             _rouletteRng = null;
             _rouletteActive = false;
+            _prizeRevealActive = true;
+            _paused = true;
 
             // The won prize is presented as one full card - no toast popups;
             // this screen is the announcement. The run resumes on continue.
@@ -113,10 +128,15 @@ namespace VoidFall.Runtime
 
         private void ClosePrizeReveal()
         {
+            if (!_prizeRevealActive) return;
+            _prizeRevealActive = false;
+            _paused = false;
             if (_openRouteAfterRoulette)
             {
                 _openRouteAfterRoulette = false;
-                OpenCompletedVoidRift();
+                _voidCompletionPending = true;
+                _voidCompletionDelayRemaining = 0f;
+                StepVoidCompletionDelay(0f);
                 return;
             }
             _paused = false;
@@ -158,9 +178,10 @@ namespace VoidFall.Runtime
                         "A powerful pickable materializes at your feet. Go take it.",
                         prize.Tier);
                 case RoulettePrizeKind.Parts:
-                    _partsEarned += 60;
+                    var amount = RouletteRules.PartsReward(prize.Tier);
+                    _partsEarned += amount;
                     return new RoulettePrizeReveal(
-                        "PARTS CACHE", "+60 Parts banked for the workshop.", prize.Tier);
+                        "PARTS CACHE", "+" + amount + " Parts earned for the Workshop.", prize.Tier);
                 case RoulettePrizeKind.UpgradeRandomOwned:
                 {
                     var (applied, name) = GrantRandomOwnedRank(1);
@@ -327,6 +348,18 @@ namespace VoidFall.Runtime
                 : 0;
             _calibrationRank = SupportRank("calibration");
             _spatialZoomScale = (float)SupportEffectRules.SpatialAwarenessZoom(SupportRank("spatialAwareness"));
+        }
+
+        private void PlayRouletteTick() => _audio?.Play(ProceduralAudio.Cue.Ui, 0.3f);
+        private void PlayRouletteWager() => _audio?.Play(ProceduralAudio.Cue.Currency, 0.65f);
+        private void PlayRouletteLanding() => _audio?.Play(ProceduralAudio.Cue.LevelUp, 0.8f);
+
+        private void UnbindRouletteAudio()
+        {
+            if (_ui?.Roulette == null) return;
+            _ui.Roulette.Tick -= PlayRouletteTick;
+            _ui.Roulette.WagerChanged -= PlayRouletteWager;
+            _ui.Roulette.Landed -= PlayRouletteLanding;
         }
     }
 }

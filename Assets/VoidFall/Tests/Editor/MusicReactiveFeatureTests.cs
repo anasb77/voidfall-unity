@@ -41,10 +41,10 @@ namespace VoidFall.Tests.Editor
         }
 
         [TestCase(0, 1.00, 1.00, 1.00)]
-        [TestCase(1, 2.00, 1.35, 1.40)]
-        [TestCase(2, 2.30, 1.70, 1.48)]
-        [TestCase(3, 2.60, 2.15, 1.56)]
-        [TestCase(8, 2.60, 2.15, 1.56)]
+        [TestCase(1, 2.00, 1.35, 2.00)]
+        [TestCase(2, 2.30, 1.70, 2.00)]
+        [TestCase(3, 2.60, 2.15, 2.00)]
+        [TestCase(8, 2.60, 2.15, 2.00)]
         public void Overclock_MultipliersAreTableDriven(
             int tier,
             double expectedMovement,

@@ -50,6 +50,9 @@ save, prepares arena residency, and enters the menu.
 - Save failures must never overwrite unreadable progression.
 - Missing/corrupt primary saves recover the last valid backup before legacy files.
 - Both card-selected and automatic rift travel must commit the route choice.
+- Tab-map planning does not commit a route; physical portals and single-exit
+  travel do. PrizeReveal owns its screen until Continue. Journey phases update
+  rewards/travel independently of combat, with no combat in the safe crossing.
 - Do not add per-enemy or per-projectile MonoBehaviours.
 
 ## Current arena state
@@ -79,9 +82,10 @@ Next visual-only packages requested:
 
 ## Known gaps
 
-- Only Abyss, Red Nebula, White Sakura, Hydra and Monochrome Court have objectives.
-  Dead Orbit, Graveyard, Null City, Last Gate and Final Void do not. Runtime
-  victory/escape resolution is absent, despite `VoidRouteRun.HasEscaped`.
+- Normal runs use `PlayableVoidRoutes`, selecting from the five ready arenas
+  in rows 1/2/1/1. Placeholder graph names are not approved content and are
+  excluded. Null City is separate in-progress work. The last node now resolves
+  into a saved victory and Home; the authored Overseer/cutscene is still future work.
 - Hydra mutation rules are wired during its survival phase; its boss phase
   suppresses ambient enemies and spawns route-only Hydra Prime.
 - Hydra's production base, bone and boss visuals are authored from the approved
@@ -97,6 +101,7 @@ Next visual-only packages requested:
 - Combat auto-targets and auto-fires. Gamepad left-stick movement exists; controller
   Start/pause handling and menu focus/navigation are incomplete.
 - Runs are not resumable; live-run rewards are committed only on terminal game over.
+- Terminal saves now finish before automatic Home; failed results remain for retry.
 - URP uses 2x MSAA, HDR off, automatic intermediate texture, and SRP Batcher.
 
 ## Workspace hygiene

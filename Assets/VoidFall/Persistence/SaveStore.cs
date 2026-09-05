@@ -149,6 +149,8 @@ namespace VoidFall.Persistence
             ids.Add(HydraContent.Boss.Id);
             ids.Add(MonochromeContent.BlackBoss.Id);
             ids.Add(MonochromeContent.WhiteBoss.Id);
+            foreach (var enemy in NullCityContent.Enemies) ids.Add(enemy.Id);
+            ids.Add(NullCityContent.MotherloadId);
             return ids.ToArray();
         }
 

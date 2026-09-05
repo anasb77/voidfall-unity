@@ -18,6 +18,7 @@ public enum ArenaId
     WhiteSakura,
     Hydra,
     MonochromeCourt,
+    NullCity,
 }
 
 public enum WeaponId
@@ -105,6 +106,7 @@ public static class ContentOrder
         ArenaId.WhiteSakura,
         ArenaId.Hydra,
         ArenaId.MonochromeCourt,
+        ArenaId.NullCity,
     };
 
     public static readonly WeaponId[] Weapons =

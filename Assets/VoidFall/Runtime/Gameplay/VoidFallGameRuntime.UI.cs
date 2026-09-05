@@ -152,9 +152,11 @@ namespace VoidFall.Runtime
             // browser build. Its figures now ride along on the pause overlay.
             else if (_menuPage == MenuPage.Main) screen = UIScreen.Pause;
             else if (_rouletteActive) screen = UIScreen.Roulette;
+            else if (_prizeRevealActive) screen = UIScreen.PrizeReveal;
             else if (_levelUpActive) screen = UIScreen.LevelUp;
             else if (_revivePending) screen = UIScreen.Revive;
             else if (_gameOver) screen = UIScreen.GameOver;
+            else if (_routeMapOpen) screen = UIScreen.RouteMap;
             else if (_routeSelectOpen) screen = UIScreen.RouteSelect;
             else if (_paused) screen = UIScreen.Pause;
             else screen = UIScreen.None;
@@ -189,6 +191,11 @@ namespace VoidFall.Runtime
 
         private void EnterMainMenu()
         {
+            if (_gameOver && !_runSaved)
+            {
+                SaveRun();
+                if (!_runSaved) return;
+            }
             // Entering the menu is not gameplay. Let the existing incremental
             // warm continue across menu frames instead of blocking the first
             // visible screen on every procedural combat sprite.
@@ -452,12 +459,14 @@ namespace VoidFall.Runtime
 
         private void TogglePause()
         {
+            if (_prizeRevealActive || _rouletteActive || _routeMapOpen) return;
             if (_revivePending || _gameOver || _levelUpActive || _menuPage != MenuPage.None) return;
             // The route choice owns the run until a Void is picked: dismissing
             // it strands the run with a completed objective and no way forward.
             if (_routeSelectOpen) return;
             if (_paused)
             {
+                RetryJourneyArenaLoad();
                 _paused = false;
                 RestartQualitySession();
                 _audio?.Resume();
@@ -688,6 +697,7 @@ namespace VoidFall.Runtime
 
         private void ToggleMenu()
         {
+            if (_prizeRevealActive || _rouletteActive || _routeMapOpen) return;
             if (_levelUpActive || _revivePending) return;
             if (_menuPage == MenuPage.Home) return;
             _audio?.Play(ProceduralAudio.Cue.Ui, 0.9f);

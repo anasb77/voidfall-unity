@@ -48,7 +48,7 @@ namespace VoidFall.Core
             {
                 if (definition.Id == id) return definition;
             }
-            return HydraContent.FindArena(id) ?? MonochromeContent.FindArena(id);
+            return HydraContent.FindArena(id) ?? MonochromeContent.FindArena(id) ?? NullCityContent.FindArena(id);
         }
     }
 }

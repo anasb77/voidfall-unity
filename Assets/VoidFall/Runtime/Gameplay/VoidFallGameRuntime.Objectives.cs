@@ -34,6 +34,7 @@ namespace VoidFall.Runtime
         {
             ResetHydraEncounterState();
             ResetMonochromeEncounterState();
+            ResetNullCityEncounterState();
             // With a route active the objective keys on the Void, not the
             // arena: Hydra shares the Abyss arena as a placeholder but must
             // not share its escape condition.
@@ -85,7 +86,7 @@ namespace VoidFall.Runtime
                 _objectiveCompleteAt = (float)_time;
                 OnVoidObjectiveCompleted();
             }
-            StepVoidCompletionDelay((float)deltaTime);
+            // Departure/reward time is advanced from Update even while combat is stopped.
             _objectiveLineTimer -= (float)deltaTime;
             if (_objectiveLineTimer > 0) return;
             _objectiveLineTimer = ObjectiveLineRebuildSeconds;

@@ -146,6 +146,7 @@ namespace VoidFall.Runtime
             ? _spectrumAnalyzer.Current
             : MusicAnalysisFrame.Zero;
         public MusicMixTargets CurrentMixTargets => _mixTargets;
+        public float[] SpectrumBands => _spectrumAnalyzer?.Bands;
 
         private void Awake()
         {
@@ -182,7 +183,7 @@ namespace VoidFall.Runtime
         /// <param name="upgradeScreenOpen">
         /// Submerges the track under a low-pass while the upgrade choice is up.
         /// </param>
-        /// <param name="overclocked">Runs the track at 1.5x.</param>
+        /// <param name="overclocked">Runs the track at 2x.</param>
         /// <param name="criticalHealth">Drags the track to 0.5x.</param>
         public void SetReactiveState(in MusicReactiveState state)
         {
@@ -192,7 +193,8 @@ namespace VoidFall.Runtime
         public void NotifyOverclockStreak(int previousStreak, int currentStreak)
         {
             if (currentStreak <= previousStreak) return;
-            _rateSurge = Mathf.Max(_rateSurge, currentStreak >= 4 ? 0.09f : 0.045f);
+            // Pickups now surge through the visual frame. Stacking preserves the approved 2x tape rate.
+            _rateSurge = 0f;
         }
 
         public void NotifyPlayerDamage(float healthFraction, bool lethal)
