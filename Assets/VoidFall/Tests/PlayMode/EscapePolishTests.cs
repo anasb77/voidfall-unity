@@ -194,6 +194,19 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
+        public void Enemies_spawned_on_the_clear_tick_finish_appearing_during_escape()
+        {
+            Call("SpawnEnemy", "chaser");
+            var slot = EnemySlotAt(0);
+            SetEnemyField(slot, "Age", 0f);
+            Call("OnVoidObjectiveCompleted");
+            Call("UpdateJourneyFlow", 0.5f);
+            Call("Render");
+            Assert.That(RendererAt("_enemyViews", slot).transform.localScale.sqrMagnitude, Is.GreaterThan(1f),
+                "Stopping AI must not freeze a newborn body at zero intro scale.");
+        }
+
+        [Test]
         public void Mystery_portals_show_actual_names_and_destination_colors()
         {
             var crascendo = new VoidRouteNode("crascendo-repeat-2", "crascendo", "Crascendo", 1, 1, "", "", "", "")
@@ -349,6 +362,21 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(((OverclockState)Get("_overclock")).RemainingSeconds, Is.EqualTo(15f));
             for (var i = 0; i < 100; i++) Call("UpdateJourneyFlow", 0.1f);
             Assert.That(((OverclockState)Get("_overclock")).RemainingSeconds, Is.EqualTo(15f));
+        }
+
+        [TestCase(ArenaId.EonSea)]
+        [TestCase(ArenaId.Crascendo)]
+        public void Incoming_arena_releases_the_outgoing_fullscreen_fold(ArenaId incoming)
+        {
+            Set("_arenaId", ArenaId.Void);
+            Set("_arenaTransitionState", new ArenaTransitionState(0, 0, ArenaPhase.Collapse, 0.2, incoming));
+            Call("Render");
+            var overlay = (Behaviour)Get("_transitionOverlay");
+            Assert.That(overlay.enabled, Is.True);
+            Set("_arenaId", incoming);
+            Set("_arenaTransitionState", new ArenaTransitionState(1, double.PositiveInfinity, ArenaPhase.Idle, 0, null));
+            Call("Render");
+            Assert.That(overlay.enabled, Is.False, "Arrival must retire the last collapse mesh even for custom arena renderers.");
         }
 
         private void FinishRoulette()

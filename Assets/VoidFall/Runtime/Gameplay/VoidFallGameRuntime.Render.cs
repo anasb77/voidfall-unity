@@ -379,7 +379,10 @@ namespace VoidFall.Runtime
                     0,
                     0,
                     enemy.Rotation * Mathf.Rad2Deg + (progressedSprite != null ? -90f : 0));
-                var enemyVisualScale = SourceEnemyIntroScale(enemy.Age);
+                // Finish appearance even for enemies born on the boss-clear tick;
+                // their AI age deliberately stops with combat during escape.
+                var presentationAge = enemy.Age + (JourneyStopsCombat && _journeyStage == JourneyStage.Rewards ? EscapeElapsed : 0f);
+                var enemyVisualScale = SourceEnemyIntroScale(presentationAge);
                 if (!JourneyStopsCombat && enemy.Id == "exploder" && enemy.State == 1)
                 {
                     var definition = FindEnemy("exploder");
@@ -780,6 +783,9 @@ namespace VoidFall.Runtime
             }
 
             RenderArena();
+            // Custom arena renderers return early from RenderArena. The fullscreen
+            // fold still needs its Idle state on arrival, independently of that path.
+            UpdateTransitionOverlay();
             SyncEonSeaPresentation();
             SyncCrascendoPresentation();
             RenderHydraPresentation();
@@ -4995,7 +5001,6 @@ namespace VoidFall.Runtime
             RenderArenaNearFilaments();
             RenderArenaRocks();
             RenderArenaLandmark();
-            UpdateTransitionOverlay();
         }
 
         private void RenderArenaGrid()

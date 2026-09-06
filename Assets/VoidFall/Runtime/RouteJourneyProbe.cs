@@ -174,6 +174,18 @@ namespace VoidFall.Runtime
                     var charge = new OverclockState(); charge.ApplyPickup();
                     Set("_overclock", charge);
                     for (var enemy = 0; enemy < 55; enemy++) Call("SpawnEnemy", enemy % 3 == 0 ? "runner" : "chaser");
+                    var crowd = (Array)sim.GetType().GetField("Enemies", Flags).GetValue(sim);
+                    var placed = 0;
+                    for (var enemy = 0; enemy < crowd.Length; enemy++)
+                    {
+                        var body = crowd.GetValue(enemy);
+                        if (!(bool)body.GetType().GetField("Active", Flags).GetValue(body)) continue;
+                        var angle = placed * 2.39996f;
+                        var radius = 160f + placed % 6 * 47f;
+                        body.GetType().GetField("Position", Flags).SetValue(body,
+                            new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius);
+                        crowd.SetValue(body, enemy); placed++;
+                    }
                     Call("SpawnPickup", new Vector2(2400f, 1600f), 15f);
                 }
                 var bosses = (Array)sim.GetType().GetField("Bosses", Flags).GetValue(sim);
@@ -287,6 +299,9 @@ namespace VoidFall.Runtime
                         {
                             yield return new WaitForEndOfFrame();
                             ScreenCapture.CaptureScreenshot(_output + "-arrival.png");
+                            yield return new WaitForSecondsRealtime(2f);
+                            yield return new WaitForEndOfFrame();
+                            ScreenCapture.CaptureScreenshot(_output + "-arrival-settled.png");
                             File.WriteAllText(_output + ".json", JsonUtility.ToJson(new Report
                             { success = true, seed = 2848592627u, visited = new[] { source, route.CurrentArenaId } }, true));
                             yield return new WaitForSecondsRealtime(0.5f);

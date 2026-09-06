@@ -273,7 +273,6 @@ namespace VoidFall.Runtime
             _routeSelectOpen = false;
             _riftAutoVoidId = null;
             var node = _voidRoute.Node(voidId);
-            ShowArenaToast("ENTERING " + node.DisplayName.ToUpperInvariant(), 2.5f);
             _arenaFlash = Mathf.Max(_arenaFlash, 0.62f);
             _cyanFlash = Mathf.Max(_cyanFlash, 0.48f);
             SpawnRingWave(
@@ -397,8 +396,7 @@ namespace VoidFall.Runtime
             ShowArenaToast(
                 arena?.Name ?? ArenaName(_arenaId),
                 2.8f,
-                ToastKind.Info,
-                arena?.Modifier);
+                ToastKind.Info);
             _telemetry.RecordArenaSwap(Mathf.Max(0, _completedVoids - 1), (float)_time);
         }
 
