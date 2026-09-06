@@ -74,6 +74,9 @@ namespace VoidFall.Runtime
         // impact. Both are instance-cached; nothing allocates per step.
         public Func<bool> PlayerVulnerableQuery;
         public Action<int, Vector2> HostileShotImpact;
+        // Origin metadata stays outside the golden-master-hashed projectile struct.
+        public readonly bool[] HostileShotBlockable;
+        public Func<int, Vector2, Vector2, float, bool> HostileShotInterceptQuery;
         public delegate bool TerrainProjectileCollision(Vector2 from, Vector2 to, float radius, out Vector2 hit);
         public TerrainProjectileCollision TerrainProjectileCollisionHook;
         public Action<int> BulletTerrainHitHook;
@@ -101,6 +104,7 @@ namespace VoidFall.Runtime
             Enemies = new EnemyState[maxEnemies];
             Bullets = new BulletState[maxBullets];
             HostileShots = new HostileShotState[maxHostileShots];
+            HostileShotBlockable = new bool[maxHostileShots];
             Pickups = new PickupState[maxPickupSlots];
             Bosses = new BossState[maxBosses];
             Meteors = new MeteorState[maxMeteors];
@@ -493,6 +497,8 @@ namespace VoidFall.Runtime
                 Variant = visualVariant,
                 View = slot,
             };
+            // Unknown/boss/elite callers are protected unless runtime explicitly marks ordinary origin.
+            HostileShotBlockable[slot] = false;
             HostileShotOrder.Append(slot);
             if (curved) CurvedShotCount++;
             return slot;
@@ -540,6 +546,10 @@ namespace VoidFall.Runtime
                     shot.Life = 0;
                 }
                 if (shot.Life > 0 && Player.Health > 0 &&
+                    HostileShotBlockable[index] && HostileShotInterceptQuery != null &&
+                    HostileShotInterceptQuery(index, previousPosition, shot.Position, shot.Radius))
+                    shot.Life = 0;
+                if (shot.Life > 0 && Player.Health > 0 &&
                     PlayerVulnerableQuery != null && PlayerVulnerableQuery() &&
                     Vector2.Distance(shot.Position, Player.Position) <
                         shot.Radius + attackPlayerRadius)
@@ -552,6 +562,7 @@ namespace VoidFall.Runtime
                 if (shot.Life <= 0)
                 {
                     shot.Active = false;
+                    HostileShotBlockable[index] = false;
                     if (shot.Curved) CurvedShotCount = Mathf.Max(0, CurvedShotCount - 1);
                     if (expiredSlots != null && expiredCount < expiredSlots.Length)
                         expiredSlots[expiredCount++] = index;

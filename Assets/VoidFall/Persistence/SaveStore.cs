@@ -675,7 +675,7 @@ namespace VoidFall.Persistence
                 value.damageTaken = ClampLong(value.damageTaken, 0, MaxDamageCounter);
                 value.weapons = SanitizeKnownEntries(value.weapons, weaponIds, weaponMaxRanks);
                 value.weaponDamage = SanitizeKnownWeaponDamage(value.weaponDamage, weaponIds);
-                value.supports = SanitizeKnownEntries(value.supports, supportIds, supportMaxRanks);
+                value.supports = SanitizeMergedSupports(value.supports, supportIds, supportMaxRanks);
                 value.late = SanitizeKnownEntries(value.late, lateIds, lateMaxRanks);
                 value.evolved = SanitizeKnownEntries(value.evolved, weaponIds, evolvedMaxRanks);
                 result.Add(value);
@@ -775,6 +775,22 @@ namespace VoidFall.Persistence
                 result.Add(new WorkshopEntry { id = entry.id, rank = rank });
                 if (result.Count >= MaxRunEntryFields) break;
             }
+            return result.ToArray();
+        }
+
+        private static WorkshopEntry[] SanitizeMergedSupports(WorkshopEntry[] entries, string[] ids, int[] maxRanks)
+        {
+            var ranks = new int[ids.Length];
+            foreach (var entry in entries ?? Array.Empty<WorkshopEntry>())
+            {
+                if (entry == null) continue;
+                var index = Array.IndexOf(ids, ExtendedCatalog.CanonicalSupportId(entry.id));
+                if (index < 0) continue;
+                ranks[index] = Math.Max(ranks[index], ClampInt(entry.rank, 0, maxRanks[index]));
+            }
+            var result = new List<WorkshopEntry>();
+            for (var index = 0; index < ranks.Length; index++)
+                if (ranks[index] > 0) result.Add(new WorkshopEntry { id = ids[index], rank = ranks[index] });
             return result.ToArray();
         }
 

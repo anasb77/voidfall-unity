@@ -10,6 +10,8 @@ namespace VoidFall.Core
                 if (enemy.Id == "chaser") enemy.Name = "Regular";
             Weapons = ArsenalContent.AppendWeapons(Weapons);
             Evolutions = ArsenalContent.AppendEvolutions(Evolutions);
+            foreach (var weapon in Weapons)
+                weapon.Summary = UpgradeRules.AddProjectileDefenseText(weapon.Id, weapon.Summary);
         }
     }
 }

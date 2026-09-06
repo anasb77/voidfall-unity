@@ -84,7 +84,7 @@ namespace VoidFall.Runtime
                 if (_arsenalClockFace == null) _arsenalClockFace = CreateView("Arsenal_ClockFace", ProceduralSpriteFactory.ArsenalClockFace(), 9);
                 _arsenalClockFace.transform.position = _gameSim.Player.Position;
                 _arsenalClockFace.transform.localScale = Vector3.one * (300 * _areaMultiplier);
-                _arsenalClockFace.color = new Color(1, 1, 1, (float)ArsenalContent.ClockOpacity);
+                _arsenalClockFace.color = new Color(1, 1, 1, (float)ArsenalContent.ClockFaceOpacity);
                 _arsenalClockFace.enabled = true;
                 var hands = ArsenalEvolved(8) ? 2 : 1;
                 for (var i = 0; i < _arsenalClockHands.Length; i++)

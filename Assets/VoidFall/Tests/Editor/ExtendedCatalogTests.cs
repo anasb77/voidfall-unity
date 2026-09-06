@@ -15,7 +15,7 @@ namespace VoidFall.Tests.Editor
         public void Parity_supports_keep_their_indices_and_extras_append()
         {
             var all = ExtendedCatalog.AllSupports();
-            Assert.That(all.Length, Is.EqualTo(ContentCatalog.Supports.Length + 5));
+            Assert.That(all.Length, Is.EqualTo(ContentCatalog.Supports.Length + 3));
             for (var index = 0; index < ContentCatalog.Supports.Length; index++)
             {
                 Assert.That(all[index], Is.SameAs(ContentCatalog.Supports[index]),
@@ -65,13 +65,15 @@ namespace VoidFall.Tests.Editor
                     seen.Add(option.Id);
             }
 
-            foreach (var id in new[] { "dodge", "scholar", "fortune", "projectileSpeed", "spatialAwareness" })
+            foreach (var id in new[] { "dodge", "scholar", "projectileSpeed" })
             {
                 Assert.That(seen.Contains("support:" + id), Is.True,
                     id + " never appears in the level-up pool");
             }
             Assert.That(seen.Contains("support:projectileSize"), Is.False,
                 "projectile size must be merged into Amplifier instead of consuming another card slot");
+            Assert.That(seen.Contains("support:fortune"), Is.False);
+            Assert.That(seen.Contains("support:spatialAwareness"), Is.False);
             // The parity pool is untouched.
             Assert.That(seen.Contains("support:calibration"), Is.True);
         }

@@ -406,7 +406,7 @@ namespace VoidFall.Runtime
                     _directorWarned = false;
                     _directorSpawned = 0;
                     _score += 75;
-                    if (_gameSim.Rng.Next() < 0.35 + SupportEffectRules.FortuneDropBonus(SupportRank("fortune")))
+                    if (_gameSim.Rng.Next() < 0.35 + SupportEffectRules.FortuneDropBonus(SupportRank("scholar")))
                     {
                         var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                         SpawnSpecialPickup(
@@ -725,6 +725,9 @@ namespace VoidFall.Runtime
                     _gameSim.Enemies[i] = enemy;
                     continue;
                 }
+                _ordinaryEnemyShotContext = !enemy.Elite && !enemy.EliteKind.HasValue;
+                try
+                {
                 var eonOldPosition = enemy.Position;
                 enemy.Age += dt;
                 var delta = _gameSim.Player.Position - enemy.Position;
@@ -868,6 +871,8 @@ namespace VoidFall.Runtime
                 }
                 _gameSim.Enemies[i] = enemy;
                 if (!enemy.Active) RemoveEnemyOrder(i);
+                }
+                finally { _ordinaryEnemyShotContext = false; }
             }
         }
 
@@ -2654,20 +2659,18 @@ namespace VoidFall.Runtime
             }
             var weapon = ContentCatalog.Weapons[3];
             var stats = weapon.Ranks[Mathf.Clamp(rank, 1, weapon.Ranks.Length) - 1].Stats;
-            // Overclocked fire rate applies to blade spin just like every
-            // other weapon's cadence (tiers 1.00/1.35/1.70/2.15), and so
-            // does the Velocity Coils projectile speed multiplier - spin is
-            // the blades' equivalent of projectile velocity.
-            _bladeAngle += dt * (float)stats.OrbitSpeed *
-                (float)OverclockRules.FireRateMultiplier(_overclock.PowerTier) *
-                (float)SupportEffectRules.ProjectileSpeedMultiplier(SupportRank("projectileSpeed"));
             var recoveryScale = WeaponRecoveryScale();
+            _orbitalBladeStartAngle = _bladeAngle;
+            _orbitalHollowWasActive = _hollowBladeActive && _orbitalHollowHistoryValid;
+            _orbitalHollowStartPosition = _orbitalHollowEndPosition;
+            // Angular velocity is projectile velocity for orbit weapons. Recovery includes Overclock once.
+            _bladeAngle += dt * (float)stats.OrbitSpeed * OrbitalRotationSpeedScale(recoveryScale);
             var evolved = _upgradeProgress.Evolved[3];
             if (evolved)
             {
                 if (_hollowBladeActive)
                 {
-                    _hollowBladeAge += dt;
+                    _hollowBladeAge += dt * OrbitalRotationSpeedScale(recoveryScale);
                     if (_hollowBladeAge >= 1.38f)
                     {
                         _hollowBladeActive = false;
@@ -2774,6 +2777,9 @@ namespace VoidFall.Runtime
             var hollowDistance = orbitRadius + (maximum - orbitRadius) * Mathf.Clamp01(travel);
             var hollowPosition = _gameSim.Player.Position + new Vector2(
                 Mathf.Cos(_hollowBladeAngle), Mathf.Sin(_hollowBladeAngle)) * hollowDistance;
+            _orbitalHollowEndPosition = hollowPosition;
+            if (!_orbitalHollowWasActive) _orbitalHollowStartPosition = hollowPosition;
+            _orbitalHollowHistoryValid = true;
             var hollowView = EnsureHollowBladeView();
             hollowView.transform.position = hollowPosition;
             hollowView.transform.rotation = Quaternion.Euler(
@@ -3338,6 +3344,7 @@ namespace VoidFall.Runtime
             var slot = _gameSim.TryInsertHostileShot(
                 position, direction, damage, speed, curvature, meteorOwned, visualVariant);
             if (slot < 0) return;
+            _gameSim.HostileShotBlockable[slot] = _ordinaryEnemyShotContext && !meteorOwned;
             if (radiusOverride > 0f)
             {
                 var shot = _gameSim.HostileShots[slot];
@@ -3374,6 +3381,8 @@ namespace VoidFall.Runtime
 
         private void UpdateHostileShots(float dt)
         {
+            if (_hostileShotInterceptHandler == null) _hostileShotInterceptHandler = TryInterceptHostileShot;
+            _gameSim.HostileShotInterceptQuery = ArsenalRank(3) > 0 || ArsenalRank(8) > 0 ? _hostileShotInterceptHandler : null;
             ConfigureEonSeaProjectileHooks();
             // The runtime keeps DamagePlayer and telemetry; GameSim drives the
             // loop and calls back at the exact points the browser resolves an

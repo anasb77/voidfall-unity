@@ -350,7 +350,10 @@ namespace VoidFall.Runtime
                 ? _upgradeProgress.WeaponRanks[0]
                 : 0;
             _calibrationRank = SupportRank("calibration");
-            _spatialZoomScale = (float)SupportEffectRules.SpatialAwarenessZoom(SupportRank("spatialAwareness"));
+            var previousMaxHealth = _gameSim.Player.MaxHealth;
+            RecalculatePlayerStats(false);
+            if (_gameSim.Player.MaxHealth > previousMaxHealth)
+                _gameSim.Player.Health = Mathf.Min(_gameSim.Player.MaxHealth, _gameSim.Player.Health + _gameSim.Player.MaxHealth - previousMaxHealth);
         }
 
         private void PlayRouletteTick() => _audio?.Play(ProceduralAudio.Cue.Ui, 0.3f);
