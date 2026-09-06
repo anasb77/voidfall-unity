@@ -163,6 +163,10 @@ authors those previews from prepared plates. `Editor/JourneyVisualBaker.cs`
 also neutralizes the existing portal sheet into `Resources/VoidFall/Portals/Neutral/`,
 so portals can use each destination's native StarTint. Portals show names only.
 
+`ArenaTransitionGraphic` is updated from the shared render path, including
+custom Eon Sea/Crascendo rendering, so the fullscreen fold is retired on arrival.
+Its horizons are tessellated as adjacent strips rather than a crossing fan.
+
 - `Core/VoidRoute.cs`: `VoidRouteNode`, `VoidRouteRun`, `RouteNodeState`, graph
   definitions, history, sibling locking, `NotifyVoidCompleted`, `SelectNextVoid`.
 - `Core/VoidObjective.cs`: `IVoidObjective` and `VoidObjectiveFeed` contracts.
