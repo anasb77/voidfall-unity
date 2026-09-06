@@ -21,6 +21,10 @@ namespace VoidFall.Tests.PlayMode
         private SaveStore _previousStore;
         private SaveData _previousProfile;
         private bool _previousEnabled, _previousInactive;
+        private AudioClip[] _previousGameplayClips;
+        private List<int> _previousGameplayBag;
+        private int _previousLastGameplayIndex;
+        private readonly List<AudioClip> _temporaryClips = new List<AudioClip>();
 
         [UnitySetUp]
         public IEnumerator SetUp()
@@ -56,6 +60,7 @@ namespace VoidFall.Tests.PlayMode
         {
             if (_runtime != null)
             {
+                RestoreGameplayClips();
                 Set("_runSaved", true);
                 Call("EnterMainMenu"); // Complete navigation while the isolated profile still owns writes.
                 Set("_saveStore", _previousStore);
@@ -82,8 +87,8 @@ namespace VoidFall.Tests.PlayMode
             _music.SetReactiveState(State(), false, 0);
             yield return null;
             yield return null;
-            Assert.That(_music.CurrentMixTargets.BassBoost, Is.GreaterThan(.7f));
-            Assert.That(_music.CurrentMixTargets.LowPassHz, Is.LessThan(22000f));
+            Assert.That(_music.CurrentMixTargets.BassBoost, Is.GreaterThan(.3f).And.LessThanOrEqualTo(.45f));
+            Assert.That(_music.CurrentMixTargets.LowPassHz, Is.EqualTo(22000f).Within(.01f));
         }
 
         [UnityTest]
@@ -141,10 +146,55 @@ namespace VoidFall.Tests.PlayMode
             yield return null;
             Assert.That(_music.MagnetIntensity, Is.GreaterThan(charge * .7f));
             Assert.That(_music.CurrentMixTargets.PlaybackRate, Is.InRange(1f, 1.28f));
-            Assert.That(_music.CurrentMixTargets.BassBoost, Is.GreaterThan(.5f));
+            Assert.That(_music.CurrentMixTargets.BassBoost, Is.GreaterThan(.3f).And.LessThanOrEqualTo(.45f));
             var source = (AudioSource)Field(_music, "_source");
             Assert.That(source.time, Is.GreaterThan(5f));
             Assert.That(source.clip.name, Is.EqualTo(_music.CurrentTrackName));
+        }
+
+        [Test]
+        public void Natural_gameplay_completion_after_a_hitch_advances_from_zero_and_retains_remix()
+        {
+            ConfigureGameplaySequence();
+            ChargeMagnet();
+            var charge = _music.MagnetIntensity;
+            var previous = _music.CurrentTrackName;
+
+            SimulateCompletedPlayback();
+
+            var source = (AudioSource)Field(_music, "_source");
+            Assert.That(_music.CurrentTrackName, Is.Not.EqualTo(previous));
+            Assert.That(source.time, Is.LessThan(.01f));
+            Assert.That(_music.MagnetIntensity, Is.GreaterThan(charge * .99f));
+        }
+
+        [Test]
+        public void Stopped_source_before_playback_is_observed_does_not_advance_the_bag()
+        {
+            ConfigureGameplaySequence();
+            var previous = _music.CurrentTrackName;
+            ((AudioSource)Field(_music, "_source")).Stop();
+
+            CallMusic("Update");
+
+            Assert.That(_music.CurrentTrackName, Is.EqualTo(previous));
+        }
+
+        [Test]
+        public void Focus_suspension_does_not_advance_an_observed_track()
+        {
+            ConfigureGameplaySequence();
+            var previous = _music.CurrentTrackName;
+            var source = (AudioSource)Field(_music, "_source");
+            source.time = 1f;
+            source.Play();
+            CallMusic("Update");
+
+            _music.SetApplicationActive(false);
+            CallMusic("Update");
+
+            Assert.That(_music.CurrentTrackName, Is.EqualTo(previous));
+            _music.SetApplicationActive(true);
         }
 
         [Test]
@@ -180,6 +230,51 @@ namespace VoidFall.Tests.PlayMode
             _music.NotifyMagnetStarted();
             for (var i = 0; i < 100; i++) _music.NotifyMagnetGem(1);
         }
+        private void ConfigureGameplaySequence()
+        {
+            if (_previousGameplayClips == null)
+            {
+                _previousGameplayClips = (AudioClip[])Field(_music, "_gameplayClips");
+                _previousGameplayBag = new List<int>((List<int>)Field(_music, "_gameplayBag"));
+                _previousLastGameplayIndex = (int)Field(_music, "_lastGameplayIndex");
+            }
+
+            var first = AudioClip.Create("NaturalCompletionFirst", 441000, 1, 44100, false);
+            var second = AudioClip.Create("NaturalCompletionSecond", 441000, 1, 44100, false);
+            _temporaryClips.Add(first);
+            _temporaryClips.Add(second);
+            typeof(MusicDirector).GetField("_gameplayClips", Flags).SetValue(_music, new[] { first, second });
+            var bag = (List<int>)Field(_music, "_gameplayBag");
+            bag.Clear();
+            bag.Add(1);
+            bag.Add(0);
+            typeof(MusicDirector).GetField("_lastGameplayIndex", Flags).SetValue(_music, -1);
+            typeof(MusicDirector).GetField("_combatEntryRequested", Flags).SetValue(_music, false);
+            CallMusic("BeginChannel", MusicDirector.Channel.Gameplay);
+        }
+        private void SimulateCompletedPlayback()
+        {
+            var source = (AudioSource)Field(_music, "_source");
+            source.time = 1f;
+            source.Play();
+            CallMusic("Update");
+            source.Stop();
+            typeof(MusicDirector).GetField("_notPlayingElapsed", Flags).SetValue(_music, 1f);
+            CallMusic("Update");
+        }
+        private void RestoreGameplayClips()
+        {
+            if (_previousGameplayClips == null) return;
+            CallMusic("BeginChannel", MusicDirector.Channel.None);
+            typeof(MusicDirector).GetField("_gameplayClips", Flags).SetValue(_music, _previousGameplayClips);
+            var bag = (List<int>)Field(_music, "_gameplayBag");
+            bag.Clear();
+            bag.AddRange(_previousGameplayBag);
+            typeof(MusicDirector).GetField("_lastGameplayIndex", Flags).SetValue(_music, _previousLastGameplayIndex);
+            foreach (var clip in _temporaryClips) UnityEngine.Object.Destroy(clip);
+            _temporaryClips.Clear();
+            _previousGameplayClips = null;
+        }
         private void Spawn(string kind, Vector2 position)
         {
             var type = typeof(VoidFallGameRuntime).Assembly.GetType("VoidFall.Runtime.PickupKind");
@@ -199,6 +294,13 @@ namespace VoidFall.Tests.PlayMode
             foreach (var method in typeof(VoidFallGameRuntime).GetMethods(Flags))
                 if (method.Name == name && method.GetParameters().Length == args.Length)
                     return method.Invoke(_runtime, args);
+            throw new MissingMethodException(name);
+        }
+        private object CallMusic(string name, params object[] args)
+        {
+            foreach (var method in typeof(MusicDirector).GetMethods(Flags))
+                if (method.Name == name && method.GetParameters().Length == args.Length)
+                    return method.Invoke(_music, args);
             throw new MissingMethodException(name);
         }
     }

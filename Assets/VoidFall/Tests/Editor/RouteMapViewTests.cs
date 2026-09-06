@@ -28,7 +28,24 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
-        public void Planning_future_node_reports_destination_without_entering_or_revealing_it()
+        public void Map_shows_only_title_void_names_and_current_status()
+        {
+            _view.Show(Route(), null, null, null);
+
+            Assert.That(VisibleLabels(), Is.EquivalentTo(new[]
+            {
+                "VOID MAP",
+                "YOU ARE HERE",
+                "STARTING VOID",
+                "KNOWN VOID",
+                "SECRET DESTINATION",
+                "STRANDED VOID",
+                "ESCAPE VOID",
+            }));
+        }
+
+        [Test]
+        public void Planning_future_node_reports_destination_without_entering_it()
         {
             var run = Route();
             string planned = null;
@@ -45,6 +62,18 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
+        public void Planning_node_highlights_connected_route_through_terminal()
+        {
+            _view.Show(Route(), null, _ => { }, null);
+
+            ButtonWithLabel("KNOWN VOID").onClick.Invoke();
+
+            var plannedColor = UITheme.WithAlpha(UITheme.GoldLight, 0.92f);
+            Assert.That(ConnectionImages().Count(image => Approximately(image.color, plannedColor)), Is.EqualTo(2),
+                "The selected node and its deterministic continuation to the terminal should form one route.");
+        }
+
+        [Test]
         public void Sealed_branch_and_its_unreachable_descendant_cannot_be_planned()
         {
             var run = Route();
@@ -53,7 +82,7 @@ namespace VoidFall.Tests.Editor
             var calls = 0;
             _view.Show(run, null, _ => calls++, null);
 
-            var sealedBranch = ButtonWithLabel("? UNKNOWN VOID");
+            var sealedBranch = ButtonWithLabel("SECRET DESTINATION");
             var stranded = ButtonWithLabel("STRANDED VOID");
             Assert.That(sealedBranch.interactable, Is.False);
             Assert.That(stranded.interactable, Is.False);
@@ -67,27 +96,38 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
-        public void Planning_and_reopening_mystery_never_discloses_name_or_objective_until_entry()
+        public void Map_never_discloses_objective_or_description_copy()
         {
             var run = Route();
-            string planned = null;
-            _view.Show(run, null, id => planned = id, null);
-            ButtonWithLabel("? UNKNOWN VOID").onClick.Invoke();
-            _view.Show(run, planned, _ => { }, null);
-
-            var visible = VisibleText();
-            Assert.That(visible, Does.Not.Contain("Secret Destination").IgnoreCase);
-            Assert.That(visible, Does.Not.Contain("Secret Boss").IgnoreCase);
-            Assert.That(visible, Does.Not.Contain("mystery-id"));
-            Assert.That(visible, Does.Contain("VOLATILE"));
-            Assert.That(run.StateOf("mystery-id"), Is.EqualTo(RouteNodeState.Revealed));
-
-            run.NotifyVoidCompleted("start-id");
-            run.SelectNextVoid("mystery-id");
             _view.Show(run, null, null, null);
 
-            Assert.That(VisibleText(), Does.Contain("SECRET DESTINATION"));
-            Assert.That(ButtonWithLabel("SECRET DESTINATION").interactable, Is.False);
+            var visible = VisibleText();
+            Assert.That(visible, Does.Not.Contain("Secret Boss").IgnoreCase);
+            Assert.That(visible, Does.Not.Contain("conceals a threat").IgnoreCase);
+            Assert.That(visible, Does.Not.Contain("VOLATILE"));
+            Assert.That(visible, Does.Not.Contain("CLEARED"));
+            Assert.That(visible, Does.Not.Contain("PLANNED"));
+            Assert.That(visible, Does.Not.Contain("FUTURE"));
+        }
+
+        [Test]
+        public void Thumbnail_uses_stable_arena_identity_when_route_node_id_is_unique()
+        {
+            var node = new VoidRouteNode(
+                "route-red-branch",
+                "red-nebula",
+                "Red Nebula",
+                0,
+                1,
+                "VOLATILE",
+                "Description",
+                "Objective",
+                "Reward");
+            _view.Show(new VoidRouteRun(new[] { node }, node.Id), null, null, null);
+
+            var thumbnail = _host.GetComponentsInChildren<Image>()
+                .Single(image => image.name == "Arena Thumbnail");
+            Assert.That(thumbnail.sprite, Is.Not.Null);
         }
 
         private Button ButtonWithLabel(string label)
@@ -101,6 +141,29 @@ namespace VoidFall.Tests.Editor
         {
             return string.Join("\n", _host.GetComponentsInChildren<Text>()
                 .Select(text => text.text));
+        }
+
+        private string[] VisibleLabels()
+        {
+            return _host.GetComponentsInChildren<Text>()
+                .Select(text => text.text)
+                .Where(text => !string.IsNullOrEmpty(text))
+                .ToArray();
+        }
+
+        private Image[] ConnectionImages()
+        {
+            return _host.GetComponentsInChildren<Image>()
+                .Where(image => image.name.StartsWith("Connection "))
+                .ToArray();
+        }
+
+        private static bool Approximately(Color left, Color right)
+        {
+            return Mathf.Abs(left.r - right.r) < 0.001f &&
+                   Mathf.Abs(left.g - right.g) < 0.001f &&
+                   Mathf.Abs(left.b - right.b) < 0.001f &&
+                   Mathf.Abs(left.a - right.a) < 0.001f;
         }
 
         private static VoidRouteRun Route()

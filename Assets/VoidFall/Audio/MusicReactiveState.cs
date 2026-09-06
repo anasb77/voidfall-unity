@@ -86,16 +86,16 @@ namespace VoidFall.Runtime
             var rate = tierRate * (state.CriticalHealth ? .50f + critical * .14f : 1f);
             rate *= 1f + recovery * Math.Max(-1f, Math.Min(1f, recoveryWave)) * .012f;
             if (state.LevelUpOpen) rate = 1f;
-            var criticalDarkening = state.CriticalHealth ? 0.48f + critical * 0.22f : 0f;
-            var darkness = 1f - (1f - criticalDarkening) * (1f - state.MagnetIntensity * .28f);
+            var darkness = state.CriticalHealth ? 0.48f + critical * 0.22f : 0f;
             darkness *= 1f - stackAccent * .28f - recovery * .20f;
             var lowPass = LogLerp(OpenFilterHz, SubmergedFilterHz, Math.Max(submerged, darkness));
             var resonance = 1f + submerged + critical * 0.7f;
-            var width = Math.Max(.24f, Math.Min(1.2f, 1f - state.MagnetIntensity * .62f - critical * .14f
-                + Clamp01(magnetRelease) * .65f + recovery * .25f + stackAccent * .14f));
+            var width = Math.Max(.24f, Math.Min(1.2f, 1f - state.MagnetIntensity * .18f - critical * .14f
+                + Clamp01(magnetRelease) * .22f + recovery * .25f + stackAccent * .14f));
             var visualDamping = state.LevelUpOpen ? 0.28f : state.CriticalHealth ? 0.82f : 1f;
             return new MusicMixTargets(rate, lowPass, resonance, width, critical, submerged, visualDamping,
-                state.MagnetIntensity, 1f - state.MagnetIntensity * .05f + (state.LevelUpOpen ? 0f : stackAccent * .06f));
+                state.MagnetIntensity * .45f,
+                1f - state.MagnetIntensity * .05f + (state.LevelUpOpen ? 0f : stackAccent * .06f));
         }
 
         private static float Clamp01(float value) => Math.Max(0f, Math.Min(1f, value));

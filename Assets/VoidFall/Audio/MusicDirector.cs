@@ -83,6 +83,7 @@ namespace VoidFall.Runtime
         // change rather than a response, and a fast dive reads as a glitch.
         private const float RateTimeConstant = 0.22f;
         private const float FilterTimeConstant = 0.6f;
+        private const float PlaybackCompletionGraceSeconds = 0.12f;
 
         private AudioSource _source;
         private AudioClip[] _gameplayClips = Array.Empty<AudioClip>();
@@ -101,6 +102,8 @@ namespace VoidFall.Runtime
         private bool _combatEntryRequested;
         private AudioClip _current;
         private float _startOffset;
+        private bool _playbackObserved;
+        private float _notPlayingElapsed;
 
         private bool _muted;
         private bool _suspended;
@@ -228,7 +231,6 @@ namespace VoidFall.Runtime
         {
             if (_channel != Channel.Gameplay) return;
             _duckElapsed = 0f;
-            _dspFilter?.RequestBombEcho(_source != null ? _source.pitch : _mixTargets.PlaybackRate);
         }
 
         /// <summary>
@@ -321,11 +323,12 @@ namespace VoidFall.Runtime
             {
                 if (_suspended) return;
                 _suspended = true;
+                _notPlayingElapsed = 0f;
                 _source.Pause();
             }
         }
 
-        /// <summary>Rolls a fresh track for a new run and loops it.</summary>
+        /// <summary>Rolls a fresh track for a new run.</summary>
         public void PlayGameplay()
         {
             _combatEntryRequested = false;
@@ -366,13 +369,12 @@ namespace VoidFall.Runtime
             // Menu music continues undisturbed if it is already the active
             // channel. Gameplay always re-rolls, because a run is supposed to
             // pick its own track.
-            if (channel == _channel && channel != Channel.Gameplay &&
-                _source != null && _source.isPlaying)
+            if (channel == _channel && channel != Channel.Gameplay && _current != null)
             {
                 return;
             }
 
-            if (_source == null || _channel == Channel.None || !_source.isPlaying)
+            if (_source == null || _channel == Channel.None || _current == null)
             {
                 BeginChannel(channel);
                 return;
@@ -400,6 +402,7 @@ namespace VoidFall.Runtime
                     _source.volume = 0f;
                     _fadeVolume = 0f;
                 }
+                ResetPlaybackObservation();
                 return;
             }
 
@@ -427,12 +430,13 @@ namespace VoidFall.Runtime
 
             _source.Stop();
             _source.clip = _current;
-            // A track that starts at zero can use the engine's seamless loop.
-            // One that skips an intro has to be restarted manually so it returns
-            // to the offset rather than to the intro.
-            _source.loop = _startOffset <= 0.01f;
+            // Gameplay consumes the whole shuffle bag before refilling. Menu
+            // tracks retain their existing behavior: zero-offset themes loop in
+            // the engine, while intro-skipping themes restart at their offset.
+            _source.loop = _channel == Channel.MainMenu && _startOffset <= 0.01f;
             var latestStart = Mathf.Max(0f, _current.length - 1f);
             _source.time = Mathf.Clamp(_startOffset, 0f, latestStart);
+            ResetPlaybackObservation();
             // Keep fade ownership separate, but preserve the audible envelope
             // even on the very first sample after a manual offset loop.
             _fadeVolume = initialVolume;
@@ -453,6 +457,46 @@ namespace VoidFall.Runtime
             // otherwise capture the ducked value as the new base and leave the
             // track quiet for good.
             StartCurrent(_fadeVolume);
+        }
+
+        private void ResetPlaybackObservation()
+        {
+            _playbackObserved = false;
+            _notPlayingElapsed = 0f;
+        }
+
+        private void HandlePlaybackCompletion(float dt)
+        {
+            if (_channel == Channel.None || _current == null || _source.loop || _suspended) return;
+
+            if (_source.isPlaying)
+            {
+                _playbackObserved = true;
+                _notPlayingElapsed = 0f;
+                return;
+            }
+
+            // Streaming clips can report false while their background load is
+            // starting. Focus suspension is excluded above. Once playback was
+            // observed, a confirmed stop advances even if a hitch hid the end.
+            if (!_playbackObserved || _current.loadState != AudioDataLoadState.Loaded)
+            {
+                _notPlayingElapsed = 0f;
+                return;
+            }
+
+            _notPlayingElapsed += Mathf.Max(0f, dt);
+            if (_notPlayingElapsed < PlaybackCompletionGraceSeconds) return;
+
+            if (_channel == Channel.Gameplay)
+            {
+                _combatEntryRequested = false;
+                BeginChannel(Channel.Gameplay);
+            }
+            else
+            {
+                RestartCurrent();
+            }
         }
 
         private float PickStartOffset(string clipName, bool combatEntry = false)
@@ -592,7 +636,7 @@ namespace VoidFall.Runtime
             {
                 _fadeVolume = Mathf.Lerp(_fadeVolume, 0f, blend);
                 _source.volume = _fadeVolume * duck * _mixGain;
-                if (_fadeVolume <= 0.005f || !_source.isPlaying)
+                if (_fadeVolume <= 0.005f)
                     BeginChannel(_pendingChannel);
                 return;
             }
@@ -600,12 +644,7 @@ namespace VoidFall.Runtime
             _fadeVolume = Mathf.Lerp(_fadeVolume, ResolveVolume(), blend);
             _source.volume = _fadeVolume * duck * _mixGain;
 
-            if (_channel == Channel.None || _source.loop || _suspended) return;
-
-            // Manual loop for tracks that skip an intro. isPlaying also reads
-            // false while suspended, which the guard above excludes, so reaching
-            // here with a stopped source means the track ran to its end.
-            if (!_source.isPlaying && _current != null) RestartCurrent();
+            HandlePlaybackCompletion(Time.unscaledDeltaTime);
         }
     }
 }

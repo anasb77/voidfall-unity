@@ -36,6 +36,7 @@ namespace VoidFall.Runtime
 
         private void ResetArsenalWeapons()
         {
+            ResetOrbitalDefense();
             _arsenalGeneration++;
             Array.Clear(_arsenalMines, 0, _arsenalMines.Length);
             Array.Clear(_arsenalSummons, 0, _arsenalSummons.Length);
@@ -220,7 +221,8 @@ namespace VoidFall.Runtime
             var rank = ArsenalRank(8);
             if (rank <= 0) return;
             var stats = ArsenalStats(8, rank);
-            var advance = (float)stats.OrbitSpeed * dt / Mathf.Max(.05f, recovery);
+            _orbitalClockStartAngle = _arsenalClockAngle;
+            var advance = (float)stats.OrbitSpeed * dt * OrbitalRotationSpeedScale(recovery);
             _arsenalClockAngle = Mathf.Repeat(_arsenalClockAngle - advance, Mathf.PI * 2);
             var hands = ArsenalEvolved(8) ? 2 : 1;
             var reach = (float)stats.OrbitRadius * _areaMultiplier;

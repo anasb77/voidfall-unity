@@ -379,8 +379,11 @@ namespace VoidFall.Runtime
                     0,
                     0,
                     enemy.Rotation * Mathf.Rad2Deg + (progressedSprite != null ? -90f : 0));
-                var enemyVisualScale = SourceEnemyIntroScale(enemy.Age);
-                if (enemy.Id == "exploder" && enemy.State == 1)
+                // Finish appearance even for enemies born on the boss-clear tick;
+                // their AI age deliberately stops with combat during escape.
+                var presentationAge = enemy.Age + (JourneyStopsCombat && _journeyStage == JourneyStage.Rewards ? EscapeElapsed : 0f);
+                var enemyVisualScale = SourceEnemyIntroScale(presentationAge);
+                if (!JourneyStopsCombat && enemy.Id == "exploder" && enemy.State == 1)
                 {
                     var definition = FindEnemy("exploder");
                     var telegraph = enemy.EliteKind.HasValue &&
@@ -397,7 +400,7 @@ namespace VoidFall.Runtime
                 _enemyViews[i].transform.localScale = Vector3.one *
                     ((progressedSprite != null ? enemy.Radius * 3.3f / Mathf.Max(.01f, progressedSprite.bounds.size.x) : IsNullCityEnemy(enemy.Id) ? NullCityUnitScale(enemy.Id, _enemyViews[i].sprite) : SourceEnemySpriteWorldSize(enemy)) * enemyVisualScale *
                      (CourtPawnIsPromoted(enemy) ? 1.12f : 1f));
-                if (enemy.Id == "exploder" && enemy.State == 1)
+                if (!JourneyStopsCombat && enemy.Id == "exploder" && enemy.State == 1)
                 {
                     var definition = FindEnemy("exploder");
                     var eliteExploder = enemy.EliteKind.HasValue &&
@@ -780,6 +783,9 @@ namespace VoidFall.Runtime
             }
 
             RenderArena();
+            // Custom arena renderers return early from RenderArena. The fullscreen
+            // fold still needs its Idle state on arrival, independently of that path.
+            UpdateTransitionOverlay();
             SyncEonSeaPresentation();
             SyncCrascendoPresentation();
             RenderHydraPresentation();
@@ -797,6 +803,7 @@ namespace VoidFall.Runtime
 
         private Vector2 CameraShakeOffset()
         {
+            if (_journeyStage == JourneyStage.Rewards) return EscapeCameraShakeOffset();
             if (_cameraTrauma <= 0) return Vector2.zero;
             var magnitude = CameraShakeAmplitude(_cameraTrauma);
             return new Vector2(
@@ -3669,7 +3676,7 @@ namespace VoidFall.Runtime
                 mark.color = new Color(1f, .8f, .95f, .65f);
                 mark.enabled = true;
 
-                if (enemy.EliteKind.HasValue || enemy.State != 1)
+                if (JourneyStopsCombat || enemy.EliteKind.HasValue || enemy.State != 1)
                 {
                     Hide(_eliteChargeLaneViews[index]);
                     Hide(_eliteChargeArrowViews[index]);
@@ -3738,6 +3745,7 @@ namespace VoidFall.Runtime
                 Hide(_enemyTelegraphFillRenderers[index]);
                 Hide(_enemyTelegraphArrowFillRenderers[index]);
                 var enemy = _gameSim.Enemies[index];
+                if (JourneyStopsCombat) continue;
                 if (RenderProgressedTelegraphs(index, enemy)) continue;
                 if (!enemy.Active) continue;
 
@@ -4993,7 +5001,6 @@ namespace VoidFall.Runtime
             RenderArenaNearFilaments();
             RenderArenaRocks();
             RenderArenaLandmark();
-            UpdateTransitionOverlay();
         }
 
         private void RenderArenaGrid()

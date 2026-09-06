@@ -1473,12 +1473,12 @@ namespace VoidFall.Runtime
             var exitB = default(ArenaPackageKey);
             var exitCount = 0;
             var arenas = ContentOrder.PreparedArenas;
-            if (_voidRoute != null && _voidRoute.CurrentVoidId == ArenaCatalogRules.StableId(_arenaId))
+            if (_voidRoute != null && _voidRoute.CurrentArenaId == ArenaCatalogRules.StableId(_arenaId))
             {
                 foreach (var exit in _voidRoute.Node(_voidRoute.CurrentVoidId).Outgoing)
                 {
                     if (exitCount >= 2) break;
-                    var key = ArenaPackageFor(ArenaIdForVoidId(exit));
+                    var key = ArenaPackageFor(ArenaIdForRouteNode(exit));
                     if (exitCount++ == 0) exitA = key;
                     else exitB = key;
                 }

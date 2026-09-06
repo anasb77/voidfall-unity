@@ -175,7 +175,7 @@ namespace VoidFall.Tests.PlayMode
             bosses.SetValue(boss, 0); ((int[])Field(_sim, "BossOrder"))[0] = 0; FieldSet(_sim, "BossOrderCount", 1);
             Step(.05f); Assert.That((float)Field(bosses.GetValue(0), "Health"), Is.LessThan(1000));
             Call("RenderArsenalWeapons");
-            Assert.That(((SpriteRenderer)Get("_arsenalClockFace")).color.a, Is.EqualTo(.5f));
+            Assert.That(((SpriteRenderer)Get("_arsenalClockFace")).color.a, Is.EqualTo(.35f));
             var hands = (SpriteRenderer[])Get("_arsenalClockHands");
             Assert.That(hands[0].enabled && hands[1].enabled, Is.True);
             Assert.That(hands[0].color.a, Is.EqualTo(.5f));

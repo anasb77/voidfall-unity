@@ -208,7 +208,7 @@ namespace VoidFall.Runtime
                 return;
             }
             if (HydraRuntimeRules.SuppressAmbientSpawns(
-                _voidRoute?.CurrentVoidId,
+                _voidRoute?.CurrentArenaId,
                 _hydraBossEncounterActive))
             {
                 _spawnTimer = Mathf.Max(_spawnTimer, 0.45f);
@@ -406,7 +406,7 @@ namespace VoidFall.Runtime
                     _directorWarned = false;
                     _directorSpawned = 0;
                     _score += 75;
-                    if (_gameSim.Rng.Next() < 0.35 + SupportEffectRules.FortuneDropBonus(SupportRank("fortune")))
+                    if (_gameSim.Rng.Next() < 0.35 + SupportEffectRules.FortuneDropBonus(SupportRank("scholar")))
                     {
                         var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                         SpawnSpecialPickup(
@@ -725,6 +725,9 @@ namespace VoidFall.Runtime
                     _gameSim.Enemies[i] = enemy;
                     continue;
                 }
+                _ordinaryEnemyShotContext = !enemy.Elite && !enemy.EliteKind.HasValue;
+                try
+                {
                 var eonOldPosition = enemy.Position;
                 enemy.Age += dt;
                 var delta = _gameSim.Player.Position - enemy.Position;
@@ -868,6 +871,8 @@ namespace VoidFall.Runtime
                 }
                 _gameSim.Enemies[i] = enemy;
                 if (!enemy.Active) RemoveEnemyOrder(i);
+                }
+                finally { _ordinaryEnemyShotContext = false; }
             }
         }
 
@@ -2123,15 +2128,7 @@ namespace VoidFall.Runtime
                     }
                     else if (pickup.Kind == PickupKind.Part)
                     {
-                        var parts = Mathf.Max(1, Mathf.RoundToInt(pickup.Value));
-                        _partsEarned += parts;
-                        SpawnFloater(
-                            _gameSim.Player.Position + Vector2.up * 18f,
-                            "+" + parts + " Part" + (parts > 1 ? "s" : string.Empty),
-                            new Color(0.98f, 0.79f, 0.08f, 1f),
-                            12);
-                        _audio?.Play(ProceduralAudio.Cue.Currency, 1f);
-                        BurstFx(_gameSim.Player.Position, SourceDotColor("yellow"), 3, 130, 0.28f, 0.65f);
+                        GrantPartPickup(pickup.Value);
                     }
                     else if (pickup.Kind == PickupKind.Magnet)
                     {
@@ -2171,7 +2168,9 @@ namespace VoidFall.Runtime
                     }
                     else if (pickup.Kind == PickupKind.Bomb)
                     {
-                        DetonateBomb();
+                        if (_journeyStage == JourneyStage.Rewards && JourneyStopsCombat)
+                            SpawnRingWave(_gameSim.Player.Position, 30f, 500f, 0.7f, UITheme.CyanPale);
+                        else DetonateBomb();
                     }
                     else if (pickup.Kind == PickupKind.Overdrive)
                     {
@@ -2198,7 +2197,8 @@ namespace VoidFall.Runtime
                         BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"), 10, 200, 0.4f, 0.75f);
                         ShowArenaToast("TRACK SHIFT", 2f, ToastKind.Reward);
                     }
-                    _telemetry.RecordPickup(PickupKindName(pickup.Kind), pickup.Value);
+                    if (pickup.Kind != PickupKind.Part)
+                        _telemetry.RecordPickup(PickupKindName(pickup.Kind), pickup.Value);
                 };
             }
             _gameSim.PickupCollectedHook = _pickupCollectedHook;
@@ -2214,6 +2214,20 @@ namespace VoidFall.Runtime
             CountPendingMusicGems();
             _pickupStepTimer = Mathf.Max(0, _pickupStepTimer - dt);
             if (_pickupStepTimer <= 0) _pickupStep = 0;
+        }
+
+        private void GrantPartPickup(float value)
+        {
+            var parts = Mathf.Max(1, Mathf.RoundToInt(value));
+            _partsEarned += parts;
+            SpawnFloater(
+                _gameSim.Player.Position + Vector2.up * 18f,
+                "+" + parts + " Part" + (parts > 1 ? "s" : string.Empty),
+                new Color(0.98f, 0.79f, 0.08f, 1f),
+                12);
+            _audio?.Play(ProceduralAudio.Cue.Currency, 1f);
+            BurstFx(_gameSim.Player.Position, SourceDotColor("yellow"), 3, 130, 0.28f, 0.65f);
+            _telemetry.RecordPickup(PickupKindName(PickupKind.Part), value);
         }
 
         private void UpdateWeapons(float dt)
@@ -2654,20 +2668,18 @@ namespace VoidFall.Runtime
             }
             var weapon = ContentCatalog.Weapons[3];
             var stats = weapon.Ranks[Mathf.Clamp(rank, 1, weapon.Ranks.Length) - 1].Stats;
-            // Overclocked fire rate applies to blade spin just like every
-            // other weapon's cadence (tiers 1.00/1.35/1.70/2.15), and so
-            // does the Velocity Coils projectile speed multiplier - spin is
-            // the blades' equivalent of projectile velocity.
-            _bladeAngle += dt * (float)stats.OrbitSpeed *
-                (float)OverclockRules.FireRateMultiplier(_overclock.PowerTier) *
-                (float)SupportEffectRules.ProjectileSpeedMultiplier(SupportRank("projectileSpeed"));
             var recoveryScale = WeaponRecoveryScale();
+            _orbitalBladeStartAngle = _bladeAngle;
+            _orbitalHollowWasActive = _hollowBladeActive && _orbitalHollowHistoryValid;
+            _orbitalHollowStartPosition = _orbitalHollowEndPosition;
+            // Angular velocity is projectile velocity for orbit weapons. Recovery includes Overclock once.
+            _bladeAngle += dt * (float)stats.OrbitSpeed * OrbitalRotationSpeedScale(recoveryScale);
             var evolved = _upgradeProgress.Evolved[3];
             if (evolved)
             {
                 if (_hollowBladeActive)
                 {
-                    _hollowBladeAge += dt;
+                    _hollowBladeAge += dt * OrbitalRotationSpeedScale(recoveryScale);
                     if (_hollowBladeAge >= 1.38f)
                     {
                         _hollowBladeActive = false;
@@ -2774,6 +2786,9 @@ namespace VoidFall.Runtime
             var hollowDistance = orbitRadius + (maximum - orbitRadius) * Mathf.Clamp01(travel);
             var hollowPosition = _gameSim.Player.Position + new Vector2(
                 Mathf.Cos(_hollowBladeAngle), Mathf.Sin(_hollowBladeAngle)) * hollowDistance;
+            _orbitalHollowEndPosition = hollowPosition;
+            if (!_orbitalHollowWasActive) _orbitalHollowStartPosition = hollowPosition;
+            _orbitalHollowHistoryValid = true;
             var hollowView = EnsureHollowBladeView();
             hollowView.transform.position = hollowPosition;
             hollowView.transform.rotation = Quaternion.Euler(
@@ -3338,6 +3353,7 @@ namespace VoidFall.Runtime
             var slot = _gameSim.TryInsertHostileShot(
                 position, direction, damage, speed, curvature, meteorOwned, visualVariant);
             if (slot < 0) return;
+            _gameSim.HostileShotBlockable[slot] = _ordinaryEnemyShotContext && !meteorOwned;
             if (radiusOverride > 0f)
             {
                 var shot = _gameSim.HostileShots[slot];
@@ -3374,6 +3390,8 @@ namespace VoidFall.Runtime
 
         private void UpdateHostileShots(float dt)
         {
+            if (_hostileShotInterceptHandler == null) _hostileShotInterceptHandler = TryInterceptHostileShot;
+            _gameSim.HostileShotInterceptQuery = ArsenalRank(3) > 0 || ArsenalRank(8) > 0 ? _hostileShotInterceptHandler : null;
             ConfigureEonSeaProjectileHooks();
             // The runtime keeps DamagePlayer and telemetry; GameSim drives the
             // loop and calls back at the exact points the browser resolves an
@@ -4040,14 +4058,18 @@ namespace VoidFall.Runtime
         {
             var enemy = _gameSim.Enemies[index];
             if (!enemy.Active) return;
+            var escaping = JourneyStopsCombat && _journeyStage == JourneyStage.Rewards;
             // Browser removeEnemy marks the object dead and compacts the
             // dynamic array before resolving death effects. Do the same in
             // the logical order list while retaining the pooled slot.
             enemy.Active = false;
             _gameSim.Enemies[index] = enemy;
             RemoveEnemyOrder(index);
-            OnNullCityEnemyDeath(enemy);
-            CrascendoEnemyDeath(index, enemy);
+            if (!escaping)
+            {
+                OnNullCityEnemyDeath(enemy);
+                CrascendoEnemyDeath(index, enemy);
+            }
             var enemyDefinition = FindEnemy(enemy.Id);
             SpawnDeathGhost(enemy, index);
             var destroyedExploder = enemy.Id == "exploder";
@@ -4148,7 +4170,7 @@ namespace VoidFall.Runtime
                 _audio?.Play(ProceduralAudio.Cue.Elite, 0.72f);
                 ShowArenaToast("Elite cleared", 2.5f, ToastKind.Reward, "+8 Parts");
             }
-            else if ((destroyedExploder || enemy.MutationGene == MutationGene.Volatile) && !selfDetonated)
+            else if (!escaping && (destroyedExploder || enemy.MutationGene == MutationGene.Volatile) && !selfDetonated)
             {
                 // A destroyed Exploder, including the Elite Exploder variant,
                 // produces the browser's friendly-side chain blast. Its self-
@@ -4184,13 +4206,13 @@ namespace VoidFall.Runtime
                 _audio?.Play(ProceduralAudio.Cue.Die, 1.08f);
             }
 
-            if (enemy.Id == "splitter" && UsesRosterProgression(enemy))
+            if (!escaping && enemy.Id == "splitter" && UsesRosterProgression(enemy))
             {
                 var traits = RosterProgressionTraits.Get(enemy.Id, enemy.Roster);
                 for (var child = 0; child < (int)traits.SplitCount; child++)
                     SpawnProgressedChild(enemy, child, (int)traits.SplitCount, (EnemyRoster)(int)traits.ChildTier, false);
             }
-            else if (enemy.Id == "splitter" && !enemy.SplitterFragment)
+            else if (!escaping && enemy.Id == "splitter" && !enemy.SplitterFragment)
             {
                 for (var fragment = 0; fragment < 3; fragment++)
                 {
@@ -4208,7 +4230,7 @@ namespace VoidFall.Runtime
                     ParseColor(enemyDefinition?.Color, new Color(0.96f, 0.45f, 0.71f, 0.72f)));
             }
 
-            if (enemy.Id == "carrier")
+            if (!escaping && enemy.Id == "carrier")
             {
                 for (var child = 0; child < _gameSim.Enemies.Length; child++)
                 {
@@ -4228,7 +4250,8 @@ namespace VoidFall.Runtime
             // enemy, including Carrier Drones and Splitter Fragments.
             if (!enemy.Elite && _gameSim.Rng.Next() < 0.045)
             {
-                SpawnSpecialPickup(enemy.Position, 1, PickupKind.Part);
+                if (!SpawnSpecialPickup(enemy.Position, 1, PickupKind.Part) && escaping)
+                    GrantPartPickup(1);
             }
             var rareChance = enemy.EliteKind.HasValue ? 0.35 : 0.011;
             if ((enemy.Elite && !enemy.EliteKind.HasValue) || _gameSim.Rng.Next() < rareChance)

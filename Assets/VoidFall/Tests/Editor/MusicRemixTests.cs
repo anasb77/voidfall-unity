@@ -19,12 +19,13 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
-        public void Magnet_darkens_and_concentrates_the_song_without_replacing_its_speed()
+        public void Magnet_keeps_the_song_open_with_gentle_width_and_bass_changes()
         {
             var normal = MusicStateComposer.Compose(new MusicReactiveState(2, 2, false, false, 0, true), 0);
             var magnet = MusicStateComposer.Compose(new MusicReactiveState(2, 2, false, false, 1, true), 0);
-            Assert.That(magnet.LowPassHz, Is.LessThan(normal.LowPassHz));
-            Assert.That(magnet.StereoWidth, Is.LessThan(normal.StereoWidth));
+            Assert.That(magnet.LowPassHz, Is.EqualTo(normal.LowPassHz));
+            Assert.That(magnet.StereoWidth, Is.EqualTo(.82f).Within(.001f));
+            Assert.That(magnet.BassBoost, Is.EqualTo(.45f).Within(.001f));
             Assert.That(magnet.PlaybackRate, Is.EqualTo(2));
         }
 
@@ -82,16 +83,18 @@ namespace VoidFall.Tests.Editor
         {
             var state = new MusicReactiveState(2, 2, false, false, .9f, true);
             var pulled = MusicStateComposer.Compose(state, 0);
+            var releasedOnly = MusicStateComposer.Compose(state, 0, magnetRelease: 1f);
             var released = MusicStateComposer.Compose(state, 0, magnetRelease: .9f, recovery: 1f, recoveryWave: 1f);
+            Assert.That(releasedOnly.StereoWidth - pulled.StereoWidth, Is.EqualTo(.22f).Within(.001f));
             Assert.That(released.StereoWidth, Is.GreaterThan(pulled.StereoWidth).And.LessThanOrEqualTo(1.2f));
-            Assert.That(released.BassBoost, Is.EqualTo(.9f));
+            Assert.That(released.BassBoost, Is.EqualTo(.405f).Within(.001f));
             Assert.That(released.PlaybackRate, Is.InRange(2f, 2.03f));
-            Assert.That(released.LowPassHz, Is.GreaterThan(pulled.LowPassHz).And.LessThan(22000));
+            Assert.That(released.LowPassHz, Is.EqualTo(22000f).Within(.01f));
             var submerged = MusicStateComposer.Compose(new MusicReactiveState(2, 2, true, true, .9f, true), .5f,
                 magnetRelease: 1f, recovery: 1f, stackAccent: 1f, recoveryWave: 1f);
             Assert.That(submerged.PlaybackRate, Is.EqualTo(1));
             Assert.That(submerged.LowPassHz, Is.EqualTo(390f).Within(.01f));
-            Assert.That(submerged.BassBoost, Is.EqualTo(.9f));
+            Assert.That(submerged.BassBoost, Is.EqualTo(.405f).Within(.001f));
         }
 
         [Test]

@@ -86,15 +86,9 @@ namespace VoidFall.Runtime
             if (!_rouletteActive || session != _rouletteSession || session == null || !session.Spun) return;
             if (_ui != null) _ui.Roulette.CeremonyComplete -= OnRouletteComplete;
             UnbindRouletteAudio();
-            RouletteTier revealTier = RouletteTier.Standard;
-            string revealTitle = "NOTHING";
-            string revealDetail = "The Void kept its prize.";
             if (session != null)
             {
-                var reveal = ApplyRoulettePrize(session);
-                revealTitle = reveal.Title;
-                revealDetail = reveal.Detail;
-                revealTier = reveal.Tier;
+                ApplyRoulettePrize(session);
                 // Refunded wagers were returned by the Void while keeping the
                 // effect, so only the net spend leaves the run economy.
                 var netSpend = session.PartsSpent - session.PartsRefunded;
@@ -110,20 +104,12 @@ namespace VoidFall.Runtime
             _rouletteSession = null;
             _rouletteRng = null;
             _rouletteActive = false;
-            _prizeRevealActive = true;
-            _paused = true;
-
-            // The won prize is presented as one full card - no toast popups;
-            // this screen is the announcement. The run resumes on continue.
-            if (_ui != null && _ui.PrizeReveal != null)
-            {
-                _ui.SetScreen(UIScreen.PrizeReveal);
-                _ui.PrizeReveal.Show(revealTitle, revealDetail, revealTier, ClosePrizeReveal);
-            }
-            else
-            {
-                ClosePrizeReveal();
-            }
+            _prizeRevealActive = false;
+            _openRouteAfterRoulette = false;
+            _paused = _applicationInactive;
+            // The wheel already announced the result. Continue the same escape window
+            // without a second confirmation or resetting its remaining active time.
+            SyncUiScreen();
         }
 
         private void ClosePrizeReveal()
@@ -350,7 +336,10 @@ namespace VoidFall.Runtime
                 ? _upgradeProgress.WeaponRanks[0]
                 : 0;
             _calibrationRank = SupportRank("calibration");
-            _spatialZoomScale = (float)SupportEffectRules.SpatialAwarenessZoom(SupportRank("spatialAwareness"));
+            var previousMaxHealth = _gameSim.Player.MaxHealth;
+            RecalculatePlayerStats(false);
+            if (_gameSim.Player.MaxHealth > previousMaxHealth)
+                _gameSim.Player.Health = Mathf.Min(_gameSim.Player.MaxHealth, _gameSim.Player.Health + _gameSim.Player.MaxHealth - previousMaxHealth);
         }
 
         private void PlayRouletteTick() => _audio?.Play(ProceduralAudio.Cue.Ui, 0.3f);

@@ -12,6 +12,7 @@ namespace VoidFall.Core
         public const double MineFreezeSeconds = 2.4;
         public const double SummonAcquisitionRange = 420;
         public const double ClockOpacity = 0.5;
+        public const double ClockFaceOpacity = 0.35;
         public const double MineRangeOpacity = 0.7;
 
         public static WeaponDefinition[] AppendWeapons(WeaponDefinition[] original)

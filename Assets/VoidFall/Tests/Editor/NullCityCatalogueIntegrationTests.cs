@@ -96,10 +96,11 @@ namespace VoidFall.Tests.Editor
             var route = PlayableVoidRoutes.Create(seed);
             var reachable = ReachableFromStart(route);
 
-            Assert.That(reachable, Does.Contain(NullCityContent.StableId));
             Assert.That(reachable.Count, Is.EqualTo(route.Nodes.Count));
+            Assert.That(route.Nodes.Select(NodeArenaId),
+                Does.Contain(NullCityContent.StableId));
             foreach (var node in route.Nodes)
-                Assert.That(VoidObjectives.ForArena(node.Id), Is.Not.Null, node.Id);
+                Assert.That(VoidObjectives.ForArena(NodeArenaId(node)), Is.Not.Null, NodeArenaId(node));
         }
 
         [Test]
@@ -123,6 +124,13 @@ namespace VoidFall.Tests.Editor
             }
 
             return reachable;
+        }
+
+        private static string NodeArenaId(VoidRouteNode node)
+        {
+            var property = typeof(VoidRouteNode).GetProperty("ArenaId");
+            Assert.That(property, Is.Not.Null, "VoidRouteNode must expose stable arena identity");
+            return (string)property.GetValue(node);
         }
     }
 }

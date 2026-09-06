@@ -116,7 +116,7 @@ namespace VoidFall.Core
                     TargetId = weapon.Id,
                     Kind = UpgradeOptionKind.Weapon,
                     Name = weapon.Name,
-                    Description = WeaponUpgradeDescription(weapon, next),
+                    Description = AddProjectileDefenseText(weapon.Id, WeaponUpgradeDescription(weapon, next)),
                     CurrentRank = current,
                     NextRank = next,
                     MaxRank = ProgressionRules.MaxWeaponRank,
@@ -281,7 +281,7 @@ namespace VoidFall.Core
             switch (support.Id)
             {
                 case "calibration": return MultiplierLine("Weapon damage", 1.12, before, after);
-                case "cycling": return MultiplierLine("Fire delay", 0.92, before, after);
+                case "cycling": return MultiplierLine("Fire delay", 0.92, before, after) + "\nAlso speeds up blade and clock rotation";
                 case "plating": return BonusLine("Maximum integrity", 20, before, after) + "\nRepair 20";
                 case "mobility": return MultiplierLine("Move speed", 1.08, before, after);
                 case "collector": return MultiplierLine("Pickup range", 1.25, before, after);
@@ -297,10 +297,8 @@ namespace VoidFall.Core
                            "\nOrbit size " + multiplier;
                 case "regenerator": return DecimalBonusLine("Integrity per second", 0.6, before, after);
                 case "dodge": return BonusPercentLine("Dodge chance", 4, before, after);
-                case "scholar": return BonusPercentLine("Experience gained", 8, before, after);
-                case "fortune": return BonusPercentLine("Power-up drop chance", 5, before, after);
-                case "projectileSpeed": return MultiplierLine("Projectile speed", 1.10, before, after);
-                case "spatialAwareness": return BonusPercentLine("Camera dezoom", 5, before, after);
+                case "scholar": return BonusPercentLine("Experience gained", 8, before, after) + "\n" + BonusPercentLine("Power-up drop chance", 5, before, after);
+                case "projectileSpeed": return BonusPercentLine("Projectile speed", 10, before, after) + "\n" + BonusPercentLine("Camera dezoom", 5, before, after) + "\nAlso speeds up blades and clock hands";
                 default:
                     var descriptions = support.Descriptions ?? new string[0];
                     return descriptions.Length >= nextRank ? descriptions[nextRank - 1] : support.Name;
@@ -418,7 +416,7 @@ namespace VoidFall.Core
                     TargetId = evolution.WeaponId,
                     Kind = UpgradeOptionKind.Evolution,
                     Name = evolution.Name,
-                    Description = evolution.Description.Replace(". ", ".\n") + "\nRequires " +
+                    Description = AddProjectileDefenseText(evolution.WeaponId, evolution.Description.Replace(". ", ".\n")) + "\nRequires " +
                         weapon.Name + " VI\nRequires " + support.Name + " " + support.MaxRank,
                     CurrentRank = 0,
                     NextRank = 1,
@@ -465,6 +463,7 @@ namespace VoidFall.Core
 
         private static int SupportIndex(string id)
         {
+            id = ExtendedCatalog.CanonicalSupportId(id);
             for (var index = 0; index < ExtendedCatalog.SupportCount; index++) if (ExtendedCatalog.AllSupports()[index].Id == id) return index;
             return -1;
         }
@@ -473,6 +472,13 @@ namespace VoidFall.Core
         {
             for (var index = 0; index < ContentCatalog.LateUpgrades.Length; index++) if (ContentCatalog.LateUpgrades[index].Id == id) return index;
             return -1;
+        }
+
+        public static string AddProjectileDefenseText(string id, string description)
+        {
+            return id == "blades" || id == "clock"
+                ? description + "\nCan stop enemy projectiles (except boss and elite shots)."
+                : description;
         }
     }
 }

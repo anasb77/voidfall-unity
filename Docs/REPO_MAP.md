@@ -87,6 +87,10 @@ physical pickup; the safe Rewards stage allows movement and waits for the relic.
 first/repeat protection re-sample, into segment sizes and readable reward facts.
 The 6.8-second spin uses accumulated rotation and automatically opens one actual
 prize card. Runtime grants the reward once and keeps pause ownership until Continue.
+`RouletteView` centers the wheel with a 1.5x target capped to fit the viewport;
+the reduced spin button sits in its hub. Rewards/odds live in a dismissible drawer
+that blocks the underlying actions and supports controller cancel. Idle decoration
+text is removed; purchase/refund feedback and selected reward details remain.
 Improve Odds upgrades the Parts cache from 60 to 90 and rejects further no-op
 purchases. UI ticks use the existing audio service. The relic owns its generated
 sprite/texture and releases both at runtime teardown.
@@ -100,7 +104,8 @@ The four appended weapons (Mines, Summons, Clock, Boomerang) are authored in
 their evolutions after generated initialization, preserving the first six IDs.
 Runtime `.Arsenal.cs` owns fixed-capacity entity pools and spawn-identity-keyed
 freeze/clock hit timers. `.Arsenal.Render.cs` draws cached rank-specific art from
-`ProceduralSpriteFactory.Arsenal.cs`. Clock's face and hands use 50% opacity;
+`ProceduralSpriteFactory.Arsenal.cs`. Clock's face uses 35% opacity; its moving
+hands retain their previous 50% opacity and authored shape.
 mine range guides retain 70% of their original opacity. Idle summon creation
 stops at squad size; existing returning summons persist within the active cap.
 Mine freeze pauses ordinary enemy behavior but keeps damage-reception timers
@@ -109,12 +114,29 @@ Upgrade offers, roulette acquisition, HUD and records share the extended weapon
 order. Evolution support lookup must use `ExtendedCatalog.AllSupports()`.
 Their paired extended supports are also included in the build HUD. Artwork is
 warmed during stat recalculation/upgrade commit, with allocation-free cache keys.
-`Editor/ArsenalValidationBuild.BuildPlayer` writes `../Builds/Arsenal/`.
+Use `Editor/BuildScript.BuildWindows` for the current `../Builds/VoidFall.exe`.
 The opt-in `-vfarsenal=all|mines|summons|clock|boomerang` starts a test loadout
 (`-vfarsenal-rank=1..6`, `-vfarsenal-evolved=1`); `-vfarsenal-check=<folder>`
 captures rank I, VI, evolved and idle-summon states. Both isolate the profile
 before the first load. `Tests/PlayMode/ArsenalIntegrationTests.cs` covers these
 combat and presentation boundaries.
+
+`VoidFallGameRuntime.OrbitalDefense.cs` combines projectile speed with full
+weapon recovery for blade/clock rotation (Overclock counted once), including
+Hollow Blade travel. It intercepts shots through synchronized swept contact
+with the actual orbit blades, launched hollow blade and clock hands, before
+player impact. `GameSim.HostileShotBlockable` stores origin metadata outside
+the hashed shot struct; every insertion clears it. Scoped enemy-controller
+emission marks only ordinary enemy shots; boss, elite, meteor and unknown
+sources remain protected. Standard expiry handles counters and view cleanup.
+`OrbitalDefenseIntegrationTests.cs` covers provenance, near misses and reuse.
+
+The live support list has 13 cards. Scholar combines XP and power-up drop
+bonuses; Velocity Coils combines projectile/orbit speed and camera dezoom.
+`ExtendedCatalog.CanonicalSupportId` maps retired fortune/spatialAwareness IDs
+to scholar/projectileSpeed. Save sanitation merges legacy record ranks by
+maximum (not addition), with the survivor's cap; extras must be resolved by ID.
+Camera zoom recalculates on both level-up and roulette upgrade paths.
 
 Shared tiers I–IV use `Content/EnemyRosterRules.cs` and
 `Content/RosterProgressionTraits.cs`; runtime `.RosterProgression.cs` owns
@@ -135,20 +157,37 @@ polling is chiefly movement, with menu shortcuts in the runtime's `Update`.
 
 Normal runs use `Content/PlayableVoidRoutes.cs`: a seeded finite graph of
 prepared, objective-ready arenas with known metadata. The eight prepared arenas
-produce widths 1/2/2/1/1/1, with six arenas visited per path. The Tab overview is
-`UI/Views/RouteMapView.cs`; clicks plan, while physical portals commit choices.
+produce six visits per path across split/reconnect layouts. Nine route nodes
+reuse one arena only across mutually exclusive branches; no legal path repeats
+an arena. `VoidRouteNode.ArenaId` and `VoidRouteRun.CurrentArenaId` keep arena
+identity separate from internal node IDs (duplicate nodes use an `@` suffix).
+The minimal Tab overview is `UI/Views/RouteMapView.cs`; clicks highlight
+`PlannedPathThrough`, while physical portals commit choices.
 `Runtime/Gameplay/VoidFallGameRuntime.Journey.cs` owns reward/junction/travel
 stages, map pause ownership, the safe portal room, load retry and terminal
 return to Home. `VoidFallGameRuntime.LevelUps.cs` advances upgrade prompts in
 both combat and safe reward phases. `.Roulette.cs` explicitly owns PrizeReveal
 until Continue; `SyncUiScreen` must preserve that ownership.
 
-Escape timing now lives in Journey/Rift: 25 seconds of normal loot collection
-with camera follow and "Initiating Escape", then a ten-second visible countdown.
-Modal UI pauses that clock; early relic Continue preserves the remainder.
-An unclaimed relic is delivered before countdown, and its drop uses the boss's
-actual world position. Uncollected ordinary pickups are left in the outgoing
-arena. See `Docs/Design/2026-09-05-escape-window-fix.md` and `EscapeWindowTests.cs`.
+Escape timing lives in Journey/Rift and `.Escape.cs`: fifteen active seconds
+with normal movement, staggered harmless enemy deaths, animated `Escaping...`
+dots and three increasing shake patterns. At eleven seconds, remaining XP and
+Parts sweep toward the player; departure settles them through the normal grant
+path and drains queued level choices. Overclock time remains held until combat
+resumes. Modal UI pauses the window. The relic stays at the boss's actual death
+site and is delivered if unclaimed; roulette grants once and resumes without a
+second prize confirmation. See `Docs/Design/2026-09-06-JourneyPolish.md` and
+`EscapePolishTests.cs` / `EscapeWindowTests.cs`.
+
+The map uses small arena thumbnails from `Resources/VoidFall/RouteThumbnails/`;
+it does not load all full arena packages. `Editor/RouteMapThumbnailBaker.cs`
+authors those previews from prepared plates. `Editor/JourneyVisualBaker.cs`
+also neutralizes the existing portal sheet into `Resources/VoidFall/Portals/Neutral/`,
+so portals can use each destination's native StarTint. Portals show names only.
+
+`ArenaTransitionGraphic` is updated from the shared render path, including
+custom Eon Sea/Crascendo rendering, so the fullscreen fold is retired on arrival.
+Its horizons are tessellated as adjacent strips rather than a crossing fan.
 
 - `Core/VoidRoute.cs`: `VoidRouteNode`, `VoidRouteRun`, `RouteNodeState`, graph
   definitions, history, sibling locking, `NotifyVoidCompleted`, `SelectNextVoid`.
@@ -311,15 +350,21 @@ are different representations: use existing mapping helpers.
   collections, preserving Greed and combat state. Main-file updates feed health,
   pause and pending gems. Critical enters at 20% and clears above 25%.
   `MusicDspFilter.cs` hands targets to the allocation-free `MusicSampleProcessor.cs`
-  for bass, stereo, damage backspin and playback-rate-scaled bomb echo. Preserve
+  for bass, stereo and damage backspin. Bombs duck without triggering echoes.
+  Magnet keeps the filter open with gentler bass/stereo targets. Preserve
   audio-thread ownership and lock-free handoff. Track Shift retains event tails
   and uses measured `MusicTrackEntries.cs` offsets; new runs retain track intros.
+  Finished gameplay tracks advance through the bag from zero rather than looping
+  a shortened ending. Completion tolerates missed end frames and ignores startup
+  and explicit focus suspension. Menu loop behavior is retained.
   Tracks live in `Resources/VoidFall/Music/`; credits are in `Docs/AudioCredits.md`.
   Magnet green stays on `MusicPerimeterGraphic`/shader edges and fades with audio.
   See `Docs/Design/2026-09-06-MusicRemix.md`; focused tests are `MusicRemixTests`,
   `MusicDspRemixTests`, `MusicTrackEntryTests`, and `MusicRemixIntegrationTests`.
   `Editor/MusicRemixValidation.BuildPlayer` writes `../Builds/MusicRemix/`;
   `CapturePerimeter` renders synthetic component fixtures in `Logs/MusicRemix/Captures/`.
+  The approved simplification is in `Docs/Design/2026-09-06-MusicRouletteRevision.md`;
+  `Editor/RoulettePreviewCapture.BuildRevision` writes `../Builds/MusicRouletteRevision/`.
 - `Runtime/Gameplay/VoidFallGameRuntime.Render.cs`, `.Fx.cs`, `.Arena.cs`:
   view synchronization, effects and arena presentation. Shared render material
   ownership is in `Runtime/Rendering/VoidFallRenderMaterials.cs`.
@@ -340,6 +385,10 @@ are different representations: use existing mapping helpers.
   `PreparedContentBuildGate` in `Editor/PreparedContentBuildSetup.cs` rejects
   missing/invalid declared content. Assets live under `Generated/` and
   `Assets/AddressableAssetsData/`; URP configuration is in `Rendering/URP/`.
+  Monochrome's detail plate must use a two-triangle Full Rect mesh; the baker
+  enforces it and the build gate rejects oversized geometry. Use
+  `ArenaContentBaker.ReimportMonochromeDetailMesh` to repair its import without
+  regenerating the artwork.
   Procedural snapshot baking retains CPU pixels. Unreadable GPU fallback is
   rejected under a null graphics device. `ProceduralSpriteBaker.RepairCorruptedSpritesBatch`
   regenerates uniform RGBA-205 readback failures through their original authoring

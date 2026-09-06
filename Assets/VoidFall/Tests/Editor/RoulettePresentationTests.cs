@@ -1,6 +1,8 @@
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using VoidFall.Core;
 using VoidFall.UI;
 
@@ -103,6 +105,73 @@ namespace VoidFall.Tests.Editor
             var context = new RouletteSpinContext { ProtectionsEnabled = true, HasPrevious = true, PreviousKind = RoulettePrizeKind.Parts };
             Assert.That(RoulettePresentationRules.Probability(table, 0, context), Is.EqualTo(0.25).Within(1e-9));
             Assert.That(RoulettePresentationRules.Probability(table, 1, context), Is.EqualTo(0.75).Within(1e-9));
+        }
+
+        [TestCase(1280, 820)]
+        [TestCase(1920, 1080)]
+        [TestCase(1024, 768)]
+        public void Wheel_is_centered_enlarged_and_fits_the_viewport(int width, int height)
+        {
+            ((RectTransform)_host.transform).sizeDelta = new Vector2(width, height);
+            _view.Present(new RouletteSession(1, 0, RouletteRules.DefaultTable()), new Rng(5), 180);
+            typeof(RouletteView).GetField("_openElapsed", Flags).SetValue(_view, 2f);
+            typeof(RouletteView).GetMethod("Update", Flags).Invoke(_view, null);
+            var wheel = (RectTransform)typeof(RouletteView).GetField("_wheelHolder", Flags).GetValue(_view);
+            var corners = new Vector3[4];
+            wheel.GetWorldCorners(corners);
+            Assert.That((corners[0].x + corners[2].x) * .5f, Is.EqualTo(0).Within(.01f));
+            Assert.That(corners[2].y - corners[0].y, Is.GreaterThan(height * .75f));
+            Assert.That(corners[0].y, Is.GreaterThan(-height * .5f));
+            Assert.That(corners[2].y, Is.LessThan(height * .5f));
+            var spin = (Button)typeof(RouletteView).GetField("_spinButton", Flags).GetValue(_view);
+            Assert.That(Vector2.Distance(spin.transform.position, wheel.position), Is.LessThan(.01f));
+        }
+
+        [Test]
+        public void Rewards_drawer_opens_inspects_closes_and_resets_on_present()
+        {
+            _view.Present(new RouletteSession(1, 0, RouletteRules.DefaultTable()), new Rng(5), 180);
+            var open = FindButton("Rewards");
+            Assert.That(open, Is.Not.Null, "The reward list should be available from a compact control.");
+            var panel = _view.transform.Find("Ceremony/Rewards Overlay");
+            Assert.That(panel.gameObject.activeSelf, Is.False);
+            open.onClick.Invoke();
+            Assert.That(panel.gameObject.activeSelf, Is.True);
+            var spin = (Button)typeof(RouletteView).GetField("_spinButton", Flags).GetValue(_view);
+            Assert.That(spin.interactable, Is.False, "The drawer must not allow an accidental spin underneath it.");
+            FindButton("Prize 0").onClick.Invoke();
+            var detail = (Text)typeof(RouletteView).GetField("_selectedDetail", Flags).GetValue(_view);
+            Assert.That(detail.text, Is.Not.Empty);
+            FindButton("Close Rewards").onClick.Invoke();
+            Assert.That(panel.gameObject.activeSelf, Is.False);
+            Assert.That(spin.interactable, Is.True);
+            open.onClick.Invoke();
+            ExecuteEvents.Execute(FindButton("Prize 0").gameObject, new BaseEventData(EventSystem.current), ExecuteEvents.cancelHandler);
+            Assert.That(panel.gameObject.activeSelf, Is.False, "Controller cancel must work from a selected reward row.");
+            open.onClick.Invoke();
+            _view.Present(new RouletteSession(2, 0, RouletteRules.DefaultTable()), new Rng(6), 180);
+            Assert.That(panel.gameObject.activeSelf, Is.False);
+        }
+
+        [Test]
+        public void Idle_instructions_are_removed_but_purchase_feedback_remains()
+        {
+            _view.Present(new RouletteSession(1, 0, RouletteRules.DefaultTable()), new Rng(5), 180);
+            var status = (Text)typeof(RouletteView).GetField("_statusLabel", Flags).GetValue(_view);
+            Assert.That(status.text, Is.Empty);
+            var detail = (Text)typeof(RouletteView).GetField("_selectedDetail", Flags).GetValue(_view);
+            Assert.That(detail.text, Is.Empty);
+            typeof(RouletteView).GetMethod("OnImproveOdds", Flags).Invoke(_view, null);
+            Assert.That(status.text, Is.Not.Empty);
+            Assert.That(_view.transform.Find("Ceremony/Kicker"), Is.Null);
+            Assert.That(_view.transform.Find("Ceremony/Subtitle"), Is.Null);
+        }
+
+        private Button FindButton(string name)
+        {
+            foreach (var button in _view.GetComponentsInChildren<Button>(true))
+                if (button.name == name) return button;
+            return null;
         }
     }
 }

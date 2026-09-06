@@ -159,30 +159,23 @@ namespace VoidFall.Runtime
 
         private void AddFoldPanel(VertexHelper vertexHelper, float width, float height, float gap, int side, Color color)
         {
-            var pointCount = FoldSegments + 3;
-            var centre = Vector2.zero;
-            var topLeft = new Vector2(-width * 0.5f, height * 0.5f);
-            var topRight = new Vector2(width * 0.5f, height * 0.5f);
-            var bottomLeft = new Vector2(-width * 0.5f, -height * 0.5f);
-            var bottomRight = new Vector2(width * 0.5f, -height * 0.5f);
-            var first = side < 0 ? topLeft : bottomLeft;
-            var second = side < 0 ? topRight : bottomRight;
-            var points = new Vector2[pointCount];
-            points[0] = first;
-            points[1] = second;
-            for (var step = 0; step <= FoldSegments; step++)
-                points[step + 2] = FoldPoint(step / (float)FoldSegments, side, width, height, gap);
-            for (var index = 0; index < pointCount; index++) centre += points[index];
-            centre /= pointCount;
-            var centreIndex = vertexHelper.currentVertCount;
-            vertexHelper.AddVert(centre, color, Vector2.zero);
-            var firstIndex = vertexHelper.currentVertCount;
-            for (var index = 0; index < pointCount; index++)
-                vertexHelper.AddVert(points[index], color, Vector2.zero);
-            for (var index = 0; index < pointCount; index++)
+            // The wavy boundary is not a convex polygon. Tessellate adjacent strips
+            // rather than a self-crossing triangle fan across the entire screen.
+            var edge = side < 0 ? height * 0.5f : -height * 0.5f;
+            var previous = FoldPoint(0f, side, width, height, gap);
+            previous.y = Mathf.Clamp(previous.y, -height * 0.5f, height * 0.5f);
+            for (var step = 1; step <= FoldSegments; step++)
             {
-                var next = (index + 1) % pointCount;
-                vertexHelper.AddTriangle(centreIndex, firstIndex + index, firstIndex + next);
+                var next = FoldPoint(step / (float)FoldSegments, side, width, height, gap);
+                next.y = Mathf.Clamp(next.y, -height * 0.5f, height * 0.5f);
+                var start = vertexHelper.currentVertCount;
+                vertexHelper.AddVert(new Vector2(previous.x, edge), color, Vector2.zero);
+                vertexHelper.AddVert(new Vector2(next.x, edge), color, Vector2.zero);
+                vertexHelper.AddVert(next, color, Vector2.zero);
+                vertexHelper.AddVert(previous, color, Vector2.zero);
+                vertexHelper.AddTriangle(start, start + 1, start + 2);
+                vertexHelper.AddTriangle(start, start + 2, start + 3);
+                previous = next;
             }
         }
 

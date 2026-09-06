@@ -7,8 +7,8 @@ namespace VoidFall.Core
     /// parity catalog (spec section 46 - the experimental/missing supports).
     /// The generated file stays untouched; everything that used to index
     /// ContentCatalog.Supports now goes through AllSupports(), which keeps
-    /// the ten parity entries first - their indices are unchanged, so saved
-    /// run records, telemetry, and the browser import/export stay stable.
+    /// the ten parity entries first. Extra cards are identified by stable IDs;
+    /// retired IDs are folded into their surviving cards when records load.
     /// </summary>
     public static class ExtendedCatalog
     {
@@ -37,21 +37,10 @@ namespace VoidFall.Core
                 Weight = 8,
                 Descriptions = new[]
                 {
-                    "+8% experience gained", "+8% experience gained",
-                    "+8% experience gained", "+8% experience gained"
-                },
-            },
-            new SupportDefinition
-            {
-                Id = "fortune",
-                Name = "Fortune Magnet",
-                MaxRank = 4,
-                Accent = "#fcd34d",
-                Weight = 6,
-                Descriptions = new[]
-                {
-                    "+5% power-up drop chance", "+5% power-up drop chance",
-                    "+5% power-up drop chance", "+5% power-up drop chance"
+                    "+8% experience gained; +5% power-up drop chance",
+                    "+16% experience gained; +10% power-up drop chance",
+                    "+24% experience gained; +15% power-up drop chance",
+                    "+32% experience gained; +20% power-up drop chance"
                 },
             },
             new SupportDefinition
@@ -63,19 +52,9 @@ namespace VoidFall.Core
                 Weight = 7,
                 Descriptions = new[]
                 {
-                    "+10% projectile speed", "+10% projectile speed", "+10% projectile speed"
-                },
-            },
-            new SupportDefinition
-            {
-                Id = "spatialAwareness",
-                Name = "Spatial Awareness",
-                MaxRank = 3,
-                Accent = "#c4b5fd",
-                Weight = 5,
-                Descriptions = new[]
-                {
-                    "+5% camera dezoom", "+5% camera dezoom", "+5% camera dezoom"
+                    "+10% projectile/orbit speed; +5% camera dezoom",
+                    "+20% projectile/orbit speed; +10% camera dezoom",
+                    "+30% projectile/orbit speed; +15% camera dezoom"
                 },
             },
         };
@@ -95,5 +74,12 @@ namespace VoidFall.Core
         }
 
         public static int SupportCount => AllSupports().Length;
+
+        public static string CanonicalSupportId(string id)
+        {
+            if (id == "fortune") return "scholar";
+            if (id == "spatialAwareness") return "projectileSpeed";
+            return id;
+        }
     }
 }

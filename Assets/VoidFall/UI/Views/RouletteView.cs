@@ -8,7 +8,7 @@ using VoidFall.Core;
 namespace VoidFall.UI
 {
     /// <summary>The relic unfolds, wagers reshape it, and one sampled result is revealed to the runtime.</summary>
-    public sealed class RouletteView : UIViewBase
+    public sealed class RouletteView : UIViewBase, ICancelHandler
     {
         private enum Stage { Idle, Choosing, Spinning, Landing, Complete }
         private const float SpinSeconds = 6.8f;
@@ -16,12 +16,14 @@ namespace VoidFall.UI
         private readonly List<Text> _effects = new List<Text>();
         private readonly List<Text> _odds = new List<Text>();
         private readonly List<Image> _rowAccents = new List<Image>();
-        private RectTransform _content, _wheel, _wheelHolder;
+        private RectTransform _content, _wheel, _wheelHolder, _rewardsOverlay, _rewardsPanel;
         private RouletteWheelGraphic _wheelGraphic;
         private CanvasGroup _entrance;
-        private Text _heading, _statusLabel, _partsLabel, _centreLabel, _improveDetail, _raiseDetail;
+        private Text _heading, _statusLabel, _partsLabel, _improveDetail, _raiseDetail;
         private Text _improveOddsCostLabel, _raiseStakesCostLabel, _spinLabel, _selectedDetail;
-        private Button _improveOddsButton, _raiseStakesButton, _spinButton;
+        private Button _improveOddsButton, _raiseStakesButton, _spinButton, _rewardsButton, _closeRewardsButton;
+        private bool _rewardsOpen;
+        private float _wheelScale = 1f;
         private RouletteSession _session;
         private Rng _rng;
         private RouletteSpinContext _spinContext;
@@ -43,13 +45,11 @@ namespace VoidFall.UI
             UIBuilder.CreateScrim(Root, "Scrim", new Color(0.018f, 0.026f, 0.045f, 0.94f));
             _content = Place(Root, "Ceremony", 0, 0, 1280, 800);
             _entrance = UIBuilder.EnsureGroup(_content.gameObject);
-            Label(_content, "Kicker", "GUARDIAN FELLED  /  REWARD", 0, 354, 900, 22, 12, RouletteWheelGraphic.Gold);
-            _heading = Label(_content, "Title", "THE VOID ROULETTE", 0, 312, 1150, 65, 40, new Color(0.96f, 0.93f, 0.86f));
+            _heading = Label(_content, "Title", "Void Roulette", 0, 380, 650, 42, 36, new Color(0.96f, 0.93f, 0.86f));
             _titleFont = Font.CreateDynamicFontFromOSFont(new[] { "Georgia", "Times New Roman" }, 48);
             _heading.font = _titleFont;
-            _heading.fontSize = 48;
-            Label(_content, "Subtitle", "Its guardian is gone. Its power is yours to wager.", 0, 264, 950, 26, 14, Muted);
-            _wheelHolder = Place(_content, "Wheel Holder", 195, -3, 520, 520);
+            _heading.fontSize = 36;
+            _wheelHolder = Place(_content, "Wheel Holder", 0, 0, 520, 520);
             var glow = UIBuilder.CreateSurface(_wheelHolder, "Relic Glow", UISprites.Glow(256));
             UIBuilder.Stretch(glow.rectTransform, -80);
             glow.color = new Color(0.8f, 0.6f, 0.3f, 0.15f);
@@ -57,39 +57,69 @@ namespace VoidFall.UI
             _wheel = Place(_wheelHolder, "Wheel", 0, 0, 520, 520);
             _wheelGraphic = _wheel.gameObject.AddComponent<RouletteWheelGraphic>();
             Place(_wheelHolder, "Fixed rim and pointer", 0, 0, 520, 520).gameObject.AddComponent<RouletteWheelGraphic>().Configure(null, default, true);
-            Label(_wheelHolder, "Core Kicker", "THE VOID", 0, 12, 125, 22, 10, RouletteWheelGraphic.Gold);
-            _centreLabel = Label(_wheelHolder, "Core State", "AWAITS", 0, -14, 125, 25, 14, Color.white);
-            Label(_content, "Possibilities", "WHAT YOU CAN WIN", -410, 212, 340, 24, 12, RouletteWheelGraphic.Gold, TextAnchor.MiddleLeft);
-            Label(_content, "Odds caption", "Reward effects and current chances", -410, 186, 340, 22, 12, Muted, TextAnchor.MiddleLeft);
+            _spinButton = MakeButton(_wheelHolder, "Spin", 0, 0, 165.6f, 37.2f, true, OnSpinPressed, out _spinLabel);
+            _spinLabel.text = "LET IT RIDE";
+            _spinLabel.fontSize = 13;
+            _partsLabel = Label(_content, "Parts", string.Empty, 500, 380, 200, 30, 17, RouletteWheelGraphic.Gold, TextAnchor.MiddleRight);
+            _rewardsButton = MakeButton(_content, "Rewards", -500, 380, 200, 34, false,
+                () => SetRewardsOpen(true), out var rewardsTitle);
+            rewardsTitle.text = "REWARDS & ODDS";
+            rewardsTitle.fontSize = 13;
+            _improveOddsButton = MakeButton(_content, "Improve Odds", -130, -367, 190.8f, 51.6f, false, OnImproveOdds, out var improveTitle);
+            improveTitle.rectTransform.anchoredPosition = new Vector2(0, 16);
+            improveTitle.fontSize = 13;
+            _improveDetail = Label(_improveOddsButton.transform, "Effect", "Cache: 60 → 90 Parts", 0, 0, 178, 16, 11, Muted);
+            _improveOddsCostLabel = Label(_improveOddsButton.transform, "Cost", string.Empty, 0, -16, 178, 16, 11, RouletteWheelGraphic.Gold);
+            _raiseStakesButton = MakeButton(_content, "Raise Stakes", 130, -367, 190.8f, 51.6f, false, OnRaiseStakes, out var raiseTitle);
+            raiseTitle.rectTransform.anchoredPosition = new Vector2(0, 16);
+            raiseTitle.fontSize = 13;
+            _raiseDetail = Label(_raiseStakesButton.transform, "Effect", string.Empty, 0, 0, 178, 16, 11, Muted);
+            _raiseStakesCostLabel = Label(_raiseStakesButton.transform, "Cost", string.Empty, 0, -16, 178, 16, 11, RouletteWheelGraphic.Gold);
+            _statusLabel = Label(_content, "Status", string.Empty, 0, -400, 1200, 18, 11, Muted);
+
+            // Details are an explicit drawer; its backdrop intercepts pointer
+            // clicks and underlying actions are disabled while it is open.
+            _rewardsOverlay = UIBuilder.Stretch(UIBuilder.CreateRect(_content, "Rewards Overlay"));
+            var backdrop = _rewardsOverlay.gameObject.AddComponent<Image>();
+            backdrop.color = new Color(.006f, .01f, .018f, .7f);
+            var dismiss = _rewardsOverlay.gameObject.AddComponent<Button>();
+            dismiss.targetGraphic = backdrop;
+            dismiss.transition = Selectable.Transition.None;
+            dismiss.navigation = new Navigation { mode = Navigation.Mode.None };
+            dismiss.onClick.AddListener(() => SetRewardsOpen(false));
+            _rewardsPanel = Place(_rewardsOverlay, "Rewards Panel", -424, 0, 396, 600);
+            var panelSurface = _rewardsPanel.gameObject.AddComponent<Image>();
+            panelSurface.color = new Color(.025f, .034f, .053f, 1f);
+            // Consume empty-panel clicks so only the outside scrim dismisses it.
+            _rewardsPanel.gameObject.AddComponent<EventTrigger>();
+            Label(_rewardsPanel, "Possibilities", "REWARDS & ODDS", -12, 265, 328, 24, 15, RouletteWheelGraphic.Gold, TextAnchor.MiddleLeft);
+            Label(_rewardsPanel, "Odds caption", "Reward effects and current chances", 0, 234, 350, 22, 12, Muted, TextAnchor.MiddleLeft);
+            _closeRewardsButton = MakeButton(_rewardsPanel, "Close Rewards", 167, 265, 30, 30, false,
+                () => SetRewardsOpen(false), out var closeTitle);
+            closeTitle.text = "×";
+            closeTitle.fontSize = 18;
+            closeTitle.rectTransform.sizeDelta = new Vector2(26, 26);
+            AddDrawerCancel(_closeRewardsButton);
             var table = RouletteRules.DefaultTable();
             for (var index = 0; index < table.Length; index++)
             {
-                var row = Place(_content, "Prize " + index, -410, 142 - index * 49, 350, 46);
+                var row = Place(_rewardsPanel, "Prize " + index, 0, 196 - index * 49, 350, 46);
                 var captured = index;
                 var fill = row.gameObject.AddComponent<Image>();
                 fill.color = new Color(0.055f, 0.07f, 0.1f, 0.8f);
                 var button = row.gameObject.AddComponent<Button>();
                 button.targetGraphic = fill;
                 button.onClick.AddListener(() => DescribePrize(captured));
+                AddDrawerCancel(button);
                 _rowAccents.Add(Surface(row, "Tier", -173, 0, 2, 41, RouletteWheelGraphic.Accent(table[index])));
                 Label(row, "Name", table[index].Name, -15, 10, 296, 18, 11, Color.white, TextAnchor.MiddleLeft);
                 _effects.Add(Label(row, "Effect", string.Empty, -2, -11, 321, 22, 10.5f, Muted, TextAnchor.MiddleLeft));
                 _odds.Add(Label(row, "Chance", string.Empty, 147, 10, 56, 18, 11, RouletteWheelGraphic.Gold, TextAnchor.MiddleRight));
             }
-            _selectedDetail = Label(_content, "Reward Detail", "Select a reward to inspect its limits and fallback.", -405, -265, 360, 50, 11, Muted, TextAnchor.UpperLeft);
+            _selectedDetail = Label(_rewardsPanel, "Reward Detail", string.Empty, 0, -220, 350, 78, 11, Muted, TextAnchor.UpperLeft);
             _selectedDetail.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _partsLabel = Label(_content, "Parts", string.Empty, 488, 205, 200, 30, 17, RouletteWheelGraphic.Gold, TextAnchor.MiddleRight);
-            _improveOddsButton = MakeButton(_content, "Improve Odds", -429, -334, 318, 86, false, OnImproveOdds, out var improveTitle);
-            improveTitle.rectTransform.anchoredPosition = new Vector2(0, 23);
-            _improveDetail = Label(_improveOddsButton.transform, "Effect", "Parts cache: 60 → 90 Parts", 0, -2, 300, 24, 12, Muted);
-            _improveOddsCostLabel = Label(_improveOddsButton.transform, "Cost", string.Empty, 0, -25, 280, 20, 12, RouletteWheelGraphic.Gold);
-            _raiseStakesButton = MakeButton(_content, "Raise Stakes", 429, -334, 318, 86, false, OnRaiseStakes, out var raiseTitle);
-            raiseTitle.rectTransform.anchoredPosition = new Vector2(0, 23);
-            _raiseDetail = Label(_raiseStakesButton.transform, "Effect", string.Empty, 0, -2, 300, 24, 12, Muted);
-            _raiseStakesCostLabel = Label(_raiseStakesButton.transform, "Cost", string.Empty, 0, -25, 280, 20, 12, RouletteWheelGraphic.Gold);
-            _spinButton = MakeButton(_content, "Spin", 0, -324, 276, 62, true, OnSpinPressed, out _spinLabel);
-            _spinLabel.text = "LET IT RIDE";
-            _statusLabel = Label(_content, "Status", string.Empty, 0, -388, 1200, 24, 11, Muted);
+            Label(_rewardsPanel, "Refund information", "Wagers have a 30% refund chance.", 0, -278, 350, 18, 11, Muted, TextAnchor.MiddleLeft);
+            _rewardsOverlay.gameObject.SetActive(false);
         }
 
         public void Present(RouletteSession session, Rng rng, int availableParts, RouletteSpinContext spinContext = default)
@@ -101,12 +131,14 @@ namespace VoidFall.UI
             _stage = Stage.Choosing;
             _spinElapsed = _landingElapsed = _openElapsed = _currentRotation = 0;
             _lastTick = -1;
-            _heading.text = "The Void Roulette";
-            _centreLabel.text = "AWAITS";
+            _heading.text = "Void Roulette";
+            _rewardsOpen = false;
+            _rewardsOverlay.gameObject.SetActive(false);
+            _rewardsButton.interactable = session != null;
             _spinLabel.text = "LET IT RIDE";
             _spinButton.interactable = session != null;
-            _statusLabel.text = "One spin. One reward. Wagers have a 30% refund chance.";
-            _selectedDetail.text = "Select a reward to inspect its limits and fallback.";
+            _statusLabel.text = string.Empty;
+            _selectedDetail.text = string.Empty;
             SetVisible(true);
             RebuildMarkers();
             RefreshWagerUi();
@@ -153,6 +185,34 @@ namespace VoidFall.UI
             _selectedDetail.text = RoulettePresentationRules.Effect(prize) + ". " + RoulettePresentationRules.Fallback(prize.Kind);
         }
 
+        private void SetRewardsOpen(bool open)
+        {
+            if (open && (_stage != Stage.Choosing || _session == null)) return;
+            _rewardsOpen = open;
+            _rewardsOverlay.gameObject.SetActive(open);
+            _rewardsButton.interactable = !open && _stage == Stage.Choosing && _session != null;
+            _spinButton.interactable = !open && _stage == Stage.Choosing && _session != null;
+            RefreshWagerUi();
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(open ? _closeRewardsButton.gameObject : _rewardsButton.gameObject);
+        }
+
+        public void OnCancel(BaseEventData eventData)
+        {
+            if (!_rewardsOpen) return;
+            SetRewardsOpen(false);
+            eventData.Use();
+        }
+
+        private void AddDrawerCancel(Button button)
+        {
+            // InputSystem sends cancel to the selected object, not its parents.
+            var trigger = button.gameObject.AddComponent<EventTrigger>();
+            var cancel = new EventTrigger.Entry { eventID = EventTriggerType.Cancel };
+            cancel.callback.AddListener(OnCancel);
+            trigger.triggers.Add(cancel);
+        }
+
         private void RefreshWagerUi()
         {
             if (_session == null) return;
@@ -161,11 +221,11 @@ namespace VoidFall.UI
             var improveCost = RouletteRules.ImproveOddsCost(_session.ImproveOddsUses);
             var raiseCost = RouletteRules.RaiseStakesCost(_session.RaiseStakesUses);
             var canImprove = RouletteRules.CanImproveOdds(_session.Wedges) && _session.ImproveOddsUses < RouletteRules.MaxUsesPerPurchase;
-            _improveOddsButton.interactable = _stage == Stage.Choosing && canImprove && parts >= improveCost;
+            _improveOddsButton.interactable = !_rewardsOpen && _stage == Stage.Choosing && canImprove && parts >= improveCost;
             _improveOddsCostLabel.text = !canImprove ? "ALREADY IMPROVED" : parts < improveCost ? "NEED " + improveCost + " PARTS" : improveCost + " PARTS";
-            _improveDetail.text = canImprove ? "Parts cache: 60 → 90 Parts" : "Parts cache upgraded. No further charge.";
+            _improveDetail.text = canImprove ? "Cache: 60 → 90 Parts" : "Cache: 90 Parts";
             var capped = _session.RaiseStakesUses >= RouletteRules.MaxUsesPerPurchase;
-            _raiseStakesButton.interactable = _stage == Stage.Choosing && !capped && parts >= raiseCost;
+            _raiseStakesButton.interactable = !_rewardsOpen && _stage == Stage.Choosing && !capped && parts >= raiseCost;
             _raiseStakesCostLabel.text = capped ? "MAXIMUM STAKES" : parts < raiseCost ? "NEED " + raiseCost + " PARTS" : raiseCost + " PARTS";
             var before = LegendaryChance(_session.Wedges);
             var after = capped ? before : LegendaryChance(RouletteRules.ApplyRaiseStakes(_session.Wedges));
@@ -184,7 +244,7 @@ namespace VoidFall.UI
         private void OnRaiseStakes() => PurchaseAndRefresh(false);
         private void PurchaseAndRefresh(bool improve)
         {
-            if (_stage != Stage.Choosing || _session == null) return;
+            if (_stage != Stage.Choosing || _session == null || _rewardsOpen) return;
             if (!RouletteRules.Purchase(_session, improve, _availableParts - _session.PartsSpent + _session.PartsRefunded, _rng, out _, out var refund)) return;
             RebuildMarkers();
             RefreshWagerUi();
@@ -194,16 +254,15 @@ namespace VoidFall.UI
 
         private void OnSpinPressed()
         {
-            if (_stage != Stage.Choosing || _session == null) return;
+            if (_stage != Stage.Choosing || _session == null || _rewardsOpen) return;
             RouletteRules.Spin(_session, _rng, _spinContext);
             _targetRotation = 5 * 360f + (float)RoulettePresentationRules.CentreDegrees(_session.Wedges, _session.ResultIndex, _spinContext);
             _spinElapsed = 0;
             _stage = Stage.Spinning;
-            _heading.text = "Let it ride.";
-            _centreLabel.text = "DECIDES";
             _spinLabel.text = "FATE IS TURNING";
             _spinButton.interactable = _improveOddsButton.interactable = _raiseStakesButton.interactable = false;
-            _statusLabel.text = "Your wager is sealed.";
+            _rewardsButton.interactable = false;
+            _statusLabel.text = string.Empty;
         }
 
         private void Update()
@@ -214,7 +273,7 @@ namespace VoidFall.UI
             _openElapsed += dt;
             var entrance = Mathf.Clamp01(_openElapsed / 0.8f);
             _entrance.alpha = Mathf.Clamp01(_openElapsed / 0.3f);
-            _wheelHolder.localScale = Vector3.one * Mathf.Lerp(0.16f, 1, 1 - Mathf.Pow(1 - entrance, 3));
+            _wheelHolder.localScale = Vector3.one * _wheelScale * Mathf.Lerp(0.16f, 1, 1 - Mathf.Pow(1 - entrance, 3));
             if (_stage == Stage.Landing)
             {
                 _landingElapsed += dt;
@@ -250,8 +309,6 @@ namespace VoidFall.UI
             if (t < 1) return;
             _stage = Stage.Landing;
             _landingElapsed = 0;
-            _centreLabel.text = "YIELDS";
-            _heading.text = "The wheel has spoken.";
             _spinLabel.text = "REVEALING REWARD";
             _wheelGraphic.Configure(_session.Wedges, _spinContext, selected: _session.ResultIndex);
             Landed?.Invoke();
@@ -261,7 +318,21 @@ namespace VoidFall.UI
         {
             if (_content == null || Root.rect.size == _lastSize) return;
             _lastSize = Root.rect.size;
-            _content.localScale = Vector3.one * Mathf.Max(0.1f, Mathf.Min(_lastSize.x / 1280f, _lastSize.y / 820f));
+            var scale = Mathf.Max(.1f, Mathf.Min(_lastSize.x / 1280f, _lastSize.y / 820f));
+            _content.localScale = Vector3.one * scale;
+            var available = _lastSize / scale;
+            _content.sizeDelta = available;
+            // Target 1.5x diameter while reserving the title and wager controls.
+            // On shorter screens the fit cap takes priority over clipping.
+            _wheelScale = Mathf.Min(780f, available.y - 140f) / 520f;
+            _spinButton.transform.localScale = Vector3.one / _wheelScale;
+            _heading.rectTransform.anchoredPosition = new Vector2(0, available.y * .5f - 30f);
+            _partsLabel.rectTransform.anchoredPosition = new Vector2(available.x * .5f - 128f, available.y * .5f - 30f);
+            ((RectTransform)_rewardsButton.transform).anchoredPosition = new Vector2(-available.x * .5f + 126f, available.y * .5f - 30f);
+            ((RectTransform)_improveOddsButton.transform).anchoredPosition = new Vector2(-130f, -available.y * .5f + 43f);
+            ((RectTransform)_raiseStakesButton.transform).anchoredPosition = new Vector2(130f, -available.y * .5f + 43f);
+            _statusLabel.rectTransform.anchoredPosition = new Vector2(0, -available.y * .5f + 10f);
+            _rewardsPanel.anchoredPosition = new Vector2(-available.x * .5f + 216f, 0);
         }
 
         private void OnDestroy()

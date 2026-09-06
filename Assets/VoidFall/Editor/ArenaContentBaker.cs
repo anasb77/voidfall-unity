@@ -17,6 +17,7 @@ namespace VoidFall.Editor
 
         private const string GeneratedRoot = "Assets/VoidFall/Generated";
         private const string ArenaTextureRoot = GeneratedRoot + "/Arenas";
+        private const string MonochromeDetailPath = ArenaTextureRoot + "/MonochromeCourt/Details.png";
         private const string LegacyArenaResourceRoot =
             GeneratedRoot + "/Resources/VoidFall/Generated/Arenas";
         private const string ArenaPackageRoot = GeneratedRoot + "/ArenaPackages";
@@ -86,6 +87,16 @@ namespace VoidFall.Editor
                 Debug.LogException(exception);
                 EditorApplication.Exit(1);
             }
+        }
+
+        [MenuItem("Tools/VoidFall/Reimport Monochrome Detail Mesh")]
+        public static void ReimportMonochromeDetailMesh()
+        {
+            ImportArenaTexture(MonochromeDetailPath);
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(MonochromeDetailPath);
+            if (sprite == null || sprite.vertices.Length != 4 || sprite.triangles.Length != 6)
+                throw new InvalidOperationException("Monochrome detail plate must use a two-triangle Full Rect mesh.");
+            Debug.Log("Monochrome detail mesh verified: 4 vertices, 2 triangles.");
         }
 
         public static List<string> ValidateAll()
@@ -216,6 +227,15 @@ namespace VoidFall.Editor
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Single;
             importer.spritePixelsPerUnit = 1f;
+            if (assetPath == MonochromeDetailPath)
+            {
+                // Tight tracing creates hundreds of thousands of triangles in this
+                // full-screen detail plate. Preserve its bitmap on a simple quad.
+                var settings = new TextureImporterSettings();
+                importer.ReadTextureSettings(settings);
+                settings.spriteMeshType = SpriteMeshType.FullRect;
+                importer.SetTextureSettings(settings);
+            }
             importer.mipmapEnabled = true;
             importer.streamingMipmaps = true;
             importer.streamingMipmapsPriority = 2;
@@ -275,6 +295,9 @@ namespace VoidFall.Editor
             if (sprite.texture.isReadable)
                 errors.Add("Generated texture kept a CPU-readable copy: " + label);
             var path = AssetDatabase.GetAssetPath(sprite.texture);
+            if (path == MonochromeDetailPath &&
+                (sprite.vertices.Length != 4 || sprite.triangles.Length != 6))
+                errors.Add("Monochrome detail plate must use a two-triangle Full Rect mesh: " + path);
             var importer = AssetImporter.GetAtPath(path) as TextureImporter;
             if (importer == null || !importer.mipmapEnabled || !importer.streamingMipmaps)
                 errors.Add("Generated texture is not configured for mip streaming: " + label);

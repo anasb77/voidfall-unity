@@ -2453,6 +2453,7 @@ namespace VoidFall.Runtime
             RebuildEnemyGrid();
             StepEonSea(dt);
             StepCrascendo(dt);
+            _orbitalStartPlayerPosition = _gameSim.Player.Position;
             MovePlayer(dt);
             ApplyHydraRibCageCollision();
             // The browser applies current-step movement/iframes/boost effects
@@ -3458,6 +3459,7 @@ namespace VoidFall.Runtime
 
         private int SupportRank(string id)
         {
+            id = ExtendedCatalog.CanonicalSupportId(id);
             if (_upgradeProgress == null) return 0;
             for (var index = 0; index < ExtendedCatalog.SupportCount; index++)
             {
@@ -3493,6 +3495,7 @@ namespace VoidFall.Runtime
             _pickupRadius = (float)ContentCatalog.Operative.PickupRadius *
                 Mathf.Pow(1.25f, SupportRank("collector"));
             _areaMultiplier = Mathf.Pow(1.12f, SupportRank("amplifier"));
+            _spatialZoomScale = (float)SupportEffectRules.SpatialAwarenessZoom(SupportRank("projectileSpeed"));
             _critChance = Mathf.Clamp01(
                 0.05f + SupportRank("optics") * 0.06f + WorkshopRank("precision") * 0.02f);
             // Browser recalculate() clamps an over-cap health value but does

@@ -24,9 +24,6 @@ namespace VoidFall.Runtime
         private string[] _junctionDestinations = Array.Empty<string>();
         private float _junctionAge;
         private readonly SpriteRenderer[] _junctionRims = new SpriteRenderer[4];
-        private const float EscapeCollectionSeconds = 25f;
-        private const float EscapeCountdownSeconds = 10f;
-        private int _escapeStatusSecond = int.MinValue;
         private string _escapeStatusLine;
         private Text _escapeStatusText;
 
@@ -43,8 +40,9 @@ namespace VoidFall.Runtime
             _runVictory = false;
             _returnToMenuAfterRun = false;
             _journeyLoadFailed = false;
-            _escapeStatusSecond = int.MinValue;
+            _escapeEnemyCount = _escapeEnemyCursor = 0;
             if (_escapeStatusText != null) _escapeStatusText.gameObject.SetActive(false);
+            RefreshEscapeDots(false);
             HideJunction();
         }
 
@@ -65,6 +63,7 @@ namespace VoidFall.Runtime
         {
             // Planning never mutates the route. Only a physical portal commits it.
             _plannedRouteId = id;
+            RefreshJunctionPlan();
         }
 
         private void CloseRouteMap()
@@ -77,7 +76,8 @@ namespace VoidFall.Runtime
 
         private void ClearCombatForJourney()
         {
-            DestroyEnemiesForVoidTransition();
+            if (_journeyStage == JourneyStage.Rewards) BeginEscapeEnemyRetirement();
+            else DestroyEnemiesForVoidTransition();
             ClearTransitionProjectiles();
             ClearMeteors();
             ClearNebulaStrikes();
@@ -102,13 +102,7 @@ namespace VoidFall.Runtime
 
         private void UpdateEscapeStatus()
         {
-            var seconds = _voidCompletionDelayRemaining > EscapeCountdownSeconds
-                ? -1 : Mathf.Max(1, Mathf.CeilToInt(_voidCompletionDelayRemaining));
-            if (seconds != _escapeStatusSecond)
-            {
-                _escapeStatusSecond = seconds;
-                _escapeStatusLine = seconds < 0 ? "INITIATING ESCAPE" : "ESCAPING IN " + seconds;
-            }
+            _escapeStatusLine = "Escaping...";
             if (_objectiveLine != _escapeStatusLine)
             {
                 _objectiveLine = _escapeStatusLine;
@@ -128,7 +122,7 @@ namespace VoidFall.Runtime
                 var rect = _escapeStatusText.rectTransform;
                 rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
                 rect.pivot = new Vector2(0.5f, 1f);
-                rect.anchoredPosition = new Vector2(0f, -100f);
+                rect.anchoredPosition = new Vector2(-20f, -100f);
                 rect.sizeDelta = new Vector2(650f, 60f);
                 var shadow = _escapeStatusText.gameObject.AddComponent<Shadow>();
                 shadow.effectColor = Color.black;
@@ -136,7 +130,8 @@ namespace VoidFall.Runtime
             }
             if (_escapeStatusText == null) return;
             _escapeStatusText.gameObject.SetActive(show);
-            if (show && _escapeStatusText.text != _objectiveLine) _escapeStatusText.text = _objectiveLine;
+            if (show && _escapeStatusText.text != "Escaping") _escapeStatusText.text = "Escaping";
+            RefreshEscapeDots(show);
         }
 
         private void UpdateJourneyFlow(float deltaTime)
@@ -258,7 +253,7 @@ namespace VoidFall.Runtime
             foreach (var rim in _junctionRims) rim.color = new Color(accent.r, accent.g, accent.b, 0.65f);
             _junctionRoot.SetActive(true);
             _junctionCanvas.gameObject.SetActive(true);
-            _objectiveLine = "VOID CLEARED  /  WALK INTO A PORTAL  /  TAB: MAP";
+            _objectiveLine = string.Empty;
             for (var index = 0; index < _junctionPortals.Length; index++)
             {
                 var visible = index < _junctionDestinations.Length;
@@ -268,9 +263,10 @@ namespace VoidFall.Runtime
                 var node = _voidRoute.Node(_junctionDestinations[index]);
                 var portalX = 250f + variant * 25f;
                 _junctionPortals[index].transform.localPosition = new Vector3(index == 0 ? -portalX : portalX, 45f + variant * 25f, 0);
-                _junctionLabels[index].text = (node.IsMystery ? "?  UNKNOWN VOID" : node.DisplayName.ToUpperInvariant()) +
-                    "\n<size=14>" + node.ThreatLabel + "</size>";
+                _junctionLabels[index].text = node.DisplayName.ToUpperInvariant();
+                _junctionPortals[index].color = PortalDestinationColor(node.Id);
             }
+            RefreshJunctionPlan();
             SyncUiScreen();
             Debug.Log($"VOIDFLOW junction void={CurrentVoidId} exits={string.Join(",", _junctionDestinations)} t={_time:F1}");
         }
@@ -328,6 +324,10 @@ namespace VoidFall.Runtime
             for (var index = 0; index < _junctionDestinations.Length; index++)
             {
                 if (_riftPortalFrames.Length > 0) _junctionPortals[index].sprite = _riftPortalFrames[frame];
+                var near = Vector2.Distance(_gameSim.Player.Position, _junctionPortals[index].transform.position) < 130f;
+                _junctionPortals[index].transform.localScale = Vector3.one * (near ? 1.16f : _junctionPlannedPortals[index] ? 1.07f : 1f);
+                _junctionLabels[index].color = near || _junctionPlannedPortals[index]
+                    ? _junctionPortals[index].color : Color.white;
                 var point = _camera.WorldToScreenPoint(_junctionPortals[index].transform.position + Vector3.down * 100f);
                 RectTransformUtility.ScreenPointToLocalPointInRectangle(root, point, null, out var local);
                 _junctionLabels[index].rectTransform.anchoredPosition = local;
@@ -355,7 +355,7 @@ namespace VoidFall.Runtime
         private void RetryJourneyArenaLoad()
         {
             if (!_journeyLoadFailed || _riftTransitionVoidId == null) return;
-            var incoming = ArenaIdForVoidId(_riftTransitionVoidId);
+            var incoming = ArenaIdForRouteNode(_riftTransitionVoidId);
             _arenaResidency?.Release(ArenaPackageFor(incoming));
             BeginArenaPackageLoad(incoming);
             _journeyLoadFailed = false;

@@ -19,6 +19,22 @@ namespace VoidFall.Tests.Editor
         };
 
         [Test]
+        public void Monochrome_detail_plate_uses_two_triangles_to_avoid_tight_mesh_gpu_stall()
+        {
+            var plate = AssetDatabase.LoadAssetAtPath<ArenaPlateAsset>(
+                "Assets/VoidFall/Generated/ArenaPackages/MonochromeCourt/Plate.asset");
+            Assert.That(plate, Is.Not.Null);
+            Assert.That(plate.DetailSprite, Is.Not.Null);
+            Assert.That(plate.DetailSprite.triangles.Length, Is.EqualTo(6));
+            Assert.That(plate.DetailSprite.vertices.Length, Is.EqualTo(4));
+            var importer = (TextureImporter)AssetImporter.GetAtPath(
+                AssetDatabase.GetAssetPath(plate.DetailSprite));
+            var settings = new TextureImporterSettings();
+            importer.ReadTextureSettings(settings);
+            Assert.That(settings.spriteMeshType, Is.EqualTo(SpriteMeshType.FullRect));
+        }
+
+        [Test]
         public void Monochrome_pixels_are_balanced_black_white_and_keep_a_visible_board_grid()
         {
             ArenaPlateFactory.WarmSpecs();

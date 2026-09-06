@@ -6,24 +6,25 @@ namespace VoidFall.Core
     /// <summary>Finite routes built only from prepared arenas with supported objectives and metadata.</summary>
     public static class PlayableVoidRoutes
     {
-        private const int MaximumRowsAfterStart = 5;
-        private const int MaximumArenasAfterStart = MaximumRowsAfterStart * 2 - 1;
+        private const int ArenasAfterStart = 7;
 
         public static VoidRouteRun Create(uint seed)
         {
             VoidRouteNode start = null;
-            var candidates = new List<VoidRouteNode>();
+            var candidates = new List<string>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var arena in ContentOrder.PreparedArenas)
             {
                 var id = ArenaCatalogRules.StableId(arena);
                 if (!seen.Add(id) || VoidObjectives.ForArena(id) == null) continue;
-                var node = CreateNode(id);
+                var node = CreateNode(id, id);
                 if (node == null) continue;
                 if (id == "abyss") start = node;
-                else candidates.Add(node);
+                else candidates.Add(id);
             }
             if (start == null) throw new InvalidOperationException("A playable route requires prepared Abyss content.");
+            if (candidates.Count < ArenasAfterStart)
+                throw new InvalidOperationException("A playable route requires seven prepared arenas after Abyss.");
 
             // Own the random stream: generating or inspecting a map never advances combat RNG.
             var random = new Rng(seed ^ 0x524f5554u);
@@ -35,30 +36,59 @@ namespace VoidFall.Core
                 candidates[swap] = candidate;
             }
 
-            var count = Math.Min(candidates.Count, MaximumArenasAfterStart);
-            // Keep a singleton terminal, and offer a branch once three later arenas exist.
-            // The current four later arenas form widths 2/1/1; larger pools fill up to five rows.
-            var rowCount = Math.Min(MaximumRowsAfterStart, count >= 3 ? count - 1 : count);
-            var doubledRows = count - rowCount;
+            var widths = random.Int(2) == 0
+                ? new[] { 1, 2, 2, 1, 2, 1 }
+                : new[] { 1, 2, 1, 2, 2, 1 };
+            var exclusiveDepth = widths[2] == 2 ? 1 : 3;
+            var swapExclusiveLanes = random.Int(2) == 1;
+            var duplicateParentLane = random.Int(2);
+            var duplicateChildLane = ConnectedLane(1 - duplicateParentLane, swapExclusiveLanes);
+            var duplicateArenaIndex = random.Int(ArenasAfterStart);
+            var duplicateArenaId = candidates[duplicateArenaIndex];
+            var remainingArenaIds = new List<string>();
+            for (var index = 0; index < ArenasAfterStart; index++)
+                if (index != duplicateArenaIndex) remainingArenaIds.Add(candidates[index]);
+
+            var rows = new List<List<VoidRouteNode>>();
+            rows.Add(new List<VoidRouteNode> { start });
             var nodes = new List<VoidRouteNode> { start };
-            var previousRow = new List<VoidRouteNode> { start };
-            var cursor = 0;
-            for (var depth = 1; depth <= rowCount; depth++)
+            var usedNodeIds = new HashSet<string>(StringComparer.Ordinal) { start.Id };
+            var remainingCursor = 0;
+            for (var depth = 1; depth < widths.Length; depth++)
             {
-                var width = doubledRows > 0 ? 2 : 1;
-                if (width == 2) doubledRows--;
                 var row = new List<VoidRouteNode>();
-                for (var index = 0; index < width; index++)
+                for (var lane = 0; lane < widths[depth]; lane++)
                 {
-                    var node = candidates[cursor++];
+                    var duplicateSlot = depth == exclusiveDepth && lane == duplicateParentLane ||
+                        depth == exclusiveDepth + 1 && lane == duplicateChildLane;
+                    var arenaId = duplicateSlot ? duplicateArenaId : remainingArenaIds[remainingCursor++];
+                    var nodeId = arenaId;
+                    if (!usedNodeIds.Add(nodeId))
+                    {
+                        nodeId = arenaId + "@" + depth + "-" + lane;
+                        usedNodeIds.Add(nodeId);
+                    }
+                    var node = CreateNode(nodeId, arenaId);
                     node.Depth = depth;
                     nodes.Add(node);
                     row.Add(node);
                 }
-                foreach (var parent in previousRow)
-                    foreach (var child in row)
+                rows.Add(row);
+            }
+
+            for (var depth = 0; depth < rows.Count - 1; depth++)
+            {
+                var parents = rows[depth];
+                var children = rows[depth + 1];
+                if (parents.Count == 2 && children.Count == 2)
+                {
+                    for (var lane = 0; lane < parents.Count; lane++)
+                        parents[lane].Outgoing.Add(children[ConnectedLane(lane, swapExclusiveLanes)].Id);
+                    continue;
+                }
+                foreach (var parent in parents)
+                    foreach (var child in children)
                         parent.Outgoing.Add(child.Id);
-                previousRow = row;
             }
 
             // Conceal at most one intermediate destination, resolved once from this run's seed.
@@ -68,12 +98,14 @@ namespace VoidFall.Core
             return new VoidRouteRun(nodes, start.Id);
         }
 
-        private static VoidRouteNode CreateNode(string id)
+        private static int ConnectedLane(int lane, bool swapped) => swapped ? 1 - lane : lane;
+
+        private static VoidRouteNode CreateNode(string nodeId, string arenaId)
         {
             ArenaDefinition arena;
             string hint;
             string encounter;
-            switch (id)
+            switch (arenaId)
             {
                 case "abyss":
                     arena = FindCatalogueArena("void");
@@ -119,7 +151,7 @@ namespace VoidFall.Core
                     return null;
             }
             if (arena == null) return null;
-            return new VoidRouteNode(id, arena.Name, 0, 1, hint, arena.Description,
+            return new VoidRouteNode(nodeId, arenaId, arena.Name, 0, 1, hint, arena.Description,
                 "Survive " + VoidObjectives.FormatClock(VoidProgressionRules.SurvivalSeconds) + ", then " + encounter,
                 "Boss rewards");
         }

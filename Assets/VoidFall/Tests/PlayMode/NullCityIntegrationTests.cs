@@ -244,9 +244,9 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Motherload_death_preserves_dissolution_and_clears_city_hostiles_and_hazards()
+        public IEnumerator Motherload_death_preserves_bodies_for_escape_but_stops_city_attacks_and_hazards()
         {
-            EnterNullCity();
+            EnterNullCity(true);
             Invoke(_runtime, "BeginNullCityBossEncounter");
             var bossSlot = (int)Get(_runtime, "_nullCityBossSlot");
 
@@ -265,7 +265,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(Get(defeated, "DeathTimer"), Is.EqualTo(1.4f));
             Assert.That(Get(_runtime, "_nullCityCleared"), Is.True);
             Assert.That(Get(_runtime, "_nullCityBossActive"), Is.False);
-            Assert.That(ActiveItems("Enemies"), Is.Empty);
+            Assert.That(ActiveItems("Enemies"), Is.Not.Empty);
             Assert.That(ActiveItems("HostileShots"), Is.Empty);
             Assert.That(Get(_runtime, "_nullCityBirthCount"), Is.Zero);
             Assert.That(Get(_runtime, "_nullCityBlastCount"), Is.Zero);
