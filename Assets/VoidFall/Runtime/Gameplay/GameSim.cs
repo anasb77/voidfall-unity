@@ -18,6 +18,8 @@ namespace VoidFall.Runtime
     /// </summary>
     internal sealed class GameSim
     {
+        private int _nextMeteorIdentity;
+        public void ResetMeteorIdentityForRun() => _nextMeteorIdentity = 0;
         public readonly EnemyState[] Enemies;
         public readonly BulletState[] Bullets;
         public readonly HostileShotState[] HostileShots;
@@ -72,6 +74,9 @@ namespace VoidFall.Runtime
         // impact. Both are instance-cached; nothing allocates per step.
         public Func<bool> PlayerVulnerableQuery;
         public Action<int, Vector2> HostileShotImpact;
+        public delegate bool TerrainProjectileCollision(Vector2 from, Vector2 to, float radius, out Vector2 hit);
+        public TerrainProjectileCollision TerrainProjectileCollisionHook;
+        public Action<int> BulletTerrainHitHook;
 
         // Bullet advance wiring. The loop skeleton, homing targeting, identity
         // bookkeeping and hit resolution live here; the runtime supplies the
@@ -202,6 +207,10 @@ namespace VoidFall.Runtime
                     RemoveBossOrder(slot);
             }
         }
+        public int EnemyQueryPadding;
+        public Func<EnemyState, float, float> EnemyNaturalRadiusHook;
+        public int QueryEnemyNeighborhood(float x, float y, int cells, int[] output) => EnemyGrid.QueryNeighborhood(x, y, cells + EnemyQueryPadding, output);
+
         public void RebuildEnemyGrid()
         {
             EnemyGrid.Clear();
@@ -300,7 +309,13 @@ namespace VoidFall.Runtime
                 var index = MeteorOrder[order];
                 var meteor = Meteors[index];
                 if (!meteor.Active) continue;
-                meteor.Position += meteor.Velocity * dt;
+                if (meteor.Orbital)
+                {
+                    meteor.OrbitCentre += meteor.Velocity * (dt * .25f);
+                    meteor.OrbitPhase += dt * .38f;
+                    meteor.Position = meteor.OrbitCentre + new Vector2(Mathf.Cos(meteor.OrbitPhase) * 48f, Mathf.Sin(meteor.OrbitPhase) * 32f);
+                }
+                else meteor.Position += meteor.Velocity * dt;
                 meteor.Rotation += meteor.Spin * dt;
                 if (meteor.FuseTimer <= 0)
                 {
@@ -389,6 +404,7 @@ namespace VoidFall.Runtime
                 : MeteorRules.MeteorMaxHealth(elapsedSeconds);
             Meteors[slot] = new MeteorState
             {
+                Identity = ++_nextMeteorIdentity,
                 Active = true,
                 Position = candidate,
                 Velocity = new Vector2(Mathf.Cos(driftAngle), Mathf.Sin(driftAngle)) * speed,
@@ -513,9 +529,16 @@ namespace VoidFall.Runtime
                     HostileShotOrder.Remove(index);
                     continue;
                 }
+                var previousPosition = shot.Position;
                 if (shot.Curved) shot.Velocity += shot.Acceleration * dt;
                 shot.Position += shot.Velocity * dt;
                 shot.Life -= dt;
+                if (shot.Life > 0 && TerrainProjectileCollisionHook != null &&
+                    TerrainProjectileCollisionHook(previousPosition, shot.Position, shot.Radius, out var coverHit))
+                {
+                    shot.Position = coverHit;
+                    shot.Life = 0;
+                }
                 if (shot.Life > 0 && Player.Health > 0 &&
                     PlayerVulnerableQuery != null && PlayerVulnerableQuery() &&
                     Vector2.Distance(shot.Position, Player.Position) <
@@ -767,6 +790,7 @@ namespace VoidFall.Runtime
                     BulletTrailHook?.Invoke(i);
                     bullet = Bullets[i];
                 }
+                var previousPosition = bullet.Position;
                 bullet.Position += bullet.Velocity * dt;
                 bullet.Life -= dt;
                 if (bullet.Life <= 0)
@@ -778,8 +802,23 @@ namespace VoidFall.Runtime
                     BulletOrder.Remove(i);
                     continue;
                 }
+                if (TerrainProjectileCollisionHook != null &&
+                    TerrainProjectileCollisionHook(previousPosition, bullet.Position, bullet.Radius, out var coverHit))
+                {
+                    bullet.Position = coverHit;
+                    // Keep the slot reserved during nested explosive damage/spawns.
+                    Bullets[i] = bullet;
+                    BulletTerrainHitHook?.Invoke(i);
+                    bullet = Bullets[i];
+                    bullet.Active = false;
+                    Bullets[i] = bullet;
+                    if (expiredSlots != null && expiredCount < expiredSlots.Length)
+                        expiredSlots[expiredCount++] = i;
+                    BulletOrder.Remove(i);
+                    continue;
+                }
                 var hit = false;
-                var enemyCandidateCount = EnemyGrid.QueryNeighborhood(
+                var enemyCandidateCount = QueryEnemyNeighborhood(
                     bullet.Position.x,
                     bullet.Position.y,
                     1,
@@ -1005,7 +1044,7 @@ namespace VoidFall.Runtime
                 var index = EnemyOrder[order];
                 var enemy = Enemies[index];
                 if (!enemy.Active || enemy.MatriarchBodyguard) continue;
-                var candidateCount = EnemyGrid.QueryNeighborhood(
+                var candidateCount = QueryEnemyNeighborhood(
                     enemy.Position.x,
                     enemy.Position.y,
                     1,
@@ -1212,6 +1251,7 @@ namespace VoidFall.Runtime
         public Func<double> EnemyFxRollHook;
         public Action<float, Vector2> EnemyDamagePlayerHook;
         public Action<Vector2, float, float, bool> EnemyBlastWaveHook;
+        public Action<Vector2, float, float, bool> EnemyBlastWaveFxOnlyHook;
         public Action<Vector2, float, float> EnemyImpactMarkHook;
         public Action<float> EnemyFreezeHook;
         public Action<float> EnemyAmberFlashHook;
@@ -1560,7 +1600,7 @@ namespace VoidFall.Runtime
                     if (canImpactPlayer) ApplySourcePlayerKnockback(ref enemy, impactDirection);
                 }
                 EnemyBlastWaveHook?.Invoke(enemy.DashDirection, impact, 0.5f, false);
-                EnemyBlastWaveHook?.Invoke(enemy.DashDirection, impact * 0.62f, 0.28f, false);
+                EnemyBlastWaveFxOnlyHook?.Invoke(enemy.DashDirection, impact * 0.62f, 0.28f, false);
                 EnemyImpactMarkHook?.Invoke(enemy.DashDirection, impact, (float)(EnemyFxRollHook() * Math.PI * 2));
                 EnemyBurstFxHook?.Invoke(enemy.DashDirection, SourceDotColor("orange"), 20, 320, 0.54f, 0.86f);
                 EnemyBurstFxHook?.Invoke(enemy.DashDirection, SourceDotColor("yellow"), 9, 240, 0.36f, 0.72f);
@@ -1754,7 +1794,8 @@ namespace VoidFall.Runtime
             var healthGain = absorbed * 1.25f;
             enemy.MaxHealth += healthGain;
             enemy.Health += healthGain;
-            enemy.Radius = Mathf.Min(29, (float)(FindEnemy("harvester")?.Radius ?? 18) + Mathf.Sqrt(enemy.StoredXp));
+            var harvestedRadius = Mathf.Min(29, (float)(FindEnemy("harvester")?.Radius ?? 18) + Mathf.Sqrt(enemy.StoredXp));
+            enemy.Radius = EnemyNaturalRadiusHook != null ? EnemyNaturalRadiusHook(enemy, harvestedRadius) : harvestedRadius;
             enemy.Speed = Mathf.Min(
                 (float)(FindEnemy("harvester")?.Speed ?? 64) * HarvesterSpeedCapAt(time, bossCycle),
                 enemy.Speed + absorbed * 0.18f);

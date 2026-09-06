@@ -76,6 +76,7 @@ Desktop.ini
 *.log.*
 TestResults/
 [Tt]est[Rr]esults/
+/Assets/InitTestScene*.unity*
 
 # Kiro local tool config
 .kiro/

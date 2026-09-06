@@ -25,6 +25,7 @@ namespace VoidFall.Runtime
         private VolumeProfile _videoVolumeProfile;
         private Bloom _videoBloom;
         private ChromaticAberration _videoChromatic;
+        private ColorAdjustments _arenaColorGrade;
         private int _appliedResolutionWidth = -1;
         private int _appliedResolutionHeight = -1;
         private int _appliedFullscreenMode = -1;
@@ -62,9 +63,24 @@ namespace VoidFall.Runtime
             }
 
             if (_videoBloom == null) _videoVolumeProfile.TryGet(out _videoBloom);
-            if (_videoBloom == null) _videoBloom = _videoVolumeProfile.Add<Bloom>(true);
+            if (_videoBloom == null) _videoBloom = _videoVolumeProfile.Add<Bloom>(false);
             if (_videoChromatic == null) _videoVolumeProfile.TryGet(out _videoChromatic);
-            if (_videoChromatic == null) _videoChromatic = _videoVolumeProfile.Add<ChromaticAberration>(true);
+            if (_videoChromatic == null) _videoChromatic = _videoVolumeProfile.Add<ChromaticAberration>(false);
+            _videoBloom.intensity.overrideState = true;
+            _videoChromatic.intensity.overrideState = true;
+            if (_arenaColorGrade == null) _arenaColorGrade = _videoVolumeProfile.Add<ColorAdjustments>(false);
+        }
+
+        private void ApplyArenaColorGrade()
+        {
+            if (_arenaColorGrade == null) return;
+            // Sakura retains its existing palette. The screen-space HUD is outside this camera grade.
+            var enabled = _arenaId != VoidFall.Core.ArenaId.WhiteSakura;
+            _arenaColorGrade.active = enabled;
+            if (!enabled) return;
+            _arenaColorGrade.contrast.Override(9f);
+            _arenaColorGrade.saturation.Override(12f);
+            _arenaColorGrade.postExposure.Override(-.16f);
         }
 
         /// <summary>
@@ -130,6 +146,7 @@ namespace VoidFall.Runtime
             }
             _videoBloom = null;
             _videoChromatic = null;
+            _arenaColorGrade = null;
             _videoVolume = null;
         }
     }

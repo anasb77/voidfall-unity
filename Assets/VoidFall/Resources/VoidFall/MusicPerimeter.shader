@@ -95,8 +95,16 @@ Shader "UI/VoidFallMusicPerimeter"
                 float motion=lerp(1,.30,reduced);
                 int family=(int)_Accent.w;
                 float3 cyan=float3(.20,.78,1), pink=float3(.96,.16,1), violet=float3(.66,.27,1);
+                float magnet=saturate(_State.z);
+                float3 green=float3(.12,.92,.42);
+                cyan=lerp(cyan,green,magnet*.85);
+                pink=lerp(pink,green,magnet*.85);
+                violet=lerp(violet,green,magnet*.85);
                 float3 tint=side==0||side==1?pink:cyan;
                 float3 color=neon(abs(inward-8)-.5,violet,_Bands.x,.13);
+                // A stationary edge glow also works with reduced motion. It never
+                // grades the player or HUD; all fragments remain in the perimeter.
+                color+=green*magnet*.22*exp(-inward/32);
                 int count=horizontal?2:family==1?2:family==3?4:3;
                 [unroll] for(int i=0;i<4;i++)
                 {

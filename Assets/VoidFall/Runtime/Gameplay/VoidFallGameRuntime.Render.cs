@@ -354,6 +354,7 @@ namespace VoidFall.Runtime
                 var enemy = _gameSim.Enemies[i];
                 _enemyViews[i].rendererPriority = order;
                 SetEnemyPresentationPriority(i, order);
+                var progressedSprite = ProgressedEnemySprite(enemy);
                 var rosterTwoVisual = enemy.Roster == EnemyRoster.Two && !enemy.Elite &&
                     (enemy.Id == "chaser" || enemy.Id == "gunner" || enemy.Id == "guard" || enemy.Id == "exploder");
                 var harvesterFull = enemy.Id == "harvester" &&
@@ -367,7 +368,7 @@ namespace VoidFall.Runtime
                     enemy.Seed,
                     _ambientClock);
                 var spriteId = SourceEnemySpriteId(enemy);
-                _enemyViews[i].sprite = IsNullCityEnemy(enemy.Id) ? NullCityUnitSprite(enemy.Id, enemy.Age, flash) : rosterTwoVisual
+                _enemyViews[i].sprite = progressedSprite != null ? progressedSprite : IsNullCityEnemy(enemy.Id) ? NullCityUnitSprite(enemy.Id, enemy.Age, flash) : rosterTwoVisual
                     ? ProceduralSpriteFactory.RosterTwoEnemy(enemy.Id, flash)
                     : ProceduralSpriteFactory.Enemy(
                         spriteId,
@@ -377,7 +378,7 @@ namespace VoidFall.Runtime
                 _enemyViews[i].transform.rotation = Quaternion.Euler(
                     0,
                     0,
-                    enemy.Rotation * Mathf.Rad2Deg);
+                    enemy.Rotation * Mathf.Rad2Deg + (progressedSprite != null ? -90f : 0));
                 var enemyVisualScale = SourceEnemyIntroScale(enemy.Age);
                 if (enemy.Id == "exploder" && enemy.State == 1)
                 {
@@ -387,13 +388,14 @@ namespace VoidFall.Runtime
                         ? (float)EliteRules.EliteVariantStatsFor(EliteVariantId.Exploder).TelegraphSeconds
                         : (float)(definition?.TelegraphSeconds ?? 0.9) +
                             (enemy.Roster == EnemyRoster.Two ? 0.28f : 0);
+                    if (progressedSprite != null) telegraph = RosterProgressionTraits.Get(enemy.Id, enemy.Roster, enemy.EliteKind.HasValue).BlastDelay;
                     enemyVisualScale *= SourceExploderArmedScale(
                         enemy.StateTimer,
                         telegraph,
                         _ambientClock);
                 }
                 _enemyViews[i].transform.localScale = Vector3.one *
-                    ((IsNullCityEnemy(enemy.Id) ? NullCityUnitScale(enemy.Id, _enemyViews[i].sprite) : SourceEnemySpriteWorldSize(enemy)) * enemyVisualScale *
+                    ((progressedSprite != null ? enemy.Radius * 3.3f / Mathf.Max(.01f, progressedSprite.bounds.size.x) : IsNullCityEnemy(enemy.Id) ? NullCityUnitScale(enemy.Id, _enemyViews[i].sprite) : SourceEnemySpriteWorldSize(enemy)) * enemyVisualScale *
                      (CourtPawnIsPromoted(enemy) ? 1.12f : 1f));
                 if (enemy.Id == "exploder" && enemy.State == 1)
                 {
@@ -404,8 +406,9 @@ namespace VoidFall.Runtime
                         ? (float)EliteRules.EliteVariantStatsFor(EliteVariantId.Exploder).TelegraphSeconds
                         : (float)(definition?.TelegraphSeconds ?? 0.9) +
                             (enemy.Roster == EnemyRoster.Two ? 0.28f : 0);
+                    if (progressedSprite != null) telegraph = RosterProgressionTraits.Get(enemy.Id, enemy.Roster, enemy.EliteKind.HasValue).BlastDelay;
                     var warning = EnsureEnemyExploderWarningView(i);
-                    warning.sprite = enemy.Roster == EnemyRoster.Two
+                    warning.sprite = progressedSprite != null ? progressedSprite : enemy.Roster == EnemyRoster.Two
                         ? ProceduralSpriteFactory.RosterTwoEnemy("exploder", true)
                         : ProceduralSpriteFactory.Enemy("exploder", CachedEnemySpriteAccent(enemy), true);
                     warning.transform.position = enemy.Position;
@@ -576,6 +579,7 @@ namespace VoidFall.Runtime
                 var meteorView = EnsureMeteorView(i);
                 meteorView.rendererPriority = order;
                 meteorView.sprite = ProceduralSpriteFactory.Meteor(_gameSim.Meteors[i].Variant, _gameSim.Meteors[i].Explosive);
+                if (_arenaId == ArenaId.RedNebula) meteorView.sprite = NebulaRockSprite(_gameSim.Meteors[i].Explosive);
                 meteorView.transform.position = _gameSim.Meteors[i].Position;
                 meteorView.transform.rotation = Quaternion.Euler(
                     0,
@@ -589,6 +593,8 @@ namespace VoidFall.Runtime
                 // The browser never tints the meteor body while armed; the
                 // warning arcs and seeded core carry the fuse read instead.
                 meteorView.color = Color.white;
+                if (_arenaId == ArenaId.RedNebula)
+                    meteorView.transform.localScale = Vector3.one * (_gameSim.Meteors[i].VisibleRadius * 2.35f);
                 var hitView = EnsureMeteorHitView(i);
                 hitView.sprite = meteorView.sprite;
                 hitView.transform.position = _gameSim.Meteors[i].Position;
@@ -601,7 +607,7 @@ namespace VoidFall.Runtime
                 {
                     _meteorCoreViews[i].transform.position = _gameSim.Meteors[i].Position;
                     _meteorCoreViews[i].transform.rotation = meteorView.transform.rotation;
-                    _meteorCoreViews[i].enabled = _gameSim.Meteors[i].Explosive;
+                    _meteorCoreViews[i].enabled = _gameSim.Meteors[i].Explosive && _arenaId != ArenaId.RedNebula;
                 }
                 if (_gameSim.Meteors[i].FuseTimer > 0)
                 {
@@ -774,11 +780,14 @@ namespace VoidFall.Runtime
             }
 
             RenderArena();
+            SyncEonSeaPresentation();
+            SyncCrascendoPresentation();
             RenderHydraPresentation();
             RenderMonochromePresentation();
             RenderDeathGhosts();
             RenderDamageIndicators();
             RenderFloaters();
+            RenderArsenalWeapons();
         }
 
         private static void SetRendererPriority(Renderer renderer, int priority)
@@ -3651,21 +3660,14 @@ namespace VoidFall.Runtime
                 }
 
                 var eliteVariant = enemy.EliteKind.HasValue;
-                if (eliteVariant || CombatTweakRules.ShowStandardEliteOverlay())
-                {
-                    var mark = EnsureEliteMarkView(index);
-                    mark.sprite = eliteVariant
-                        ? ProceduralSpriteFactory.EliteMark()
-                        : ProceduralSpriteFactory.EliteRing();
-                    mark.transform.position = enemy.Position;
-                    mark.transform.localScale = Vector3.one * SourceEliteRingSize(_ambientClock);
-                    mark.color = new Color(1f, 1f, 1f, SourceEliteRingAlpha(eliteVariant));
-                    mark.enabled = true;
-                }
-                else
-                {
-                    Hide(_eliteMarkViews[index]);
-                }
+                var mark = EnsureEliteMarkView(index);
+                mark.sprite = ProceduralSpriteFactory.EliteRing();
+                mark.transform.position = enemy.Position;
+                mark.transform.localScale = Vector3.one * SourceEliteRingSize(_ambientClock);
+                var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
+                mark.transform.rotation = Quaternion.Euler(0, 0, reducedMotion ? 0 : _ambientClock * 12f);
+                mark.color = new Color(1f, .8f, .95f, .65f);
+                mark.enabled = true;
 
                 if (enemy.EliteKind.HasValue || enemy.State != 1)
                 {
@@ -3736,6 +3738,7 @@ namespace VoidFall.Runtime
                 Hide(_enemyTelegraphFillRenderers[index]);
                 Hide(_enemyTelegraphArrowFillRenderers[index]);
                 var enemy = _gameSim.Enemies[index];
+                if (RenderProgressedTelegraphs(index, enemy)) continue;
                 if (!enemy.Active) continue;
 
                 if (enemy.Id == "mortar" && enemy.State == 1)
@@ -4809,7 +4812,14 @@ namespace VoidFall.Runtime
 
         private void RenderArena()
         {
+            ApplyArenaColorGrade();
             if (_backdropView == null) return;
+            if (_arenaId == ArenaId.EonSea || _arenaId == ArenaId.Crascendo)
+            {
+                if (_nullCityPresentationVisible) HideNullCityPresentation();
+                UpdateGameplayCameraViewport();
+                return; // Physical glacier presentation follows RenderArena in the render pass.
+            }
             if (_arenaId == ArenaId.NullCity)
             {
                 RenderNullCityArena();
@@ -5215,6 +5225,11 @@ namespace VoidFall.Runtime
                     ? Mathf.Lerp(110f, pale ? 175f : 180f, seed.z)
                     : Mathf.Lerp(pale ? 30f : 34f, pale ? 56f : 62f, seed.z);
                 view.sprite = ProceduralSpriteFactory.ArenaRock(_arenaRockShapes[index]);
+                if (_arenaId == ArenaId.RedNebula)
+                {
+                    view.sprite = NebulaRockSprite(false);
+                    diameter *= .8f;
+                }
                 view.transform.localScale = Vector3.one * diameter;
                 var rockAngle = seed.w * 360f +
                     _arenaRockSpins[index] * _arenaDecorClock * Mathf.Rad2Deg;
@@ -5222,6 +5237,7 @@ namespace VoidFall.Runtime
                 var layerAlpha = far ? farAlpha : midAlpha;
                 var body = far ? farBody : midBody;
                 view.color = new Color(body.r, body.g, body.b, layerAlpha);
+                if (_arenaId == ArenaId.RedNebula) view.color = new Color(.48f, .43f, .49f, layerAlpha * .5f);
                 view.enabled = true;
 
                 var rimBase = far ? farRim : midRim;
@@ -5243,6 +5259,12 @@ namespace VoidFall.Runtime
                 }
 
                 if (rim == null) continue;
+                if (_arenaId == ArenaId.RedNebula)
+                {
+                    Hide(plane);
+                    Hide(rim);
+                    continue;
+                }
                 var radius = diameter * 0.5f;
                 rim.positionCount = 16;
                 for (var point = 0; point < rim.positionCount; point++)
@@ -5304,6 +5326,7 @@ namespace VoidFall.Runtime
                     continue;
                 }
 
+                if (RenderNebulaRibbon(slot, layerCentre, Mathf.Clamp01(_arenaNearFilamentAlphas[slot]))) continue;
                 var points = _arenaNearFilamentPoints[slot];
                 var mesh = outer.sharedMesh;
                 var bandColors = _arenaNearFilamentBandColors[slot];
@@ -5454,6 +5477,7 @@ namespace VoidFall.Runtime
                     continue;
                 }
 
+                if (RenderNebulaRibbon(index, layerCentre, Mathf.Clamp01(_arenaNearFilamentAlphas[index] * alphaScale * .95f))) continue;
                 var points = _arenaNearFilamentPoints[index];
                 var mesh = outer.sharedMesh;
                 var bandColors = _arenaNearFilamentBandColors[index];

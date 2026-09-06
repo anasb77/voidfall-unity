@@ -595,16 +595,16 @@ namespace VoidFall.Runtime
         private Text _loadoutText;
         private Text _supportStripText;
         private Text _lateStripText;
-        private readonly Image[] _weaponChipBackgrounds = new Image[6];
-        private readonly Image[] _weaponChipAccentBars = new Image[6];
-        private readonly RawImage[] _weaponChipIcons = new RawImage[6];
-        private readonly Text[] _weaponChipNames = new Text[6];
-        private readonly Text[] _weaponChipRanks = new Text[6];
-        private readonly Image[] _supportChipBackgrounds = new Image[10];
-        private readonly Image[] _supportChipAccentBars = new Image[10];
-        private readonly RawImage[] _supportChipIcons = new RawImage[10];
-        private readonly Text[] _supportChipNames = new Text[10];
-        private readonly Text[] _supportChipRanks = new Text[10];
+        private readonly Image[] _weaponChipBackgrounds = new Image[ContentOrder.Weapons.Length];
+        private readonly Image[] _weaponChipAccentBars = new Image[ContentOrder.Weapons.Length];
+        private readonly RawImage[] _weaponChipIcons = new RawImage[ContentOrder.Weapons.Length];
+        private readonly Text[] _weaponChipNames = new Text[ContentOrder.Weapons.Length];
+        private readonly Text[] _weaponChipRanks = new Text[ContentOrder.Weapons.Length];
+        private readonly Image[] _supportChipBackgrounds = new Image[ExtendedCatalog.SupportCount];
+        private readonly Image[] _supportChipAccentBars = new Image[ExtendedCatalog.SupportCount];
+        private readonly RawImage[] _supportChipIcons = new RawImage[ExtendedCatalog.SupportCount];
+        private readonly Text[] _supportChipNames = new Text[ExtendedCatalog.SupportCount];
+        private readonly Text[] _supportChipRanks = new Text[ExtendedCatalog.SupportCount];
         private readonly Image[] _lateChipBackgrounds = new Image[3];
         private readonly Image[] _lateChipAccentBars = new Image[3];
         private readonly RawImage[] _lateChipIcons = new RawImage[3];
@@ -678,7 +678,6 @@ namespace VoidFall.Runtime
         private int _lastHudParts = -1;
         private int _lastHudScore = -1;
         private float _magnetIntensity;
-        private float _magnetTarget;
         private float _adrenalTimer;
         private float _playerTrailTimer;
         private float _levelUpTimer = -1f;
@@ -1077,7 +1076,7 @@ namespace VoidFall.Runtime
             SetupAudio();
             SetupFx();
             SetupHydraPresentation();
-            _saveStore = new SaveStore(OverclockHudProbe.ProfilePath);
+            _saveStore = new SaveStore(ArsenalValidationProbe.ProfilePath ?? OverclockHudProbe.ProfilePath ?? VisualDeliveryProbe.ProfilePath ?? VisualCaptureProfilePath());
             _saveData = _saveStore.Load();
             _gameBridge = new RuntimeGameBridge(this);
             _settingsController = new SettingsController(_gameBridge);
@@ -1140,12 +1139,15 @@ namespace VoidFall.Runtime
             AttachWorkshopFramePreview();
             ConfigureVisualCapture();
             PrepareNullCityCaptureProfile();
+            PrepareEonSeaCaptureProfile();
+            PrepareCrascendoCaptureProfile();
             EnterMainMenu();
             if (_visualCaptureWorkshop) _menuPage = MenuPage.Workshop;
             if (_visualCaptureSettings) _menuPage = MenuPage.Settings;
             if (_visualCaptureRecords) _menuPage = MenuPage.Records;
             if (_visualCaptureRun)
             {
+                _diagnosticRunSeedOverride = FixtureRunSeed;
                 StartRunInternal(false);
                 for (var stack = 0; stack < _visualCaptureOverclockStreak; stack++)
                     _overclock.ApplyPickup();
@@ -1165,6 +1167,8 @@ namespace VoidFall.Runtime
                 if (_visualCaptureHydraBoss) BeginHydraBossEncounterForCapture();
                 if (_visualCaptureCourtBoss) BeginMonochromeBossEncounterForCapture();
                 BeginNullCityCapture();
+                BeginEonSeaCapture();
+                BeginCrascendoCapture();
             }
             _startupMenuReadyRealtime = Time.realtimeSinceStartupAsDouble;
             _startupMenuSkipNextFrame = true;
@@ -1213,11 +1217,15 @@ namespace VoidFall.Runtime
 
         private void OnDestroy()
         {
+            DestroyMonochromePresentation();
+            DestroyNebulaArt();
             // A duplicate runtime is destroyed by Awake before it owns any
             // shared/static resources. Only the singleton owner may perform
             // cleanup that also belongs to the surviving runtime.
             if (!_ownsGlobalResources || _instance != this) return;
             _ownsGlobalResources = false;
+            ResetArsenalWeapons();
+            ProceduralSpriteFactory.DestroyArsenalSprites();
             ResetRouletteLuck();
             DestroyRouletteRelic();
             DestroyJourneyVisuals();
@@ -1481,22 +1489,17 @@ namespace VoidFall.Runtime
             // the death sequence or the game-over screen.
             var playerAliveInRun = !_gameOver && !_mainMenuBrowsing && _gameSim.Player.Health > 0;
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
-            var criticalHealth = playerAliveInRun && _gameSim.Player.MaxHealth > 0 &&
-                _gameSim.Player.Health / _gameSim.Player.MaxHealth <= 0.2f;
-            var magnetTime = _magnetTarget > _magnetIntensity ? 0.10f : 0.36f;
-            _magnetIntensity = Mathf.Lerp(
-                _magnetIntensity,
-                playerAliveInRun ? _magnetTarget : 0f,
-                1f - Mathf.Exp(-frameDt / magnetTime));
+            var criticalHealth = UpdateMusicCriticalHealth(playerAliveInRun);
+            _magnetIntensity = playerAliveInRun && _music != null ? _music.MagnetIntensity : 0f;
             _overclockVisualSurge = Mathf.MoveTowards(_overclockVisualSurge, 0f, frameDt * 1.7f);
             var musicState = new MusicReactiveState(
                 playerAliveInRun ? _overclock.PowerTier : 0,
                 playerAliveInRun ? _overclock.Streak : 0,
                 criticalHealth,
                 _levelUpActive,
-                _magnetIntensity,
+                0f, // The director owns the collected-gem envelope; do not feed its output back.
                 playerAliveInRun);
-            _music?.SetReactiveState(musicState);
+            _music?.SetReactiveState(musicState, _paused || _levelUpActive || _revivePending, _musicPendingMagnetGems);
             if (_musicPerimeter != null)
             {
                 var analysis = _music != null ? _music.AnalysisFrame : MusicAnalysisFrame.Zero;
@@ -1706,12 +1709,37 @@ namespace VoidFall.Runtime
                 : 0;
         }
 
+        private bool _visualCaptureLegacyNebula;
+
+        private static string VisualCaptureProfilePath()
+        {
+            // Resolve diagnostics before the first load so captures cannot migrate or save the player's profile.
+            var args = Environment.GetCommandLineArgs();
+            for (var i = 0; i < args.Length; i++)
+            {
+                string path = null;
+                if (args[i].StartsWith("-vfcapture=", StringComparison.OrdinalIgnoreCase))
+                {
+                    path = args[i].Substring("-vfcapture=".Length).Trim('"');
+                    if (string.IsNullOrWhiteSpace(path) && i + 1 < args.Length)
+                        path = args[++i].Trim('"');
+                }
+                else if (string.Equals(args[i], "-vfcapture", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                    path = args[i + 1].Trim('"');
+                if (!string.IsNullOrWhiteSpace(path))
+                    return System.IO.Path.GetFullPath(path) + ".profile.json";
+            }
+            return null;
+        }
+
         private void ConfigureVisualCapture()
         {
             var args = Environment.GetCommandLineArgs();
             for (var index = 0; index < args.Length; index++)
             {
                 var argument = args[index];
+                if (string.Equals(argument, "-vfnebula-legacy", StringComparison.OrdinalIgnoreCase))
+                    _visualCaptureLegacyNebula = true;
                 if (argument.StartsWith("-vfcapture=", StringComparison.OrdinalIgnoreCase))
                 {
                     var inlinePath = argument.Substring("-vfcapture=".Length).Trim('"');
@@ -1729,6 +1757,17 @@ namespace VoidFall.Runtime
                 else if (string.Equals(argument, "-vfcapture-run", StringComparison.OrdinalIgnoreCase))
                 {
                     _visualCaptureRun = true;
+                }
+                else if (argument.StartsWith("-vfcrascendo=", StringComparison.OrdinalIgnoreCase))
+                {
+                    _visualCaptureCrascendo = argument.Substring("-vfcrascendo=".Length).ToLowerInvariant();
+                    _visualCaptureRun = true; _visualCaptureArena = "crascendo";
+                }
+                else if (argument.StartsWith("-vfeonsea=", StringComparison.OrdinalIgnoreCase))
+                {
+                    _visualCaptureEonSea = argument.Substring("-vfeonsea=".Length).ToLowerInvariant();
+                    _visualCaptureRun = true;
+                    _visualCaptureArena = "eon-sea";
                 }
                 else if (argument.StartsWith("-vfnullcity=", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1863,6 +1902,7 @@ namespace VoidFall.Runtime
             _stressTopUpTimer = 0;
             _runSeed = SelectRunSeed();
             _gameSim.Rng = new Rng(_runSeed);
+            _gameSim.ResetMeteorIdentityForRun();
             _fxSim.FxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
             ResetRouletteLuck();
             _spatialZoomScale = 1f;
@@ -2016,6 +2056,7 @@ namespace VoidFall.Runtime
             _hollowBladeActive = false;
             _hollowBladeAge = 0;
             _hollowBladeCooldown = 0;
+            ResetArsenalWeapons();
             _pulseBurstShots = 0;
             _pulseBurstTimer = 0;
             for (var i = 0; i < _weaponCooldowns.Length; i++) _weaponCooldowns[i] = 0;
@@ -2034,7 +2075,7 @@ namespace VoidFall.Runtime
             _lastOverclockHudStreak = -1;
             _lastOverclockHudSecond = -1;
             _magnetIntensity = 0f;
-            _magnetTarget = 0f;
+            _musicCriticalHealth = false;
             _music?.ResetReactiveState();
             _adrenalTimer = 0;
             _playerTrailTimer = 0;
@@ -2410,6 +2451,8 @@ namespace VoidFall.Runtime
                     _gameSim.Player.Health + 0.6f * SupportRank("regenerator") * dt);
             }
             RebuildEnemyGrid();
+            StepEonSea(dt);
+            StepCrascendo(dt);
             MovePlayer(dt);
             ApplyHydraRibCageCollision();
             // The browser applies current-step movement/iframes/boost effects
@@ -2508,6 +2551,7 @@ namespace VoidFall.Runtime
             UpdateMeteors(dt);
             UpdateNebulaStrikes(dt);
             UpdateBlades(dt);
+            UpdateArsenalWeapons(dt);
             UpdateBullets(dt);
             UpdateRailTrails(dt);
             UpdateHostileShots(dt);
@@ -2687,7 +2731,11 @@ namespace VoidFall.Runtime
             }
         }
 
-        private void SeparateEnemies() => _gameSim.SeparateEnemies();
+        private void SeparateEnemies()
+        {
+            if (EonSeaTerrainActive && _eonSeaTerrain != null) SeparateEonSeaEnemies();
+            else _gameSim.SeparateEnemies();
+        }
         private HostileTarget FindNearestHostileFrom(
             Vector2 origin,
             float range,
@@ -3164,7 +3212,7 @@ namespace VoidFall.Runtime
             _gameOverScroll = Vector2.zero;
             _paused = true;
             _overclock.Reset();
-            _magnetTarget = 0f;
+            _musicCriticalHealth = false;
             _magnetIntensity = 0f;
             _music?.ResetReactiveState();
             _audio?.StopPad();
@@ -3450,6 +3498,7 @@ namespace VoidFall.Runtime
             // Browser recalculate() clamps an over-cap health value but does
             // not heal the player when Plating or Frame raises max health.
             _gameSim.Player.Health = Mathf.Min(_gameSim.Player.Health, _gameSim.Player.MaxHealth);
+            WarmArsenalVisuals();
         }
 
         private static void ResizeOwnedChipViews(
@@ -3556,9 +3605,10 @@ namespace VoidFall.Runtime
                 icon.enabled = active;
                 if (active)
                 {
-                    icon.texture = BuildChipIconTexture();
-                    icon.uvRect = BuildChipIconUv(id);
-                    icon.color = accent;
+                    var arsenal = ArsenalContent.IsArsenalWeapon(id);
+                    icon.texture = arsenal ? ProceduralSpriteFactory.ArsenalWeapon(id, currentRank, evolved).texture : BuildChipIconTexture();
+                    icon.uvRect = arsenal ? new Rect(0, 0, 1, 1) : BuildChipIconUv(id);
+                    icon.color = arsenal ? Color.white : accent;
                     icon.rectTransform.sizeDelta = new Vector2(
                         BuildChipHudIconSize(showMaxRank),
                         BuildChipHudIconSize(showMaxRank));

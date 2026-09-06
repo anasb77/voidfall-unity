@@ -75,6 +75,12 @@ and uncertainty. Use VoidFall's own art, fiction, encounters and pacing.
   spawning, remove remaining hazards safely, finish rewards, then transition.
   A branch uses the junction; a single exit can advance directly. Completion
   must not leave the player farming enemies indefinitely in a finished Void.
+- September 5 refinement: keep the player in the cleared arena for 25 seconds
+  with **Initiating Escape**, normal movement/camera follow and normal loot
+  collection, then show **Escaping in 10…1** before departing. Modal choices
+  pause the clock. Early relic collection preserves the remaining window;
+  any unclaimed boss relic is delivered before countdown. Ordinary loot left
+  uncollected is not carried into the crossing or next arena.
 - Resolve mystery destinations from the run seed, keep them hidden until the
   agreed reveal point, and avoid rerolling them when Tab is reopened. Reveal
   some useful risk/reward information so mystery choices are not blind punishment.
@@ -168,3 +174,7 @@ Existing owners: `Core/VoidRoute.cs`, `Core/VoidObjectiveTracker.cs`, runtime
 and `.UI.cs`, plus `UI/Views/RouteSelectController.cs` / `RouteSelectView.cs`.
 These abbreviated paths are relative to `Assets/VoidFall/`; runtime partials
 are under `Runtime/Gameplay/`. See `Docs/REPO_MAP.md` for the architecture.
+
+## September6 approved addition
+
+The owner approved Crascendo as a standard-pool Void, joining the implemented Eon Sea. Crascendo uses shared enemies/elites/global tiers and a random shared boss after native five-minute survival. Its approved identity is per-hit size growth and an indigo-to-crying-violet obsidian setting. This expands the prepared pool to eight while preserving six arenas per generated route.

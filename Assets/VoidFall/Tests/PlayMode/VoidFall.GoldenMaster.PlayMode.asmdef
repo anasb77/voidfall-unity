@@ -7,6 +7,7 @@
         "VoidFall.Core",
         "VoidFall.Content",
         "VoidFall.Runtime",
+        "VoidFall.Audio",
         "VoidFall.UI",
         "VoidFall.Persistence"
     ],

@@ -136,16 +136,23 @@ namespace VoidFall.Runtime
         {
             if (_bossHudPanel == null) return;
             var visible = activeBossCount > 0;
-            _bossHudPanel.enabled = _bossHudGhost.enabled = visible;
+            _bossHudPanel.enabled = false;
+            _bossHudGhost.enabled = visible;
             _bossHudBottom = 0;
             if (!visible) { _lastBossFraction = -1; return; }
             var top = _arenaBannerPanel != null && _arenaBannerPanel.enabled ? 162f : 97f;
-            PositionTop(_bossHudPanel.rectTransform, 0, top, 472, 48);
-            PositionTop(_bossNameText.rectTransform, -110, top + 7, 220, 18);
-            PositionTop(_bossHealthText.rectTransform, 110, top + 7, 220, 18);
-            PositionTop(_bossBarBackground.rectTransform, 0, top + 30, 448, 9);
-            PositionTop(_bossHudGhost.rectTransform, 0, top + 30, 448, 9);
-            PositionTop(_bossBarFill.rectTransform, 0, top + 30, 448, 9);
+            const float width = 432f;
+            PositionTop(_bossNameText.rectTransform, 0, top, width, 16);
+            PositionTop(_bossBarBackground.rectTransform, 0, top + 18, width, 14);
+            PositionTop(_bossHudGhost.rectTransform, 0, top + 18, width, 14);
+            PositionTop(_bossBarFill.rectTransform, 0, top + 18, width, 14);
+            PositionTop(_bossHealthText.rectTransform, 0, top + 16, width, 18);
+            _bossNameText.alignment = _bossHealthText.alignment = TextAnchor.MiddleCenter;
+            _bossNameText.fontSize = 12;
+            _bossHealthText.fontSize = 12;
+            _bossHealthText.color = Color.white;
+            _bossHealthText.transform.SetAsLastSibling();
+            _bossBarBackground.color = new Color(.22f, .045f, .095f, .65f);
             _bossBarFill.type = Image.Type.Filled;
             _bossBarFill.fillMethod = Image.FillMethod.Horizontal;
             _bossBarFill.fillOrigin = 0;
@@ -154,7 +161,7 @@ namespace VoidFall.Runtime
             _bossGhostFraction = Mathf.Lerp(_bossGhostFraction, fraction, 1 - Mathf.Exp(-Time.unscaledDeltaTime * 3.2f));
             _bossHudGhost.fillAmount = _bossGhostFraction;
             _lastBossFraction = fraction;
-            _bossHudBottom = top + 48;
+            _bossHudBottom = top + 34;
         }
 
         private void UpdateUnifiedOverclockHud()

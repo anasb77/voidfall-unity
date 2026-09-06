@@ -110,6 +110,10 @@ namespace VoidFall.Runtime
 
         internal struct MeteorState
         {
+            public int Identity;
+            public bool Orbital;
+            public Vector2 OrbitCentre;
+            public float OrbitPhase;
             public bool Active;
             public Vector2 Position;
             public Vector2 Velocity;

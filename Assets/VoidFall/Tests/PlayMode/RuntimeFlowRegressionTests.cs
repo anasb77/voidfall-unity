@@ -17,6 +17,39 @@ namespace VoidFall.Tests.PlayMode
         private object _previousStore, _previousProfile;
         private bool _previousEnabled;
 
+        [Test]
+        public void Court_split_and_boss_hazards_switch_without_leaking_views()
+        {
+            var runtime = _isolatedRuntime;
+            Invoke(runtime, "StartRun");
+            SetField(runtime, "_arenaId", ArenaId.MonochromeCourt);
+            SetField(runtime, "_time", 20f);
+            Invoke(runtime, "RenderMonochromePresentation");
+            var split = (SpriteRenderer[])GetField(runtime, "_courtSplitViews");
+            Assert.That(split[0].enabled && split[1].enabled, Is.True);
+            Assert.That(split[0].color.grayscale, Is.LessThan(split[1].color.grayscale));
+
+            SetField(runtime, "_monochromeBossEncounterActive", true);
+            SetField(runtime, "_monochromeBoardTileSize", new Vector2(100, 100));
+            SetField(runtime, "_monochromeHazard", new CourtHazardState(CourtFaction.White, CourtHazardStage.Warning));
+            Invoke(runtime, "RenderMonochromePresentation");
+            Assert.That(split[0].enabled || split[1].enabled, Is.False);
+            var tiles = (SpriteRenderer[])GetField(runtime, "_courtBoardTiles");
+            var material = (Material)GetField(runtime, "_courtTileMaterial");
+            Assert.That(tiles[0].enabled, Is.True);
+            Assert.That(material.GetFloat("_HazardStage"), Is.EqualTo(1));
+            Assert.That(material.GetFloat("_WhiteActive"), Is.EqualTo(1));
+            SetField(runtime, "_monochromeHazard", new CourtHazardState(CourtFaction.Black, CourtHazardStage.Burning));
+            Invoke(runtime, "RenderMonochromePresentation");
+            Assert.That(material.GetFloat("_HazardStage"), Is.EqualTo(2));
+            Assert.That(material.GetFloat("_WhiteActive"), Is.Zero);
+            SetField(runtime, "_monochromeBossEncounterActive", false);
+            SetField(runtime, "_arenaId", ArenaId.Hydra);
+            Invoke(runtime, "RenderMonochromePresentation");
+            foreach (var view in tiles) Assert.That(view.enabled, Is.False);
+            foreach (var view in split) Assert.That(view.enabled, Is.False);
+        }
+
         [UnitySetUp]
         public IEnumerator IsolateProfile()
         {
@@ -45,6 +78,36 @@ namespace VoidFall.Tests.PlayMode
                 _isolatedRuntime.enabled = _previousEnabled;
             }
             yield return null;
+        }
+
+        [Test]
+        public void Nebula_surface_switches_back_to_sakura_material_and_geometry()
+        {
+            var runtime = _isolatedRuntime;
+            var originalArena = GetField(runtime, "_arenaId");
+            try
+            {
+                foreach (var arena in new[] { ArenaId.RedNebula, ArenaId.WhiteSakura, ArenaId.RedNebula })
+                {
+                    SetField(runtime, "_arenaId", arena);
+                    Invoke(runtime, "ConfigureArenaFarFilaments");
+                    var materials = (Material[])GetField(runtime, "_arenaNearFilamentMaterials");
+                    var views = (MeshFilter[])GetField(runtime, "_arenaNearFilamentOuterViews");
+                    Assert.That(materials[4].GetFloat("_Continuous"), Is.EqualTo(arena == ArenaId.RedNebula ? 1f : 0f));
+                    var mesh = views[4].sharedMesh;
+                    Assert.That(mesh.vertexCount, Is.GreaterThan(0));
+                    if (arena == ArenaId.RedNebula)
+                        Assert.That(mesh.triangles.Length, Is.EqualTo((mesh.vertexCount / 2 - 1) * 6));
+                    else
+                        Assert.That(mesh.uv2, Is.Empty, "Sakura must regain the original layered geometry.");
+                    Assert.That(materials[4].GetTexture("_MaskTex"), Is.Not.Null);
+                }
+            }
+            finally
+            {
+                SetField(runtime, "_arenaId", originalArena);
+                Invoke(runtime, "ConfigureArenaFarFilaments");
+            }
         }
 
         [UnityTest]
@@ -92,8 +155,103 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(route.NodesInState(RouteNodeState.Available), Has.Count.EqualTo(2));
         }
 
+        [Test]
+        public void Nebula_wave_hits_reused_meteor_slots_but_not_the_same_meteor_twice()
+        {
+            var runtime = _isolatedRuntime;
+            Invoke(runtime, "StartRun");
+            Invoke(runtime, "ClearNebulaStrikes");
+            Invoke(runtime, "TrySpawnNebulaStrike");
+            var waves = (Array)GetField(runtime, "_nebulaStrikes");
+            var active = 0;
+            foreach (var wave in waves) if (wave != null && (bool)GetField(wave, "Active")) active++;
+            Assert.That(active, Is.InRange(3, 4));
+            var strike = waves.GetValue(0);
+            var sim = GetField(runtime, "_gameSim");
+            var player = GetField(sim, "Player");
+            SetField(player, "Position", new Vector2(1000, 1000));
+            SetField(sim, "Player", player);
+            var meteors = (Array)GetField(sim, "Meteors");
+            Array.Clear(meteors, 0, meteors.Length);
+            var insert = sim.GetType().GetMethod("TryInsertMeteor", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var slot = (int)insert.Invoke(sim, new object[] { Vector2.zero, 20f, 0, false, 0d });
+            var first = meteors.GetValue(slot);
+            SetField(first, "Health", 1000f); SetField(first, "MaxHealth", 1000f); meteors.SetValue(first, slot);
+            Invoke(runtime, "DamageNebulaStrike", strike, new Vector2(-100, 0), new Vector2(100, 0));
+            var damaged = (float)GetField(meteors.GetValue(slot), "Health");
+            Assert.That(damaged, Is.LessThan(1000));
+            Invoke(runtime, "DamageNebulaStrike", strike, new Vector2(-100, 0), new Vector2(100, 0));
+            Assert.That(GetField(meteors.GetValue(slot), "Health"), Is.EqualTo(damaged));
+            var retired = meteors.GetValue(slot); SetField(retired, "Active", false); meteors.SetValue(retired, slot);
+            var replacement = (int)insert.Invoke(sim, new object[] { Vector2.zero, 20f, 0, false, 0d });
+            Assert.That(replacement, Is.EqualTo(slot));
+            var next = meteors.GetValue(slot); SetField(next, "Health", 1000f); SetField(next, "MaxHealth", 1000f); meteors.SetValue(next, slot);
+            Assert.That(GetField(next, "Identity"), Is.Not.EqualTo(GetField(first, "Identity")));
+            Invoke(runtime, "DamageNebulaStrike", strike, new Vector2(-100, 0), new Vector2(100, 0));
+            Assert.That((float)GetField(meteors.GetValue(slot), "Health"), Is.LessThan(1000));
+            Invoke(runtime, "ClearNebulaStrikes");
+        }
+
+        [Test]
+        public void Compact_boss_hud_keeps_hp_inside_bar_without_backing_panel()
+        {
+            Invoke(_isolatedRuntime, "UpdateBossHudRemaster", 1, .1f);
+            var backing = (UnityEngine.UI.Image)GetField(_isolatedRuntime, "_bossHudPanel");
+            var bar = (UnityEngine.UI.Image)GetField(_isolatedRuntime, "_bossBarFill");
+            var hp = (UnityEngine.UI.Text)GetField(_isolatedRuntime, "_bossHealthText");
+            Assert.That(backing.enabled, Is.False);
+            Assert.That(bar.rectTransform.sizeDelta.x, Is.EqualTo(432f));
+            Assert.That(hp.alignment, Is.EqualTo(TextAnchor.MiddleCenter));
+            Assert.That(hp.rectTransform.rect.center.y + hp.rectTransform.anchoredPosition.y,
+                Is.EqualTo(bar.rectTransform.rect.center.y + bar.rectTransform.anchoredPosition.y).Within(.01f));
+        }
+
+        [Test]
+        public void Sakura_bypasses_the_new_camera_grade()
+        {
+            var arena = GetField(_isolatedRuntime, "_arenaId");
+            try
+            {
+                SetField(_isolatedRuntime, "_arenaId", ArenaId.WhiteSakura);
+                Invoke(_isolatedRuntime, "ApplyArenaColorGrade");
+                Assert.That(GetField(GetField(_isolatedRuntime, "_arenaColorGrade"), "active"), Is.EqualTo(false));
+                SetField(_isolatedRuntime, "_arenaId", ArenaId.RedNebula);
+                Invoke(_isolatedRuntime, "ApplyArenaColorGrade");
+                Assert.That(GetField(GetField(_isolatedRuntime, "_arenaColorGrade"), "active"), Is.EqualTo(true));
+            }
+            finally { SetField(_isolatedRuntime, "_arenaId", arena); Invoke(_isolatedRuntime, "ApplyArenaColorGrade"); }
+        }
+
+        [Test]
+        public void Nebula_orbits_and_grouped_waves_repeat_for_the_same_seed()
+        {
+            SimulationGoldenMasterTests.PinHermeticPresentationState(_isolatedRuntime);
+            foreach (var seed in new[] { 0x5f1dc0deu, 0x923af124u })
+            {
+                ulong first = 0;
+                for (var run = 0; run < 2; run++)
+                {
+                    Invoke(_isolatedRuntime, "ApplyStressScenario", "productionMax", seed);
+                    SetField(_isolatedRuntime, "_arenaId", ArenaId.RedNebula);
+                    Invoke(_isolatedRuntime, "SelectRecipeForCurrentArena");
+                    Invoke(_isolatedRuntime, "ClearMeteors");
+                    Invoke(_isolatedRuntime, "ClearNebulaStrikes");
+                    for (var i = 0; i < 3; i++) Invoke(_isolatedRuntime, "TrySpawnMeteor", false);
+                    for (var i = 0; i < 2; i++) Invoke(_isolatedRuntime, "TrySpawnMeteor", true);
+                    var meteors = (Array)GetField(GetField(_isolatedRuntime, "_gameSim"), "Meteors");
+                    var orbit = false;
+                    foreach (var m in meteors) if ((bool)GetField(m, "Active") && (bool)GetField(m, "Orbital")) orbit = true;
+                    Assert.That(orbit, Is.True);
+                    for (var tick = 0; tick < 720; tick++) Invoke(_isolatedRuntime, "Simulate", 1d / 60d);
+                    var hash = SimulationGoldenMasterTests.HashRuntimeState(_isolatedRuntime);
+                    if (run == 0) first = hash;
+                    else Assert.That(hash, Is.EqualTo(first), "Nebula must reproduce orbital terrain and grouped-wave damage.");
+                }
+            }
+        }
+
         [UnityTest]
-        public IEnumerator Expired_post_boss_delay_waits_for_physical_relic_pickup_before_portal_junction()
+        public IEnumerator Physical_relic_pickup_preserves_the_window_before_portal_junction()
         {
             var runtime = UnityEngine.Object.FindAnyObjectByType<VoidFallGameRuntime>();
             Assert.That(runtime, Is.Not.Null);
@@ -102,13 +260,13 @@ namespace VoidFall.Tests.PlayMode
             Invoke(runtime, "StartRun");
             Invoke(runtime, "OnVoidObjectiveCompleted");
             Invoke(runtime, "SpawnRouletteChest", Vector2.zero);
-            SetField(runtime, "_voidCompletionDelayRemaining", 0f);
+            SetField(runtime, "_voidCompletionDelayRemaining", 31f);
 
             Invoke(runtime, "StepVoidCompletionDelay", 0f);
 
             Assert.That(GetField(runtime, "_rouletteChestActive"), Is.True);
             Assert.That(GetField(runtime, "_rouletteActive"), Is.False);
-            Assert.That(GetField(runtime, "_openRouteAfterRoulette"), Is.True);
+            Assert.That(GetField(runtime, "_openRouteAfterRoulette"), Is.False);
 
             var sim = GetField(runtime, "_gameSim");
             var playerField = sim.GetType().GetField("Player", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -126,6 +284,9 @@ namespace VoidFall.Tests.PlayMode
 
             Assert.That(GetField(runtime, "_openRouteAfterRoulette"), Is.False);
             Assert.That(GetField(runtime, "_paused"), Is.False);
+            Assert.That(runtime.JourneyStatus, Is.EqualTo("Rewards"));
+            Assert.That(GetField(runtime, "_voidCompletionDelayRemaining"), Is.EqualTo(31f));
+            Invoke(runtime, "StepVoidCompletionDelay", 31f);
             var ui = (UIManager)GetField(runtime, "_ui");
             Assert.That(ui.CurrentScreen, Is.EqualTo(UIScreen.None));
             Assert.That(runtime.JourneyStatus, Is.EqualTo("Junction"));

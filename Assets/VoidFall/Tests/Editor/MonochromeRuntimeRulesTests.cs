@@ -7,6 +7,27 @@ namespace VoidFall.Tests.Editor
 {
     public sealed class MonochromeRuntimeRulesTests
     {
+        [TestCase(CourtFaction.White, -500f)]
+        [TestCase(CourtFaction.Black, 700f)]
+        public void Split_field_armies_enter_from_the_opposite_color(CourtFaction faction, float expected)
+        {
+            var method = typeof(MonochromeRuntimeRules).GetMethod("SplitSpawnX");
+            Assert.That(method, Is.Not.Null);
+            Assert.That((float)method.Invoke(null, new object[] { faction, 100f, 600f }), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void Reduced_motion_keeps_the_tile_signal_steady()
+        {
+            var method = typeof(MonochromeRuntimeRules).GetMethod("HazardPulse");
+            Assert.That(method, Is.Not.Null);
+            var initial = (float)method.Invoke(null, new object[] { 0f, true });
+            Assert.That(initial, Is.InRange(.1f, 1f));
+            foreach (var time in new[] { .05f, .1f, .5f, 3f })
+                Assert.That((float)method.Invoke(null, new object[] { time, true }), Is.EqualTo(initial));
+            Assert.That((float)method.Invoke(null, new object[] { .05f, false }),
+                Is.Not.EqualTo((float)method.Invoke(null, new object[] { .15f, false })));
+        }
         [TestCase(CourtFaction.Black, -1)]
         [TestCase(CourtFaction.White, 1)]
         public void Factions_spawn_from_opposite_sides(CourtFaction faction, int expectedSign)

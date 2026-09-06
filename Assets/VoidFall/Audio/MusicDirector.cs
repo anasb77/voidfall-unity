@@ -38,18 +38,6 @@ namespace VoidFall.Runtime
                 { "NoGravity", new[] { 30f, 112f } },
             };
 
-        /// <summary>
-        /// TRACK SHIFT combat entry points for gameplay OST tracks (spec
-        /// 50.2): authored seconds that skip quiet intros so a shifted track
-        /// starts hot. Keys match clip names; add entries as tracks are
-        /// curated.
-        /// </summary>
-        private static readonly Dictionary<string, float[]> GameplayStartOffsets =
-            new Dictionary<string, float[]>(StringComparer.OrdinalIgnoreCase)
-            {
-                // Example: { "FracturedHeaven", new[] { 18f, 111f } },
-            };
-
         // Time constant for cross-fades, not a duration.
         private const float FadeTimeConstant = 0.32f;
         // Final gain applied on top of master x music. ProceduralAudio's pad
@@ -110,6 +98,7 @@ namespace VoidFall.Runtime
         private Channel _channel = Channel.None;
         private Channel _pendingChannel = Channel.None;
         private bool _switching;
+        private bool _combatEntryRequested;
         private AudioClip _current;
         private float _startOffset;
 
@@ -136,7 +125,10 @@ namespace VoidFall.Runtime
         private MusicSpectrumAnalyzer _spectrumAnalyzer;
         private MusicDspFilter _dspFilter;
         private float _criticalPulseClock;
-        private float _rateSurge;
+        private readonly MusicRemixEnvelope _remix = new MusicRemixEnvelope();
+        private bool _reactivePaused;
+        private int _pendingMagnetGems;
+        private float _mixGain = 1f;
 
         public bool HasGameplayTracks => _gameplayClips.Length > 0;
         public bool HasMenuTracks => _menuClips.Length > 0;
@@ -147,6 +139,7 @@ namespace VoidFall.Runtime
             : MusicAnalysisFrame.Zero;
         public MusicMixTargets CurrentMixTargets => _mixTargets;
         public float[] SpectrumBands => _spectrumAnalyzer?.Bands;
+        public float MagnetIntensity => _remix.MagnetIntensity;
 
         private void Awake()
         {
@@ -180,21 +173,28 @@ namespace VoidFall.Runtime
         /// <summary>
         /// Drives the reactive layer. Safe to call every frame.
         /// </summary>
-        /// <param name="upgradeScreenOpen">
-        /// Submerges the track under a low-pass while the upgrade choice is up.
-        /// </param>
-        /// <param name="overclocked">Runs the track at 2x.</param>
-        /// <param name="criticalHealth">Drags the track to 0.5x.</param>
-        public void SetReactiveState(in MusicReactiveState state)
+        /// State composes tape speed, critical drag and upgrade submersion.
+        /// Gameplay-time event tails freeze while paused; playback continues.
+        public void SetReactiveState(in MusicReactiveState state, bool paused = false, int pendingMagnetGems = 0)
         {
             _reactiveState = state;
+            _reactivePaused = paused;
+            _pendingMagnetGems = pendingMagnetGems;
         }
 
         public void NotifyOverclockStreak(int previousStreak, int currentStreak)
         {
-            if (currentStreak <= previousStreak) return;
-            // Pickups now surge through the visual frame. Stacking preserves the approved 2x tape rate.
-            _rateSurge = 0f;
+            if (_channel == Channel.Gameplay) _remix.NotifyOverclockStreak(previousStreak, currentStreak);
+        }
+
+        public void NotifyMagnetStarted()
+        {
+            if (_channel == Channel.Gameplay) _remix.BeginMagnet();
+        }
+
+        public void NotifyMagnetGem(float value)
+        {
+            if (_channel == Channel.Gameplay) _remix.CollectMagnetGem(value);
         }
 
         public void NotifyPlayerDamage(float healthFraction, bool lethal)
@@ -208,8 +208,13 @@ namespace VoidFall.Runtime
             _reactiveState = default;
             _mixTargets = MusicStateComposer.Compose(default, 0f);
             _criticalPulseClock = 0f;
-            _rateSurge = 0f;
+            _remix.Reset();
+            _reactivePaused = false;
+            _pendingMagnetGems = 0;
+            _duckElapsed = -1f;
+            _mixGain = 1f;
             _dspFilter?.SetStereoWidth(1f);
+            _dspFilter?.SetBassBoost(0f);
             _dspFilter?.ResetHistory();
             _spectrumAnalyzer?.Reset();
         }
@@ -221,7 +226,9 @@ namespace VoidFall.Runtime
         /// </summary>
         public void DuckForBomb()
         {
+            if (_channel != Channel.Gameplay) return;
             _duckElapsed = 0f;
+            _dspFilter?.RequestBombEcho(_source != null ? _source.pitch : _mixTargets.PlaybackRate);
         }
 
         /// <summary>
@@ -239,6 +246,13 @@ namespace VoidFall.Runtime
                 _duckElapsed = -1f;
                 return 1f;
             }
+
+            return CurrentDuckGain();
+        }
+
+        private float CurrentDuckGain()
+        {
+            if (_duckElapsed < 0f) return 1f;
 
             if (_duckElapsed < DuckAttackSeconds)
                 return Mathf.Lerp(1f, DuckFloor, _duckElapsed / DuckAttackSeconds);
@@ -314,16 +328,21 @@ namespace VoidFall.Runtime
         /// <summary>Rolls a fresh track for a new run and loops it.</summary>
         public void PlayGameplay()
         {
+            _combatEntryRequested = false;
             RequestChannel(Channel.Gameplay);
         }
 
         public void PlayMainMenu()
         {
+            ResetReactiveState();
+            _combatEntryRequested = false;
             RequestChannel(Channel.MainMenu);
         }
 
         public void Stop()
         {
+            ResetReactiveState();
+            _combatEntryRequested = false;
             RequestChannel(Channel.None);
         }
 
@@ -335,6 +354,7 @@ namespace VoidFall.Runtime
         public void ShiftToNextCombatTrack()
         {
             if (!HasGameplayTracks || _channel != Channel.Gameplay || _switching) return;
+            _combatEntryRequested = true;
             RequestChannel(Channel.Gameplay);
         }
 
@@ -396,7 +416,8 @@ namespace VoidFall.Runtime
             }
 
             _current = clips[index];
-            _startOffset = PickStartOffset(_current.name);
+            _startOffset = PickStartOffset(_current.name, _combatEntryRequested);
+            _combatEntryRequested = false;
             StartCurrent(0f);
         }
 
@@ -412,10 +433,10 @@ namespace VoidFall.Runtime
             _source.loop = _startOffset <= 0.01f;
             var latestStart = Mathf.Max(0f, _current.length - 1f);
             _source.time = Mathf.Clamp(_startOffset, 0f, latestStart);
-            // initialVolume is the pre-duck level. Update re-applies the duck
-            // multiplier next frame, so seeding both with it is correct.
+            // Keep fade ownership separate, but preserve the audible envelope
+            // even on the very first sample after a manual offset loop.
             _fadeVolume = initialVolume;
-            _source.volume = initialVolume;
+            _source.volume = initialVolume * CurrentDuckGain() * _mixGain;
             _source.Play();
             if (_suspended) _source.Pause();
         }
@@ -434,25 +455,16 @@ namespace VoidFall.Runtime
             StartCurrent(_fadeVolume);
         }
 
-        private float PickStartOffset(string clipName)
+        private float PickStartOffset(string clipName, bool combatEntry = false)
         {
             if (string.IsNullOrEmpty(clipName)) return 0f;
-            if (MenuStartOffsets.TryGetValue(clipName, out var options) &&
+            if (_channel == Channel.MainMenu && MenuStartOffsets.TryGetValue(clipName, out var options) &&
                 options != null && options.Length > 0)
             {
                 return options.Length == 1 ? options[0] : options[_rng.Next(options.Length)];
             }
-            // TRACK SHIFT combat entry points for OST tracks (spec 50.2):
-            // authored seconds that skip quiet intros so the next track
-            // starts hot. A track with no entry here starts at zero.
-            if (GameplayStartOffsets.TryGetValue(clipName, out var combatOptions) &&
-                combatOptions != null && combatOptions.Length > 0)
-            {
-                return combatOptions.Length == 1
-                    ? combatOptions[0]
-                    : combatOptions[_rng.Next(combatOptions.Length)];
-            }
-            return 0f;
+            // New runs retain the original intros; only a Track Shift enters hot.
+            return _channel == Channel.Gameplay && combatEntry ? MusicTrackEntries.Pick(clipName, _rng) : 0f;
         }
 
         /// <summary>
@@ -518,20 +530,27 @@ namespace VoidFall.Runtime
         private void ApplyReactiveState()
         {
             var dt = Time.unscaledDeltaTime;
-            _criticalPulseClock += dt * 1.6f;
+            _criticalPulseClock = Mathf.Repeat(_criticalPulseClock + dt * 1.6f, 100f);
+            _remix.Step(_reactivePaused || _reactiveState.LevelUpOpen ? 0f : dt, _reactiveState.CriticalHealth,
+                _reactiveState.GameplayActive, _pendingMagnetGems);
             var pulse = _reactiveState.CriticalHealth
                 ? 0.5f + Mathf.Sin(_criticalPulseClock * Mathf.PI * 2f) * 0.5f
                 : 0f;
+            var state = new MusicReactiveState(_reactiveState.OverclockTier, _reactiveState.OverclockStreak,
+                _reactiveState.CriticalHealth, _reactiveState.LevelUpOpen,
+                Mathf.Max(_reactiveState.MagnetIntensity, _remix.MagnetIntensity), _reactiveState.GameplayActive);
             _mixTargets = _menuDialogMuffle
                 ? MusicStateComposer.ComposeMenuDialog()
-                : MusicStateComposer.Compose(_reactiveState, pulse);
-            _rateSurge = Mathf.MoveTowards(_rateSurge, 0f, dt * 0.22f);
+                : MusicStateComposer.Compose(state, pulse, _remix.MagnetRelease, _remix.Recovery,
+                    _remix.StackAccent, Mathf.Sin(_criticalPulseClock * Mathf.PI * 6f));
             _source.pitch = Mathf.Lerp(
                 _source.pitch,
-                _mixTargets.PlaybackRate + _rateSurge,
+                _mixTargets.PlaybackRate,
                 1f - Mathf.Exp(-dt / RateTimeConstant));
 
             _dspFilter?.SetStereoWidth(_mixTargets.StereoWidth);
+            _dspFilter?.SetBassBoost(_mixTargets.BassBoost);
+            _mixGain = Mathf.Lerp(_mixGain, _mixTargets.Gain, 1f - Mathf.Exp(-dt / .08f));
 
             if (_lowPass == null) return;
 
@@ -557,7 +576,7 @@ namespace VoidFall.Runtime
 
         private void Update()
         {
-            if (_source == null) return;
+            if (_source == null || _suspended) return;
 
             // Runs before the switching early-out so the filter and rate keep
             // settling through a cross-fade.
@@ -572,14 +591,14 @@ namespace VoidFall.Runtime
             if (_switching)
             {
                 _fadeVolume = Mathf.Lerp(_fadeVolume, 0f, blend);
-                _source.volume = _fadeVolume * duck;
+                _source.volume = _fadeVolume * duck * _mixGain;
                 if (_fadeVolume <= 0.005f || !_source.isPlaying)
                     BeginChannel(_pendingChannel);
                 return;
             }
 
             _fadeVolume = Mathf.Lerp(_fadeVolume, ResolveVolume(), blend);
-            _source.volume = _fadeVolume * duck;
+            _source.volume = _fadeVolume * duck * _mixGain;
 
             if (_channel == Channel.None || _source.loop || _suspended) return;
 

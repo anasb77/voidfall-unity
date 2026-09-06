@@ -53,6 +53,8 @@ namespace VoidFall.Runtime
         private void UpdateVisualCapture()
         {
             MaintainNullCityCapture();
+            MaintainEonSeaCapture();
+            MaintainCrascendoCapture();
             if (_visualCaptureIssued || string.IsNullOrWhiteSpace(_visualCapturePath)) return;
             if (_visualCaptureFramesRemaining > 0)
             {
@@ -84,11 +86,14 @@ namespace VoidFall.Runtime
             // STANDSTILL stance timer: rest counts up, any movement resets.
             if (input.sqrMagnitude < 0.0001f) _standstillSeconds += dt;
             else _standstillSeconds = 0f;
-            var targetVelocity = input * speed;
-            var movementBlend = 1 - Mathf.Exp(-14f * dt);
-            _gameSim.Player.Velocity += (targetVelocity - _gameSim.Player.Velocity) * movementBlend;
+            if (!MoveEonSeaPlayer(dt, input, speed))
+            {
+                var targetVelocity = input * speed;
+                var movementBlend = 1 - Mathf.Exp(-14f * dt);
+                _gameSim.Player.Velocity += (targetVelocity - _gameSim.Player.Velocity) * movementBlend;
+                _gameSim.Player.Position += _gameSim.Player.Velocity * dt;
+            }
             var velocity = _gameSim.Player.Velocity;
-            _gameSim.Player.Position += velocity * dt;
             ApplyNullCityMovement(dt, input);
             _playerTrailTimer -= dt;
             if (_qualityPreset.PlayerTrail &&
@@ -541,7 +546,7 @@ namespace VoidFall.Runtime
                 return (float)EliteRules.EliteVariantDef(enemy.EliteKind.Value).ThreatCost;
             if (enemy.Elite) return 8f;
             return (float)DirectorRules.EnemyThreatCost(enemy.Id) *
-                (float)(enemy.Roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoThreatMultiplier : 1f);
+                (float)EnemyRosterRules.ThreatMultiplier(enemy.Roster);
         }
 
         private int SpawnRusherPressure(int edge, int amount)
@@ -689,6 +694,7 @@ namespace VoidFall.Runtime
             _gameSim.EnemyFxRollHook = EnemyFxRollForSim;
             _gameSim.EnemyDamagePlayerHook = EnemyDamagePlayerForSim;
             _gameSim.EnemyBlastWaveHook = EnemyBlastWaveForSim;
+            _gameSim.EnemyBlastWaveFxOnlyHook = EnemyBlastWaveFxOnlyForSim;
             _gameSim.EnemyImpactMarkHook = EnemyImpactMarkForSim;
             _gameSim.EnemyFreezeHook = EnemyFreezeForSim;
             _gameSim.EnemyAmberFlashHook = EnemyAmberFlashForSim;
@@ -709,6 +715,17 @@ namespace VoidFall.Runtime
                 var i = _gameSim.EnemyOrder[order];
                 var enemy = _gameSim.Enemies[i];
                 if (!enemy.Active) continue;
+                if (AdvanceArsenalFrozenEnemy(i, enemy, dt))
+                {
+                    enemy.Age += dt;
+                    enemy.Velocity = Vector2.zero;
+                    enemy.HitTimer = Mathf.Max(0, enemy.HitTimer - dt);
+                    enemy.BladeCooldown = Mathf.Max(0, enemy.BladeCooldown - dt);
+                    enemy.HollowCooldown = Mathf.Max(0, enemy.HollowCooldown - dt);
+                    _gameSim.Enemies[i] = enemy;
+                    continue;
+                }
+                var eonOldPosition = enemy.Position;
                 enemy.Age += dt;
                 var delta = _gameSim.Player.Position - enemy.Position;
                 var distance = SourceLengthOrOne(delta);
@@ -740,6 +757,10 @@ namespace VoidFall.Runtime
                 else if (enemy.Elite && !enemy.EliteKind.HasValue)
                 {
                     UpdateStandardElite(ref enemy, dt, distance, direction);
+                }
+                else if (UsesRosterProgression(enemy))
+                {
+                    UpdateProgressedEnemy(ref enemy, dt, distance, direction);
                 }
                 else if (enemy.EliteKind.HasValue && enemy.EliteKind.Value == EliteVariantId.Gunner)
                 {
@@ -789,14 +810,6 @@ namespace VoidFall.Runtime
                 {
                     UpdateNullCityEnemy(ref enemy, dt, distance, direction);
                 }
-                else if (enemy.Roster == EnemyRoster.Two && enemy.Id == "chaser")
-                {
-                    UpdateRosterPincer(ref enemy, dt, distance, direction);
-                }
-                else if (enemy.Roster == EnemyRoster.Two && enemy.Id == "guard")
-                {
-                    UpdateRosterGuard(ref enemy, dt, direction);
-                }
                 else
                 {
                     // The browser only ever adds a small symmetric wobble here,
@@ -821,6 +834,7 @@ namespace VoidFall.Runtime
                     enemy.Position += (enemy.Velocity + enemy.Knockback) * dt;
                     ConstrainNullCityEnemy(ref enemy);
                 }
+                ResolveEonSeaEnemyMovement(i, ref enemy, eonOldPosition);
                 if ((!enemy.Elite || enemy.EliteKind.HasValue) && distance > 1750f)
                 {
                     var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
@@ -830,10 +844,17 @@ namespace VoidFall.Runtime
                         Mathf.Pow(viewportHalf.y * 2f, 2)) * 0.5f + 90f;
                     enemy.Position = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
                     enemy.Age = 0;
+                    ResolveEonSeaEnemyMovement(i, ref enemy, enemy.Position);
                 }
 
                 var canContactPlayer = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
                     _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0;
+                if (CurrentVoidIsEonSea)
+                {
+                    delta = _gameSim.Player.Position - enemy.Position;
+                    distance = SourceLengthOrOne(delta);
+                    direction = delta / distance;
+                }
                 if (enemy.Active && enemy.Id != "exploder" && enemy.Age > 0.4f &&
                     distance < enemy.Radius + PlayerRadius && enemy.ContactCooldown <= 0 &&
                     canContactPlayer)
@@ -926,6 +947,9 @@ namespace VoidFall.Runtime
         private void EnemyDamagePlayerForSim(float damage, Vector2 sourceDirection) => DamagePlayer(damage, sourceDirection);
 
         private void EnemyBlastWaveForSim(Vector2 position, float maxRadius, float life, bool bomb) => SpawnBlastWave(position, maxRadius, life, bomb);
+
+        private void EnemyBlastWaveFxOnlyForSim(Vector2 position, float maxRadius, float life, bool bomb)
+            => SpawnBlastWave(position, maxRadius, life, bomb, false);
 
         private void EnemyImpactMarkForSim(Vector2 position, float radius, float rotation) => SpawnImpactMark(position, radius, rotation);
 
@@ -1049,6 +1073,8 @@ namespace VoidFall.Runtime
             if (CountMeteors(explosive) >= limit) return;
             var variant = Mathf.FloorToInt((float)(_gameSim.Rng.Next() * MeteorRules.MeteorVariantCount(explosive)));
             var radius = (float)MeteorRules.MeteorCollisionRadius(variant, explosive);
+            var nebula = _arenaId == ArenaId.RedNebula;
+            if (nebula && !explosive) radius *= .8f;
             var enemyCount = 0;
             for (var index = 0; index < _gameSim.Enemies.Length; index++)
             {
@@ -1094,6 +1120,16 @@ namespace VoidFall.Runtime
                     explosive,
                     _time);
                 if (slot < 0) return;
+                if (nebula)
+                {
+                    var meteor = _gameSim.Meteors[slot];
+                    if (!explosive) meteor.VisibleRadius *= .8f;
+                    meteor.Orbital = true;
+                    meteor.OrbitPhase = meteor.Seed;
+                    meteor.OrbitCentre = meteor.Position - new Vector2(Mathf.Cos(meteor.OrbitPhase) * 48f, Mathf.Sin(meteor.OrbitPhase) * 32f);
+                    meteor.Spin = meteor.Spin < 0 ? -.32f : .32f;
+                    _gameSim.Meteors[slot] = meteor;
+                }
                 var view = EnsureMeteorView(slot);
                 view.sprite = ProceduralSpriteFactory.Meteor(variant, explosive);
                 view.transform.rotation = Quaternion.Euler(0, 0, _gameSim.Meteors[slot].Rotation * Mathf.Rad2Deg);
@@ -1245,6 +1281,7 @@ namespace VoidFall.Runtime
             {
                 var i = _gameSim.BossOrder[order];
                 var boss = _gameSim.Bosses[i];
+                var eonOldPosition = boss.Position;
                 if (!boss.Active)
                 {
                     if (boss.DeathTimer > 0)
@@ -1418,6 +1455,7 @@ namespace VoidFall.Runtime
                     }
                 }
 
+                ResolveEonSeaBossMovement(i, ref boss, eonOldPosition);
                 var contactDelta = _gameSim.Player.Position - boss.Position;
                 var contactDistance = SourceLengthOrOne(contactDelta);
                 var canContactPlayer = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
@@ -1607,6 +1645,7 @@ namespace VoidFall.Runtime
                 _audio?.Play(ProceduralAudio.Cue.BossSlam, 0.92f);
                 AddCameraShake(0.55f);
                 var radius = BossSlamRadius((float)(attack.Radius ?? 190), encounterCycle);
+                StressEonSeaIce(boss.Position, radius);
                 var delta = _gameSim.Player.Position - boss.Position;
                 SpawnRingWave(boss.Position, 24f, radius * 2.2f, 0.62f, BossAccent(boss));
                 if (delta.magnitude < radius + AttackPlayerRadius) DamagePlayer(attackDamage, delta);
@@ -1665,6 +1704,7 @@ namespace VoidFall.Runtime
                 boss.Position = boss.TargetPosition;
                 var delta = _gameSim.Player.Position - boss.Position;
                 var radius = (float)(attack.Radius ?? 80);
+                StressEonSeaIce(boss.Position, radius);
                 SpawnRingWave(boss.Position, 18f, radius * 2.2f, 0.42f,
                     new Color(0.376f, 0.647f, 0.98f, 0.8f));
                 BurstFx(boss.Position, SourceDotColor("blue"),
@@ -1719,7 +1759,11 @@ namespace VoidFall.Runtime
         private void RemoveMeteorOrder(int slot) => _gameSim.RemoveMeteorOrder(slot);
         private void EnsureMeteorOrderEntries() => _gameSim.EnsureMeteorOrderEntries();
 
-        private void ResetPickupOrder() => _gameSim.ResetPickupOrder();
+        private void ResetPickupOrder()
+        {
+            _gameSim.ResetPickupOrder();
+            ResetMusicMagnetCollection();
+        }
         private void AppendPickupOrder(int slot) => _gameSim.AppendPickupOrder(slot);
         private void RemovePickupOrder(int slot) => _gameSim.RemovePickupOrder(slot);
         private void RemovePickupOrderAt(int position) => _gameSim.RemovePickupOrderAt(position);
@@ -1792,6 +1836,7 @@ namespace VoidFall.Runtime
 
         private void UpdateBullets(float dt)
         {
+            ConfigureEonSeaProjectileHooks();
             // The loop skeleton, homing targeting, identity bookkeeping and
             // hit resolution live in GameSim.AdvanceBullets; the runtime owns
             // the FX/damage cascades behind these cached hooks. Hook bodies
@@ -1861,6 +1906,7 @@ namespace VoidFall.Runtime
                     if (railgun) RailgunImpact(boss.Position, bullet.Hits);
                     if (bullet.BlastRadius > 0)
                     {
+                        StressEonSeaIce(bullet.Position, bullet.BlastRadius);
                         // The browser gives a boss hit a cyan presentation
                         // cue only; its blast damage is for enemy/meteor
                         // hits, not an extra boss-area hit.
@@ -2052,6 +2098,8 @@ namespace VoidFall.Runtime
                 _pickupCollectedHook = (slot, order, collectedFromPull) =>
                 {
                     var pickup = _gameSim.Pickups[slot];
+                    var musicMagnetGem = _musicMagnetSlots[slot];
+                    _musicMagnetSlots[slot] = false;
                     Hide(_pickupViews[slot]);
                     RemovePickupOrderAt(order);
                     if (pickup.Kind == PickupKind.Xp)
@@ -2059,6 +2107,7 @@ namespace VoidFall.Runtime
                         // GREED doubles every source; the pull flag was
                         // captured before the slot freed.
                         if (collectedFromPull) collectedFromPull = !HasWildCard(WildCardId.Greed);
+                        if (musicMagnetGem && collectedFromPull) _music?.NotifyMagnetGem(pickup.Value);
                         _xp += pickup.Value * GreedXpMultiplier() *
                         (float)SupportEffectRules.ScholarXpMultiplier(SupportRank("scholar"));
                         _telemetry.RecordXpCollected(pickup.Value);
@@ -2090,6 +2139,7 @@ namespace VoidFall.Runtime
                         // pickup's pull-all - no hidden exceptions (spec 44.3).
                         if (!HasWildCard(WildCardId.Greed))
                         {
+                            _music?.NotifyMagnetStarted();
                             for (var otherIndex = 0; otherIndex < _gameSim.Pickups.Length; otherIndex++)
                             {
                                 var other = _gameSim.Pickups[otherIndex];
@@ -2097,6 +2147,7 @@ namespace VoidFall.Runtime
                                 {
                                     other.Pull = true;
                                     _gameSim.Pickups[otherIndex] = other;
+                                    _musicMagnetSlots[otherIndex] = true;
                                 }
                             }
                         }
@@ -2160,7 +2211,7 @@ namespace VoidFall.Runtime
                 _gameSim.Player.Health > 0 && !_gameOver && !_revivePending,
                 out var pulledXpCount,
                 out var pulledXpValue);
-            _magnetTarget = MusicReactiveMath.MagnetTarget(pulledXpCount, pulledXpValue);
+            CountPendingMusicGems();
             _pickupStepTimer = Mathf.Max(0, _pickupStepTimer - dt);
             if (_pickupStepTimer <= 0) _pickupStep = 0;
         }
@@ -2177,6 +2228,7 @@ namespace VoidFall.Runtime
             {
                 var weapon = ContentCatalog.Weapons[weaponIndex];
                 var rank = _upgradeProgress.WeaponRanks[weaponIndex];
+                if (ArsenalContent.IsArsenalWeapon(weapon.Id)) continue;
                 _weaponCooldowns[weaponIndex] -= dt;
                 if (rank <= 0 || weapon.Kind == "orbit") continue;
                 var rankDefinition = weapon.Ranks[Mathf.Clamp(rank, 1, weapon.Ranks.Length) - 1];
@@ -2664,7 +2716,7 @@ namespace VoidFall.Runtime
                     new Color(0.2f, 0.85f, 0.65f, 1));
                 view.enabled = true;
 
-                var enemyCandidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
+                var enemyCandidateCount = _gameSim.QueryEnemyNeighborhood(
                     position.x,
                     position.y,
                     1,
@@ -2766,7 +2818,7 @@ namespace VoidFall.Runtime
                 if (!candidate.Active || candidate.Age < 0.15f || (candidate.Position - _gameSim.Player.Position).sqrMagnitude > maximumRangeSquared) continue;
                 eligibleCount++;
                 var count = 0;
-                var neighborCount = _gameSim.EnemyGrid.QueryNeighborhood(
+                var neighborCount = _gameSim.QueryEnemyNeighborhood(
                     candidate.Position.x,
                     candidate.Position.y,
                     2,
@@ -2800,7 +2852,7 @@ namespace VoidFall.Runtime
 
         private void UpdateHollowBladeDamage(Vector2 position, WeaponStatsDefinition stats, float recoveryScale)
         {
-            var enemyCandidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
+            var enemyCandidateCount = _gameSim.QueryEnemyNeighborhood(
                 position.x,
                 position.y,
                 1,
@@ -3054,11 +3106,10 @@ namespace VoidFall.Runtime
                 ? EliteRules.EliteVariantStatsFor(eliteKind.Value)
                 : default(EliteVariantStats);
             var enemyId = _nextEnemyId++;
-            // Browser spawnEnemy only selects time-based Roster II for ordinary
-            // world spawns. Boss summons stay in Roster I unless a pressure
-            // tier explicitly supplies forcedRoster.
+            // Shared ambient and elite variants use the global run clock.
+            // Boss summons and child forms retain their explicitly authored tier.
             var roster = forcedRoster ?? (
-                elite || carrierDrone || splitterFragment || summonedByBossTelemetryId != 0
+                standardElite || carrierDrone || splitterFragment || summonedByBossTelemetryId != 0
                     ? EnemyRoster.One
                     : EnemyRosterRules.EnemyRosterForSpawn(
                         id,
@@ -3079,10 +3130,10 @@ namespace VoidFall.Runtime
                 healthMultiplier * (carrierDrone ? 0.55f : 1f));
             var speedScale = EnemySpeedScaleAt(_time, _bossCycle);
             var damageScale = EnemyDamageScaleAt(_time, _bossCycle);
-            var rosterHealth = roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoHealthMultiplier : 1;
-            var rosterRadius = roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoRadiusMultiplier : 1;
-            var rosterSpeed = roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoSpeedMultiplier : 1;
-            var rosterDamage = roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoDamageMultiplier : 1;
+            var rosterHealth = eliteKind.HasValue ? EliteTierHealth(roster) : EnemyRosterRules.HealthMultiplier(roster);
+            var rosterRadius = eliteKind.HasValue ? EliteTierRadius(roster) : EnemyRosterRules.RadiusMultiplier(roster);
+            var rosterSpeed = eliteKind.HasValue ? EliteTierSpeed(id, roster) : EnemyRosterRules.SpeedMultiplier(roster);
+            var rosterDamage = eliteKind.HasValue ? EliteTierDamage(roster) : EnemyRosterRules.DamageMultiplier(roster);
             var baseHealth = eliteKind.HasValue
                 ? variantStats.Health
                 : standardElite ? ContentCatalog.Elite.Health : definition.Health;
@@ -3108,7 +3159,7 @@ namespace VoidFall.Runtime
                 HydraRecombinationStage,
                 definition?.Behavior ?? "direct");
             var mutation = MutationRules.ModifiersFor(mutationGene);
-            var shield = !elite && id == "guard"
+            var shield = !elite && roster == EnemyRoster.One && id == "guard"
                 ? (float)((definition.Shield ?? 0) * healthScale * rosterHealth)
                 : 0;
             // Matriarch bodyguards orbit and shoot; they carry no shields.
@@ -3121,7 +3172,7 @@ namespace VoidFall.Runtime
                 Radius = (float)baseRadius * (float)rosterRadius,
                 Speed = (float)(baseSpeed * mutation.SpeedMultiplier) * speedScale * (float)rosterSpeed * (0.92f + (float)_gameSim.Rng.Next() * 0.16f),
                 Damage = (float)baseDamage * damageScale * (float)rosterDamage,
-                Xp = Mathf.Max(1, SourceRound((float)(baseXp * (roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoXpMultiplier : 1)))),
+                Xp = Mathf.Max(1, SourceRound((float)(baseXp * (roster > EnemyRoster.One ? EnemyRosterRules.RosterTwoXpMultiplier : 1)))),
                 Age = 0,
                 Shield = shield,
                 MaxShield = shield,
@@ -3165,6 +3216,8 @@ namespace VoidFall.Runtime
                 enemy.Spin = _gameSim.Rng.Next() < 0.5 ? -0.42f : 0.42f;
             enemy.Health = enemy.MaxHealth;
             _gameSim.Enemies[slot] = enemy;
+            _crascendoEnemies[slot] = CurrentVoidIsCrascendo ? new CrascendoGrowthState { Identity = enemy.SpawnId, BaseRadius = enemy.Radius, NaturalRadius = enemy.Radius } : default;
+            _rosterActorStates[slot] = default; // Spawn IDs restart each run; clear recycled state explicitly.
             AppendEnemyOrder(slot);
             if (elite)
                 _telemetry.RecordEliteSpawn(
@@ -3238,6 +3291,7 @@ namespace VoidFall.Runtime
             };
             boss.Health = boss.MaxHealth;
             _gameSim.Bosses[slot] = boss;
+            InitializeCrascendoBoss(slot, boss);
             AppendBossOrder(slot);
             _telemetry.RecordBossSpawn(
                 id,
@@ -3320,6 +3374,7 @@ namespace VoidFall.Runtime
 
         private void UpdateHostileShots(float dt)
         {
+            ConfigureEonSeaProjectileHooks();
             // The runtime keeps DamagePlayer and telemetry; GameSim drives the
             // loop and calls back at the exact points the browser resolves an
             // impact, so iframes set by one hit still gate later shots in the
@@ -3628,13 +3683,19 @@ namespace VoidFall.Runtime
             int weaponIndex = -1)
         {
             var enemy = _gameSim.Enemies[index];
-            if (!enemy.Active) return;
+            if (!enemy.Active || (CurrentVoidIsCrascendo && enemy.Health <= 0)) return;
             if (IsNullCityEnemy(enemy.Id) && _nullCityUnits[index].Identity == enemy.SpawnId && _nullCityUnits[index].Grace > 0f) return;
             damage *= PlayerDamageMultiplier();
             var appliedDamage = Mathf.Max(0, damage);
             if (enemy.Id == "null-marshal" && enemy.Age % 6f < 3f && direction.sqrMagnitude > .001f &&
                 Vector2.Dot(enemy.Facing, -direction.normalized) > .25f) appliedDamage *= .3f;
-            if (enemy.Id == "bulwark" && direction.sqrMagnitude > 0.001f)
+            if (UsesRosterProgression(enemy) && direction.sqrMagnitude > .001f)
+            {
+                var traits = RosterProgressionTraits.Get(enemy.Id, enemy.Roster, enemy.EliteKind.HasValue);
+                if (traits.ShieldReduction > 0 && Vector2.Dot(enemy.Facing, -direction.normalized) > Mathf.Cos(traits.ShieldArc * .5f))
+                    appliedDamage *= 1 - traits.ShieldReduction;
+            }
+            if (!UsesRosterProgression(enemy) && enemy.Id == "bulwark" && direction.sqrMagnitude > 0.001f)
             {
                 var sourceDirection = -direction.normalized;
                 if (Vector2.Dot(enemy.Facing, sourceDirection) > Mathf.Cos(1.08f))
@@ -3652,6 +3713,7 @@ namespace VoidFall.Runtime
                     }
                 }
             }
+            var shieldBefore = enemy.Shield;
             var remaining = appliedDamage;
             var shieldBroken = false;
             if (enemy.Shield > 0)
@@ -3674,6 +3736,7 @@ namespace VoidFall.Runtime
 
             var appliedHealth = Mathf.Min(Mathf.Max(0, remaining), enemy.Health);
             enemy.Health -= remaining;
+            GrowCrascendoEnemy(index, ref enemy, appliedHealth + Mathf.Max(0, shieldBefore - enemy.Shield));
             enemy.HitTimer = 0.09f;
             _damageDealt += appliedHealth;
             TrackWeaponDamage(weaponIndex, appliedHealth);
@@ -3766,6 +3829,7 @@ namespace VoidFall.Runtime
             _damageDealt += appliedDamage;
             TrackWeaponDamage(weaponIndex, appliedDamage);
             boss.Health -= appliedDamage;
+            GrowCrascendoBoss(index, ref boss, appliedDamage);
             boss.HitTimer = 0.08f;
             _gameSim.Bosses[index] = boss;
             if (appliedDamage > 0)
@@ -3840,11 +3904,13 @@ namespace VoidFall.Runtime
             float radius,
             float damage,
             int excludedEnemyIdentity,
-            int weaponIndex = -1)
+            int weaponIndex = -1,
+            bool critical = false)
         {
+            if (weaponIndex >= 0) StressEonSeaIce(origin, radius);
             DamageMeteorsInRadius(origin, radius, damage);
             var cellSpan = Mathf.CeilToInt(radius / CollisionGrid.CellSize) + 1;
-            var candidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
+            var candidateCount = _gameSim.QueryEnemyNeighborhood(
                 origin.x,
                 origin.y,
                 cellSpan,
@@ -3875,7 +3941,7 @@ namespace VoidFall.Runtime
                     var enemy = snapshot.State;
                     var reach = radius + enemy.Radius;
                     if ((enemy.Position - origin).sqrMagnitude >= reach * reach) continue;
-                    ApplyEnemyDamage(snapshot.Slot, damage, enemy.Position - origin, 90, false, weaponIndex);
+                    ApplyEnemyDamage(snapshot.Slot, damage, enemy.Position - origin, 90, critical, weaponIndex);
                 }
             }
             finally
@@ -3890,7 +3956,7 @@ namespace VoidFall.Runtime
                 if (!boss.Active || boss.State == 4) continue;
                 var reach = radius + boss.Radius;
                 if ((boss.Position - origin).sqrMagnitude >= reach * reach) continue;
-                ApplyBossDamage(index, damage, weaponIndex);
+                ApplyBossDamage(index, damage, weaponIndex, critical);
             }
             // The browser's shared damageArea presentation is emitted once
             // after all target resolution, including meteor-only blasts.
@@ -3981,6 +4047,7 @@ namespace VoidFall.Runtime
             _gameSim.Enemies[index] = enemy;
             RemoveEnemyOrder(index);
             OnNullCityEnemyDeath(enemy);
+            CrascendoEnemyDeath(index, enemy);
             var enemyDefinition = FindEnemy(enemy.Id);
             SpawnDeathGhost(enemy, index);
             var destroyedExploder = enemy.Id == "exploder";
@@ -4117,7 +4184,13 @@ namespace VoidFall.Runtime
                 _audio?.Play(ProceduralAudio.Cue.Die, 1.08f);
             }
 
-            if (enemy.Id == "splitter" && !enemy.SplitterFragment)
+            if (enemy.Id == "splitter" && UsesRosterProgression(enemy))
+            {
+                var traits = RosterProgressionTraits.Get(enemy.Id, enemy.Roster);
+                for (var child = 0; child < (int)traits.SplitCount; child++)
+                    SpawnProgressedChild(enemy, child, (int)traits.SplitCount, (EnemyRoster)(int)traits.ChildTier, false);
+            }
+            else if (enemy.Id == "splitter" && !enemy.SplitterFragment)
             {
                 for (var fragment = 0; fragment < 3; fragment++)
                 {
@@ -4181,6 +4254,7 @@ namespace VoidFall.Runtime
             boss.Health = 0;
             boss.ActiveAttack = null;
             _gameSim.Bosses[index] = boss;
+            CrascendoBossDeath(index, boss);
             if (boss.Id == HydraBossId) EndHydraBossEncounter();
             if (IsMotherload(boss.Id)) EndNullCityBossEncounter();
             var noBossesRemain = ActiveBosses() == 0;
@@ -5375,8 +5449,9 @@ namespace VoidFall.Runtime
                 Hide(_ringWaveSpriteViews[slot]);
             }
         }
-        private void SpawnBlastWave(Vector2 position, float maxRadius, float life, bool bomb)
+        private void SpawnBlastWave(Vector2 position, float maxRadius, float life, bool bomb, bool stressTerrain = true)
         {
+            if (stressTerrain) StressEonSeaIce(position, maxRadius);
             var slot = -1;
             var oldestAge = -1f;
             for (var index = 0; index < _blastWaves.Length; index++)
@@ -5625,7 +5700,7 @@ namespace VoidFall.Runtime
                     : enemy.EliteKind.HasValue
                     ? EliteRules.EliteVariantDef(enemy.EliteKind.Value).ThreatCost
                     : DirectorRules.EnemyThreatCost(enemy.Id) *
-                        (enemy.Roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoThreatMultiplier : 1);
+                        EnemyRosterRules.ThreatMultiplier(enemy.Roster);
             }
 
             return total;

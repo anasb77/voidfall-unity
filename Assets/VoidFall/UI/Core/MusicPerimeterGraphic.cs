@@ -110,12 +110,14 @@ namespace VoidFall.UI
             }
             if (_reducedMotion) _lap = 1;
             var target = Mathf.Max(Mathf.Clamp01(ambientIntensity), active ? MusicPerimeterRules.OverclockIntensity(overclockTier) : 0f);
+            target = Mathf.Max(target, Mathf.Clamp01(magnetIntensity) * .4f);
             _displayIntensity = Mathf.Lerp(_displayIntensity, target, 1f - Mathf.Exp(-dt / (target > _displayIntensity ? 0.065f : 0.4f)));
             canvasRenderer.SetAlpha(_displayIntensity > 0.001f ? 1 : 0);
             var rect = rectTransform.rect;
             _instanceMaterial.SetVector(RectId, new Vector4(rect.width, rect.height, FrameDepth, _detail));
             _instanceMaterial.SetVector(BandsId, new Vector4(Mathf.Clamp01(bass), Mathf.Clamp01(mids), Mathf.Clamp01(treble), _displayIntensity));
-            _instanceMaterial.SetVector(StateId, new Vector4(_reducedMotion ? 0 : Mathf.Clamp01(surge), 0, 0, Mathf.Clamp01(visualDamping)));
+            _instanceMaterial.SetVector(StateId, new Vector4(_reducedMotion ? 0 : Mathf.Clamp01(surge),
+                critical ? 1 : 0, Mathf.Clamp01(magnetIntensity), Mathf.Clamp01(visualDamping)));
             _instanceMaterial.SetVector(AccentId, new Vector4(overclockTier, Mathf.Max(0, overclockStreak), _reducedMotion ? 1 : 0, _layout.LayoutIndex));
             _instanceMaterial.SetVector(MappingId, new Vector4(_layout.LongBand, _layout.CornerBand, _layout.FragmentBand, 0));
             _instanceMaterial.SetVector(MotionId, new Vector4(_travel, _lap, _variation, active ? 1 : 0));

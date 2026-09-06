@@ -24,6 +24,11 @@ namespace VoidFall.Runtime
         private string[] _junctionDestinations = Array.Empty<string>();
         private float _junctionAge;
         private readonly SpriteRenderer[] _junctionRims = new SpriteRenderer[4];
+        private const float EscapeCollectionSeconds = 25f;
+        private const float EscapeCountdownSeconds = 10f;
+        private int _escapeStatusSecond = int.MinValue;
+        private string _escapeStatusLine;
+        private Text _escapeStatusText;
 
         public string JourneyStatus => _journeyStage.ToString();
         public string CurrentVoidId => _voidRoute?.CurrentVoidId;
@@ -38,6 +43,8 @@ namespace VoidFall.Runtime
             _runVictory = false;
             _returnToMenuAfterRun = false;
             _journeyLoadFailed = false;
+            _escapeStatusSecond = int.MinValue;
+            if (_escapeStatusText != null) _escapeStatusText.gameObject.SetActive(false);
             HideJunction();
         }
 
@@ -82,21 +89,59 @@ namespace VoidFall.Runtime
             _nextBossTime = float.PositiveInfinity;
         }
 
-        private void CollectJourneyPickups()
+        private void DiscardUncollectedJourneyPickups()
         {
-            if (_gameSim.Player.Health <= 0) return;
+            // Loot left after the collection/countdown window belongs to the outgoing arena.
             for (var index = 0; index < _gameSim.Pickups.Length; index++)
             {
-                if (!_gameSim.Pickups[index].Active) continue;
-                var pickup = _gameSim.Pickups[index];
-                pickup.Position = _gameSim.Player.Position;
-                _gameSim.Pickups[index] = pickup;
+                _gameSim.Pickups[index] = default;
+                Hide(_pickupViews[index]);
             }
-            UpdatePickups(0f);
+            ResetPickupOrder();
+        }
+
+        private void UpdateEscapeStatus()
+        {
+            var seconds = _voidCompletionDelayRemaining > EscapeCountdownSeconds
+                ? -1 : Mathf.Max(1, Mathf.CeilToInt(_voidCompletionDelayRemaining));
+            if (seconds != _escapeStatusSecond)
+            {
+                _escapeStatusSecond = seconds;
+                _escapeStatusLine = seconds < 0 ? "INITIATING ESCAPE" : "ESCAPING IN " + seconds;
+            }
+            if (_objectiveLine != _escapeStatusLine)
+            {
+                _objectiveLine = _escapeStatusLine;
+                _lastObjectiveLine = null;
+            }
+            RefreshEscapeNotice();
+        }
+
+        private void RefreshEscapeNotice()
+        {
+            var show = _journeyStage == JourneyStage.Rewards && !_mainMenuBrowsing && !_gameOver &&
+                !_paused && !_routeMapOpen && !_rouletteActive && !_prizeRevealActive && !_levelUpActive && !_revivePending;
+            if (_escapeStatusText == null && show && _canvas != null)
+            {
+                _escapeStatusText = UIBuilder.CreateText(_canvas.transform, "Escape Status", string.Empty,
+                    25f, UITheme.CyanPale, TextAnchor.MiddleCenter, true, FontStyle.Bold);
+                var rect = _escapeStatusText.rectTransform;
+                rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
+                rect.pivot = new Vector2(0.5f, 1f);
+                rect.anchoredPosition = new Vector2(0f, -100f);
+                rect.sizeDelta = new Vector2(650f, 60f);
+                var shadow = _escapeStatusText.gameObject.AddComponent<Shadow>();
+                shadow.effectColor = Color.black;
+                shadow.effectDistance = new Vector2(1f, -2f);
+            }
+            if (_escapeStatusText == null) return;
+            _escapeStatusText.gameObject.SetActive(show);
+            if (show && _escapeStatusText.text != _objectiveLine) _escapeStatusText.text = _objectiveLine;
         }
 
         private void UpdateJourneyFlow(float deltaTime)
         {
+            RefreshEscapeNotice();
             if (_mainMenuBrowsing || _stressScenario != null) return;
             var dt = Mathf.Clamp(deltaTime, 0f, 0.1f);
             if (_returnToMenuAfterRun)
@@ -122,9 +167,13 @@ namespace VoidFall.Runtime
             if (_paused || _routeMapOpen || _rouletteActive || _prizeRevealActive || _revivePending) return;
             if (_journeyStage == JourneyStage.Rewards)
             {
+                StepEonSea(dt);
+                StepCrascendo(dt);
                 MovePlayer(dt);
-                CollectJourneyPickups();
-                StepVoidCompletionDelay(dt);
+                UpdateCameraFollow(dt);
+                // Escape uses elapsed active time, even when rendering is slow.
+                // Keep movement capped above so a stalled frame cannot launch the player.
+                StepVoidCompletionDelay(Mathf.Max(0f, deltaTime));
             }
             else if (_journeyStage == JourneyStage.Junction)
             {
@@ -135,7 +184,7 @@ namespace VoidFall.Runtime
                 position.y = Mathf.Clamp(position.y, -235f, 235f);
                 _gameSim.Player.Position = position;
                 _cameraFollowPosition = Vector2.zero;
-                CollectJourneyPickups();
+                UpdatePickups(dt);
                 for (var index = 0; index < _junctionDestinations.Length; index++)
                 {
                     if (_junctionAge >= 0.5f && Vector2.Distance(position, _junctionPortals[index].transform.position) < 48f)
@@ -155,6 +204,7 @@ namespace VoidFall.Runtime
                     Debug.Log($"VOIDFLOW travel-complete void={CurrentVoidId} t={_time:F1}");
                 }
             }
+            RefreshEscapeNotice();
         }
 
         private void BeginPortalJunction()
@@ -167,6 +217,7 @@ namespace VoidFall.Runtime
             _junctionDestinations = available.ToArray();
             _junctionAge = 0;
             ClearCombatForJourney();
+            DiscardUncollectedJourneyPickups();
             // The outgoing arena is finished: corpses may no longer occupy the safe room.
             for (var index = 0; index < _gameSim.Bosses.Length; index++)
             {

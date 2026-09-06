@@ -35,6 +35,8 @@ namespace VoidFall.Runtime
             ResetHydraEncounterState();
             ResetMonochromeEncounterState();
             ResetNullCityEncounterState();
+            ResetEonSeaState();
+            ResetCrascendoState();
             // With a route active the objective keys on the Void, not the
             // arena: Hydra shares the Abyss arena as a placeholder but must
             // not share its escape condition.

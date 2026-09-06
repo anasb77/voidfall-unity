@@ -40,7 +40,7 @@ namespace VoidFall.Core
 
     public static class ArenaResidencyPlanner
     {
-        public const int MaximumResidentPackages = 6;
+        public const int MaximumResidentPackages = 8;
 
         public static ArenaResidentSet Steady(
             ArenaPackageKey current,

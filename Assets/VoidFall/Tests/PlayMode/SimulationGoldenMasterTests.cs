@@ -21,6 +21,7 @@ namespace VoidFall.Tests.PlayMode
     /// </summary>
     public sealed class SimulationGoldenMasterTests
     {
+        private static bool _legacyMeteorSchema;
         private const uint Seed = 0x5f1dc0deu;
         private const string ScenarioId = "productionMax";
         private const int Ticks = 600;
@@ -69,6 +70,8 @@ namespace VoidFall.Tests.PlayMode
             yield return null;
             yield return null;
 
+            using var profile = new SimulationProfileScope(runtime);
+
             // Hermeticity: cosmetic budgets (particle/shard counts) read the
             // player's saved quality preset and reduced-motion flag, and those
             // budgets are hashed. Pin them so local machine state cannot drift
@@ -92,6 +95,14 @@ namespace VoidFall.Tests.PlayMode
                 simulate.Invoke(runtime, new object[] { FixedDt });
 
             var hash = HashRuntimeState(runtime);
+            try
+            {
+                _legacyMeteorSchema = true;
+                var legacy = HashRuntimeState(runtime);
+                Debug.Log("METEOR SCHEMA CHECK legacy=" + legacy + " full=" + hash);
+                Assert.That(legacy, Is.EqualTo(14088908808337278323UL), "The approved 25-minute roster baseline must remain stable under the legacy meteor schema.");
+            }
+            finally { _legacyMeteorSchema = false; }
             Assert.That(
                 hash,
                 Is.EqualTo(GoldenMasterHash),
@@ -114,7 +125,18 @@ namespace VoidFall.Tests.PlayMode
         // Orbit Blades OrbitSpeed +5% across all six ranks and overclock fire
         // rate now scales blade spin. Re-pinned for that intentional balance
         // change; the 32-seed sweep passed unchanged.
-        internal const ulong GoldenMasterHash = 14713629958221367877;
+        // MeteorState adds an identity and opt-in orbit state. The productionMax
+        // fixture is Void, so its previous fields/RNG still hash to the prior
+        // baseline; the full schema now includes these additional zero fields.
+        // Eon Sea / shared roster expansion (2026-09-05): productionMax starts
+        // at 1500 seconds, not zero. It explicitly spawns roster II and draws
+        // ambient II/III under the approved global progression, with new
+        // controllers/children/elite tiers. Its old combat hash must therefore
+        // change. The 32-seed sweep passed before this re-pin. Roster actor
+        // counters are kept outside EnemyState, so this is behavioral, not a
+        // new reflected-enemy-field artifact. Legacy meteor hash is updated
+        // alongside the full hash for the same intentional encounter change.
+        internal const ulong GoldenMasterHash = 14161069325177094174;
 
         internal static ulong HashRuntimeState(object runtime)
         {
@@ -268,6 +290,8 @@ namespace VoidFall.Tests.PlayMode
                             BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public |
                             BindingFlags.DeclaredOnly))
                         {
+                            if (_legacyMeteorSchema && type.Name == "MeteorState" &&
+                                (field.Name == "Identity" || field.Name == "Orbital" || field.Name == "OrbitCentre" || field.Name == "OrbitPhase")) continue;
                             HashValue(ref hash, field.GetValue(value));
                         }
                         return;

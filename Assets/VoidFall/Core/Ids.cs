@@ -19,6 +19,8 @@ public enum ArenaId
     Hydra,
     MonochromeCourt,
     NullCity,
+    EonSea,
+    Crascendo,
 }
 
 public enum WeaponId
@@ -29,6 +31,10 @@ public enum WeaponId
     Blades,
     Arc,
     Seeker,
+    Mines,
+    Summons,
+    Clock,
+    Boomerang,
 }
 
 // Order matches ENEMY_ORDER in src/game/content.ts.
@@ -107,6 +113,8 @@ public static class ContentOrder
         ArenaId.Hydra,
         ArenaId.MonochromeCourt,
         ArenaId.NullCity,
+        ArenaId.EonSea,
+        ArenaId.Crascendo,
     };
 
     public static readonly WeaponId[] Weapons =
@@ -117,6 +125,10 @@ public static class ContentOrder
         WeaponId.Blades,
         WeaponId.Arc,
         WeaponId.Seeker,
+        WeaponId.Mines,
+        WeaponId.Summons,
+        WeaponId.Clock,
+        WeaponId.Boomerang,
     };
 
     public static readonly EnemyId[] Enemies =

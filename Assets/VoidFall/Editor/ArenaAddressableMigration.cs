@@ -26,6 +26,8 @@ namespace VoidFall.Editor
             ArenaId.Hydra,
             ArenaId.MonochromeCourt,
             ArenaId.NullCity,
+            ArenaId.EonSea,
+        ArenaId.Crascendo,
         };
 
         [MenuItem("Tools/VoidFall/Migrate Arenas To Addressables")]

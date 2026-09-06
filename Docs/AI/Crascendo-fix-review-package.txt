@@ -1,0 +1,835 @@
+Review fixes snapshot after70/70PlayMode passed. Scope harvester radius, reward tears, and new wash/capture changes. Previous snapshot Crascendo-review-package.txt.
+FILE: Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Crascendo.cs
+using System;
+using UnityEngine;
+using VoidFall.Core;
+namespace VoidFall.Runtime
+{
+    public sealed partial class VoidFallGameRuntime
+    {
+        private struct CrascendoGrowthState { public int Identity, Hits; public float BaseRadius, NaturalRadius; public bool Pulsed; }
+        private readonly CrascendoGrowthState[] _crascendoEnemies = new CrascendoGrowthState[MaxEnemies];
+        private CrascendoGrowthState[] _crascendoBosses;
+        private Vector2[] _crascendoBossPush;
+        private float _crascendoElapsed;
+        private bool CurrentVoidIsCrascendo => _arenaId == ArenaId.Crascendo;
+        private void ResetCrascendoState()
+        {
+            Array.Clear(_crascendoEnemies, 0, _crascendoEnemies.Length);
+            _crascendoBosses = new CrascendoGrowthState[_gameSim.Bosses.Length];
+            _crascendoBossPush = new Vector2[_gameSim.Bosses.Length]; _crascendoElapsed = 0;
+            _gameSim.EnemyNaturalRadiusHook = CurrentVoidIsCrascendo ? CrascendoNaturalRadius : null;
+            _gameSim.EnemyQueryPadding = CurrentVoidIsCrascendo ? 8 : 0;
+        }
+        private void StepCrascendo(float dt)
+        {
+            if (!CurrentVoidIsCrascendo) return;
+            _crascendoElapsed += dt;
+            if (_crascendoBossPush == null) return;
+            for (var i = 0; i < _crascendoBossPush.Length; i++)
+            {
+                if (!_gameSim.Bosses[i].Active) { _crascendoBossPush[i] = Vector2.zero; continue; }
+                _gameSim.Bosses[i].Position += _crascendoBossPush[i] * ((1 - Mathf.Exp(-6 * dt)) / 6);
+                _crascendoBossPush[i] *= Mathf.Exp(-6 * dt);
+            }
+        }
+        private void GrowCrascendoEnemy(int index, ref EnemyState enemy, float damage)
+        {
+            if (!CurrentVoidIsCrascendo || damage <= 0 || float.IsNaN(damage) || float.IsInfinity(damage)) return;
+            ref var state = ref _crascendoEnemies[index];
+            if (state.Identity != enemy.SpawnId || state.BaseRadius <= 0) state = new CrascendoGrowthState { Identity = enemy.SpawnId, BaseRadius = enemy.Radius, NaturalRadius = enemy.Radius };
+            state.Hits = Mathf.Min(CrascendoRules.HitsToMaximum, state.Hits + 1);
+            enemy.Radius = Mathf.Min(state.BaseRadius * CrascendoRules.MaximumGrowth, Mathf.Max(enemy.Radius + state.BaseRadius * CrascendoRules.GrowthPerHit, state.BaseRadius * CrascendoRules.Growth(state.Hits)));
+        }
+        private float CrascendoNaturalRadius(EnemyState enemy, float naturalRadius)
+        {
+            ref var state = ref _crascendoEnemies[enemy.View];
+            if (state.Identity != enemy.SpawnId || state.BaseRadius <= 0) state = new CrascendoGrowthState { Identity = enemy.SpawnId, BaseRadius = enemy.Radius, NaturalRadius = enemy.Radius };
+            var increment = Mathf.Max(0, naturalRadius - state.NaturalRadius);
+            state.NaturalRadius = Mathf.Max(state.NaturalRadius, naturalRadius);
+            return Mathf.Min(state.BaseRadius * CrascendoRules.MaximumGrowth, enemy.Radius + increment);
+        }
+        private void GrowCrascendoBoss(int index, ref BossState boss, float damage)
+        {
+            if (!CurrentVoidIsCrascendo || damage <= 0 || float.IsNaN(damage) || float.IsInfinity(damage)) return;
+            if (_crascendoBosses == null) ResetCrascendoState();
+            ref var state = ref _crascendoBosses[index];
+            if (state.Identity != boss.TelemetryInstanceId || state.BaseRadius <= 0) { state = new CrascendoGrowthState { Identity = boss.TelemetryInstanceId, BaseRadius = boss.Radius }; _crascendoBossPush[index] = Vector2.zero; }
+            state.Hits = Mathf.Min(CrascendoRules.HitsToMaximum, state.Hits + 1);
+            boss.Radius = state.BaseRadius * CrascendoRules.Growth(state.Hits);
+        }
+        private void CrascendoEnemyDeath(int index, EnemyState enemy)
+        {
+            if (!CurrentVoidIsCrascendo) return;
+            ref var state = ref _crascendoEnemies[index];
+            if (state.Identity != enemy.SpawnId || state.BaseRadius <= 0 || enemy.Radius < state.BaseRadius * CrascendoRules.MaximumGrowth - .001f || state.Pulsed) return;
+            state.Pulsed = true; CrascendoDeathPulse(enemy.Position, enemy.Radius, index, -1);
+        }
+        private void CrascendoBossDeath(int index, BossState boss)
+        {
+            if (!CurrentVoidIsCrascendo || _crascendoBosses == null) return;
+            ref var state = ref _crascendoBosses[index];
+            if (state.Identity != boss.TelemetryInstanceId || state.Hits < 20 || state.Pulsed) return;
+            state.Pulsed = true; CrascendoDeathPulse(boss.Position, boss.Radius, -1, index);
+        }
+        private void CrascendoDeathPulse(Vector2 origin, float radius, int sourceEnemy, int sourceBoss)
+        {
+            var reach = radius + 210;
+            SpawnRingWave(origin, radius, 210f / .9f, .9f, new Color(.8f, .65f, 1f, .85f));
+            for (var i = 0; i < _gameSim.Enemies.Length; i++)
+            {
+                ref var target = ref _gameSim.Enemies[i];
+                if (i == sourceEnemy || !target.Active || target.Health <= 0) continue;
+                var delta = target.Position - origin; var distance = delta.magnitude;
+                if (distance > reach + target.Radius) continue;
+                target.Knockback += (distance > .001f ? delta / distance : Vector2.right) * (480 + 340 * Mathf.Max(0, 1 - distance / reach));
+            }
+            for (var i = 0; i < _gameSim.Bosses.Length; i++)
+            {
+                var target = _gameSim.Bosses[i];
+                if (i == sourceBoss || !target.Active || target.Health <= 0) continue;
+                var delta = target.Position - origin; var distance = delta.magnitude;
+                if (distance > reach + target.Radius) continue;
+                _crascendoBossPush[i] += (distance > .001f ? delta / distance : Vector2.right) * (480 + 340 * Mathf.Max(0, 1 - distance / reach));
+            }
+        }
+    }
+}
+FILE: Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Crascendo.Render.cs
+using System;
+using UnityEngine;
+using VoidFall.Core;
+namespace VoidFall.Runtime
+{
+    public sealed partial class VoidFallGameRuntime
+    {
+        [Serializable] private sealed class CrascendoTear { public float x, y, length, phase; }
+        [Serializable] private sealed class CrascendoTearSet { public CrascendoTear[] tears; }
+        private readonly SpriteRenderer[] _crascendoGround = new SpriteRenderer[52];
+        private readonly LineRenderer[] _crascendoTears = new LineRenderer[320];
+        private CrascendoTearSet _crascendoTearData;
+        private bool _crascendoVisible;
+        private void HideCrascendoPresentation()
+        {
+            foreach (var view in _crascendoGround) ClearNullCityProp(view);
+            HideNullCityViews(_crascendoTears); _crascendoVisible = false; _crascendoTearData = null;
+        }
+        private void SyncCrascendoPresentation()
+        {
+            if (!CurrentVoidIsCrascendo || (!_mainMenuBrowsing && (_journeyStage == JourneyStage.Junction || _journeyStage == JourneyStage.Travel)))
+            { if (_crascendoVisible) HideCrascendoPresentation(); return; }
+            EnsureArenaPlate(ArenaId.Crascendo);
+            var plate = _preparedArenaPlateAssets[(int)ArenaId.Crascendo];
+            var visuals = plate != null ? plate.CrascendoVisuals : null;
+            if (visuals == null || !visuals.IsValid) return;
+            HideLegacyCityDecor(); if (_backdropView != null) _backdropView.enabled = false;
+            if (_arenaBakedDetailView != null) _arenaBakedDetailView.enabled = false;
+            _crascendoVisible = true;
+            if (_crascendoTearData == null) _crascendoTearData = JsonUtility.FromJson<CrascendoTearSet>(visuals.Tears);
+            var intensity = CrascendoRules.Intensity(_mainMenuBrowsing ? 0 : _crascendoElapsed, !_mainMenuBrowsing && (ActiveBosses() > 0 || _journeyStage == JourneyStage.Rewards));
+            var stage = intensity < .5f ? 0 : 1; var mix = CrascendoRules.Blend(intensity);
+            var centre = RenderCameraCentre(); var tx = Mathf.FloorToInt(centre.x / 1024); var ty = Mathf.FloorToInt(centre.y / 1024); var slot = 0;
+            for (var y = ty - 2; y <= ty + 2; y++) for (var x = tx - 2; x <= tx + 2; x++)
+                for (var layer = 0; layer < 2; layer++)
+                {
+                    var sprite = visuals.Ground(stage + layer);
+                    EonSprite(ref _crascendoGround[slot++], "Crascendo Obsidian", sprite, new Vector2(x * 1024 + 512, y * 1024 + 512), new Vector2(1024.4f / sprite.bounds.size.x, 1024.4f / sprite.bounds.size.y), 0, new Color(1, 1, 1, layer == 0 ? 1 : mix), -100 + layer);
+                }
+            var viewport = RenderViewportHalfExtent();
+            for (var layer = 0; layer < 2; layer++)
+            {
+                var sprite = visuals.Wash(stage + layer);
+                EonSprite(ref _crascendoGround[50 + layer], "Crascendo Atmosphere", sprite, centre, new Vector2(viewport.x * 2 / sprite.bounds.size.x, viewport.y * 2 / sprite.bounds.size.y), 0, new Color(1, 1, 1, layer == 0 ? 1 - mix : mix), -80 + layer);
+            }
+            var amber = new Color(.87f, .725f, .47f); var coral = new Color(.92f, .58f, .495f); var violet = new Color(.757f, .486f, .945f);
+            var color = Color.Lerp(stage == 0 ? amber : coral, stage == 0 ? coral : violet, mix);
+            var half = RenderViewportHalfExtent(); var clock = _mainMenuBrowsing ? _ambientClock : _crascendoElapsed;
+            var reduced = _saveData?.settings != null && _saveData.settings.reducedMotion;
+            slot = 0;
+            for (var y = ty - 2; y <= ty + 2; y++) for (var x = tx - 2; x <= tx + 2; x++)
+                foreach (var tear in _crascendoTearData.tears)
+                {
+                    var phase = Mathf.Repeat((reduced ? 0 : clock) * .19f + tear.phase, 1); if (phase > .62f) continue;
+                    var point = new Vector2(x * 1024 + tear.x, y * 1024 + 1024 - tear.y - phase * tear.length);
+                    if (Mathf.Abs(point.x - centre.x) > half.x + 20 || Mathf.Abs(point.y - centre.y) > half.y + 20 || slot >= _crascendoTears.Length) continue;
+                    color.a = Mathf.Sin(phase / .62f * Mathf.PI) * .65f;
+                    NullCityLine(ref _crascendoTears[slot++], "Crascendo Crying Tear", point + Vector2.up * 6, point, 1.6f, color, -90);
+                }
+            while (slot < _crascendoTears.Length) { if (_crascendoTears[slot] != null) _crascendoTears[slot].enabled = false; slot++; }
+        }
+    }
+}
+FILE: Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Crascendo.Capture.cs
+using System.IO;
+using UnityEngine;
+using VoidFall.Core;
+using VoidFall.Persistence;
+
+namespace VoidFall.Runtime
+{
+    public sealed partial class VoidFallGameRuntime
+    {
+        private string _visualCaptureCrascendo;
+
+        private void PrepareCrascendoCaptureProfile()
+        {
+            if (string.IsNullOrEmpty(_visualCaptureCrascendo)) return;
+            var path = string.IsNullOrEmpty(_visualCapturePath) ? Path.Combine(Application.temporaryCachePath, "crascendo-capture.profile.json") : Path.GetFullPath(_visualCapturePath) + ".profile.json";
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            _saveStore = new SaveStore(path); _saveData = SaveStore.CreateDefault(); _saveData.arena = "crascendo"; _runSaved = true;
+        }
+
+        private void BeginCrascendoCapture()
+        {
+            if (string.IsNullOrEmpty(_visualCaptureCrascendo)) return;
+            _arenaId = ArenaId.Crascendo;
+            _time = _visualCaptureCrascendo == "late" || _visualCaptureCrascendo == "elites" ? 2400 : 0;
+            _voidRoute = new VoidRouteRun(new[] { new VoidRouteNode("crascendo", "Crascendo", 0, 1, "GROWING ENEMIES", "Crying obsidian", "Survive", "Boss rewards") }, "crascendo");
+            _gameSim.Player.Position = Vector2.zero; _cameraFollowPosition = Vector2.zero;
+            ClearHydraBossArena(); BeginObjectiveForCurrentArena(); SelectRecipeForCurrentArena();
+            PrepareMenuArenaCatalogue(); TryInstallPreparedArenaPlate(_arenaId);
+            var ids = new[] { "chaser", "runner", "gunner", "twinGunner", "dasher", "brute", "exploder", "guard", "technician", "mortar", "splitter", "bulwark", "harvester", "carrier" };
+            for (var i = 0; i < ids.Length; i++)
+                SpawnEnemy(ids[i], new Vector2(-470 + i % 5 * 225, -230 + i / 5 * 205), forcedRoster: _time > 2000 ? EnemyRoster.Four : EnemyRoster.One);
+            if (_visualCaptureCrascendo == "elites")
+            {
+                SpawnEnemy("exploder", new Vector2(-280, 160), EliteVariantId.Exploder, forcedRoster: EnemyRoster.Four);
+                SpawnEnemy("mortar", new Vector2(80, 180), EliteVariantId.Mortar, forcedRoster: EnemyRoster.Four);
+                SpawnEnemy("gunner", new Vector2(360, 100), EliteVariantId.Gunner, forcedRoster: EnemyRoster.Four);
+            }
+            if (_visualCaptureCrascendo == "boss") SpawnBoss("warden", 1, 1);
+            _crascendoElapsed = _visualCaptureCrascendo == "mid" ? 150 : _visualCaptureCrascendo == "early" ? 0 : 300;
+            if (_visualCaptureCrascendo == "boss")
+                for (var i = 0; i < _gameSim.Bosses.Length; i++) if (_gameSim.Bosses[i].Active)
+                    { _gameSim.Bosses[i].State = 0; _gameSim.Bosses[i].Position = new Vector2(240, 80); for (var hit = 0; hit < 20; hit++) ApplyBossDamage(i, .001f); }
+            if (_visualCaptureCrascendo == "growth")
+            {
+                for (var i = 0; i < _gameSim.Enemies.Length; i++)
+                    if (_gameSim.Enemies[i].Active && (i == 0 || i == 5))
+                        for (var hit = 0; hit < 20; hit++) ApplyEnemyDamage(i, .001f, Vector2.zero, 0, false);
+                SpawnEnemy("gunner", new Vector2(300, 150), EliteVariantId.Gunner, forcedRoster: EnemyRoster.Four);
+                for (var i = 0; i < _gameSim.Enemies.Length; i++) if (_gameSim.Enemies[i].Active && _gameSim.Enemies[i].Elite)
+                    for (var hit = 0; hit < 20; hit++) ApplyEnemyDamage(i, .001f, Vector2.zero, 0, false);
+            }
+            _gameSim.Player.Iframes = 10000; _visualCaptureFramesRemaining = 150;
+        }
+
+        private void MaintainCrascendoCapture()
+        {
+            if (string.IsNullOrEmpty(_visualCaptureCrascendo)) return;
+            // A hidden validation player loses focus. Only this opt-in capture
+            // path resumes itself; production focus/pause behavior is untouched.
+            SetApplicationActive(true);
+            _paused = false;
+            if (_levelUpActive) SelectLevelOption(0);
+            _gameSim.Player.Iframes = 10000;
+        }
+    }
+}
+FILE: Assets/VoidFall/Tests/PlayMode/CrascendoIntegrationTests.cs
+using System;
+using System.Collections;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+using VoidFall.Core;
+using VoidFall.Persistence;
+using VoidFall.Runtime;
+
+namespace VoidFall.Tests.PlayMode
+{
+    public sealed class CrascendoIntegrationTests
+    {
+        private VoidFallGameRuntime _runtime;
+        private SaveStore _previousStore;
+        private SaveData _previousProfile;
+        private string _temporaryDirectory;
+        private bool _previousEnabled;
+        private bool _previousApplicationInactive;
+        private bool _previousRunSaved;
+        private uint _previousSeedOverride;
+
+        [UnitySetUp]
+        public IEnumerator SetUp()
+        {
+            _runtime = UnityEngine.Object.FindAnyObjectByType<VoidFallGameRuntime>();
+            Assert.That(_runtime, Is.Not.Null);
+            _previousEnabled = _runtime.enabled;
+            _runtime.enabled = false;
+            _previousStore = (SaveStore)Get(_runtime, "_saveStore");
+            _previousProfile = (SaveData)Get(_runtime, "_saveData");
+            _previousApplicationInactive = (bool)Get(_runtime, "_applicationInactive");
+            _previousRunSaved = (bool)Get(_runtime, "_runSaved");
+            _previousSeedOverride = (uint)Get(_runtime, "_diagnosticRunSeedOverride");
+
+            _temporaryDirectory = Path.Combine(Path.GetTempPath(),
+                "voidfall-crascendo-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_temporaryDirectory);
+            var testStore = new SaveStore(Path.Combine(_temporaryDirectory, "profile.json"));
+            var profile = SaveStore.CreateDefault();
+            testStore.Save(profile);
+            Set(_runtime, "_saveStore", testStore);
+            Set(_runtime, "_saveData", profile);
+            Set(_runtime, "_runSaved", true);
+            Set(_runtime, "_applicationInactive", false);
+            Set(_runtime, "_diagnosticRunSeedOverride", 2848592627u);
+            Invoke(_runtime, "StartRun");
+            yield return null;
+        }
+
+        [UnityTearDown]
+        public IEnumerator TearDown()
+        {
+            if (_runtime != null)
+            {
+                _runtime.enabled = false;
+                Set(_runtime, "_runSaved", true);
+                Set(_runtime, "_gameOver", false);
+                Set(_runtime, "_saveData", _previousProfile);
+                Set(_runtime, "_saveStore", _previousStore);
+                Invoke(_runtime, "EnterMainMenu");
+                Set(_runtime, "_runSaved", _previousRunSaved);
+                Set(_runtime, "_diagnosticRunSeedOverride", _previousSeedOverride);
+                Set(_runtime, "_applicationInactive", _previousApplicationInactive);
+                _runtime.enabled = _previousEnabled;
+            }
+            if (!string.IsNullOrEmpty(_temporaryDirectory) && Directory.Exists(_temporaryDirectory))
+                Directory.Delete(_temporaryDirectory, true);
+            yield return null;
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void Positive_native_hits_grow_normal_and_elite_bodies_with_cap_and_no_stat_boost(bool elite)
+        {
+            EnterCrascendo(); Enemy(0, 101, elite);
+            var enemy = HitEnemy(0, 0); Assert.That(Get(enemy, "Radius"), Is.EqualTo(20f));
+            enemy = HitEnemy(0, 1); Assert.That((float)Get(enemy, "Radius"), Is.EqualTo(24f).Within(.001));
+            for (var hit = 1; hit < 30; hit++) enemy = HitEnemy(0, 1);
+            Assert.That(Get(enemy, "Radius"), Is.EqualTo(100f)); Assert.That(Get(enemy, "Speed"), Is.EqualTo(77f)); Assert.That(Get(enemy, "Damage"), Is.EqualTo(12f));
+            Assert.That((float)Get(enemy, "Health"), Is.LessThan(10000));
+            Enemy(0, 102, elite); enemy = HitEnemy(0, 1); Assert.That((float)Get(enemy, "Radius"), Is.EqualTo(24f).Within(.001), "Pool reuse resets growth");
+        }
+        [Test]
+        public void Giant_death_pushes_survivors_once_without_damage_or_growth()
+        {
+            EnterCrascendo(); Enemy(0, 101); Enemy(1, 102);
+            for (var hit = 0; hit < 20; hit++) HitEnemy(0, 1);
+            var bosses = (Array)Get(GameSim, "Bosses"); var boss = bosses.GetValue(0);
+            Set(boss, "Active", true); Set(boss, "Health", 10000f); Set(boss, "Position", new Vector2(100, 0)); Set(boss, "Radius", 56f); bosses.SetValue(boss, 0);
+            var source = ((Array)Get(GameSim, "Enemies")).GetValue(0);
+            HitEnemy(0, 100000);
+            var survivor = ((Array)Get(GameSim, "Enemies")).GetValue(1); var push = (Vector2)Get(survivor, "Knockback");
+            Assert.That(((Vector2[])Get(_runtime, "_crascendoBossPush"))[0].x, Is.GreaterThan(0));
+            Assert.That(Get(bosses.GetValue(0), "Health"), Is.EqualTo(10000f)); Assert.That(Get(bosses.GetValue(0), "Radius"), Is.EqualTo(56f));
+            Assert.That(push.x, Is.GreaterThan(0)); Assert.That(Get(survivor, "Health"), Is.EqualTo(10000f)); Assert.That(Get(survivor, "Radius"), Is.EqualTo(20f));
+            Invoke(_runtime, "CrascendoEnemyDeath", 0, source); survivor = ((Array)Get(GameSim, "Enemies")).GetValue(1); Assert.That(Get(survivor, "Knockback"), Is.EqualTo(push));
+        }
+        [Test]
+        public void Area_damage_reaches_grown_hitboxes_outside_the_legacy_cell_neighborhood()
+        {
+            EnterCrascendo(); Enemy(0, 101); Invoke(_runtime, "AppendEnemyOrder", 0);
+            for (var hit = 0; hit < 20; hit++) HitEnemy(0, 1);
+            var enemies = (Array)Get(GameSim, "Enemies"); var enemy = enemies.GetValue(0); Set(enemy, "Position", new Vector2(100, 0)); enemies.SetValue(enemy, 0);
+            Invoke(_runtime, "RebuildEnemyGrid"); var health = (float)Get(enemy, "Health");
+            Invoke(_runtime, "DamageArea", new Vector2(-5, 0), 10f, 1f, -1, -1);
+            Assert.That((float)Get(enemies.GetValue(0), "Health"), Is.LessThan(health));
+        }
+
+        [Test]
+        public void Native_harvester_size_and_hit_growth_accumulate_without_shrinking()
+        {
+            EnterCrascendo(); var enemy = Enemy(0, 101); Set(enemy, "Id", "harvester"); Set(enemy, "Radius", 18f); Set(enemy, "StoredXp", 0f); Set(enemy, "View", 0);
+            var enemies = (Array)Get(GameSim, "Enemies"); enemies.SetValue(enemy, 0);
+            var pickups = (Array)Get(GameSim, "Pickups"); var pickup = pickups.GetValue(0);
+            Set(pickup, "Active", true); Set(pickup, "Kind", Enum.Parse(Get(pickup, "Kind").GetType(), "Xp")); Set(pickup, "Value", 16f); Set(pickup, "Position", new Vector2(13, 0)); Set(pickup, "Pull", false); pickups.SetValue(pickup, 0);
+            var args = new object[] { enemy, .02f, Vector2.right, 0f, 1000, 0f, 0 };
+            InvokeArgs(GameSim, "UpdateHarvester", args); enemy = args[0]; enemies.SetValue(enemy, 0);
+            var harvested = (float)Get(enemy, "Radius"); Assert.That(harvested, Is.GreaterThan(18f));
+            enemy = HitEnemy(0, 1); Assert.That((float)Get(enemy, "Radius"), Is.EqualTo(harvested + 3.6f).Within(.001));
+        }
+        [Test]
+        public void Reward_clock_animates_obsidian_but_pauses_with_modal_owner()
+        {
+            EnterCrascendo(); SetStage("Rewards"); Set(_runtime, "_crascendoElapsed", 300f); Set(_runtime, "_paused", false);
+            Set(_runtime, "_voidCompletionDelayRemaining", 100f); Invoke(_runtime, "UpdateJourneyFlow", .1f);
+            Assert.That((float)Get(_runtime, "_crascendoElapsed"), Is.GreaterThan(300));
+            var elapsed = (float)Get(_runtime, "_crascendoElapsed"); Set(_runtime, "_paused", true); Invoke(_runtime, "UpdateJourneyFlow", .1f);
+            Assert.That(Get(_runtime, "_crascendoElapsed"), Is.EqualTo(elapsed));
+        }
+
+        [Test]
+        public void Native_boss_damage_grows_and_ordinary_arena_resets_optional_query_extension()
+        {
+            EnterCrascendo(); var bosses = (Array)Get(GameSim, "Bosses"); var boss = bosses.GetValue(0);
+            Set(boss, "Active", true); Set(boss, "Id", "warden"); Set(boss, "State", 0); Set(boss, "Health", 10000f); Set(boss, "MaxHealth", 10000f); Set(boss, "Radius", 56f); Set(boss, "TelemetryInstanceId", 777); bosses.SetValue(boss, 0);
+            for (var hit = 0; hit < 20; hit++) Invoke(_runtime, "ApplyBossDamage", 0, 1f, -1, false);
+            Assert.That((float)Get(bosses.GetValue(0), "Radius"), Is.EqualTo(280f).Within(.001));
+            Set(_runtime, "_arenaId", ArenaId.Void); Invoke(_runtime, "ResetCrascendoState"); Assert.That(Get(GameSim, "EnemyQueryPadding"), Is.EqualTo(0));
+            Enemy(0, 104); Assert.That(Get(HitEnemy(0, 1), "Radius"), Is.EqualTo(20f));
+        }
+
+        private object GameSim => Get(_runtime, "_gameSim");
+        private void EnterCrascendo()
+        {
+            Set(_runtime, "_arenaId", ArenaId.Crascendo); Set(_runtime, "_mainMenuBrowsing", false); SetStage("Combat"); Invoke(_runtime, "ResetCrascendoState");
+        }
+        private object Enemy(int slot, int identity, bool elite = false)
+        {
+            var enemies = (Array)Get(GameSim, "Enemies"); var enemy = enemies.GetValue(slot);
+            Set(enemy, "Active", true); Set(enemy, "Health", 10000f); Set(enemy, "MaxHealth", 10000f); Set(enemy, "Id", "chaser");
+            Set(enemy, "SpawnId", identity); Set(enemy, "Radius", 20f); Set(enemy, "Speed", 77f); Set(enemy, "Damage", 12f); Set(enemy, "Elite", elite); Set(enemy, "Shield", 0f);
+            Set(enemy, "Position", new Vector2(slot * 100, 0)); Set(enemy, "Knockback", Vector2.zero); enemies.SetValue(enemy, slot); return enemy;
+        }
+        private object HitEnemy(int slot, float damage)
+        {
+            Invoke(_runtime, "ApplyEnemyDamage", slot, damage, Vector2.zero, 0f, false, -1);
+            return ((Array)Get(GameSim, "Enemies")).GetValue(slot);
+        }
+        private void SetStage(string name)
+        {
+            var field = _runtime.GetType().GetField("_journeyStage", BindingFlags.NonPublic | BindingFlags.Instance);
+            field.SetValue(_runtime, Enum.Parse(field.FieldType, name));
+        }
+        private void SetPlayer(string name, object value)
+        {
+            var player = Get(GameSim, "Player"); Set(player, name, value); Set(GameSim, "Player", player);
+        }
+        private static object Get(object target, string name)
+        {
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+            var field = target.GetType().GetField(name, flags);
+            if (field != null) return field.GetValue(target);
+            return target.GetType().GetProperty(name, flags).GetValue(target);
+        }
+        private static void Set(object target, string name, object value)
+        {
+            target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).SetValue(target, value);
+        }
+        private static object Invoke(object target, string name, params object[] arguments) => InvokeArgs(target, name, arguments);
+        private static object InvokeArgs(object target, string name, object[] arguments)
+        {
+            try { return target.GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Single(method => method.Name == name && method.GetParameters().Length == arguments.Length).Invoke(target, arguments); }
+            catch (TargetInvocationException error) { throw error.InnerException ?? error; }
+        }
+    }
+}
+
+
+FILE: Assets/VoidFall/Runtime/Gameplay/CrascendoVisualAsset.cs
+using UnityEngine;
+namespace VoidFall.Runtime
+{
+    public sealed class CrascendoVisualAsset : ScriptableObject
+    {
+        [SerializeField] private Sprite[] _ground = new Sprite[3];
+        [SerializeField] private Sprite[] _wash = new Sprite[3];
+        [SerializeField] private TextAsset _tears;
+        public bool IsValid => _ground != null && _ground.Length == 3 && _ground[0] != null && _ground[1] != null && _ground[2] != null && _wash != null && _wash.Length == 3 && _wash[0] != null && _wash[1] != null && _wash[2] != null && _tears != null;
+        public Sprite Ground(int stage) => _ground[Mathf.Clamp(stage, 0, 2)];
+        public Sprite Wash(int stage) => _wash[Mathf.Clamp(stage, 0, 2)];
+        public string Tears => _tears != null ? _tears.text : "{}";
+    }
+}
+FILE: Assets/VoidFall/Editor/CrascendoContentBaker.cs
+using System;
+using System.IO;
+using UnityEditor;
+using UnityEngine;
+using VoidFall.Core;
+using VoidFall.Runtime;
+
+namespace VoidFall.Editor
+{
+    public static class CrascendoContentBaker
+    {
+        private const string Art = "Assets/VoidFall/Art/Crascendo";
+        private const string Package = "Assets/VoidFall/Generated/ArenaPackages/Crascendo";
+        [MenuItem("Tools/VoidFall/Bake Crascendo")]
+        public static void Bake()
+        {
+            Directory.CreateDirectory(Package);
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            var visuals = LoadOrCreate<CrascendoVisualAsset>(Package + "/CrascendoVisuals.asset");
+            var data = new SerializedObject(visuals);
+            var ground = data.FindProperty("_ground"); ground.arraySize = 3;
+            for (var i = 0; i < 3; i++) ground.GetArrayElementAtIndex(i).objectReferenceValue = Import(Art + "/Ground" + i + ".png", 1024, 1024, 1);
+            var wash = data.FindProperty("_wash"); wash.arraySize = 3;
+            for (var i = 0; i < 3; i++) wash.GetArrayElementAtIndex(i).objectReferenceValue = Import(Art + "/Wash" + i + ".png", 1600, 900, 1);
+            data.FindProperty("_tears").objectReferenceValue = AssetDatabase.LoadAssetAtPath<TextAsset>(Art + "/Tears.json");
+            data.ApplyModifiedPropertiesWithoutUndo(); EditorUtility.SetDirty(visuals);
+
+            var plate = LoadOrCreate<ArenaPlateAsset>(Package + "/Plate.asset");
+            data = new SerializedObject(plate);
+            data.FindProperty("_arena").enumValueIndex = (int)ArenaId.Crascendo;
+            data.FindProperty("_baseSprite").objectReferenceValue = Import(Art + "/Base.png", 3840, 2160, 1);
+            data.FindProperty("_detailSprite").objectReferenceValue = Import(Art + "/Details.png", 2560, 1440, 1);
+            data.FindProperty("_width").intValue = 3840; data.FindProperty("_height").intValue = 2160;
+            data.FindProperty("_detailWidth").intValue = 2560; data.FindProperty("_detailHeight").intValue = 1440;
+            data.FindProperty("_schema").intValue = ArenaPlateAsset.CurrentSchema;
+            data.FindProperty("_crascendoVisuals").objectReferenceValue = visuals;
+            data.ApplyModifiedPropertiesWithoutUndo(); EditorUtility.SetDirty(plate);
+
+            AssetDatabase.SaveAssets();
+        }
+
+        private static T LoadOrCreate<T>(string path) where T : ScriptableObject
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<T>(path);
+            if (asset != null) return asset;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)); AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            asset = ScriptableObject.CreateInstance<T>(); AssetDatabase.CreateAsset(asset, path); return asset;
+        }
+
+        private static Sprite Import(string path, int width, int height, float ppu)
+        {
+            if (!File.Exists(path)) throw new InvalidOperationException("Missing authored Crascendo asset: " + path);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            importer.GetSourceTextureWidthAndHeight(out var sourceWidth, out var sourceHeight);
+            if (sourceWidth != width || sourceHeight != height) throw new InvalidOperationException("Unexpected authored dimensions: " + path);
+            importer.textureType = TextureImporterType.Sprite; importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = ppu; importer.alphaIsTransparency = true; importer.isReadable = false;
+            importer.mipmapEnabled = true; importer.streamingMipmaps = true; importer.maxTextureSize = 4096;
+            importer.filterMode = FilterMode.Bilinear; importer.wrapMode = TextureWrapMode.Clamp;
+            importer.npotScale = TextureImporterNPOTScale.None; importer.textureCompression = TextureImporterCompression.CompressedHQ;
+            var settings = new TextureImporterSettings(); importer.ReadTextureSettings(settings); settings.spriteMeshType = SpriteMeshType.FullRect; importer.SetTextureSettings(settings);
+            var platform = importer.GetPlatformTextureSettings("Standalone"); platform.overridden = true; platform.maxTextureSize = 4096; platform.format = TextureImporterFormat.BC7; importer.SetPlatformTextureSettings(platform);
+            importer.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path) ?? throw new InvalidOperationException("Sprite import failed: " + path);
+        }
+
+        public static void BakeBatch()
+        {
+            try { Bake(); ArenaAddressableMigration.MigrateAndConfigure(false); var errors = ArenaContentBaker.ValidateAll(); if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors)); Debug.Log("Crascendo palettes baked and registered."); EditorApplication.Exit(0); }
+            catch (Exception e) { Debug.LogException(e); EditorApplication.Exit(1); }
+        }
+
+        public static void BuildValidationPlayer()
+        {
+            var path = Path.GetFullPath(Path.Combine(Application.dataPath, "../../Builds/CrascendoValidation/VoidFall.exe")); Directory.CreateDirectory(Path.GetDirectoryName(path));
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { "Assets/Scenes/SampleScene.unity" }, locationPathName = path, target = BuildTarget.StandaloneWindows64, options = BuildOptions.None });
+            Debug.Log("Crascendo build: " + report.summary.result + " / " + report.summary.totalErrors + " errors / " + path);
+            EditorApplication.Exit(report.summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded && report.summary.totalErrors == 0 ? 0 : 1);
+        }
+    }
+}
+diff --git a/Assets/VoidFall/Runtime/Gameplay/GameSim.cs b/Assets/VoidFall/Runtime/Gameplay/GameSim.cs
+index 3b09150..b1d391e 100644
+--- a/Assets/VoidFall/Runtime/Gameplay/GameSim.cs
++++ b/Assets/VoidFall/Runtime/Gameplay/GameSim.cs
+@@ -17,8 +17,10 @@ namespace VoidFall.Runtime
+     /// the PlayMode golden master proves each step behavior-neutral.
+     /// </summary>
+     internal sealed class GameSim
+     {
++        private int _nextMeteorIdentity;
++        public void ResetMeteorIdentityForRun() => _nextMeteorIdentity = 0;
+         public readonly EnemyState[] Enemies;
+         public readonly BulletState[] Bullets;
+         public readonly HostileShotState[] HostileShots;
+         public readonly PickupState[] Pickups;
+@@ -71,8 +73,11 @@ namespace VoidFall.Runtime
+         // these cached delegates at the exact points the browser resolves an
+         // impact. Both are instance-cached; nothing allocates per step.
+         public Func<bool> PlayerVulnerableQuery;
+         public Action<int, Vector2> HostileShotImpact;
++        public delegate bool TerrainProjectileCollision(Vector2 from, Vector2 to, float radius, out Vector2 hit);
++        public TerrainProjectileCollision TerrainProjectileCollisionHook;
++        public Action<int> BulletTerrainHitHook;
+ 
+         // Bullet advance wiring. The loop skeleton, homing targeting, identity
+         // bookkeeping and hit resolution live here; the runtime supplies the
+         // view/FX/damage cascades through these cached delegates at the exact
+@@ -201,8 +206,12 @@ namespace VoidFall.Runtime
+                 if (slot < 0 || (!Bosses[slot].Active && Bosses[slot].DeathTimer <= 0))
+                     RemoveBossOrder(slot);
+             }
+         }
++        public int EnemyQueryPadding;
++        public Func<EnemyState, float, float> EnemyNaturalRadiusHook;
++        public int QueryEnemyNeighborhood(float x, float y, int cells, int[] output) => EnemyGrid.QueryNeighborhood(x, y, cells + EnemyQueryPadding, output);
++
+         public void RebuildEnemyGrid()
+         {
+             EnemyGrid.Clear();
+             Array.Clear(EnemyGridSpawnIds, 0, EnemyGridSpawnIds.Length);
+@@ -299,9 +308,15 @@ namespace VoidFall.Runtime
+             {
+                 var index = MeteorOrder[order];
+                 var meteor = Meteors[index];
+                 if (!meteor.Active) continue;
+-                meteor.Position += meteor.Velocity * dt;
++                if (meteor.Orbital)
++                {
++                    meteor.OrbitCentre += meteor.Velocity * (dt * .25f);
++                    meteor.OrbitPhase += dt * .38f;
++                    meteor.Position = meteor.OrbitCentre + new Vector2(Mathf.Cos(meteor.OrbitPhase) * 48f, Mathf.Sin(meteor.OrbitPhase) * 32f);
++                }
++                else meteor.Position += meteor.Velocity * dt;
+                 meteor.Rotation += meteor.Spin * dt;
+                 if (meteor.FuseTimer <= 0)
+                 {
+                     // Landed meteors are terrain: enemies slide around them
+@@ -388,8 +403,9 @@ namespace VoidFall.Runtime
+                 ? MeteorRules.ExplosiveMeteorMaxHealth(elapsedSeconds)
+                 : MeteorRules.MeteorMaxHealth(elapsedSeconds);
+             Meteors[slot] = new MeteorState
+             {
++                Identity = ++_nextMeteorIdentity,
+                 Active = true,
+                 Position = candidate,
+                 Velocity = new Vector2(Mathf.Cos(driftAngle), Mathf.Sin(driftAngle)) * speed,
+                 Rotation = (float)(Rng.Next() * Math.PI * 2),
+@@ -512,11 +528,18 @@ namespace VoidFall.Runtime
+                 {
+                     HostileShotOrder.Remove(index);
+                     continue;
+                 }
++                var previousPosition = shot.Position;
+                 if (shot.Curved) shot.Velocity += shot.Acceleration * dt;
+                 shot.Position += shot.Velocity * dt;
+                 shot.Life -= dt;
++                if (shot.Life > 0 && TerrainProjectileCollisionHook != null &&
++                    TerrainProjectileCollisionHook(previousPosition, shot.Position, shot.Radius, out var coverHit))
++                {
++                    shot.Position = coverHit;
++                    shot.Life = 0;
++                }
+                 if (shot.Life > 0 && Player.Health > 0 &&
+                     PlayerVulnerableQuery != null && PlayerVulnerableQuery() &&
+                     Vector2.Distance(shot.Position, Player.Position) <
+                         shot.Radius + attackPlayerRadius)
+@@ -766,8 +789,9 @@ namespace VoidFall.Runtime
+                     Bullets[i] = bullet;
+                     BulletTrailHook?.Invoke(i);
+                     bullet = Bullets[i];
+                 }
++                var previousPosition = bullet.Position;
+                 bullet.Position += bullet.Velocity * dt;
+                 bullet.Life -= dt;
+                 if (bullet.Life <= 0)
+                 {
+@@ -777,10 +801,25 @@ namespace VoidFall.Runtime
+                         expiredSlots[expiredCount++] = i;
+                     BulletOrder.Remove(i);
+                     continue;
+                 }
++                if (TerrainProjectileCollisionHook != null &&
++                    TerrainProjectileCollisionHook(previousPosition, bullet.Position, bullet.Radius, out var coverHit))
++                {
++                    bullet.Position = coverHit;
++                    // Keep the slot reserved during nested explosive damage/spawns.
++                    Bullets[i] = bullet;
++                    BulletTerrainHitHook?.Invoke(i);
++                    bullet = Bullets[i];
++                    bullet.Active = false;
++                    Bullets[i] = bullet;
++                    if (expiredSlots != null && expiredCount < expiredSlots.Length)
++                        expiredSlots[expiredCount++] = i;
++                    BulletOrder.Remove(i);
++                    continue;
++                }
+                 var hit = false;
+-                var enemyCandidateCount = EnemyGrid.QueryNeighborhood(
++                var enemyCandidateCount = QueryEnemyNeighborhood(
+                     bullet.Position.x,
+                     bullet.Position.y,
+                     1,
+                     EnemyGridBulletCandidates);
+@@ -1004,9 +1043,9 @@ namespace VoidFall.Runtime
+             {
+                 var index = EnemyOrder[order];
+                 var enemy = Enemies[index];
+                 if (!enemy.Active || enemy.MatriarchBodyguard) continue;
+-                var candidateCount = EnemyGrid.QueryNeighborhood(
++                var candidateCount = QueryEnemyNeighborhood(
+                     enemy.Position.x,
+                     enemy.Position.y,
+                     1,
+                     EnemyGridSeparationCandidates);
+@@ -1211,8 +1250,9 @@ namespace VoidFall.Runtime
+         public Func<float> EnemyParticleScaleHook;
+         public Func<double> EnemyFxRollHook;
+         public Action<float, Vector2> EnemyDamagePlayerHook;
+         public Action<Vector2, float, float, bool> EnemyBlastWaveHook;
++        public Action<Vector2, float, float, bool> EnemyBlastWaveFxOnlyHook;
+         public Action<Vector2, float, float> EnemyImpactMarkHook;
+         public Action<float> EnemyFreezeHook;
+         public Action<float> EnemyAmberFlashHook;
+         public Action<Vector2, float, float, int, int> EnemyDamageAreaHook;
+@@ -1559,9 +1599,9 @@ namespace VoidFall.Runtime
+                     EnemyDamagePlayerHook?.Invoke(enemy.Damage, impactDirection);
+                     if (canImpactPlayer) ApplySourcePlayerKnockback(ref enemy, impactDirection);
+                 }
+                 EnemyBlastWaveHook?.Invoke(enemy.DashDirection, impact, 0.5f, false);
+-                EnemyBlastWaveHook?.Invoke(enemy.DashDirection, impact * 0.62f, 0.28f, false);
++                EnemyBlastWaveFxOnlyHook?.Invoke(enemy.DashDirection, impact * 0.62f, 0.28f, false);
+                 EnemyImpactMarkHook?.Invoke(enemy.DashDirection, impact, (float)(EnemyFxRollHook() * Math.PI * 2));
+                 EnemyBurstFxHook?.Invoke(enemy.DashDirection, SourceDotColor("orange"), 20, 320, 0.54f, 0.86f);
+                 EnemyBurstFxHook?.Invoke(enemy.DashDirection, SourceDotColor("yellow"), 9, 240, 0.36f, 0.72f);
+                 EnemyBurstFxHook?.Invoke(enemy.DashDirection, SourceDotColor("white"), 5, 150, 0.2f, 0.52f);
+@@ -1753,9 +1793,10 @@ namespace VoidFall.Runtime
+             EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.Harvest, 0.82f);
+             var healthGain = absorbed * 1.25f;
+             enemy.MaxHealth += healthGain;
+             enemy.Health += healthGain;
+-            enemy.Radius = Mathf.Min(29, (float)(FindEnemy("harvester")?.Radius ?? 18) + Mathf.Sqrt(enemy.StoredXp));
++            var harvestedRadius = Mathf.Min(29, (float)(FindEnemy("harvester")?.Radius ?? 18) + Mathf.Sqrt(enemy.StoredXp));
++            enemy.Radius = EnemyNaturalRadiusHook != null ? EnemyNaturalRadiusHook(enemy, harvestedRadius) : harvestedRadius;
+             enemy.Speed = Mathf.Min(
+                 (float)(FindEnemy("harvester")?.Speed ?? 64) * HarvesterSpeedCapAt(time, bossCycle),
+                 enemy.Speed + absorbed * 0.18f);
+             enemy.Damage += (float)(FindEnemy("harvester")?.ContactDamage ?? 13) *
+diff --git a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Journey.cs b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Journey.cs
+index 9427538..d928894 100644
+--- a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Journey.cs
++++ b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Journey.cs
+@@ -23,8 +23,13 @@ namespace VoidFall.Runtime
+         private readonly Text[] _junctionLabels = new Text[2];
+         private string[] _junctionDestinations = Array.Empty<string>();
+         private float _junctionAge;
+         private readonly SpriteRenderer[] _junctionRims = new SpriteRenderer[4];
++        private const float EscapeCollectionSeconds = 25f;
++        private const float EscapeCountdownSeconds = 10f;
++        private int _escapeStatusSecond = int.MinValue;
++        private string _escapeStatusLine;
++        private Text _escapeStatusText;
+ 
+         public string JourneyStatus => _journeyStage.ToString();
+         public string CurrentVoidId => _voidRoute?.CurrentVoidId;
+         private bool JourneyStopsCombat => _stressScenario == null && _journeyStage != JourneyStage.Combat;
+@@ -37,8 +42,10 @@ namespace VoidFall.Runtime
+             _plannedRouteId = null;
+             _runVictory = false;
+             _returnToMenuAfterRun = false;
+             _journeyLoadFailed = false;
++            _escapeStatusSecond = int.MinValue;
++            if (_escapeStatusText != null) _escapeStatusText.gameObject.SetActive(false);
+             HideJunction();
+         }
+ 
+         private void ToggleRouteMap()
+@@ -81,23 +88,61 @@ namespace VoidFall.Runtime
+             _bossWarned = false;
+             _nextBossTime = float.PositiveInfinity;
+         }
+ 
+-        private void CollectJourneyPickups()
++        private void DiscardUncollectedJourneyPickups()
+         {
+-            if (_gameSim.Player.Health <= 0) return;
++            // Loot left after the collection/countdown window belongs to the outgoing arena.
+             for (var index = 0; index < _gameSim.Pickups.Length; index++)
+             {
+-                if (!_gameSim.Pickups[index].Active) continue;
+-                var pickup = _gameSim.Pickups[index];
+-                pickup.Position = _gameSim.Player.Position;
+-                _gameSim.Pickups[index] = pickup;
++                _gameSim.Pickups[index] = default;
++                Hide(_pickupViews[index]);
+             }
+-            UpdatePickups(0f);
++            ResetPickupOrder();
++        }
++
++        private void UpdateEscapeStatus()
++        {
++            var seconds = _voidCompletionDelayRemaining > EscapeCountdownSeconds
++                ? -1 : Mathf.Max(1, Mathf.CeilToInt(_voidCompletionDelayRemaining));
++            if (seconds != _escapeStatusSecond)
++            {
++                _escapeStatusSecond = seconds;
++                _escapeStatusLine = seconds < 0 ? "INITIATING ESCAPE" : "ESCAPING IN " + seconds;
++            }
++            if (_objectiveLine != _escapeStatusLine)
++            {
++                _objectiveLine = _escapeStatusLine;
++                _lastObjectiveLine = null;
++            }
++            RefreshEscapeNotice();
++        }
++
++        private void RefreshEscapeNotice()
++        {
++            var show = _journeyStage == JourneyStage.Rewards && !_mainMenuBrowsing && !_gameOver &&
++                !_paused && !_routeMapOpen && !_rouletteActive && !_prizeRevealActive && !_levelUpActive && !_revivePending;
++            if (_escapeStatusText == null && show && _canvas != null)
++            {
++                _escapeStatusText = UIBuilder.CreateText(_canvas.transform, "Escape Status", string.Empty,
++                    25f, UITheme.CyanPale, TextAnchor.MiddleCenter, true, FontStyle.Bold);
++                var rect = _escapeStatusText.rectTransform;
++                rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
++                rect.pivot = new Vector2(0.5f, 1f);
++                rect.anchoredPosition = new Vector2(0f, -100f);
++                rect.sizeDelta = new Vector2(650f, 60f);
++                var shadow = _escapeStatusText.gameObject.AddComponent<Shadow>();
++                shadow.effectColor = Color.black;
++                shadow.effectDistance = new Vector2(1f, -2f);
++            }
++            if (_escapeStatusText == null) return;
++            _escapeStatusText.gameObject.SetActive(show);
++            if (show && _escapeStatusText.text != _objectiveLine) _escapeStatusText.text = _objectiveLine;
+         }
+ 
+         private void UpdateJourneyFlow(float deltaTime)
+         {
++            RefreshEscapeNotice();
+             if (_mainMenuBrowsing || _stressScenario != null) return;
+             var dt = Mathf.Clamp(deltaTime, 0f, 0.1f);
+             if (_returnToMenuAfterRun)
+             {
+@@ -121,10 +166,12 @@ namespace VoidFall.Runtime
+             }
+             if (_paused || _routeMapOpen || _rouletteActive || _prizeRevealActive || _revivePending) return;
+             if (_journeyStage == JourneyStage.Rewards)
+             {
++                StepEonSea(dt);
++                StepCrascendo(dt);
+                 MovePlayer(dt);
+-                CollectJourneyPickups();
++                UpdateCameraFollow(dt);
+                 StepVoidCompletionDelay(dt);
+             }
+             else if (_journeyStage == JourneyStage.Junction)
+             {
+@@ -134,9 +181,9 @@ namespace VoidFall.Runtime
+                 position.x = Mathf.Clamp(position.x, -490f, 490f);
+                 position.y = Mathf.Clamp(position.y, -235f, 235f);
+                 _gameSim.Player.Position = position;
+                 _cameraFollowPosition = Vector2.zero;
+-                CollectJourneyPickups();
++                UpdatePickups(dt);
+                 for (var index = 0; index < _junctionDestinations.Length; index++)
+                 {
+                     if (_junctionAge >= 0.5f && Vector2.Distance(position, _junctionPortals[index].transform.position) < 48f)
+                     {
+@@ -154,8 +201,9 @@ namespace VoidFall.Runtime
+                     _gameSim.Player.Iframes = Mathf.Max(_gameSim.Player.Iframes, 1.5f);
+                     Debug.Log($"VOIDFLOW travel-complete void={CurrentVoidId} t={_time:F1}");
+                 }
+             }
++            RefreshEscapeNotice();
+         }
+ 
+         private void BeginPortalJunction()
+         {
+@@ -166,8 +214,9 @@ namespace VoidFall.Runtime
+             _routeSelectOpen = false;
+             _junctionDestinations = available.ToArray();
+             _junctionAge = 0;
+             ClearCombatForJourney();
++            DiscardUncollectedJourneyPickups();
+             // The outgoing arena is finished: corpses may no longer occupy the safe room.
+             for (var index = 0; index < _gameSim.Bosses.Length; index++)
+             {
+                 _gameSim.Bosses[index] = default;
+@@ -327,4 +376,5 @@ namespace VoidFall.Runtime
+             _riftPortalFrames = null;
+         }
+     }
+ }
++

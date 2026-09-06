@@ -235,6 +235,7 @@ namespace VoidFall.Runtime
 
         private void DetonateExploderBlast(EnemyState enemy, int excludedEnemyIdentity)
         {
+            if (DetonateProgressedExploder(enemy, excludedEnemyIdentity)) return;
             var definition = FindEnemy("exploder");
             var radius = (float)(definition?.BlastRadius ?? 76) * 1.1f;
             var damage = 55f + _time * 0.25f;

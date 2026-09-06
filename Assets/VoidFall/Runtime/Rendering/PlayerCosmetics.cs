@@ -86,8 +86,9 @@ namespace VoidFall.Runtime.Rendering
     ///
     /// The preview's canvas math is in design pixels (y-down). Unity world units
     /// and uGUI pixels are y-up, so vertical offsets are negated and rotation is
-    /// sign-flipped when converting; the sprite factory bakes each cosmetic at
-    /// 1 design pixel == 1 sprite pixel == 1 world unit.
+    /// sign-flipped when converting. The sprite factory normalizes each canvas
+    /// to one world unit; world renderers restore design-pixel dimensions using
+    /// the sprite's pixelsPerUnit before applying InGameScale.
     /// </summary>
     public static class PlayerCosmetics
     {

@@ -15,7 +15,7 @@ MonoBehaviour:
   m_DefaultGroup: b3e17c828b9b4594487808a6cd4e3bfd
   m_currentHash:
     serializedVersion: 2
-    Hash: 00000000000000000000000000000000
+    Hash: 074afbcf6eccbd8ada86173cabcf8e00
   m_OptimizeCatalogSize: 0
   m_BuildRemoteCatalog: 0
   m_CatalogRequestsTimeout: 0
@@ -107,6 +107,8 @@ MonoBehaviour:
     - vf-arena-hydra
     - vf-arena-monochrome-court
     - vf-arena-null-city
+    - vf-arena-eon-sea
+    - vf-arena-crascendo
   m_SchemaTemplates: []
   m_GroupTemplateObjects:
   - {fileID: 11400000, guid: c1a45a3059a122d40abad407b84254c6, type: 2}

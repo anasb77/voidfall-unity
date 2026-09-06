@@ -125,6 +125,12 @@ namespace VoidFall.Runtime
             _arenaPlateBakeHeight = asset.Height;
             _arenaPlateDetailBakeWidth = asset.DetailWidth;
             _arenaPlateDetailBakeHeight = asset.DetailHeight;
+            // Authored Hydra surface revisions may change pixel resolution, never their world-space layout.
+            if (arena == ArenaId.Hydra && asset.DetailSprite != null)
+            {
+                _arenaPlateDetailBakeWidth = Mathf.RoundToInt(asset.DetailSprite.bounds.size.x);
+                _arenaPlateDetailBakeHeight = Mathf.RoundToInt(asset.DetailSprite.bounds.size.y);
+            }
             return true;
         }
 
@@ -1000,6 +1006,17 @@ namespace VoidFall.Runtime
             var filter = _arenaNearFilamentOuterViews[slot];
             if (points == null || filter == null || filter.sharedMesh == null) return;
 
+            var continuous = (slot < 2 || (slot >= 4 && _arenaId == ArenaId.RedNebula)) &&
+                !(_visualCaptureLegacyNebula && !string.IsNullOrWhiteSpace(_visualCapturePath));
+            _arenaNearFilamentMaterials[slot].SetFloat("_Continuous", continuous ? 1f : 0f);
+            if (continuous)
+            {
+                BuildNebulaRibbon(filter.sharedMesh, points, _arenaNearFilamentPointWidths[slot], new Vector2(width, height));
+                _arenaNearFilamentBandVertices[slot] = filter.sharedMesh.vertices;
+                _arenaNearFilamentBandColors[slot] = filter.sharedMesh.colors;
+                return;
+            }
+
             var halfLayer = new Vector2(width * 0.5f, height * 0.5f);
             var vertices = new Vector3[points.Length * 2 * ArenaNearFilamentPasses];
             var uvs = new Vector2[vertices.Length];
@@ -1032,7 +1049,7 @@ namespace VoidFall.Runtime
             }
 
             var mesh = filter.sharedMesh;
-            mesh.Clear();
+            mesh.Clear(false);
             mesh.vertices = vertices;
             mesh.uv = uvs;
             mesh.colors = colors;
@@ -1048,6 +1065,69 @@ namespace VoidFall.Runtime
             return new Vector2(
                 localPosition.x / Mathf.Max(1f, width) + 0.5f,
                 localPosition.y / Mathf.Max(1f, height) + 0.5f);
+        }
+
+        // One padded strip, with a separate flow coordinate for continuous gas density.
+        // Original control points and cosmetic seeds remain unchanged.
+        private static void BuildNebulaRibbon(Mesh mesh, Vector2[] points, float[] widths, Vector2 size)
+        {
+            const int subdivisions = 6;
+            var count = (points.Length - 1) * subdivisions + 1;
+            var vertices = new Vector3[count * 2];
+            var uv = new Vector2[count * 2];
+            var flow = new Vector2[count * 2];
+            var colors = new Color[count * 2];
+            var triangles = new int[(count - 1) * 6];
+            for (var i = 0; i < count; i++)
+            {
+                var segment = Mathf.Min(i / subdivisions, points.Length - 2);
+                var t = (i - segment * subdivisions) / (float)subdivisions;
+                var a = points[Mathf.Max(0, segment - 1)];
+                var b = points[segment];
+                var c = points[segment + 1];
+                var d = points[Mathf.Min(points.Length - 1, segment + 2)];
+                var centre = .5f * ((2f * b) + (-a + c) * t +
+                    (2f * a - 5f * b + 4f * c - d) * t * t + (-a + 3f * b - 3f * c + d) * t * t * t);
+                var tangent = .5f * ((-a + c) + 2f * (2f * a - 5f * b + 4f * c - d) * t +
+                    3f * (-a + 3f * b - 3f * c + d) * t * t);
+                if (tangent.sqrMagnitude < .0001f) tangent = Vector2.right;
+                var normal = new Vector2(-tangent.y, tangent.x).normalized;
+                var half = Mathf.Max(1f, Mathf.Lerp(widths[segment], widths[segment + 1], t)) * .95f;
+                vertices[i * 2] = centre - size * .5f + normal * half;
+                vertices[i * 2 + 1] = centre - size * .5f - normal * half;
+                for (var side = 0; side < 2; side++)
+                {
+                    var v = i * 2 + side;
+                    uv[v] = FilamentMaskUv(vertices[v], size.x, size.y);
+                    flow[v] = new Vector2(i / (float)(count - 1), side == 0 ? 1f : -1f);
+                    colors[v] = Color.white;
+                }
+                if (i == count - 1) continue;
+                var k = i * 6;
+                triangles[k] = i * 2; triangles[k + 1] = i * 2 + 2; triangles[k + 2] = i * 2 + 1;
+                triangles[k + 3] = i * 2 + 1; triangles[k + 4] = i * 2 + 2; triangles[k + 5] = i * 2 + 3;
+            }
+            mesh.Clear(false);
+            mesh.vertices = vertices; mesh.uv = uv; mesh.uv2 = flow; mesh.colors = colors; mesh.triangles = triangles;
+            mesh.RecalculateBounds();
+        }
+
+        private bool RenderNebulaRibbon(int slot, Vector2 centre, float peak)
+        {
+            var material = _arenaNearFilamentMaterials[slot];
+            if (material == null || material.GetFloat("_Continuous") < .5f) return false;
+            material.SetFloat("_Peak", peak);
+            // These authored colors previously traveled as linear mesh vertex colors.
+            material.SetVector("_GasColor", _arenaNearFilamentColors[slot]);
+            material.SetVector("_CoreColor", _arenaNearFilamentCoreColors[slot]);
+            // Stable per-ribbon variation, with motion controlled by the existing accessibility setting.
+            material.SetFloat("_FlowPhase", slot * 7.13f);
+            material.SetFloat("_FlowTime", _saveData?.settings != null && _saveData.settings.reducedMotion ? 0f : (float)ArenaCycleElapsedSeconds() * .025f);
+            _arenaNearFilamentOuterViews[slot].transform.position = centre;
+            _arenaNearFilamentOuterRenderers[slot].enabled = true;
+            Hide(_arenaNearFilamentInnerViews[slot]);
+            Hide(_arenaNearFilamentStrandRenderers[slot]);
+            return true;
         }
 
         private void BuildArenaNearFilamentStrand(int slot, float width, float height)
@@ -1427,6 +1507,11 @@ namespace VoidFall.Runtime
 
         private void ReconcileArenaResidency(ArenaResidentSet target)
         {
+            var crascendoIndex = (int)ArenaId.Crascendo;
+            if (_preparedArenaPlateKeys[crascendoIndex].IsValid && !target.Contains(_preparedArenaPlateKeys[crascendoIndex])) HideCrascendoPresentation();
+            var eonIndex = (int)ArenaId.EonSea;
+            if (_preparedArenaPlateKeys[eonIndex].IsValid && !target.Contains(_preparedArenaPlateKeys[eonIndex]))
+                HideEonSeaPresentation();
             var cityIndex = (int)ArenaId.NullCity;
             if (_preparedArenaPlateKeys[cityIndex].IsValid && !target.Contains(_preparedArenaPlateKeys[cityIndex]))
                 DetachNullCityAssetConsumers();
@@ -1451,6 +1536,8 @@ namespace VoidFall.Runtime
                 case ArenaId.WhiteSakura: return "whiteSakura";
                 case ArenaId.Hydra: return "hydra";
                 case ArenaId.MonochromeCourt: return "monochrome-court";
+                case ArenaId.EonSea: return "eon-sea";
+                case ArenaId.Crascendo: return "crascendo";
                 case ArenaId.NullCity: return "null-city";
                 default: return "void";
             }
@@ -1464,6 +1551,8 @@ namespace VoidFall.Runtime
                 case "whiteSakura": return ArenaId.WhiteSakura;
                 case "hydra": return ArenaId.Hydra;
                 case "monochrome-court": return ArenaId.MonochromeCourt;
+                case "eon-sea": return ArenaId.EonSea;
+                case "crascendo": return ArenaId.Crascendo;
                 case "null-city": return ArenaId.NullCity;
                 default: return ArenaId.Void;
             }
@@ -1477,6 +1566,8 @@ namespace VoidFall.Runtime
                 case ArenaId.WhiteSakura: return "White Sakura";
                 case ArenaId.Hydra: return "Hydra";
                 case ArenaId.MonochromeCourt: return "Monochrome Court";
+                case ArenaId.EonSea: return "Eon Sea";
+                case ArenaId.Crascendo: return "Crascendo";
                 case ArenaId.NullCity: return "Null City";
                 default: return "Abyss";
             }
@@ -1485,7 +1576,7 @@ namespace VoidFall.Runtime
         private static ArenaDefinition FindArena(string id)
         {
             foreach (var definition in ContentCatalog.Arenas) if (definition.Id == id) return definition;
-            return HydraContent.FindArena(id) ?? MonochromeContent.FindArena(id) ?? NullCityContent.FindArena(id);
+            return HydraContent.FindArena(id) ?? MonochromeContent.FindArena(id) ?? NullCityContent.FindArena(id) ?? EonSeaContent.FindArena(id) ?? CrascendoContent.FindArena(id);
         }
     }
 }

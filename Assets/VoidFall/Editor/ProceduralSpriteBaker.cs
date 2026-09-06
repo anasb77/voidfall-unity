@@ -152,6 +152,47 @@ namespace VoidFall.Editor
             return errors;
         }
 
+        public static void RepairCorruptedSpritesBatch()
+        {
+            ProceduralSpriteCatalog snapshot = null;
+            try
+            {
+                snapshot = BuildCatalogSnapshot();
+                var authored = new Dictionary<string, Sprite>();
+                foreach (var entry in snapshot.Entries) authored[entry.Key] = entry.Sprite;
+                var catalog = AssetDatabase.LoadAssetAtPath<ProceduralSpriteCatalog>(CatalogPath);
+                var visited = new HashSet<string>();
+                var repaired = 0;
+                foreach (var entry in catalog.Entries)
+                {
+                    var path = AssetDatabase.GetAssetPath(entry.Sprite);
+                    if (!visited.Add(path) || !path.EndsWith(".png")) continue;
+                    var pixels = new Texture2D(2, 2);
+                    bool corrupt;
+                    try { pixels.LoadImage(File.ReadAllBytes(path)); corrupt = IsInvalidReadback(pixels.GetPixels32()); }
+                    finally { Object.DestroyImmediate(pixels); }
+                    if (!corrupt) continue;
+                    if (!authored.TryGetValue(entry.Key, out var source)) throw new InvalidOperationException("Missing authoring source " + entry.Key);
+                    WriteSpritePng(path, source);
+                    AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+                    repaired++;
+                }
+                AssetDatabase.SaveAssets();
+                Debug.Log("SPRITE REPAIR completed count=" + repaired);
+                EditorApplication.Exit(0);
+            }
+            catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
+            finally { if (snapshot != null) ReleaseCatalogSnapshot(snapshot); }
+        }
+
+        private static bool IsInvalidReadback(Color32[] pixels)
+        {
+            if (pixels.Length == 0) return true;
+            foreach (var pixel in pixels)
+                if (pixel.r != 205 || pixel.g != 205 || pixel.b != 205 || pixel.a != 205) return false;
+            return true;
+        }
+
         private static void WriteSpritePng(string assetPath, Sprite source)
         {
             var rect = source.rect;
@@ -160,6 +201,8 @@ namespace VoidFall.Editor
             var readable = ReadSpriteTexture(source, width, height);
             try
             {
+                if (IsInvalidReadback(readable.GetPixels32()))
+                    throw new InvalidOperationException("Invalid uniform GPU readback for " + assetPath);
                 File.WriteAllBytes(assetPath, readable.EncodeToPNG());
             }
             finally
@@ -185,6 +228,11 @@ namespace VoidFall.Editor
                 return output;
             }
 
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+            {
+                Object.DestroyImmediate(output);
+                throw new InvalidOperationException("Sprite baking needs retained CPU pixels when no graphics device is available: " + source.name);
+            }
             var renderTexture = RenderTexture.GetTemporary(
                 texture.width,
                 texture.height,

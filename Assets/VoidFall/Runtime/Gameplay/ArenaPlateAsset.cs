@@ -19,6 +19,8 @@ namespace VoidFall.Runtime
         [SerializeField] private int _detailWidth;
         [SerializeField] private int _detailHeight;
         [SerializeField] private NullCityVisualAsset _nullCityVisuals;
+        [SerializeField] private EonSeaVisualAsset _eonSeaVisuals;
+        [SerializeField] private CrascendoVisualAsset _crascendoVisuals;
         [SerializeField] private int _schema = CurrentSchema;
 
         public ArenaId Arena => _arena;
@@ -29,6 +31,8 @@ namespace VoidFall.Runtime
         public int DetailWidth => _detailWidth > 0 ? _detailWidth : _width;
         public int DetailHeight => _detailHeight > 0 ? _detailHeight : _height;
         public NullCityVisualAsset NullCityVisuals => _nullCityVisuals;
+        public EonSeaVisualAsset EonSeaVisuals => _eonSeaVisuals;
+        public CrascendoVisualAsset CrascendoVisuals => _crascendoVisuals;
         public int Schema => _schema;
 
         public bool IsValidFor(ArenaId arena)

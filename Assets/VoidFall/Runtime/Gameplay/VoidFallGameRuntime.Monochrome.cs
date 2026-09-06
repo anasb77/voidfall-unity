@@ -13,6 +13,8 @@ namespace VoidFall.Runtime
         private readonly SpriteRenderer[] _courtBoardTiles =
             new SpriteRenderer[CourtBoardColumns * CourtBoardRows];
         private Sprite _courtBoardTileSprite;
+        private Material _courtTileMaterial;
+        private readonly SpriteRenderer[] _courtSplitViews = new SpriteRenderer[2];
         private bool _courtPresentationReady;
         private bool _monochromeBossEncounterActive;
         private bool _monochromeBossSpawnedForVoid;
@@ -56,6 +58,10 @@ namespace VoidFall.Runtime
                 1,
                 1,
                 "Monochrome Court Opaque Board Tile");
+            var shader = Resources.Load<Shader>("VoidFall/CourtTile");
+            if (shader == null) throw new System.InvalidOperationException("Missing CourtTile shader resource.");
+            _courtTileMaterial = new Material(shader) { name = "Monochrome Tile Surface (Runtime)" };
+            _dynamicMaterials.Add(_courtTileMaterial);
             for (var index = 0; index < _courtBoardTiles.Length; index++)
             {
                 var tile = CreateView(
@@ -63,8 +69,11 @@ namespace VoidFall.Runtime
                     _courtBoardTileSprite,
                     -80);
                 tile.enabled = false;
+                tile.sharedMaterial = _courtTileMaterial;
                 _courtBoardTiles[index] = tile;
             }
+            for (var i = 0; i < _courtSplitViews.Length; i++)
+                _courtSplitViews[i] = CreateView("Monochrome Split Field " + i, _courtBoardTileSprite, -80);
             _courtPresentationReady = true;
         }
 
@@ -189,10 +198,9 @@ namespace VoidFall.Runtime
                 ? CourtFaction.Black
                 : CourtFaction.White;
             var viewport = GameplayViewportHalfExtent();
-            var x = MonochromeRuntimeRules.SpawnX(
-                faction,
-                _gameSim.Player.Position.x,
-                viewport.x + 110f);
+            var x = CourtSplitCycleActive()
+                ? MonochromeRuntimeRules.SplitSpawnX(faction, _gameSim.Player.Position.x, viewport.x + 110f)
+                : MonochromeRuntimeRules.SpawnX(faction, _gameSim.Player.Position.x, viewport.x + 110f);
             var y = _gameSim.Player.Position.y +
                     ((float)_gameSim.Rng.Next() - 0.5f) * viewport.y * 1.6f;
             if (!SpawnEnemy(id, new Vector2(x, y), forcedRoster: EnemyRoster.One)) return;
@@ -505,11 +513,18 @@ namespace VoidFall.Runtime
 
         private void RenderMonochromePresentation()
         {
+            foreach (var split in _courtSplitViews) Hide(split);
             if (!_monochromeBossEncounterActive)
             {
                 HideMonochromeBoard();
+                if (_arenaId == ArenaId.MonochromeCourt && CourtSplitCycleActive()) RenderMonochromeSplitField();
                 return;
             }
+            var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
+            _courtTileMaterial.SetFloat("_HazardStage", _monochromeHazard.Stage == CourtHazardStage.Warning ? 1 :
+                _monochromeHazard.Stage == CourtHazardStage.Burning ? 2 : 0);
+            _courtTileMaterial.SetFloat("_WhiteActive", _monochromeHazard.Faction == CourtFaction.White ? 1 : 0);
+            _courtTileMaterial.SetFloat("_Pulse", MonochromeRuntimeRules.HazardPulse(_monochromeBossElapsed, reducedMotion));
             var player = _gameSim.Player.Position;
             var centreColumn = Mathf.FloorToInt(
                 (player.x - _monochromeBoardOrigin.x) / _monochromeBoardTileSize.x);
@@ -536,29 +551,8 @@ namespace VoidFall.Runtime
                         ? CourtFaction.White
                         : CourtFaction.Black;
                     var color = faction == CourtFaction.White
-                        ? new Color(0.88f, 0.87f, 0.82f, 1f)
-                        : new Color(0.025f, 0.028f, 0.035f, 1f);
-                    if (faction == _monochromeHazard.Faction)
-                    {
-                        var phase = _monochromeBossElapsed * 15f +
-                            globalColumn * 0.73f + globalRow * 1.17f;
-                        if (_monochromeHazard.Stage == CourtHazardStage.Warning)
-                        {
-                            var pulse = 0.5f + Mathf.Sin(phase) * 0.5f;
-                            var warning = faction == CourtFaction.White
-                                ? new Color(1f, 0.72f, 0.18f, 1f)
-                                : new Color(0.68f, 0.06f, 0.14f, 1f);
-                            color = Color.Lerp(color, warning, 0.28f + pulse * 0.44f);
-                        }
-                        else if (_monochromeHazard.Stage == CourtHazardStage.Burning)
-                        {
-                            var flicker = 0.78f + Mathf.Sin(phase * 1.43f) * 0.12f;
-                            var burning = faction == CourtFaction.White
-                                ? new Color(1f, 0.24f, 0.025f, 1f)
-                                : new Color(0.74f, 0.018f, 0.035f, 1f);
-                            color = Color.Lerp(color, burning, flicker);
-                        }
-                    }
+                        ? new Color(.667f, .69f, .674f, 1f)
+                        : new Color(.063f, .094f, .133f, 1f);
                     tile.color = color;
                     tile.enabled = true;
                 }
@@ -571,6 +565,37 @@ namespace VoidFall.Runtime
             return new Vector2(
                 viewport.x * 2.4f / (CourtBoardColumns - 2),
                 viewport.y * 2.4f / (CourtBoardRows - 1));
+        }
+
+        private bool CourtSplitCycleActive()
+        {
+            var cycle = ArenaCycleRules.At("monochrome-court", ArenaCycleElapsedSeconds());
+            return MonochromeRuntimeRules.IsSplitCycle(cycle.CycleId);
+        }
+
+        private void RenderMonochromeSplitField()
+        {
+            SetupMonochromePresentation();
+            var centre = RenderCameraCentre();
+            var half = RenderViewportHalfExtent();
+            // Like the arena backdrop, the division is screen-relative. Entrances use the same left/right colors.
+            for (var i = 0; i < 2; i++)
+            {
+                var view = _courtSplitViews[i];
+                view.transform.position = centre + new Vector2((i == 0 ? -.5f : .5f) * half.x, 0);
+                view.transform.localScale = new Vector3(half.x, half.y * 2f, 1f);
+                view.color = i == 0 ? new Color(.035f, .055f, .086f, 1f) : new Color(.706f, .725f, .71f, 1f);
+                view.enabled = true;
+            }
+        }
+
+        private void DestroyMonochromePresentation()
+        {
+            if (_courtBoardTileSprite == null) return;
+            var texture = _courtBoardTileSprite.texture;
+            Destroy(_courtBoardTileSprite);
+            if (texture != null) Destroy(texture);
+            _courtBoardTileSprite = null;
         }
 
         private void HideMonochromeBoard()

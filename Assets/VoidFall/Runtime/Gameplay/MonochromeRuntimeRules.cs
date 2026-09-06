@@ -7,6 +7,14 @@ namespace VoidFall.Runtime
     {
         public const int MaxQueenPromotions = 2;
 
+        public static bool IsSplitCycle(string cycleId) => cycleId == "black-rule" || cycleId == "white-rule";
+
+        public static float SplitSpawnX(CourtFaction faction, float centreX, float halfWidth) =>
+            centreX + (faction == CourtFaction.White ? -Mathf.Abs(halfWidth) : Mathf.Abs(halfWidth));
+
+        public static float HazardPulse(float elapsed, bool reducedMotion) =>
+            reducedMotion ? .55f : .18f + .67f * (.5f + .5f * Mathf.Sin(elapsed * Mathf.PI * 10f));
+
         public static float SpawnX(CourtFaction faction, float centreX, float halfWidth) =>
             centreX + (faction == CourtFaction.Black ? -Mathf.Abs(halfWidth) : Mathf.Abs(halfWidth));
 

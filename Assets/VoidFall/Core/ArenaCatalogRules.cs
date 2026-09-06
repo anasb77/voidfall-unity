@@ -21,6 +21,8 @@ namespace VoidFall.Core
                 case ArenaId.WhiteSakura: return "white-sakura";
                 case ArenaId.Hydra: return "hydra";
                 case ArenaId.MonochromeCourt: return "monochrome-court";
+                case ArenaId.EonSea: return "eon-sea";
+                case ArenaId.Crascendo: return "crascendo";
                 case ArenaId.NullCity: return "null-city";
                 default: return "abyss";
             }
@@ -34,6 +36,8 @@ namespace VoidFall.Core
                 case "white-sakura": return ArenaId.WhiteSakura;
                 case "hydra": return ArenaId.Hydra;
                 case "monochrome-court": return ArenaId.MonochromeCourt;
+                case "eon-sea": return ArenaId.EonSea;
+                case "crascendo": return ArenaId.Crascendo;
                 case "null-city": return ArenaId.NullCity;
                 default: return ArenaId.Void;
             }

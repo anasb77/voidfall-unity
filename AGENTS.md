@@ -13,6 +13,33 @@ Check `git status` before editing and preserve unrelated work. Historical
 findings live in `Docs/AI/ReleaseReadiness-2026-09-04.md`; consult them when
 relevant, not as mandatory context for every change.
 
+## Character, art direction and Workshop
+
+Owner-established fiction: the playable blue eye is **the eye of Zack Hazard**,
+the real character trying to escape the Void. Preserve this identity. Existing
+technical names such as `Operative`, `frame` and `arsenal` do not establish a
+spaceship or a conventional robot protagonist.
+
+The owner describes the world as "a bunch of nothing": "robotics but not
+robotics," shapes that sometimes suggest insects. Preserve that ambiguity.
+The shared visual language uses sparse geometry, strong colored outlines,
+dark interiors and luminous centers. Shapes and motion can suggest creatures,
+machines or symbols without resolving into literal equipment. Null City's
+explicit machinery is an arena-specific identity; do not apply its detailed
+mechanical panels as the default style for Zack or the shared roster.
+
+For character/art work, inspect the actual relevant sprites and their live
+rendering path before proposing designs. `Docs/REPO_MAP.md` identifies these
+sources; a roster-wide scan is unnecessary unless the task calls for one.
+
+Workshop direction: **retain the existing Workshop and its upgrade artwork**.
+Its purpose is permanent meta progression with visible changes to Zack, as
+well as stat benefits. Purchased ranks must appear on the next run's character
+at the scale shown by the existing preview; refunds must remove them.
+The browser studies (evolving bodies, specialized frames, modules, Iris,
+Instinct and Fragments) were exploration, not approved replacement designs.
+Do not infer additional Zack lore or a recovery/corruption arc from those studies.
+
 ## Architecture and locations
 
 Product direction: VoidFall is a finite escape journey through randomized,
@@ -75,8 +102,12 @@ $unityEditor = 'C:/Program Files/Unity/Hub/Editor/6000.5.7f1/Editor/Unity.exe'
 ```
 
 Use the installed Editor path on other machines. Test commands must **not**
-include `-quit`. Build output is `../Builds/VoidFall.exe`; preserve valuable
-previous builds. `dotnet build VoidFall.Runtime.csproj -t:Rebuild` is only a
+include `-quit`. The current integrated player is `../Builds/VoidFall.exe`.
+Keep temporary validation builds/backups only until the replacement is verified;
+do not accumulate full player copies inside `Logs/` or `Builds/`. Preserve any
+explicitly designated release archive. `Library/` is a regenerable Unity cache;
+`Assets/VoidFall/Generated/` contains required baked assets, not cache.
+`dotnet build VoidFall.Runtime.csproj -t:Rebuild` is only a
 quick compile check when generated project files are current. Read test XML
 and logs before claiming success. Historical passing counts are not validation.
 Protect real saves during runtime tests. Stress-probe completion alone does

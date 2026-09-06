@@ -38,7 +38,9 @@ namespace VoidFall.Runtime
             for (var index = 0; index < _playerTrailViews.Length; index++)
             {
                 _playerTrailViews[index] = CreateView(
-                    "Cosmetic.MobilityTrail." + index, null, TrailSortingOrder);
+                    "Cosmetic.MobilityTrail." + index,
+                    PlayerCosmetics.SpriteFor(PlayerCosmeticKind.Mobility, 1),
+                    TrailSortingOrder);
             }
 
             RefreshWorkshopCosmeticRanks();
@@ -98,7 +100,9 @@ namespace VoidFall.Runtime
                     0f,
                     0f,
                     PlayerCosmetics.WorldRotationRadians(kind, time) * Mathf.Rad2Deg);
-                view.transform.localScale = Vector3.one * scale;
+                // The sprite factory normalizes each canvas to one world unit;
+                // restore its design-pixel dimensions before applying preview scale.
+                view.transform.localScale = Vector3.one * (sprite.pixelsPerUnit * scale);
                 view.color = new Color(1f, 1f, 1f, alpha);
             }
 
@@ -115,9 +119,10 @@ namespace VoidFall.Runtime
                     PlayerCosmetics.MobilityTrailOffset(mobilityRank, index) * scale,
                     -(PlayerCosmetics.MobilityTrailTopOffset + length * 0.5f) * scale);
                 view.transform.rotation = Quaternion.identity;
+                var spriteSize = view.sprite.bounds.size;
                 view.transform.localScale = new Vector3(
-                    (PlayerCosmetics.MobilityTrailWidth / PlayerCosmetics.MobilityTrailSpriteWidth) * scale,
-                    (length / PlayerCosmetics.MobilityTrailSpriteLength) * scale,
+                    (PlayerCosmetics.MobilityTrailSpriteWidth / spriteSize.x) * scale,
+                    (length / spriteSize.y) * scale,
                     1f);
                 view.color = new Color(1f, 1f, 1f, alpha * 0.9f);
             }

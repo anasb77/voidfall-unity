@@ -14,7 +14,7 @@ namespace VoidFall.Core
             {
                 if (evolution.WeaponId == weaponId)
                 {
-                    foreach (var support in ContentCatalog.Supports)
+                    foreach (var support in ExtendedCatalog.AllSupports())
                     {
                         if (support.Id == evolution.SupportId)
                         {

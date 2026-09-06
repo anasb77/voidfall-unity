@@ -89,13 +89,14 @@ namespace VoidFall.Runtime
             _journeyStage = JourneyStage.Rewards;
             _routeMapOpen = false;
             ClearCombatForJourney();
-            CollectJourneyPickups();
             var available = _voidRoute.NodesInState(RouteNodeState.Available);
             // One exit: teleport straight there when the delay expires. No
             // portal, no cards - the portal is the multi-destination choice.
             _riftAutoVoidId = available.Count == 1 ? available[0] : null;
-            _voidCompletionDelayRemaining = 1.2f;
+            _voidCompletionDelayRemaining = EscapeCollectionSeconds + EscapeCountdownSeconds;
             _voidCompletionPending = true;
+            _escapeStatusSecond = int.MinValue;
+            UpdateEscapeStatus();
         }
 
         private void StepVoidCompletionDelay(float dt)
@@ -103,26 +104,33 @@ namespace VoidFall.Runtime
             if (!_voidCompletionPending || _riftTransitionActive) return;
             if (_gameOver || _revivePending || _rouletteActive || _prizeRevealActive ||
                 _routeMapOpen || _levelUpActive || _paused || _menuPage != MenuPage.None) return;
-            _voidCompletionDelayRemaining -= Mathf.Max(0f, dt);
-            if (_voidCompletionDelayRemaining > 0f) return;
+            // Keep the player and loot in the cleared arena. Only normal pickup range applies.
+            UpdatePickups(Mathf.Clamp(dt, 0f, 0.1f));
+            AdvanceRunLevelUps(Mathf.Max(0f, dt));
+            if (_levelUpActive || _levelUpTimer >= 0) return;
+            _voidCompletionDelayRemaining = Mathf.Max(0f, _voidCompletionDelayRemaining - Mathf.Max(0f, dt));
+            if (_voidCompletionDelayRemaining > EscapeCountdownSeconds)
+            {
+                UpdateEscapeStatus();
+                return;
+            }
 
             if (_rouletteChestActive)
             {
                 _openRouteAfterRoulette = true;
-                // The relic remains at the defeated boss. The safe reward phase
-                // allows the player to approach it; a timer never claims it remotely.
+                // Manual pickup is available throughout the grace period. Deliver any
+                // unclaimed boss reward before starting the full final countdown.
+                _voidCompletionDelayRemaining = EscapeCountdownSeconds;
+                _rouletteChestPulse = Mathf.Max(_rouletteChestPulse, 1.8f);
+                CollectRouletteChest();
+                return;
+            }
+            UpdateEscapeStatus();
+            if (_voidCompletionDelayRemaining > 0f)
+            {
                 return;
             }
             _voidCompletionPending = false;
-            // A simultaneous boss/player death postpones pickup collection until revive.
-            // Sweep before draining upgrades, including on the terminal node.
-            CollectJourneyPickups();
-            AdvanceRunLevelUps(Mathf.Max(0f, dt));
-            if (_levelUpActive || _levelUpTimer >= 0)
-            {
-                _voidCompletionPending = true;
-                return;
-            }
             OpenCompletedVoidRift();
         }
 
@@ -253,6 +261,7 @@ namespace VoidFall.Runtime
         private void EnterVoidThroughRift(string voidId)
         {
             if (_riftTransitionActive) return;
+            DiscardUncollectedJourneyPickups();
             HideJunction();
             _journeyStage = JourneyStage.Travel;
             _routeMapOpen = false;
@@ -444,6 +453,7 @@ namespace VoidFall.Runtime
 
         private void ClearTransitionProjectiles()
         {
+            ResetArsenalWeapons();
             for (var index = 0; index < _gameSim.Bullets.Length; index++)
             {
                 _gameSim.Bullets[index].Active = false;

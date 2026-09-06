@@ -13,6 +13,61 @@ namespace VoidFall.Tests.Editor
 {
     public sealed class UrpMigrationTests
     {
+        [TestCase("Sprite_0003_arena-rock_0.png")]
+        [TestCase("Sprite_0085_fixed_elite-ring.png")]
+        [TestCase("Sprite_0087_fixed_impact-mark.png")]
+        public void Baked_silhouettes_have_transparent_corners_and_visible_shape(string file)
+        {
+            var texture = new Texture2D(2, 2);
+            try
+            {
+                Assert.That(texture.LoadImage(System.IO.File.ReadAllBytes("Assets/VoidFall/Generated/ProceduralSprites/" + file)), Is.True);
+                Assert.That(texture.GetPixel(0, 0).a, Is.LessThan(.01f), "A silhouette must not become a filled square.");
+                var visible = false;
+                foreach (var pixel in texture.GetPixels32()) if (pixel.a > 30) { visible = true; break; }
+                Assert.That(visible, Is.True);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(texture); }
+        }
+
+        [Test]
+        public void Fast_nebula_strike_detects_targets_between_frames()
+        {
+            var distance = typeof(VoidFall.Runtime.VoidFallGameRuntime).GetMethod("NebulaSegmentDistance", BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(distance, Is.Not.Null);
+            Assert.That((float)distance.Invoke(null, new object[] { new Vector2(50, 4), Vector2.zero, new Vector2(100, 0) }), Is.EqualTo(4f).Within(.001f));
+            Assert.That((float)distance.Invoke(null, new object[] { new Vector2(110, 0), Vector2.zero, new Vector2(100, 0) }), Is.EqualTo(10f).Within(.001f));
+        }
+
+        [Test]
+        public void Nebula_ribbon_preserves_control_path_with_one_continuous_strip()
+        {
+            var build = typeof(VoidFall.Runtime.VoidFallGameRuntime).GetMethod(
+                "BuildNebulaRibbon", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(build, Is.Not.Null, "Red Nebula needs a continuous ribbon mesh.");
+            var mesh = new Mesh();
+            var points = new[] { new Vector2(0, 0), new Vector2(10, 4), new Vector2(20, -2), new Vector2(30, 0) };
+            try
+            {
+                build.Invoke(null, new object[] { mesh, points, new[] { 4f, 8f, 3f, 4f }, new Vector2(40, 20) });
+                var vertices = mesh.vertices;
+                Assert.That(vertices.Length, Is.GreaterThan(points.Length * 2));
+                Assert.That(mesh.triangles.Length, Is.EqualTo((vertices.Length / 2 - 1) * 6));
+                var steps = (vertices.Length / 2 - 1) / (points.Length - 1);
+                for (var i = 0; i < points.Length; i++)
+                    Assert.That(Vector2.Distance((vertices[i * steps * 2] + vertices[i * steps * 2 + 1]) * .5f,
+                        points[i] - new Vector2(20, 10)), Is.LessThan(.001f));
+                for (var i = 0; i < vertices.Length; i += 2)
+                {
+                    Assert.That(float.IsNaN(vertices[i].x) || float.IsInfinity(vertices[i].y), Is.False);
+                    Assert.That(Vector3.Distance(vertices[i], vertices[i + 1]), Is.GreaterThan(0));
+                    Assert.That(mesh.uv2[i].y, Is.EqualTo(1f));
+                    Assert.That(mesh.uv2[i + 1].y, Is.EqualTo(-1f));
+                }
+            }
+            finally { UnityEngine.Object.DestroyImmediate(mesh); }
+        }
+
         [Test]
         public void Explicit_material_resources_use_the_expected_urp_shaders()
         {

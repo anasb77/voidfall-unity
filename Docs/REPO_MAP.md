@@ -5,6 +5,38 @@ change. This is a navigation aid, not a claim that every planned feature is
 implemented. All paths below are relative to **`Assets/VoidFall/`**, except
 paths explicitly starting with `Assets/`, `Docs/`, `Packages/` or `.github/`.
 
+## Character identity and visual references
+
+**Owner-established context:** the blue player eye belongs to **Zack Hazard**,
+who is trying to escape the Void. `Operative` remains the implementation name.
+The owner describes the art as "a bunch of nothing," "robotics but not
+robotics," with shapes sometimes resembling insects. Keep the forms ambiguous;
+conventional futuristic armor, reactors and engines are not a default brief
+for the protagonist. See `AGENTS.md` for the standing Workshop decision.
+
+The current artwork uses compact silhouettes, saturated outlines, dark space
+and luminous centers. Shared progression develops recognizable shapes through
+contour changes, repeated points and divided forms. This description is based
+on the implemented artwork; it does not establish new lore or proposed content.
+For visual work, view the relevant assets as well as reading their code:
+
+| Character group | Current sources and identities |
+|---|---|
+| Zack's eye | `Runtime/Gameplay/ProceduralSpriteFactory.cs`: `Operative()` draws the circular blue iris, dark center and central light. Current baked sprite: `Generated/ProceduralSprites/Sprite_0089_fixed_operative.png`. `VoidFallGameRuntime.Render.cs` composes the eye, aura, ring and Workshop cosmetics. |
+| Shared enemies and elites | Original forms: `ProceduralSpriteFactory.cs`; higher tiers: `Art/RosterProgression/`, `Resources/VoidFall/RosterProgressionVisuals.asset`, and runtime `.RosterProgression.cs`. Four tiers across 14 shared families and three elite families: Exploder, Siege Mortar and Curved Gunner. |
+| Shared bosses | Herald, Warden, Matriarch and Reaver: definitions in `Content/ContentCatalog.Generated.cs`, artwork in `ProceduralSpriteFactory.cs` and baked `Generated/ProceduralSprites/` boss images. |
+| Monochrome Court | Pawn, Rook, Bishop, Knight and Queen in black/white forms, plus Black and White Grandmasters. `Content/MonochromeContent.cs`, `ProceduralSpriteFactory.cs`, and baked Court sprites. |
+| Hydra | Shared enemies with mutation traits in `Core/MutationRules.cs`; `Content/HydraContent.cs` defines Hydra Prime. The live boss uses `Resources/VoidFall/Hydra/HydraPrime.png`, loaded by runtime `.Hydra.cs`; inspect that authored art rather than assuming its procedural fallback is the live appearance. |
+| Null City | Nine regular units, three lockdown police, and exclusive boss Motherload: `Content/NullCityContent.cs`, `Art/NullCity/Units/`, `Runtime/Gameplay/NullCityVisualAsset.cs`, and runtime `.NullCity.Render.cs`. Motherload is explicitly a detailed ship. |
+
+The 14 shared families are Regular (`chaser`), Runner, Gunner, Twin Gunner,
+Dasher, Brute, Exploder, Guard, Technician, Mortar, Splitter, Bulwark, Harvester
+and Carrier. Regular's star identity is preserved across tiers.
+`Docs/Design/EonSea-Approved.md` specifies thick saturated edges and luminous
+cores, explicitly excluding a Null City mechanical-panel restyle of the shared
+roster. `Docs/Design/NullCity-Approved.md` records that arena's distinct machine
+and ship designs. Preserve these differences between arena identities.
+
 ## Boot, ownership and dependencies
 
 `Runtime/ParityFixtureProbe.cs` uses `BeforeSceneLoad` to create a persistent
@@ -62,6 +94,37 @@ sprite/texture and releases both at runtime teardown.
 `Runtime/Gameplay/CombatStateTypes.cs` defines entity structs such as
 `EnemyState`. Fixed-capacity arrays and order tables live in `GameSim`;
 `Runtime/Gameplay/SlotOrder.cs` supports ordered pool traversal.
+
+The four appended weapons (Mines, Summons, Clock, Boomerang) are authored in
+`Content/ArsenalContent.cs`; `ContentCatalog.DisplayNames.cs` appends them and
+their evolutions after generated initialization, preserving the first six IDs.
+Runtime `.Arsenal.cs` owns fixed-capacity entity pools and spawn-identity-keyed
+freeze/clock hit timers. `.Arsenal.Render.cs` draws cached rank-specific art from
+`ProceduralSpriteFactory.Arsenal.cs`. Clock's face and hands use 50% opacity;
+mine range guides retain 70% of their original opacity. Idle summon creation
+stops at squad size; existing returning summons persist within the active cap.
+Mine freeze pauses ordinary enemy behavior but keeps damage-reception timers
+advancing; bosses resist freeze. All state clears on new runs and travel.
+Upgrade offers, roulette acquisition, HUD and records share the extended weapon
+order. Evolution support lookup must use `ExtendedCatalog.AllSupports()`.
+Their paired extended supports are also included in the build HUD. Artwork is
+warmed during stat recalculation/upgrade commit, with allocation-free cache keys.
+`Editor/ArsenalValidationBuild.BuildPlayer` writes `../Builds/Arsenal/`.
+The opt-in `-vfarsenal=all|mines|summons|clock|boomerang` starts a test loadout
+(`-vfarsenal-rank=1..6`, `-vfarsenal-evolved=1`); `-vfarsenal-check=<folder>`
+captures rank I, VI, evolved and idle-summon states. Both isolate the profile
+before the first load. `Tests/PlayMode/ArsenalIntegrationTests.cs` covers these
+combat and presentation boundaries.
+
+Shared tiers I–IV use `Content/EnemyRosterRules.cs` and
+`Content/RosterProgressionTraits.cs`; runtime `.RosterProgression.cs` owns
+higher-tier controllers and SpawnId-keyed sidecar state. Global run time drives
+II9–15min, III24–30min, IV34–40min. Regular retains technical ID `chaser` and
+its original star; `ContentCatalog.DisplayNames.cs` supplies its display name.
+Dasher retains its original single design. The three elite families retain
+native tierI logic and develop through II–IV. Imported sprites come from
+`RosterProgressionVisualAsset` in Resources. Do not add higher-tier counters
+to the golden-master-hashed EnemyState; use the sidecar state.
 `Core/CollisionGrid.cs` supplies the spatial broad phase. Cosmetic pools and
 their independent RNG live in `FxSim`. Some behavior remains split between
 `GameSim` and runtime partials: inspect the actual caller before editing a
@@ -71,14 +134,21 @@ polling is chiefly movement, with menu shortcuts in the runtime's `Update`.
 ## Route, objectives and special encounters
 
 Normal runs use `Content/PlayableVoidRoutes.cs`: a seeded finite graph of
-prepared, objective-ready arenas with known metadata. The six prepared arenas
-produce widths 1/2/1/1/1, with five arenas visited per path. The Tab overview is
+prepared, objective-ready arenas with known metadata. The eight prepared arenas
+produce widths 1/2/2/1/1/1, with six arenas visited per path. The Tab overview is
 `UI/Views/RouteMapView.cs`; clicks plan, while physical portals commit choices.
 `Runtime/Gameplay/VoidFallGameRuntime.Journey.cs` owns reward/junction/travel
 stages, map pause ownership, the safe portal room, load retry and terminal
 return to Home. `VoidFallGameRuntime.LevelUps.cs` advances upgrade prompts in
 both combat and safe reward phases. `.Roulette.cs` explicitly owns PrizeReveal
 until Continue; `SyncUiScreen` must preserve that ownership.
+
+Escape timing now lives in Journey/Rift: 25 seconds of normal loot collection
+with camera follow and "Initiating Escape", then a ten-second visible countdown.
+Modal UI pauses that clock; early relic Continue preserves the remainder.
+An unclaimed relic is delivered before countdown, and its drop uses the boss's
+actual world position. Uncollected ordinary pickups are left in the outgoing
+arena. See `Docs/Design/2026-09-05-escape-window-fix.md` and `EscapeWindowTests.cs`.
 
 - `Core/VoidRoute.cs`: `VoidRouteNode`, `VoidRouteRun`, `RouteNodeState`, graph
   definitions, history, sibling locking, `NotifyVoidCompleted`, `SelectNextVoid`.
@@ -98,10 +168,17 @@ until Continue; `SyncUiScreen` must preserve that ownership.
   `Runtime/Gameplay/HydraRuntimeRules.cs`, `VoidFallGameRuntime.Hydra.cs`.
   Its route-owned boss suppresses ambient spawning; rib boundary collision
   differs from the non-colliding central spine.
+  Authored bone surfaces remain in `Art/Hydra/HydraDetails.png`; installation
+  uses the sprite's actual bounds so source-resolution changes preserve layout.
 - Court: matching `MonochromeContent.cs`, `MonochromeEncounterRules.cs`,
   `MonochromeRuntimeRules.cs`, `VoidFallGameRuntime.Monochrome.cs`. It owns a
   five-enemy chess roster. Two simultaneous Grandmasters share health; floor
   warning/burning phases alternate safe colors.
+  Black Rule/White Rule cycles show a screen-relative split field: white armies
+  enter the black left half and black armies the white right half. Other cycles
+  retain their existing presentation. `Resources/VoidFall/CourtTile.shader`
+  draws monochrome hazard borders and bounded brightness pulses; reduced motion
+  holds the pulse steady without changing danger state or timing.
 - Null City: `Content/NullCityContent.cs`, `Core/NullCityRules.cs`, runtime
   `VoidFallGameRuntime.NullCity.cs` and `.NullCity.Render.cs`. Twelve robot types
   share existing combat pools. The fixed city floor has Surveillance/Lockdown,
@@ -109,6 +186,32 @@ until Continue; `SyncUiScreen` must preserve that ownership.
   Deferred birth/blast queues preserve slot reuse. Its death clears hostiles while
   retaining native boss dissolution and reward/relic flow. Space or controller
   left shoulder dashes only in this arena and resists the warned tractor cone.
+- Eon Sea: `Content/EonSeaContent.cs`, `Core/EonSeaTerrain.cs`, runtime
+  `.EonSea.cs` / `.EonSea.Render.cs`. Streamed world-space glaciers provide
+  cover, autonomous melting and explosion-accelerated stress. Collapse applies
+  non-stacking50%slow for20seconds; slippery patches preserve player momentum.
+  `GameSim` uses cached optional projectile-cover hooks. Rewards clear frost
+  and stop new melting/pulses. It uses shared enemies and a random boss, normal
+  camera follow and native travel. Its plate owns `EonSeaVisualAsset`; views
+  detach before arena-package release. `Tools/EonSea/export-eon.cjs` exports
+  approved art; `Editor/EonSeaContentBaker.cs` imports/bakes/registers terrain
+  and68shared/elite forms. `BakeBatch` scopes content work; `BuildValidationPlayer`
+  writes `../Builds/EonSeaValidation/`. Diagnostic `-vfeonsea=terrain|frost|late|elites|boss`
+  with `-vfcapture=<path>` uses an isolated adjacent profile.
+
+- Crascendo: `Content/CrascendoContent.cs`, `Core/CrascendoRules.cs`, runtime
+  `.Crascendo.cs` / `.Crascendo.Render.cs`. Standard shared tiers and random boss;
+  positive hits add20%spawn radius, capped5x, to normal enemies, elites and bosses.
+  Spawn-ID/telemetry-ID sidecars preserve struct/hash contracts; giant deaths
+  push survivors without damage or additional growth. Native harvester growth
+  accumulates through GameSim's optional natural-radius hook. Wider queries are
+  enabled only during this arena. Ground progresses Indigo/Amber through
+  Violet/Coral to Crying Violet using local survival time; boss/rewards hold
+  maximum while animated tears continue under native pause ownership. The plate
+  owns `CrascendoVisualAsset`; presentation detaches before package release.
+  `Tools/Crascendo/export-crascendo.cjs` and `Editor/CrascendoContentBaker.cs`
+  own authoring/import. Diagnostic `-vfcrascendo=early|mid|late|growth|boss`
+  uses an isolated adjacent profile and `Builds/CrascendoValidation/` player.
 
 **Do not equate route nodes with prepared arenas.** The historical prototype graph had ten
 nodes but only five implemented objectives/packages: Abyss, Red Nebula, White
@@ -118,7 +221,7 @@ Overseer/cutscene remains future content. Null City uses stable route ID
 `null-city`, a prepared package, survival/Motherload objective and playable-route metadata.
 
 **Owner clarification:** the approved identities are Abyss, White Sakura, Red
-Nebula, Monochrome Court, Hydra and Null City (also referred to
+Nebula, Monochrome Court, Hydra, Eon Sea, Crascendo and Null City (also referred to
 as Void City). Other names in the old graph are AI-generated placeholders,
 not an approved content roadmap. Preserve technical IDs until deliberately
 migrated, but do not implement filler arenas merely because their nodes exist.
@@ -147,8 +250,9 @@ sizes. `Core/OverclockPresentationRules.cs` owns scale, pulse and charge math.
 `UI/Core/MusicPerimeterGraphic.cs` keeps one static edge mesh; its resource shader
 animates seeded per-activation rails, the 24-band spectrum and five runners in
 each direction. `MusicPerimeterRules.CreateActivationLayout` consumes no combat
-RNG. Stacking preserves the layout and retriggers a victory lap. Music remains
-2x during overclock; the current soundtrack is retained. Existing high-contrast,
+RNG. Stacking preserves the layout and retriggers a victory lap. Healthy overclock
+music remains 2x; critical health multiplies that rate by its drag. The current
+soundtrack is retained. Existing high-contrast,
 reduced-motion and UI pause ownership remain runtime settings concerns.
 
 `UI/Core/IGameBridge.cs` exposes settings snapshots, restore, persistence,
@@ -158,6 +262,27 @@ live application and record reads. The nested `RuntimeGameBridge` in
 `RecordsController.cs`. Settings writes are debounced; callers must preserve
 rollback on persistence failure. Workshop purchases affect profile ranks;
 run upgrades are a separate state and lifecycle.
+
+Workshop keeps its existing eight tracks: Integrity, Power, Mobility, Recovery,
+Magnet, Precision, Arsenal and Revival Protocol. `WorkshopController` owns
+costs, rank projection and purchase/refund logic; `WorkshopView` presents them.
+Runtime `.UI.cs` handles purchases and preview selection. `StartRunInternal`
+reloads profile ranks through `RefreshWorkshopCosmeticRanks` in `.Cosmetics.cs`.
+`Runtime/Rendering/PlayerCosmetics.cs` supplies shared artwork and placement;
+`PlayerFramePreview.cs` renders the UI preview and `.Cosmetics.cs` renders the
+in-game decorations. Retain the existing Workshop design and artwork; the
+exploratory browser alternatives are not approved replacements.
+
+**Cosmetic sizing invariant:** the sprite factory normalizes cosmetic canvases
+to one world unit. In-game renderers restore design-pixel dimensions using
+`sprite.pixelsPerUnit`, then apply the preview-to-game scale `74 / 94`.
+Mobility renderers need an assigned trail sprite and must size its actual
+bounds to the preview's width and animated length. Applying `74 / 94` alone
+shrinks decorations beneath the eye. `Tests/PlayMode/WorkshopCosmeticsIntegrationTests.cs`
+covers purchased ranks, preview/world dimensions, trails, refunds and hiding.
+Its native rendering test requires a graphics device (omit `-nographics`) and
+writes origin/upgraded captures to `Logs/WorkshopCosmetics/` using an isolated
+test profile. `Tests/Editor/WorkshopControllerTests.cs` covers transactions.
 
 `Persistence/SaveStore.cs` defines `SaveData`, `SaveSettings`, `LifetimeStats`,
 record/bestiary entries and schema handling. It saves under
@@ -179,13 +304,33 @@ are different representations: use existing mapping helpers.
 
 - `Audio/ProceduralAudio.cs`: SFX cues, voice/gate limits and fallback pad.
   `Audio/MusicDirector.cs`: streamed tracks and `SetReactiveState`;
-  `Audio/MusicDspFilter.cs`: audio-thread DSP. Runtime `.Audio.cs` creates the
-  services; main-file updates feed health/overclock/magnet state. Preserve
-  audio-thread ownership and lock-free handoff. Tracks live in
-  `Resources/VoidFall/Music/`; credits are in `Docs/AudioCredits.md`.
+  `MusicReactiveState.cs` composes independent rate, tone and stereo effects.
+  `MusicRemixEnvelope.cs` owns collected-gem buildup, the 25-second Magnet tail,
+  collection release, sustained-danger recovery and stack accents. Runtime
+  `.Audio.cs` owns Magnet pickup-slot tags; `.Sim.cs` counts actual tagged gem
+  collections, preserving Greed and combat state. Main-file updates feed health,
+  pause and pending gems. Critical enters at 20% and clears above 25%.
+  `MusicDspFilter.cs` hands targets to the allocation-free `MusicSampleProcessor.cs`
+  for bass, stereo, damage backspin and playback-rate-scaled bomb echo. Preserve
+  audio-thread ownership and lock-free handoff. Track Shift retains event tails
+  and uses measured `MusicTrackEntries.cs` offsets; new runs retain track intros.
+  Tracks live in `Resources/VoidFall/Music/`; credits are in `Docs/AudioCredits.md`.
+  Magnet green stays on `MusicPerimeterGraphic`/shader edges and fades with audio.
+  See `Docs/Design/2026-09-06-MusicRemix.md`; focused tests are `MusicRemixTests`,
+  `MusicDspRemixTests`, `MusicTrackEntryTests`, and `MusicRemixIntegrationTests`.
+  `Editor/MusicRemixValidation.BuildPlayer` writes `../Builds/MusicRemix/`;
+  `CapturePerimeter` renders synthetic component fixtures in `Logs/MusicRemix/Captures/`.
 - `Runtime/Gameplay/VoidFallGameRuntime.Render.cs`, `.Fx.cs`, `.Arena.cs`:
   view synchronization, effects and arena presentation. Shared render material
   ownership is in `Runtime/Rendering/VoidFallRenderMaterials.cs`.
+  Red Nebula gas uses a subdivided continuous ribbon in `.Arena.cs` and
+  `Resources/VoidFall/FilamentGas.shader` / `NebulaGas.hlsl`; other arenas retain
+  the layered filament path. Flow is cosmetic and freezes with reduced motion.
+  `.NebulaArt.cs` owns runtime slices of the approved `Resources/VoidFall/NebulaMeteors.png`
+  sheet. Physical Nebula rocks opt into `GameSim` orbit state; visual and collision
+  radii shrink together for ordinary rocks. `.NebulaStrikes.cs` owns warned groups
+  of 3–4 heads at 625 units/s, swept collision and per-instance hit tracking.
+  `.VideoSettings.cs` owns the mild camera grade; Sakura keeps its existing palette.
 - `Runtime/Gameplay/ArenaRecipeAsset.cs`, `ArenaPlateAsset.cs` and
   `ProceduralSpriteCatalog.cs`: prepared asset contracts. `ArenaResidencyManager.cs`
   owns Addressables handles; `Core/ArenaResidencyPlanner.cs` bounds residency.
@@ -195,11 +340,15 @@ are different representations: use existing mapping helpers.
   `PreparedContentBuildGate` in `Editor/PreparedContentBuildSetup.cs` rejects
   missing/invalid declared content. Assets live under `Generated/` and
   `Assets/AddressableAssetsData/`; URP configuration is in `Rendering/URP/`.
+  Procedural snapshot baking retains CPU pixels. Unreadable GPU fallback is
+  rejected under a null graphics device. `ProceduralSpriteBaker.RepairCorruptedSpritesBatch`
+  regenerates uniform RGBA-205 readback failures through their original authoring
+  entries, preserving asset paths and GUIDs.
 - `Tools/NullCity/` exports approved artwork offline into `Art/NullCity/`.
   `Editor/NullCityContentBaker.cs` validates every frame, crop, PPU and FullRect
   bound. `NullCityVisualAsset` is referenced by `ArenaPlateAsset`, so Addressables
   owns the extra sprites with the plate. `BakeAndRegisterBatch` updates only the
-  city package. Menu residency holds six packages; gameplay remains current plus
+  city package. Menu residency holds seven packages; gameplay remains current plus
   two exits. Recipe seeds vary moving compositions without moving authored lanes.
 - `Content/ContentCatalog.cs` defines data types;
   `ContentCatalog.Generated.cs` contains historical generated definitions.
@@ -221,6 +370,13 @@ tests only with `UNITY_TESTS_ENABLED` and credentials configured. Runtime
 not just wall time. `Runtime/Telemetry/RunTelemetry.cs` records run events and
 exports diagnostics. Capture arguments are parsed by `ConfigureVisualCapture`
 in `VoidFallGameRuntime.cs`; `UpdateVisualCapture` in `.Sim.cs` writes images.
+Capture runs use a fixed seed and a profile adjacent to the output, resolved
+before the first save load. `-vfnebula-legacy` with `-vfcapture` renders the previous
+Red Nebula ribbons for comparison. `NebulaVisualValidation.BuildPlayer` writes
+to `../Builds/VisualRemaster/` without replacing the normal player.
+`NebulaVisualValidation.BuildDeliveryPlayer` writes `../Builds/VisualDelivery/`.
+`-vfvisual-check=<directory>` stages meteor, lane-wave, and boss/Overclock captures
+via `VisualDeliveryProbe`, with its own profile selected before initial loading.
 `Runtime/RouteJourneyProbe.cs` adds map/junction captures and accelerated whole-route
 checks (`-vfjourney=map|junction|check`, `-vfoutput=...`, optionally `-vfbranch=right`),
 with a separate profile beside the output. `Tests/PlayMode/JourneyIntegrationTests.cs`

@@ -1,0 +1,1951 @@
+Crascendo task snapshot. Existing-file diff includes earlier dirty Eon/Null work: review only Crascendo-related hunks.
+FILE: Assets/VoidFall/Core/CrascendoRules.cs
+using System;
+namespace VoidFall.Core
+{
+    public static class CrascendoRules
+    {
+        public const float GrowthPerHit = .2f;
+        public const float MaximumGrowth = 5f;
+        public const int HitsToMaximum = 20;
+        public static float Growth(int hits) => 1f + Math.Min(HitsToMaximum, Math.Max(0, hits)) * GrowthPerHit;
+        public static float Intensity(double elapsed, bool bossOrReward) => bossOrReward ? 1f : (float)Math.Max(0, Math.Min(1, elapsed / VoidProgressionRules.SurvivalSeconds));
+        public static float Blend(float intensity) { var t = Math.Max(0, Math.Min(1, intensity)); t = t < .5f ? t * 2 : (t - .5f) * 2; return t * t * (3 - 2 * t); }
+    }
+}
+FILE: Assets/VoidFall/Content/CrascendoContent.cs
+namespace VoidFall.Core
+{
+    public static class CrascendoContent
+    {
+        public const string StableId = "crascendo";
+        public static readonly ArenaDefinition Arena = new ArenaDefinition
+        {
+            Id = StableId, Name = "Crascendo",
+            Description = "Crying obsidian awakens as every hit makes your enemies larger.",
+            Modifier = "+20% size per hit · 5× maximum · Giant death pulses",
+            StarTint = "#ba7bed", WeightMultipliers = new WeightedValueDefinition[0],
+            Features = new[] { "crascendoGrowth" },
+            Cycles = new[] { new ArenaCycleDefinition { Id = "resonance", Name = "Resonance", Seconds = 300, FlashRate = 0 } },
+            EliteCadenceMultiplier = 1, EliteRewardMultiplier = 1,
+        };
+        public static ArenaDefinition FindArena(string id) => id == StableId ? Arena : null;
+    }
+}
+FILE: Assets/VoidFall/Runtime/Gameplay/CrascendoVisualAsset.cs
+using UnityEngine;
+namespace VoidFall.Runtime
+{
+    public sealed class CrascendoVisualAsset : ScriptableObject
+    {
+        [SerializeField] private Sprite[] _ground = new Sprite[3];
+        [SerializeField] private TextAsset _tears;
+        public bool IsValid => _ground != null && _ground.Length == 3 && _ground[0] != null && _ground[1] != null && _ground[2] != null && _tears != null;
+        public Sprite Ground(int stage) => _ground[Mathf.Clamp(stage, 0, 2)];
+        public string Tears => _tears != null ? _tears.text : "{}";
+    }
+}
+FILE: Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Crascendo.cs
+using System;
+using UnityEngine;
+using VoidFall.Core;
+namespace VoidFall.Runtime
+{
+    public sealed partial class VoidFallGameRuntime
+    {
+        private struct CrascendoGrowthState { public int Identity, Hits; public float BaseRadius; public bool Pulsed; }
+        private readonly CrascendoGrowthState[] _crascendoEnemies = new CrascendoGrowthState[MaxEnemies];
+        private CrascendoGrowthState[] _crascendoBosses;
+        private Vector2[] _crascendoBossPush;
+        private float _crascendoElapsed;
+        private bool CurrentVoidIsCrascendo => _arenaId == ArenaId.Crascendo;
+        private void ResetCrascendoState()
+        {
+            Array.Clear(_crascendoEnemies, 0, _crascendoEnemies.Length);
+            _crascendoBosses = new CrascendoGrowthState[_gameSim.Bosses.Length];
+            _crascendoBossPush = new Vector2[_gameSim.Bosses.Length]; _crascendoElapsed = 0;
+            _gameSim.CrascendoGrowthEnabled = CurrentVoidIsCrascendo;
+            _gameSim.EnemyQueryPadding = CurrentVoidIsCrascendo ? 8 : 0;
+        }
+        private void StepCrascendo(float dt)
+        {
+            if (!CurrentVoidIsCrascendo) return;
+            _crascendoElapsed += dt;
+            if (_crascendoBossPush == null) return;
+            for (var i = 0; i < _crascendoBossPush.Length; i++)
+            {
+                if (!_gameSim.Bosses[i].Active) { _crascendoBossPush[i] = Vector2.zero; continue; }
+                _gameSim.Bosses[i].Position += _crascendoBossPush[i] * ((1 - Mathf.Exp(-6 * dt)) / 6);
+                _crascendoBossPush[i] *= Mathf.Exp(-6 * dt);
+            }
+        }
+        private void GrowCrascendoEnemy(int index, ref EnemyState enemy, float damage)
+        {
+            if (!CurrentVoidIsCrascendo || damage <= 0 || float.IsNaN(damage) || float.IsInfinity(damage)) return;
+            ref var state = ref _crascendoEnemies[index];
+            if (state.Identity != enemy.SpawnId || state.BaseRadius <= 0) state = new CrascendoGrowthState { Identity = enemy.SpawnId, BaseRadius = enemy.Radius };
+            state.Hits = Mathf.Min(CrascendoRules.HitsToMaximum, state.Hits + 1);
+            enemy.Radius = state.BaseRadius * CrascendoRules.Growth(state.Hits);
+        }
+        private void GrowCrascendoBoss(int index, ref BossState boss, float damage)
+        {
+            if (!CurrentVoidIsCrascendo || damage <= 0 || float.IsNaN(damage) || float.IsInfinity(damage)) return;
+            if (_crascendoBosses == null) ResetCrascendoState();
+            ref var state = ref _crascendoBosses[index];
+            if (state.Identity != boss.TelemetryInstanceId || state.BaseRadius <= 0) { state = new CrascendoGrowthState { Identity = boss.TelemetryInstanceId, BaseRadius = boss.Radius }; _crascendoBossPush[index] = Vector2.zero; }
+            state.Hits = Mathf.Min(CrascendoRules.HitsToMaximum, state.Hits + 1);
+            boss.Radius = state.BaseRadius * CrascendoRules.Growth(state.Hits);
+        }
+        private void CrascendoEnemyDeath(int index, EnemyState enemy)
+        {
+            if (!CurrentVoidIsCrascendo) return;
+            ref var state = ref _crascendoEnemies[index];
+            if (state.Identity != enemy.SpawnId || state.Hits < 20 || state.Pulsed) return;
+            state.Pulsed = true; CrascendoDeathPulse(enemy.Position, enemy.Radius, index, -1);
+        }
+        private void CrascendoBossDeath(int index, BossState boss)
+        {
+            if (!CurrentVoidIsCrascendo || _crascendoBosses == null) return;
+            ref var state = ref _crascendoBosses[index];
+            if (state.Identity != boss.TelemetryInstanceId || state.Hits < 20 || state.Pulsed) return;
+            state.Pulsed = true; CrascendoDeathPulse(boss.Position, boss.Radius, -1, index);
+        }
+        private void CrascendoDeathPulse(Vector2 origin, float radius, int sourceEnemy, int sourceBoss)
+        {
+            var reach = radius + 210;
+            SpawnRingWave(origin, radius, reach, .9f, new Color(.8f, .65f, 1f, .85f));
+            for (var i = 0; i < _gameSim.Enemies.Length; i++)
+            {
+                ref var target = ref _gameSim.Enemies[i];
+                if (i == sourceEnemy || !target.Active || target.Health <= 0) continue;
+                var delta = target.Position - origin; var distance = delta.magnitude;
+                if (distance > reach + target.Radius) continue;
+                target.Knockback += (distance > .001f ? delta / distance : Vector2.right) * (480 + 340 * Mathf.Max(0, 1 - distance / reach));
+            }
+            for (var i = 0; i < _gameSim.Bosses.Length; i++)
+            {
+                var target = _gameSim.Bosses[i];
+                if (i == sourceBoss || !target.Active || target.Health <= 0) continue;
+                var delta = target.Position - origin; var distance = delta.magnitude;
+                if (distance > reach + target.Radius) continue;
+                _crascendoBossPush[i] += (distance > .001f ? delta / distance : Vector2.right) * (480 + 340 * Mathf.Max(0, 1 - distance / reach));
+            }
+        }
+    }
+}
+FILE: Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Crascendo.Render.cs
+using System;
+using UnityEngine;
+using VoidFall.Core;
+namespace VoidFall.Runtime
+{
+    public sealed partial class VoidFallGameRuntime
+    {
+        [Serializable] private sealed class CrascendoTear { public float x, y, length, phase; }
+        [Serializable] private sealed class CrascendoTearSet { public CrascendoTear[] tears; }
+        private readonly SpriteRenderer[] _crascendoGround = new SpriteRenderer[50];
+        private readonly LineRenderer[] _crascendoTears = new LineRenderer[320];
+        private CrascendoTearSet _crascendoTearData;
+        private bool _crascendoVisible;
+        private void HideCrascendoPresentation()
+        {
+            foreach (var view in _crascendoGround) ClearNullCityProp(view);
+            HideNullCityViews(_crascendoTears); _crascendoVisible = false; _crascendoTearData = null;
+        }
+        private void SyncCrascendoPresentation()
+        {
+            if (!CurrentVoidIsCrascendo || (!_mainMenuBrowsing && (_journeyStage == JourneyStage.Junction || _journeyStage == JourneyStage.Travel)))
+            { if (_crascendoVisible) HideCrascendoPresentation(); return; }
+            EnsureArenaPlate(ArenaId.Crascendo);
+            var plate = _preparedArenaPlateAssets[(int)ArenaId.Crascendo];
+            var visuals = plate != null ? plate.CrascendoVisuals : null;
+            if (visuals == null || !visuals.IsValid) return;
+            HideLegacyCityDecor(); if (_backdropView != null) _backdropView.enabled = false;
+            if (_arenaBakedDetailView != null) _arenaBakedDetailView.enabled = false;
+            _crascendoVisible = true;
+            if (_crascendoTearData == null) _crascendoTearData = JsonUtility.FromJson<CrascendoTearSet>(visuals.Tears);
+            var intensity = CrascendoRules.Intensity(_mainMenuBrowsing ? 0 : _crascendoElapsed, !_mainMenuBrowsing && (ActiveBosses() > 0 || _journeyStage == JourneyStage.Rewards));
+            var stage = intensity < .5f ? 0 : 1; var mix = CrascendoRules.Blend(intensity);
+            var centre = RenderCameraCentre(); var tx = Mathf.FloorToInt(centre.x / 1024); var ty = Mathf.FloorToInt(centre.y / 1024); var slot = 0;
+            for (var y = ty - 2; y <= ty + 2; y++) for (var x = tx - 2; x <= tx + 2; x++)
+                for (var layer = 0; layer < 2; layer++)
+                {
+                    var sprite = visuals.Ground(stage + layer);
+                    EonSprite(ref _crascendoGround[slot++], "Crascendo Obsidian", sprite, new Vector2(x * 1024 + 512, y * 1024 + 512), new Vector2(1024.4f / sprite.bounds.size.x, 1024.4f / sprite.bounds.size.y), 0, new Color(1, 1, 1, layer == 0 ? 1 : mix), -100 + layer);
+                }
+            var amber = new Color(.87f, .725f, .47f); var coral = new Color(.92f, .58f, .495f); var violet = new Color(.757f, .486f, .945f);
+            var color = Color.Lerp(stage == 0 ? amber : coral, stage == 0 ? coral : violet, mix);
+            var half = RenderViewportHalfExtent(); var clock = _mainMenuBrowsing ? _ambientClock : _crascendoElapsed;
+            var reduced = _saveData?.settings != null && _saveData.settings.reducedMotion;
+            slot = 0;
+            for (var y = ty - 2; y <= ty + 2; y++) for (var x = tx - 2; x <= tx + 2; x++)
+                foreach (var tear in _crascendoTearData.tears)
+                {
+                    var phase = Mathf.Repeat((reduced ? 0 : clock) * .19f + tear.phase, 1); if (phase > .62f) continue;
+                    var point = new Vector2(x * 1024 + tear.x, y * 1024 + 1024 - tear.y - phase * tear.length);
+                    if (Mathf.Abs(point.x - centre.x) > half.x + 20 || Mathf.Abs(point.y - centre.y) > half.y + 20 || slot >= _crascendoTears.Length) continue;
+                    color.a = Mathf.Sin(phase / .62f * Mathf.PI) * .65f;
+                    NullCityLine(ref _crascendoTears[slot++], "Crascendo Crying Tear", point + Vector2.up * 6, point, 1.6f, color, -90);
+                }
+            while (slot < _crascendoTears.Length) { if (_crascendoTears[slot] != null) _crascendoTears[slot].enabled = false; slot++; }
+        }
+    }
+}
+FILE: Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Crascendo.Capture.cs
+using System.IO;
+using UnityEngine;
+using VoidFall.Core;
+using VoidFall.Persistence;
+
+namespace VoidFall.Runtime
+{
+    public sealed partial class VoidFallGameRuntime
+    {
+        private string _visualCaptureCrascendo;
+
+        private void PrepareCrascendoCaptureProfile()
+        {
+            if (string.IsNullOrEmpty(_visualCaptureCrascendo)) return;
+            var path = string.IsNullOrEmpty(_visualCapturePath) ? Path.Combine(Application.temporaryCachePath, "crascendo-capture.profile.json") : Path.GetFullPath(_visualCapturePath) + ".profile.json";
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            _saveStore = new SaveStore(path); _saveData = SaveStore.CreateDefault(); _saveData.arena = "crascendo"; _runSaved = true;
+        }
+
+        private void BeginCrascendoCapture()
+        {
+            if (string.IsNullOrEmpty(_visualCaptureCrascendo)) return;
+            _arenaId = ArenaId.Crascendo;
+            _time = _visualCaptureCrascendo == "late" || _visualCaptureCrascendo == "elites" ? 2400 : 0;
+            _voidRoute = new VoidRouteRun(new[] { new VoidRouteNode("crascendo", "Crascendo", 0, 1, "GLACIER", "Frozen sea", "Survive", "Boss rewards") }, "crascendo");
+            _gameSim.Player.Position = Vector2.zero; _cameraFollowPosition = Vector2.zero;
+            ClearHydraBossArena(); BeginObjectiveForCurrentArena(); SelectRecipeForCurrentArena();
+            PrepareMenuArenaCatalogue(); TryInstallPreparedArenaPlate(_arenaId);
+            var ids = new[] { "chaser", "runner", "gunner", "twinGunner", "dasher", "brute", "exploder", "guard", "technician", "mortar", "splitter", "bulwark", "harvester", "carrier" };
+            for (var i = 0; i < ids.Length; i++)
+                SpawnEnemy(ids[i], new Vector2(-470 + i % 5 * 225, -230 + i / 5 * 205), forcedRoster: _time > 2000 ? EnemyRoster.Four : EnemyRoster.One);
+            if (_visualCaptureCrascendo == "elites")
+            {
+                SpawnEnemy("exploder", new Vector2(-280, 160), EliteVariantId.Exploder, forcedRoster: EnemyRoster.Four);
+                SpawnEnemy("mortar", new Vector2(80, 180), EliteVariantId.Mortar, forcedRoster: EnemyRoster.Four);
+                SpawnEnemy("gunner", new Vector2(360, 100), EliteVariantId.Gunner, forcedRoster: EnemyRoster.Four);
+            }
+            if (_visualCaptureCrascendo == "boss") SpawnBoss("warden", 1, 1);
+            _crascendoElapsed = _visualCaptureCrascendo == "mid" ? 150 : _visualCaptureCrascendo == "early" ? 0 : 300;
+            if (_visualCaptureCrascendo == "boss")
+                for (var i = 0; i < _gameSim.Bosses.Length; i++) if (_gameSim.Bosses[i].Active)
+                    for (var hit = 0; hit < 20; hit++) GrowCrascendoBoss(i, ref _gameSim.Bosses[i], 1);
+            _gameSim.Player.Iframes = 10000; _visualCaptureFramesRemaining = 150;
+        }
+
+        private void MaintainCrascendoCapture()
+        {
+            if (string.IsNullOrEmpty(_visualCaptureCrascendo)) return;
+            // A hidden validation player loses focus. Only this opt-in capture
+            // path resumes itself; production focus/pause behavior is untouched.
+            SetApplicationActive(true);
+            _paused = false;
+            if (_levelUpActive) SelectLevelOption(0);
+            _gameSim.Player.Iframes = 10000;
+        }
+    }
+}
+FILE: Assets/VoidFall/Editor/CrascendoContentBaker.cs
+using System;
+using System.IO;
+using UnityEditor;
+using UnityEngine;
+using VoidFall.Core;
+using VoidFall.Runtime;
+
+namespace VoidFall.Editor
+{
+    public static class CrascendoContentBaker
+    {
+        private const string Art = "Assets/VoidFall/Art/Crascendo";
+        private const string Package = "Assets/VoidFall/Generated/ArenaPackages/Crascendo";
+        [MenuItem("Tools/VoidFall/Bake Crascendo")]
+        public static void Bake()
+        {
+            Directory.CreateDirectory(Package);
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            var visuals = LoadOrCreate<CrascendoVisualAsset>(Package + "/CrascendoVisuals.asset");
+            var data = new SerializedObject(visuals);
+            var ground = data.FindProperty("_ground"); ground.arraySize = 3;
+            for (var i = 0; i < 3; i++) ground.GetArrayElementAtIndex(i).objectReferenceValue = Import(Art + "/Ground" + i + ".png", 1024, 1024, 1);
+            data.FindProperty("_tears").objectReferenceValue = AssetDatabase.LoadAssetAtPath<TextAsset>(Art + "/Tears.json");
+            data.ApplyModifiedPropertiesWithoutUndo(); EditorUtility.SetDirty(visuals);
+
+            var plate = LoadOrCreate<ArenaPlateAsset>(Package + "/Plate.asset");
+            data = new SerializedObject(plate);
+            data.FindProperty("_arena").enumValueIndex = (int)ArenaId.Crascendo;
+            data.FindProperty("_baseSprite").objectReferenceValue = Import(Art + "/Base.png", 3840, 2160, 1);
+            data.FindProperty("_detailSprite").objectReferenceValue = Import(Art + "/Details.png", 2560, 1440, 1);
+            data.FindProperty("_width").intValue = 3840; data.FindProperty("_height").intValue = 2160;
+            data.FindProperty("_detailWidth").intValue = 2560; data.FindProperty("_detailHeight").intValue = 1440;
+            data.FindProperty("_schema").intValue = ArenaPlateAsset.CurrentSchema;
+            data.FindProperty("_crascendoVisuals").objectReferenceValue = visuals;
+            data.ApplyModifiedPropertiesWithoutUndo(); EditorUtility.SetDirty(plate);
+
+            AssetDatabase.SaveAssets();
+        }
+
+        private static T LoadOrCreate<T>(string path) where T : ScriptableObject
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<T>(path);
+            if (asset != null) return asset;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)); AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            asset = ScriptableObject.CreateInstance<T>(); AssetDatabase.CreateAsset(asset, path); return asset;
+        }
+
+        private static Sprite Import(string path, int width, int height, float ppu)
+        {
+            if (!File.Exists(path)) throw new InvalidOperationException("Missing authored Crascendo asset: " + path);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            importer.GetSourceTextureWidthAndHeight(out var sourceWidth, out var sourceHeight);
+            if (sourceWidth != width || sourceHeight != height) throw new InvalidOperationException("Unexpected authored dimensions: " + path);
+            importer.textureType = TextureImporterType.Sprite; importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = ppu; importer.alphaIsTransparency = true; importer.isReadable = false;
+            importer.mipmapEnabled = true; importer.streamingMipmaps = true; importer.maxTextureSize = 4096;
+            importer.filterMode = FilterMode.Bilinear; importer.wrapMode = TextureWrapMode.Clamp;
+            importer.npotScale = TextureImporterNPOTScale.None; importer.textureCompression = TextureImporterCompression.CompressedHQ;
+            var settings = new TextureImporterSettings(); importer.ReadTextureSettings(settings); settings.spriteMeshType = SpriteMeshType.FullRect; importer.SetTextureSettings(settings);
+            var platform = importer.GetPlatformTextureSettings("Standalone"); platform.overridden = true; platform.maxTextureSize = 4096; platform.format = TextureImporterFormat.BC7; importer.SetPlatformTextureSettings(platform);
+            importer.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path) ?? throw new InvalidOperationException("Sprite import failed: " + path);
+        }
+
+        public static void BakeBatch()
+        {
+            try { Bake(); ArenaAddressableMigration.MigrateAndConfigure(false); var errors = ArenaContentBaker.ValidateAll(); if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors)); Debug.Log("Crascendo palettes baked and registered."); EditorApplication.Exit(0); }
+            catch (Exception e) { Debug.LogException(e); EditorApplication.Exit(1); }
+        }
+
+        public static void BuildValidationPlayer()
+        {
+            var path = Path.GetFullPath(Path.Combine(Application.dataPath, "../../Builds/CrascendoValidation/VoidFall.exe")); Directory.CreateDirectory(Path.GetDirectoryName(path));
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { "Assets/Scenes/SampleScene.unity" }, locationPathName = path, target = BuildTarget.StandaloneWindows64, options = BuildOptions.None });
+            Debug.Log("Crascendo build: " + report.summary.result + " / " + report.summary.totalErrors + " errors / " + path);
+            EditorApplication.Exit(report.summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded && report.summary.totalErrors == 0 ? 0 : 1);
+        }
+    }
+}
+FILE: Assets/VoidFall/Tests/Editor/CrascendoTests.cs
+using NUnit.Framework;
+using UnityEditor;
+using VoidFall.Core;
+using VoidFall.Runtime;
+namespace VoidFall.Tests.Editor
+{
+    public sealed class CrascendoTests
+    {
+        [Test] public void Stable_identity_and_shared_encounter_are_prepared()
+        {
+            Assert.That((int)ArenaId.Crascendo, Is.EqualTo(7));
+            Assert.That(ArenaCatalogRules.StableId(ArenaId.Crascendo), Is.EqualTo("crascendo"));
+            Assert.That(ArenaCatalogRules.LegacyArena("crascendo"), Is.EqualTo(ArenaId.Crascendo));
+            Assert.That(PlayableVoidRoutes.Create(42).Node("crascendo").ObjectiveSummary, Does.Contain("random boss"));
+            var plate = AssetDatabase.LoadAssetAtPath<ArenaPlateAsset>("Assets/VoidFall/Generated/ArenaPackages/Crascendo/Plate.asset");
+            Assert.That(plate.IsValidFor(ArenaId.Crascendo), Is.True); Assert.That(plate.CrascendoVisuals.IsValid, Is.True);
+        }
+        [Test] public void Intensity_finishes_once_without_looping_and_stays_at_boss_maximum()
+        {
+            Assert.That(CrascendoRules.Intensity(0, false), Is.Zero); Assert.That(CrascendoRules.Intensity(150, false), Is.EqualTo(.5f));
+            Assert.That(CrascendoRules.Intensity(900, false), Is.EqualTo(1)); Assert.That(CrascendoRules.Intensity(10, true), Is.EqualTo(1));
+            Assert.That(CrascendoRules.Growth(1), Is.EqualTo(1.2f)); Assert.That(CrascendoRules.Growth(20), Is.EqualTo(5)); Assert.That(CrascendoRules.Growth(999), Is.EqualTo(5));
+        }
+    }
+}
+FILE: Assets/VoidFall/Tests/PlayMode/CrascendoIntegrationTests.cs
+using System;
+using System.Collections;
+using System.IO;
+using System.Reflection;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+using VoidFall.Core;
+using VoidFall.Persistence;
+using VoidFall.Runtime;
+
+namespace VoidFall.Tests.PlayMode
+{
+    public sealed class CrascendoIntegrationTests
+    {
+        private VoidFallGameRuntime _runtime;
+        private SaveStore _previousStore;
+        private SaveData _previousProfile;
+        private string _temporaryDirectory;
+        private bool _previousEnabled;
+        private bool _previousApplicationInactive;
+        private bool _previousRunSaved;
+        private uint _previousSeedOverride;
+
+        [UnitySetUp]
+        public IEnumerator SetUp()
+        {
+            _runtime = UnityEngine.Object.FindAnyObjectByType<VoidFallGameRuntime>();
+            Assert.That(_runtime, Is.Not.Null);
+            _previousEnabled = _runtime.enabled;
+            _runtime.enabled = false;
+            _previousStore = (SaveStore)Get(_runtime, "_saveStore");
+            _previousProfile = (SaveData)Get(_runtime, "_saveData");
+            _previousApplicationInactive = (bool)Get(_runtime, "_applicationInactive");
+            _previousRunSaved = (bool)Get(_runtime, "_runSaved");
+            _previousSeedOverride = (uint)Get(_runtime, "_diagnosticRunSeedOverride");
+
+            _temporaryDirectory = Path.Combine(Path.GetTempPath(),
+                "voidfall-crascendo-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_temporaryDirectory);
+            var testStore = new SaveStore(Path.Combine(_temporaryDirectory, "profile.json"));
+            var profile = SaveStore.CreateDefault();
+            testStore.Save(profile);
+            Set(_runtime, "_saveStore", testStore);
+            Set(_runtime, "_saveData", profile);
+            Set(_runtime, "_runSaved", true);
+            Set(_runtime, "_applicationInactive", false);
+            Set(_runtime, "_diagnosticRunSeedOverride", 2848592627u);
+            Invoke(_runtime, "StartRun");
+            yield return null;
+        }
+
+        [UnityTearDown]
+        public IEnumerator TearDown()
+        {
+            if (_runtime != null)
+            {
+                _runtime.enabled = false;
+                Set(_runtime, "_runSaved", true);
+                Set(_runtime, "_gameOver", false);
+                Set(_runtime, "_saveData", _previousProfile);
+                Set(_runtime, "_saveStore", _previousStore);
+                Invoke(_runtime, "EnterMainMenu");
+                Set(_runtime, "_runSaved", _previousRunSaved);
+                Set(_runtime, "_diagnosticRunSeedOverride", _previousSeedOverride);
+                Set(_runtime, "_applicationInactive", _previousApplicationInactive);
+                _runtime.enabled = _previousEnabled;
+            }
+            if (!string.IsNullOrEmpty(_temporaryDirectory) && Directory.Exists(_temporaryDirectory))
+                Directory.Delete(_temporaryDirectory, true);
+            yield return null;
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void Positive_native_hits_grow_normal_and_elite_bodies_with_cap_and_no_stat_boost(bool elite)
+        {
+            EnterCrascendo(); Enemy(0, 101, elite);
+            var enemy = HitEnemy(0, 0); Assert.That(Get(enemy, "Radius"), Is.EqualTo(20f));
+            enemy = HitEnemy(0, 1); Assert.That((float)Get(enemy, "Radius"), Is.EqualTo(24f).Within(.001));
+            for (var hit = 1; hit < 30; hit++) enemy = HitEnemy(0, 1);
+            Assert.That(Get(enemy, "Radius"), Is.EqualTo(100f)); Assert.That(Get(enemy, "Speed"), Is.EqualTo(77f)); Assert.That(Get(enemy, "Damage"), Is.EqualTo(12f));
+            Assert.That((float)Get(enemy, "Health"), Is.LessThan(10000));
+            Enemy(0, 102, elite); enemy = HitEnemy(0, 1); Assert.That((float)Get(enemy, "Radius"), Is.EqualTo(24f).Within(.001), "Pool reuse resets growth");
+        }
+        [Test]
+        public void Giant_death_pushes_survivors_once_without_damage_or_growth()
+        {
+            EnterCrascendo(); Enemy(0, 101); Enemy(1, 102);
+            for (var hit = 0; hit < 20; hit++) HitEnemy(0, 1);
+            var source = ((Array)Get(GameSim, "Enemies")).GetValue(0);
+            Invoke(_runtime, "CrascendoEnemyDeath", 0, source);
+            var survivor = ((Array)Get(GameSim, "Enemies")).GetValue(1); var push = (Vector2)Get(survivor, "Knockback");
+            Assert.That(push.x, Is.GreaterThan(0)); Assert.That(Get(survivor, "Health"), Is.EqualTo(10000f)); Assert.That(Get(survivor, "Radius"), Is.EqualTo(20f));
+            Invoke(_runtime, "CrascendoEnemyDeath", 0, source); survivor = ((Array)Get(GameSim, "Enemies")).GetValue(1); Assert.That(Get(survivor, "Knockback"), Is.EqualTo(push));
+        }
+        [Test]
+        public void Native_boss_damage_grows_and_ordinary_arena_resets_optional_query_extension()
+        {
+            EnterCrascendo(); var bosses = (Array)Get(GameSim, "Bosses"); var boss = bosses.GetValue(0);
+            Set(boss, "Active", true); Set(boss, "Id", "warden"); Set(boss, "State", 0); Set(boss, "Health", 10000f); Set(boss, "MaxHealth", 10000f); Set(boss, "Radius", 56f); Set(boss, "TelemetryInstanceId", 777); bosses.SetValue(boss, 0);
+            for (var hit = 0; hit < 20; hit++) Invoke(_runtime, "ApplyBossDamage", 0, 1f, -1, false);
+            Assert.That((float)Get(bosses.GetValue(0), "Radius"), Is.EqualTo(280f).Within(.001));
+            Set(_runtime, "_arenaId", ArenaId.Void); Invoke(_runtime, "ResetCrascendoState"); Assert.That(Get(GameSim, "EnemyQueryPadding"), Is.EqualTo(0));
+            Enemy(0, 104); Assert.That(Get(HitEnemy(0, 1), "Radius"), Is.EqualTo(20f));
+        }
+
+        private object GameSim => Get(_runtime, "_gameSim");
+        private void EnterCrascendo()
+        {
+            Set(_runtime, "_arenaId", ArenaId.Crascendo); Set(_runtime, "_mainMenuBrowsing", false); SetStage("Combat"); Invoke(_runtime, "ResetCrascendoState");
+        }
+        private object Enemy(int slot, int identity, bool elite = false)
+        {
+            var enemies = (Array)Get(GameSim, "Enemies"); var enemy = enemies.GetValue(slot);
+            Set(enemy, "Active", true); Set(enemy, "Health", 10000f); Set(enemy, "MaxHealth", 10000f); Set(enemy, "Id", "chaser");
+            Set(enemy, "SpawnId", identity); Set(enemy, "Radius", 20f); Set(enemy, "Speed", 77f); Set(enemy, "Damage", 12f); Set(enemy, "Elite", elite); Set(enemy, "Shield", 0f);
+            Set(enemy, "Position", new Vector2(slot * 100, 0)); Set(enemy, "Knockback", Vector2.zero); enemies.SetValue(enemy, slot); return enemy;
+        }
+        private object HitEnemy(int slot, float damage)
+        {
+            Invoke(_runtime, "ApplyEnemyDamage", slot, damage, Vector2.zero, 0f, false, -1);
+            return ((Array)Get(GameSim, "Enemies")).GetValue(slot);
+        }
+        private void SetStage(string name)
+        {
+            var field = _runtime.GetType().GetField("_journeyStage", BindingFlags.NonPublic | BindingFlags.Instance);
+            field.SetValue(_runtime, Enum.Parse(field.FieldType, name));
+        }
+        private void SetPlayer(string name, object value)
+        {
+            var player = Get(GameSim, "Player"); Set(player, name, value); Set(GameSim, "Player", player);
+        }
+        private static object Get(object target, string name)
+        {
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+            var field = target.GetType().GetField(name, flags);
+            if (field != null) return field.GetValue(target);
+            return target.GetType().GetProperty(name, flags).GetValue(target);
+        }
+        private static void Set(object target, string name, object value)
+        {
+            target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).SetValue(target, value);
+        }
+        private static object Invoke(object target, string name, params object[] arguments) => InvokeArgs(target, name, arguments);
+        private static object InvokeArgs(object target, string name, object[] arguments)
+        {
+            try { return target.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Invoke(target, arguments); }
+            catch (TargetInvocationException error) { throw error.InnerException ?? error; }
+        }
+    }
+}
+
+diff --git a/Assets/VoidFall/Content/ArenaCycleRules.cs b/Assets/VoidFall/Content/ArenaCycleRules.cs
+index 7a9ce1d..952f3fc 100644
+--- a/Assets/VoidFall/Content/ArenaCycleRules.cs
++++ b/Assets/VoidFall/Content/ArenaCycleRules.cs
+@@ -47,8 +47,9 @@ namespace VoidFall.Core
+             foreach (var definition in ContentCatalog.Arenas)
+             {
+                 if (definition.Id == id) return definition;
+             }
+-            return HydraContent.FindArena(id) ?? MonochromeContent.FindArena(id) ?? NullCityContent.FindArena(id);
++            return HydraContent.FindArena(id) ?? MonochromeContent.FindArena(id) ?? NullCityContent.FindArena(id) ?? EonSeaContent.FindArena(id) ?? CrascendoContent.FindArena(id);
+         }
+     }
+ }
++
+diff --git a/Assets/VoidFall/Content/PlayableVoidRoutes.cs b/Assets/VoidFall/Content/PlayableVoidRoutes.cs
+index 6f583ef..bcf57d5 100644
+--- a/Assets/VoidFall/Content/PlayableVoidRoutes.cs
++++ b/Assets/VoidFall/Content/PlayableVoidRoutes.cs
+@@ -99,8 +99,18 @@ namespace VoidFall.Core
+                     arena = MonochromeContent.Arena;
+                     hint = "CHESS ARMIES / BURNING TILES";
+                     encounter = "defeat the Twin Grandmasters";
+                     break;
++                case "crascendo":
++                    arena = CrascendoContent.Arena;
++                    hint = "ENEMIES GROW WHEN HIT";
++                    encounter = "clear a random boss encounter";
++                    break;
++                case "eon-sea":
++                    arena = EonSeaContent.Arena;
++                    hint = "MELTING GLACIERS / SLIPPERY ICE";
++                    encounter = "clear a random boss encounter";
++                    break;
+                 case "null-city":
+                     arena = NullCityContent.Arena;
+                     hint = "PURGE LANES / LAW ENFORCEMENT";
+                     encounter = "defeat Motherload";
+diff --git a/Assets/VoidFall/Core/ArenaCatalogRules.cs b/Assets/VoidFall/Core/ArenaCatalogRules.cs
+index e068a01..81168ad 100644
+--- a/Assets/VoidFall/Core/ArenaCatalogRules.cs
++++ b/Assets/VoidFall/Core/ArenaCatalogRules.cs
+@@ -20,8 +20,10 @@ namespace VoidFall.Core
+                 case ArenaId.RedNebula: return "red-nebula";
+                 case ArenaId.WhiteSakura: return "white-sakura";
+                 case ArenaId.Hydra: return "hydra";
+                 case ArenaId.MonochromeCourt: return "monochrome-court";
++                case ArenaId.EonSea: return "eon-sea";
++                case ArenaId.Crascendo: return "crascendo";
+                 case ArenaId.NullCity: return "null-city";
+                 default: return "abyss";
+             }
+         }
+@@ -33,8 +35,10 @@ namespace VoidFall.Core
+                 case "red-nebula": return ArenaId.RedNebula;
+                 case "white-sakura": return ArenaId.WhiteSakura;
+                 case "hydra": return ArenaId.Hydra;
+                 case "monochrome-court": return ArenaId.MonochromeCourt;
++                case "eon-sea": return ArenaId.EonSea;
++                case "crascendo": return ArenaId.Crascendo;
+                 case "null-city": return ArenaId.NullCity;
+                 default: return ArenaId.Void;
+             }
+         }
+@@ -129,4 +133,5 @@ namespace VoidFall.Core
+         public static bool operator ==(ArenaPackageKey left, ArenaPackageKey right) => left.Equals(right);
+         public static bool operator !=(ArenaPackageKey left, ArenaPackageKey right) => !left.Equals(right);
+     }
+ }
++
+diff --git a/Assets/VoidFall/Core/ArenaResidencyPlanner.cs b/Assets/VoidFall/Core/ArenaResidencyPlanner.cs
+index 56229f1..4ec5bc9 100644
+--- a/Assets/VoidFall/Core/ArenaResidencyPlanner.cs
++++ b/Assets/VoidFall/Core/ArenaResidencyPlanner.cs
+@@ -39,9 +39,9 @@ namespace VoidFall.Core
+     }
+ 
+     public static class ArenaResidencyPlanner
+     {
+-        public const int MaximumResidentPackages = 6;
++        public const int MaximumResidentPackages = 8;
+ 
+         public static ArenaResidentSet Steady(
+             ArenaPackageKey current,
+             ArenaPackageKey exitA = default,
+@@ -141,4 +141,5 @@ namespace VoidFall.Core
+             return false;
+         }
+     }
+ }
++
+diff --git a/Assets/VoidFall/Core/Ids.cs b/Assets/VoidFall/Core/Ids.cs
+index d676a3c..93af581 100644
+--- a/Assets/VoidFall/Core/Ids.cs
++++ b/Assets/VoidFall/Core/Ids.cs
+@@ -18,8 +18,10 @@ public enum ArenaId
+     WhiteSakura,
+     Hydra,
+     MonochromeCourt,
+     NullCity,
++    EonSea,
++    Crascendo,
+ }
+ 
+ public enum WeaponId
+ {
+@@ -106,8 +108,10 @@ public static class ContentOrder
+         ArenaId.WhiteSakura,
+         ArenaId.Hydra,
+         ArenaId.MonochromeCourt,
+         ArenaId.NullCity,
++        ArenaId.EonSea,
++        ArenaId.Crascendo,
+     };
+ 
+     public static readonly WeaponId[] Weapons =
+     {
+@@ -145,4 +149,5 @@ public static class ContentOrder
+         BossId.Reaver,
+     };
+ }
+ }
++
+diff --git a/Assets/VoidFall/Core/VoidObjectives.cs b/Assets/VoidFall/Core/VoidObjectives.cs
+index bbc6ede..9ac007a 100644
+--- a/Assets/VoidFall/Core/VoidObjectives.cs
++++ b/Assets/VoidFall/Core/VoidObjectives.cs
+@@ -52,8 +52,15 @@ namespace VoidFall.Core
+                     return new MultiPhaseObjective(
+                         "MONOCHROME COURT",
+                         new SurviveObjective(VoidProgressionRules.SurvivalSeconds, "Survive"),
+                         new BossEncounterObjective("Defeat the Void Boss"));
++                case "crascendo":
++                    return new MultiPhaseObjective("CRASCENDO", new SurviveObjective(VoidProgressionRules.SurvivalSeconds, "Survive"), new BossEncounterObjective("Defeat the Void Boss"));
++                case "eon-sea":
++                    return new MultiPhaseObjective(
++                        "EON SEA",
++                        new SurviveObjective(VoidProgressionRules.SurvivalSeconds, "Survive"),
++                        new BossEncounterObjective("Defeat the Void Boss"));
+                 case "null-city":
+                     return new MultiPhaseObjective(
+                         "NULL CITY",
+                         new SurviveObjective(VoidProgressionRules.SurvivalSeconds, "Survive"),
+diff --git a/Assets/VoidFall/Editor/ArenaAddressableMigration.cs b/Assets/VoidFall/Editor/ArenaAddressableMigration.cs
+index e7b3697..c5d22e3 100644
+--- a/Assets/VoidFall/Editor/ArenaAddressableMigration.cs
++++ b/Assets/VoidFall/Editor/ArenaAddressableMigration.cs
+@@ -25,8 +25,10 @@ namespace VoidFall.Editor
+             ArenaId.WhiteSakura,
+             ArenaId.Hydra,
+             ArenaId.MonochromeCourt,
+             ArenaId.NullCity,
++            ArenaId.EonSea,
++        ArenaId.Crascendo,
+         };
+ 
+         [MenuItem("Tools/VoidFall/Migrate Arenas To Addressables")]
+         public static void MigrateAndConfigure()
+@@ -200,4 +202,5 @@ namespace VoidFall.Editor
+             }
+         }
+     }
+ }
++
+diff --git a/Assets/VoidFall/Editor/ArenaContentBaker.cs b/Assets/VoidFall/Editor/ArenaContentBaker.cs
+index d79c364..4a2148c 100644
+--- a/Assets/VoidFall/Editor/ArenaContentBaker.cs
++++ b/Assets/VoidFall/Editor/ArenaContentBaker.cs
+@@ -31,8 +31,10 @@ namespace VoidFall.Editor
+             ArenaId.WhiteSakura,
+             ArenaId.Hydra,
+             ArenaId.MonochromeCourt,
+             ArenaId.NullCity,
++            ArenaId.EonSea,
++        ArenaId.Crascendo,
+         };
+ 
+         [MenuItem("Tools/VoidFall/Bake Prepared Arena Content")]
+         public static void BakeAll()
+@@ -108,14 +110,23 @@ namespace VoidFall.Editor
+ 
+                 ValidateTexture(asset.BaseSprite, arena + " base", errors);
+                 ValidateTexture(asset.DetailSprite, arena + " details", errors);
+                 if (arena == ArenaId.NullCity) NullCityContentBaker.Validate(asset, errors);
++                if (arena == ArenaId.Crascendo && (asset.CrascendoVisuals == null || !asset.CrascendoVisuals.IsValid)) errors.Add("Crascendo material package is incomplete.");
++                if (arena == ArenaId.EonSea && (asset.EonSeaVisuals == null || !asset.EonSeaVisuals.IsValid))
++                    errors.Add("Eon Sea visual package is missing or invalid.");
+             }
+             return errors;
+         }
+ 
+         private static void BakeArena(ArenaId arena)
+         {
++            if (arena == ArenaId.Crascendo) { CrascendoContentBaker.Bake(); return; }
++            if (arena == ArenaId.EonSea)
++            {
++                EonSeaContentBaker.Bake();
++                return;
++            }
+             if (arena == ArenaId.NullCity)
+             {
+                 NullCityContentBaker.Bake();
+                 return;
+@@ -295,4 +306,5 @@ namespace VoidFall.Editor
+             }
+         }
+     }
+ }
++
+diff --git a/Assets/VoidFall/Runtime/Gameplay/ArenaPlateAsset.cs b/Assets/VoidFall/Runtime/Gameplay/ArenaPlateAsset.cs
+index 80b4be2..f80958b 100644
+--- a/Assets/VoidFall/Runtime/Gameplay/ArenaPlateAsset.cs
++++ b/Assets/VoidFall/Runtime/Gameplay/ArenaPlateAsset.cs
+@@ -18,8 +18,10 @@ namespace VoidFall.Runtime
+         // schema-1 assets report the base dimensions for both.
+         [SerializeField] private int _detailWidth;
+         [SerializeField] private int _detailHeight;
+         [SerializeField] private NullCityVisualAsset _nullCityVisuals;
++        [SerializeField] private EonSeaVisualAsset _eonSeaVisuals;
++        [SerializeField] private CrascendoVisualAsset _crascendoVisuals;
+         [SerializeField] private int _schema = CurrentSchema;
+ 
+         public ArenaId Arena => _arena;
+         public Sprite BaseSprite => _baseSprite;
+@@ -28,8 +30,10 @@ namespace VoidFall.Runtime
+         public int Height => _height;
+         public int DetailWidth => _detailWidth > 0 ? _detailWidth : _width;
+         public int DetailHeight => _detailHeight > 0 ? _detailHeight : _height;
+         public NullCityVisualAsset NullCityVisuals => _nullCityVisuals;
++        public EonSeaVisualAsset EonSeaVisuals => _eonSeaVisuals;
++        public CrascendoVisualAsset CrascendoVisuals => _crascendoVisuals;
+         public int Schema => _schema;
+ 
+         public bool IsValidFor(ArenaId arena)
+         {
+diff --git a/Assets/VoidFall/Runtime/Gameplay/GameSim.cs b/Assets/VoidFall/Runtime/Gameplay/GameSim.cs
+index 3b09150..dac8bc6 100644
+--- a/Assets/VoidFall/Runtime/Gameplay/GameSim.cs
++++ b/Assets/VoidFall/Runtime/Gameplay/GameSim.cs
+@@ -17,8 +17,10 @@ namespace VoidFall.Runtime
+     /// the PlayMode golden master proves each step behavior-neutral.
+     /// </summary>
+     internal sealed class GameSim
+     {
++        private int _nextMeteorIdentity;
++        public void ResetMeteorIdentityForRun() => _nextMeteorIdentity = 0;
+         public readonly EnemyState[] Enemies;
+         public readonly BulletState[] Bullets;
+         public readonly HostileShotState[] HostileShots;
+         public readonly PickupState[] Pickups;
+@@ -71,8 +73,11 @@ namespace VoidFall.Runtime
+         // these cached delegates at the exact points the browser resolves an
+         // impact. Both are instance-cached; nothing allocates per step.
+         public Func<bool> PlayerVulnerableQuery;
+         public Action<int, Vector2> HostileShotImpact;
++        public delegate bool TerrainProjectileCollision(Vector2 from, Vector2 to, float radius, out Vector2 hit);
++        public TerrainProjectileCollision TerrainProjectileCollisionHook;
++        public Action<int> BulletTerrainHitHook;
+ 
+         // Bullet advance wiring. The loop skeleton, homing targeting, identity
+         // bookkeeping and hit resolution live here; the runtime supplies the
+         // view/FX/damage cascades through these cached delegates at the exact
+@@ -201,8 +206,12 @@ namespace VoidFall.Runtime
+                 if (slot < 0 || (!Bosses[slot].Active && Bosses[slot].DeathTimer <= 0))
+                     RemoveBossOrder(slot);
+             }
+         }
++        public int EnemyQueryPadding;
++        public bool CrascendoGrowthEnabled;
++        public int QueryEnemyNeighborhood(float x, float y, int cells, int[] output) => EnemyGrid.QueryNeighborhood(x, y, cells + EnemyQueryPadding, output);
++
+         public void RebuildEnemyGrid()
+         {
+             EnemyGrid.Clear();
+             Array.Clear(EnemyGridSpawnIds, 0, EnemyGridSpawnIds.Length);
+@@ -299,9 +308,15 @@ namespace VoidFall.Runtime
+             {
+                 var index = MeteorOrder[order];
+                 var meteor = Meteors[index];
+                 if (!meteor.Active) continue;
+-                meteor.Position += meteor.Velocity * dt;
++                if (meteor.Orbital)
++                {
++                    meteor.OrbitCentre += meteor.Velocity * (dt * .25f);
++                    meteor.OrbitPhase += dt * .38f;
++                    meteor.Position = meteor.OrbitCentre + new Vector2(Mathf.Cos(meteor.OrbitPhase) * 48f, Mathf.Sin(meteor.OrbitPhase) * 32f);
++                }
++                else meteor.Position += meteor.Velocity * dt;
+                 meteor.Rotation += meteor.Spin * dt;
+                 if (meteor.FuseTimer <= 0)
+                 {
+                     // Landed meteors are terrain: enemies slide around them
+@@ -388,8 +403,9 @@ namespace VoidFall.Runtime
+                 ? MeteorRules.ExplosiveMeteorMaxHealth(elapsedSeconds)
+                 : MeteorRules.MeteorMaxHealth(elapsedSeconds);
+             Meteors[slot] = new MeteorState
+             {
++                Identity = ++_nextMeteorIdentity,
+                 Active = true,
+                 Position = candidate,
+                 Velocity = new Vector2(Mathf.Cos(driftAngle), Mathf.Sin(driftAngle)) * speed,
+                 Rotation = (float)(Rng.Next() * Math.PI * 2),
+@@ -512,11 +528,18 @@ namespace VoidFall.Runtime
+                 {
+                     HostileShotOrder.Remove(index);
+                     continue;
+                 }
++                var previousPosition = shot.Position;
+                 if (shot.Curved) shot.Velocity += shot.Acceleration * dt;
+                 shot.Position += shot.Velocity * dt;
+                 shot.Life -= dt;
++                if (shot.Life > 0 && TerrainProjectileCollisionHook != null &&
++                    TerrainProjectileCollisionHook(previousPosition, shot.Position, shot.Radius, out var coverHit))
++                {
++                    shot.Position = coverHit;
++                    shot.Life = 0;
++                }
+                 if (shot.Life > 0 && Player.Health > 0 &&
+                     PlayerVulnerableQuery != null && PlayerVulnerableQuery() &&
+                     Vector2.Distance(shot.Position, Player.Position) <
+                         shot.Radius + attackPlayerRadius)
+@@ -766,8 +789,9 @@ namespace VoidFall.Runtime
+                     Bullets[i] = bullet;
+                     BulletTrailHook?.Invoke(i);
+                     bullet = Bullets[i];
+                 }
++                var previousPosition = bullet.Position;
+                 bullet.Position += bullet.Velocity * dt;
+                 bullet.Life -= dt;
+                 if (bullet.Life <= 0)
+                 {
+@@ -777,10 +801,25 @@ namespace VoidFall.Runtime
+                         expiredSlots[expiredCount++] = i;
+                     BulletOrder.Remove(i);
+                     continue;
+                 }
++                if (TerrainProjectileCollisionHook != null &&
++                    TerrainProjectileCollisionHook(previousPosition, bullet.Position, bullet.Radius, out var coverHit))
++                {
++                    bullet.Position = coverHit;
++                    // Keep the slot reserved during nested explosive damage/spawns.
++                    Bullets[i] = bullet;
++                    BulletTerrainHitHook?.Invoke(i);
++                    bullet = Bullets[i];
++                    bullet.Active = false;
++                    Bullets[i] = bullet;
++                    if (expiredSlots != null && expiredCount < expiredSlots.Length)
++                        expiredSlots[expiredCount++] = i;
++                    BulletOrder.Remove(i);
++                    continue;
++                }
+                 var hit = false;
+-                var enemyCandidateCount = EnemyGrid.QueryNeighborhood(
++                var enemyCandidateCount = QueryEnemyNeighborhood(
+                     bullet.Position.x,
+                     bullet.Position.y,
+                     1,
+                     EnemyGridBulletCandidates);
+@@ -1004,9 +1043,9 @@ namespace VoidFall.Runtime
+             {
+                 var index = EnemyOrder[order];
+                 var enemy = Enemies[index];
+                 if (!enemy.Active || enemy.MatriarchBodyguard) continue;
+-                var candidateCount = EnemyGrid.QueryNeighborhood(
++                var candidateCount = QueryEnemyNeighborhood(
+                     enemy.Position.x,
+                     enemy.Position.y,
+                     1,
+                     EnemyGridSeparationCandidates);
+@@ -1211,8 +1250,9 @@ namespace VoidFall.Runtime
+         public Func<float> EnemyParticleScaleHook;
+         public Func<double> EnemyFxRollHook;
+         public Action<float, Vector2> EnemyDamagePlayerHook;
+         public Action<Vector2, float, float, bool> EnemyBlastWaveHook;
++        public Action<Vector2, float, float, bool> EnemyBlastWaveFxOnlyHook;
+         public Action<Vector2, float, float> EnemyImpactMarkHook;
+         public Action<float> EnemyFreezeHook;
+         public Action<float> EnemyAmberFlashHook;
+         public Action<Vector2, float, float, int, int> EnemyDamageAreaHook;
+@@ -1559,9 +1599,9 @@ namespace VoidFall.Runtime
+                     EnemyDamagePlayerHook?.Invoke(enemy.Damage, impactDirection);
+                     if (canImpactPlayer) ApplySourcePlayerKnockback(ref enemy, impactDirection);
+                 }
+                 EnemyBlastWaveHook?.Invoke(enemy.DashDirection, impact, 0.5f, false);
+-                EnemyBlastWaveHook?.Invoke(enemy.DashDirection, impact * 0.62f, 0.28f, false);
++                EnemyBlastWaveFxOnlyHook?.Invoke(enemy.DashDirection, impact * 0.62f, 0.28f, false);
+                 EnemyImpactMarkHook?.Invoke(enemy.DashDirection, impact, (float)(EnemyFxRollHook() * Math.PI * 2));
+                 EnemyBurstFxHook?.Invoke(enemy.DashDirection, SourceDotColor("orange"), 20, 320, 0.54f, 0.86f);
+                 EnemyBurstFxHook?.Invoke(enemy.DashDirection, SourceDotColor("yellow"), 9, 240, 0.36f, 0.72f);
+                 EnemyBurstFxHook?.Invoke(enemy.DashDirection, SourceDotColor("white"), 5, 150, 0.2f, 0.52f);
+@@ -1753,9 +1793,10 @@ namespace VoidFall.Runtime
+             EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.Harvest, 0.82f);
+             var healthGain = absorbed * 1.25f;
+             enemy.MaxHealth += healthGain;
+             enemy.Health += healthGain;
+-            enemy.Radius = Mathf.Min(29, (float)(FindEnemy("harvester")?.Radius ?? 18) + Mathf.Sqrt(enemy.StoredXp));
++            var harvestedRadius = Mathf.Min(29, (float)(FindEnemy("harvester")?.Radius ?? 18) + Mathf.Sqrt(enemy.StoredXp));
++            enemy.Radius = CrascendoGrowthEnabled ? Mathf.Max(enemy.Radius, harvestedRadius) : harvestedRadius;
+             enemy.Speed = Mathf.Min(
+                 (float)(FindEnemy("harvester")?.Speed ?? 64) * HarvesterSpeedCapAt(time, bossCycle),
+                 enemy.Speed + absorbed * 0.18f);
+             enemy.Damage += (float)(FindEnemy("harvester")?.ContactDamage ?? 13) *
+diff --git a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Arena.cs b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Arena.cs
+index 12cbf53..270c5bd 100644
+--- a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Arena.cs
++++ b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Arena.cs
+@@ -124,8 +124,14 @@ namespace VoidFall.Runtime
+             _arenaPlateBakeWidth = asset.Width;
+             _arenaPlateBakeHeight = asset.Height;
+             _arenaPlateDetailBakeWidth = asset.DetailWidth;
+             _arenaPlateDetailBakeHeight = asset.DetailHeight;
++            // Authored Hydra surface revisions may change pixel resolution, never their world-space layout.
++            if (arena == ArenaId.Hydra && asset.DetailSprite != null)
++            {
++                _arenaPlateDetailBakeWidth = Mathf.RoundToInt(asset.DetailSprite.bounds.size.x);
++                _arenaPlateDetailBakeHeight = Mathf.RoundToInt(asset.DetailSprite.bounds.size.y);
++            }
+             return true;
+         }
+ 
+         private void EnsureArenaPlate(ArenaId arena)
+@@ -999,8 +1005,19 @@ namespace VoidFall.Runtime
+             var points = _arenaNearFilamentPoints[slot];
+             var filter = _arenaNearFilamentOuterViews[slot];
+             if (points == null || filter == null || filter.sharedMesh == null) return;
+ 
++            var continuous = (slot < 2 || (slot >= 4 && _arenaId == ArenaId.RedNebula)) &&
++                !(_visualCaptureLegacyNebula && !string.IsNullOrWhiteSpace(_visualCapturePath));
++            _arenaNearFilamentMaterials[slot].SetFloat("_Continuous", continuous ? 1f : 0f);
++            if (continuous)
++            {
++                BuildNebulaRibbon(filter.sharedMesh, points, _arenaNearFilamentPointWidths[slot], new Vector2(width, height));
++                _arenaNearFilamentBandVertices[slot] = filter.sharedMesh.vertices;
++                _arenaNearFilamentBandColors[slot] = filter.sharedMesh.colors;
++                return;
++            }
++
+             var halfLayer = new Vector2(width * 0.5f, height * 0.5f);
+             var vertices = new Vector3[points.Length * 2 * ArenaNearFilamentPasses];
+             var uvs = new Vector2[vertices.Length];
+             var colors = new Color[vertices.Length];
+@@ -1031,9 +1048,9 @@ namespace VoidFall.Runtime
+                 }
+             }
+ 
+             var mesh = filter.sharedMesh;
+-            mesh.Clear();
++            mesh.Clear(false);
+             mesh.vertices = vertices;
+             mesh.uv = uvs;
+             mesh.colors = colors;
+             mesh.triangles = triangles;
+@@ -1049,8 +1066,71 @@ namespace VoidFall.Runtime
+                 localPosition.x / Mathf.Max(1f, width) + 0.5f,
+                 localPosition.y / Mathf.Max(1f, height) + 0.5f);
+         }
+ 
++        // One padded strip, with a separate flow coordinate for continuous gas density.
++        // Original control points and cosmetic seeds remain unchanged.
++        private static void BuildNebulaRibbon(Mesh mesh, Vector2[] points, float[] widths, Vector2 size)
++        {
++            const int subdivisions = 6;
++            var count = (points.Length - 1) * subdivisions + 1;
++            var vertices = new Vector3[count * 2];
++            var uv = new Vector2[count * 2];
++            var flow = new Vector2[count * 2];
++            var colors = new Color[count * 2];
++            var triangles = new int[(count - 1) * 6];
++            for (var i = 0; i < count; i++)
++            {
++                var segment = Mathf.Min(i / subdivisions, points.Length - 2);
++                var t = (i - segment * subdivisions) / (float)subdivisions;
++                var a = points[Mathf.Max(0, segment - 1)];
++                var b = points[segment];
++                var c = points[segment + 1];
++                var d = points[Mathf.Min(points.Length - 1, segment + 2)];
++                var centre = .5f * ((2f * b) + (-a + c) * t +
++                    (2f * a - 5f * b + 4f * c - d) * t * t + (-a + 3f * b - 3f * c + d) * t * t * t);
++                var tangent = .5f * ((-a + c) + 2f * (2f * a - 5f * b + 4f * c - d) * t +
++                    3f * (-a + 3f * b - 3f * c + d) * t * t);
++                if (tangent.sqrMagnitude < .0001f) tangent = Vector2.right;
++                var normal = new Vector2(-tangent.y, tangent.x).normalized;
++                var half = Mathf.Max(1f, Mathf.Lerp(widths[segment], widths[segment + 1], t)) * .95f;
++                vertices[i * 2] = centre - size * .5f + normal * half;
++                vertices[i * 2 + 1] = centre - size * .5f - normal * half;
++                for (var side = 0; side < 2; side++)
++                {
++                    var v = i * 2 + side;
++                    uv[v] = FilamentMaskUv(vertices[v], size.x, size.y);
++                    flow[v] = new Vector2(i / (float)(count - 1), side == 0 ? 1f : -1f);
++                    colors[v] = Color.white;
++                }
++                if (i == count - 1) continue;
++                var k = i * 6;
++                triangles[k] = i * 2; triangles[k + 1] = i * 2 + 2; triangles[k + 2] = i * 2 + 1;
++                triangles[k + 3] = i * 2 + 1; triangles[k + 4] = i * 2 + 2; triangles[k + 5] = i * 2 + 3;
++            }
++            mesh.Clear(false);
++            mesh.vertices = vertices; mesh.uv = uv; mesh.uv2 = flow; mesh.colors = colors; mesh.triangles = triangles;
++            mesh.RecalculateBounds();
++        }
++
++        private bool RenderNebulaRibbon(int slot, Vector2 centre, float peak)
++        {
++            var material = _arenaNearFilamentMaterials[slot];
++            if (material == null || material.GetFloat("_Continuous") < .5f) return false;
++            material.SetFloat("_Peak", peak);
++            // These authored colors previously traveled as linear mesh vertex colors.
++            material.SetVector("_GasColor", _arenaNearFilamentColors[slot]);
++            material.SetVector("_CoreColor", _arenaNearFilamentCoreColors[slot]);
++            // Stable per-ribbon variation, with motion controlled by the existing accessibility setting.
++            material.SetFloat("_FlowPhase", slot * 7.13f);
++            material.SetFloat("_FlowTime", _saveData?.settings != null && _saveData.settings.reducedMotion ? 0f : (float)ArenaCycleElapsedSeconds() * .025f);
++            _arenaNearFilamentOuterViews[slot].transform.position = centre;
++            _arenaNearFilamentOuterRenderers[slot].enabled = true;
++            Hide(_arenaNearFilamentInnerViews[slot]);
++            Hide(_arenaNearFilamentStrandRenderers[slot]);
++            return true;
++        }
++
+         private void BuildArenaNearFilamentStrand(int slot, float width, float height)
+         {
+             var points = _arenaNearFilamentPoints[slot];
+             var filter = _arenaNearFilamentStrandViews[slot];
+@@ -1426,8 +1506,13 @@ namespace VoidFall.Runtime
+         }
+ 
+         private void ReconcileArenaResidency(ArenaResidentSet target)
+         {
++            var crascendoIndex = (int)ArenaId.Crascendo;
++            if (_preparedArenaPlateKeys[crascendoIndex].IsValid && !target.Contains(_preparedArenaPlateKeys[crascendoIndex])) HideCrascendoPresentation();
++            var eonIndex = (int)ArenaId.EonSea;
++            if (_preparedArenaPlateKeys[eonIndex].IsValid && !target.Contains(_preparedArenaPlateKeys[eonIndex]))
++                HideEonSeaPresentation();
+             var cityIndex = (int)ArenaId.NullCity;
+             if (_preparedArenaPlateKeys[cityIndex].IsValid && !target.Contains(_preparedArenaPlateKeys[cityIndex]))
+                 DetachNullCityAssetConsumers();
+             if (!_arenaResidency.Reconcile(target))
+@@ -1450,8 +1535,10 @@ namespace VoidFall.Runtime
+                 case ArenaId.RedNebula: return "redNebula";
+                 case ArenaId.WhiteSakura: return "whiteSakura";
+                 case ArenaId.Hydra: return "hydra";
+                 case ArenaId.MonochromeCourt: return "monochrome-court";
++                case ArenaId.EonSea: return "eon-sea";
++                case ArenaId.Crascendo: return "crascendo";
+                 case ArenaId.NullCity: return "null-city";
+                 default: return "void";
+             }
+         }
+@@ -1463,8 +1550,10 @@ namespace VoidFall.Runtime
+                 case "redNebula": return ArenaId.RedNebula;
+                 case "whiteSakura": return ArenaId.WhiteSakura;
+                 case "hydra": return ArenaId.Hydra;
+                 case "monochrome-court": return ArenaId.MonochromeCourt;
++                case "eon-sea": return ArenaId.EonSea;
++                case "crascendo": return ArenaId.Crascendo;
+                 case "null-city": return ArenaId.NullCity;
+                 default: return ArenaId.Void;
+             }
+         }
+@@ -1476,16 +1565,20 @@ namespace VoidFall.Runtime
+                 case ArenaId.RedNebula: return "Red Nebula";
+                 case ArenaId.WhiteSakura: return "White Sakura";
+                 case ArenaId.Hydra: return "Hydra";
+                 case ArenaId.MonochromeCourt: return "Monochrome Court";
++                case ArenaId.EonSea: return "Eon Sea";
++                case ArenaId.Crascendo: return "Crascendo";
+                 case ArenaId.NullCity: return "Null City";
+                 default: return "Abyss";
+             }
+         }
+ 
+         private static ArenaDefinition FindArena(string id)
+         {
+             foreach (var definition in ContentCatalog.Arenas) if (definition.Id == id) return definition;
+-            return HydraContent.FindArena(id) ?? MonochromeContent.FindArena(id) ?? NullCityContent.FindArena(id);
++            return HydraContent.FindArena(id) ?? MonochromeContent.FindArena(id) ?? NullCityContent.FindArena(id) ?? EonSeaContent.FindArena(id) ?? CrascendoContent.FindArena(id);
+         }
+     }
+ }
++
++
+diff --git a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Objectives.cs b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Objectives.cs
+index ef4543b..4d17898 100644
+--- a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Objectives.cs
++++ b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Objectives.cs
+@@ -34,8 +34,10 @@ namespace VoidFall.Runtime
+         {
+             ResetHydraEncounterState();
+             ResetMonochromeEncounterState();
+             ResetNullCityEncounterState();
++            ResetEonSeaState();
++            ResetCrascendoState();
+             // With a route active the objective keys on the Void, not the
+             // arena: Hydra shares the Abyss arena as a placeholder but must
+             // not share its escape condition.
+             var key = _voidRoute != null
+@@ -93,4 +95,5 @@ namespace VoidFall.Runtime
+             _objectiveLine = _objectives.Text;
+         }
+     }
+ }
++
+diff --git a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Render.cs b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Render.cs
+index 4172264..542e240 100644
+--- a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Render.cs
++++ b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Render.cs
+@@ -353,8 +353,9 @@ namespace VoidFall.Runtime
+                 if (i < 0 || i >= _gameSim.Enemies.Length || !_gameSim.Enemies[i].Active || _enemyViews[i] == null) continue;
+                 var enemy = _gameSim.Enemies[i];
+                 _enemyViews[i].rendererPriority = order;
+                 SetEnemyPresentationPriority(i, order);
++                var progressedSprite = ProgressedEnemySprite(enemy);
+                 var rosterTwoVisual = enemy.Roster == EnemyRoster.Two && !enemy.Elite &&
+                     (enemy.Id == "chaser" || enemy.Id == "gunner" || enemy.Id == "guard" || enemy.Id == "exploder");
+                 var harvesterFull = enemy.Id == "harvester" &&
+                     enemy.StoredXp >= PickupRules.HarvesterXpLimits(_xpNeed).Individual;
+@@ -366,9 +367,9 @@ namespace VoidFall.Runtime
+                     harvesterFull,
+                     enemy.Seed,
+                     _ambientClock);
+                 var spriteId = SourceEnemySpriteId(enemy);
+-                _enemyViews[i].sprite = IsNullCityEnemy(enemy.Id) ? NullCityUnitSprite(enemy.Id, enemy.Age, flash) : rosterTwoVisual
++                _enemyViews[i].sprite = progressedSprite != null ? progressedSprite : IsNullCityEnemy(enemy.Id) ? NullCityUnitSprite(enemy.Id, enemy.Age, flash) : rosterTwoVisual
+                     ? ProceduralSpriteFactory.RosterTwoEnemy(enemy.Id, flash)
+                     : ProceduralSpriteFactory.Enemy(
+                         spriteId,
+                         CachedEnemySpriteAccent(enemy),
+@@ -376,9 +377,9 @@ namespace VoidFall.Runtime
+                 _enemyViews[i].transform.position = enemy.Position;
+                 _enemyViews[i].transform.rotation = Quaternion.Euler(
+                     0,
+                     0,
+-                    enemy.Rotation * Mathf.Rad2Deg);
++                    enemy.Rotation * Mathf.Rad2Deg + (progressedSprite != null ? -90f : 0));
+                 var enemyVisualScale = SourceEnemyIntroScale(enemy.Age);
+                 if (enemy.Id == "exploder" && enemy.State == 1)
+                 {
+                     var definition = FindEnemy("exploder");
+@@ -386,15 +387,16 @@ namespace VoidFall.Runtime
+                         enemy.EliteKind.Value == EliteVariantId.Exploder
+                         ? (float)EliteRules.EliteVariantStatsFor(EliteVariantId.Exploder).TelegraphSeconds
+                         : (float)(definition?.TelegraphSeconds ?? 0.9) +
+                             (enemy.Roster == EnemyRoster.Two ? 0.28f : 0);
++                    if (progressedSprite != null) telegraph = RosterProgressionTraits.Get(enemy.Id, enemy.Roster, enemy.EliteKind.HasValue).BlastDelay;
+                     enemyVisualScale *= SourceExploderArmedScale(
+                         enemy.StateTimer,
+                         telegraph,
+                         _ambientClock);
+                 }
+                 _enemyViews[i].transform.localScale = Vector3.one *
+-                    ((IsNullCityEnemy(enemy.Id) ? NullCityUnitScale(enemy.Id, _enemyViews[i].sprite) : SourceEnemySpriteWorldSize(enemy)) * enemyVisualScale *
++                    ((progressedSprite != null ? enemy.Radius * 3.3f / Mathf.Max(.01f, progressedSprite.bounds.size.x) : IsNullCityEnemy(enemy.Id) ? NullCityUnitScale(enemy.Id, _enemyViews[i].sprite) : SourceEnemySpriteWorldSize(enemy)) * enemyVisualScale *
+                      (CourtPawnIsPromoted(enemy) ? 1.12f : 1f));
+                 if (enemy.Id == "exploder" && enemy.State == 1)
+                 {
+                     var definition = FindEnemy("exploder");
+@@ -403,10 +405,11 @@ namespace VoidFall.Runtime
+                     var telegraph = eliteExploder
+                         ? (float)EliteRules.EliteVariantStatsFor(EliteVariantId.Exploder).TelegraphSeconds
+                         : (float)(definition?.TelegraphSeconds ?? 0.9) +
+                             (enemy.Roster == EnemyRoster.Two ? 0.28f : 0);
++                    if (progressedSprite != null) telegraph = RosterProgressionTraits.Get(enemy.Id, enemy.Roster, enemy.EliteKind.HasValue).BlastDelay;
+                     var warning = EnsureEnemyExploderWarningView(i);
+-                    warning.sprite = enemy.Roster == EnemyRoster.Two
++                    warning.sprite = progressedSprite != null ? progressedSprite : enemy.Roster == EnemyRoster.Two
+                         ? ProceduralSpriteFactory.RosterTwoEnemy("exploder", true)
+                         : ProceduralSpriteFactory.Enemy("exploder", CachedEnemySpriteAccent(enemy), true);
+                     warning.transform.position = enemy.Position;
+                     warning.transform.rotation = _enemyViews[i].transform.rotation;
+@@ -575,8 +578,9 @@ namespace VoidFall.Runtime
+                 }
+                 var meteorView = EnsureMeteorView(i);
+                 meteorView.rendererPriority = order;
+                 meteorView.sprite = ProceduralSpriteFactory.Meteor(_gameSim.Meteors[i].Variant, _gameSim.Meteors[i].Explosive);
++                if (_arenaId == ArenaId.RedNebula) meteorView.sprite = NebulaRockSprite(_gameSim.Meteors[i].Explosive);
+                 meteorView.transform.position = _gameSim.Meteors[i].Position;
+                 meteorView.transform.rotation = Quaternion.Euler(
+                     0,
+                     0,
+@@ -588,8 +592,10 @@ namespace VoidFall.Runtime
+                          _gameSim.Meteors[i].Variant, _gameSim.Meteors[i].Explosive));
+                 // The browser never tints the meteor body while armed; the
+                 // warning arcs and seeded core carry the fuse read instead.
+                 meteorView.color = Color.white;
++                if (_arenaId == ArenaId.RedNebula)
++                    meteorView.transform.localScale = Vector3.one * (_gameSim.Meteors[i].VisibleRadius * 2.35f);
+                 var hitView = EnsureMeteorHitView(i);
+                 hitView.sprite = meteorView.sprite;
+                 hitView.transform.position = _gameSim.Meteors[i].Position;
+                 hitView.transform.rotation = meteorView.transform.rotation;
+@@ -600,9 +606,9 @@ namespace VoidFall.Runtime
+                 if (_meteorCoreViews[i] != null)
+                 {
+                     _meteorCoreViews[i].transform.position = _gameSim.Meteors[i].Position;
+                     _meteorCoreViews[i].transform.rotation = meteorView.transform.rotation;
+-                    _meteorCoreViews[i].enabled = _gameSim.Meteors[i].Explosive;
++                    _meteorCoreViews[i].enabled = _gameSim.Meteors[i].Explosive && _arenaId != ArenaId.RedNebula;
+                 }
+                 if (_gameSim.Meteors[i].FuseTimer > 0)
+                 {
+                     var fuse = Mathf.Clamp01(1f - _gameSim.Meteors[i].FuseTimer / (float)MeteorRules.ExplosiveFlashSeconds);
+@@ -773,8 +779,10 @@ namespace VoidFall.Runtime
+                     -10);
+             }
+ 
+             RenderArena();
++            SyncEonSeaPresentation();
++            SyncCrascendoPresentation();
+             RenderHydraPresentation();
+             RenderMonochromePresentation();
+             RenderDeathGhosts();
+             RenderDamageIndicators();
+@@ -3650,23 +3658,16 @@ namespace VoidFall.Runtime
+                     continue;
+                 }
+ 
+                 var eliteVariant = enemy.EliteKind.HasValue;
+-                if (eliteVariant || CombatTweakRules.ShowStandardEliteOverlay())
+-                {
+-                    var mark = EnsureEliteMarkView(index);
+-                    mark.sprite = eliteVariant
+-                        ? ProceduralSpriteFactory.EliteMark()
+-                        : ProceduralSpriteFactory.EliteRing();
+-                    mark.transform.position = enemy.Position;
+-                    mark.transform.localScale = Vector3.one * SourceEliteRingSize(_ambientClock);
+-                    mark.color = new Color(1f, 1f, 1f, SourceEliteRingAlpha(eliteVariant));
+-                    mark.enabled = true;
+-                }
+-                else
+-                {
+-                    Hide(_eliteMarkViews[index]);
+-                }
++                var mark = EnsureEliteMarkView(index);
++                mark.sprite = ProceduralSpriteFactory.EliteRing();
++                mark.transform.position = enemy.Position;
++                mark.transform.localScale = Vector3.one * SourceEliteRingSize(_ambientClock);
++                var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
++                mark.transform.rotation = Quaternion.Euler(0, 0, reducedMotion ? 0 : _ambientClock * 12f);
++                mark.color = new Color(1f, .8f, .95f, .65f);
++                mark.enabled = true;
+ 
+                 if (enemy.EliteKind.HasValue || enemy.State != 1)
+                 {
+                     Hide(_eliteChargeLaneViews[index]);
+@@ -3735,8 +3736,9 @@ namespace VoidFall.Runtime
+                     Hide(_enemyTelegraphMortarSegmentViews[index * MortarTelegraphSegmentCount + segment]);
+                 Hide(_enemyTelegraphFillRenderers[index]);
+                 Hide(_enemyTelegraphArrowFillRenderers[index]);
+                 var enemy = _gameSim.Enemies[index];
++                if (RenderProgressedTelegraphs(index, enemy)) continue;
+                 if (!enemy.Active) continue;
+ 
+                 if (enemy.Id == "mortar" && enemy.State == 1)
+                 {
+@@ -4808,9 +4810,16 @@ namespace VoidFall.Runtime
+         }
+ 
+         private void RenderArena()
+         {
++            ApplyArenaColorGrade();
+             if (_backdropView == null) return;
++            if (_arenaId == ArenaId.EonSea || _arenaId == ArenaId.Crascendo)
++            {
++                if (_nullCityPresentationVisible) HideNullCityPresentation();
++                UpdateGameplayCameraViewport();
++                return; // Physical glacier presentation follows RenderArena in the render pass.
++            }
+             if (_arenaId == ArenaId.NullCity)
+             {
+                 RenderNullCityArena();
+                 return;
+@@ -5214,15 +5223,21 @@ namespace VoidFall.Runtime
+                 var diameter = far
+                     ? Mathf.Lerp(110f, pale ? 175f : 180f, seed.z)
+                     : Mathf.Lerp(pale ? 30f : 34f, pale ? 56f : 62f, seed.z);
+                 view.sprite = ProceduralSpriteFactory.ArenaRock(_arenaRockShapes[index]);
++                if (_arenaId == ArenaId.RedNebula)
++                {
++                    view.sprite = NebulaRockSprite(false);
++                    diameter *= .8f;
++                }
+                 view.transform.localScale = Vector3.one * diameter;
+                 var rockAngle = seed.w * 360f +
+                     _arenaRockSpins[index] * _arenaDecorClock * Mathf.Rad2Deg;
+                 view.transform.rotation = Quaternion.Euler(0, 0, rockAngle);
+                 var layerAlpha = far ? farAlpha : midAlpha;
+                 var body = far ? farBody : midBody;
+                 view.color = new Color(body.r, body.g, body.b, layerAlpha);
++                if (_arenaId == ArenaId.RedNebula) view.color = new Color(.48f, .43f, .49f, layerAlpha * .5f);
+                 view.enabled = true;
+ 
+                 var rimBase = far ? farRim : midRim;
+                 if (plane != null)
+@@ -5242,8 +5257,14 @@ namespace VoidFall.Runtime
+                     plane.enabled = true;
+                 }
+ 
+                 if (rim == null) continue;
++                if (_arenaId == ArenaId.RedNebula)
++                {
++                    Hide(plane);
++                    Hide(rim);
++                    continue;
++                }
+                 var radius = diameter * 0.5f;
+                 rim.positionCount = 16;
+                 for (var point = 0; point < rim.positionCount; point++)
+                 {
+@@ -5303,8 +5324,9 @@ namespace VoidFall.Runtime
+                     Hide(strandRenderer);
+                     continue;
+                 }
+ 
++                if (RenderNebulaRibbon(slot, layerCentre, Mathf.Clamp01(_arenaNearFilamentAlphas[slot]))) continue;
+                 var points = _arenaNearFilamentPoints[slot];
+                 var mesh = outer.sharedMesh;
+                 var bandColors = _arenaNearFilamentBandColors[slot];
+                 if (points == null || mesh == null || bandColors == null)
+@@ -5453,8 +5475,9 @@ namespace VoidFall.Runtime
+                     Hide(strandRenderer);
+                     continue;
+                 }
+ 
++                if (RenderNebulaRibbon(index, layerCentre, Mathf.Clamp01(_arenaNearFilamentAlphas[index] * alphaScale * .95f))) continue;
+                 var points = _arenaNearFilamentPoints[index];
+                 var mesh = outer.sharedMesh;
+                 var bandColors = _arenaNearFilamentBandColors[index];
+                 if (points == null || mesh == null || bandColors == null)
+diff --git a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Sim.cs b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Sim.cs
+index c878d71..334b856 100644
+--- a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Sim.cs
++++ b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.Sim.cs
+@@ -52,8 +52,10 @@ namespace VoidFall.Runtime
+ 
+         private void UpdateVisualCapture()
+         {
+             MaintainNullCityCapture();
++            MaintainEonSeaCapture();
++            MaintainCrascendoCapture();
+             if (_visualCaptureIssued || string.IsNullOrWhiteSpace(_visualCapturePath)) return;
+             if (_visualCaptureFramesRemaining > 0)
+             {
+                 _visualCaptureFramesRemaining--;
+@@ -83,13 +85,16 @@ namespace VoidFall.Runtime
+             if (_gameSim.Player.Health <= 0) input = Vector2.zero;
+             // STANDSTILL stance timer: rest counts up, any movement resets.
+             if (input.sqrMagnitude < 0.0001f) _standstillSeconds += dt;
+             else _standstillSeconds = 0f;
+-            var targetVelocity = input * speed;
+-            var movementBlend = 1 - Mathf.Exp(-14f * dt);
+-            _gameSim.Player.Velocity += (targetVelocity - _gameSim.Player.Velocity) * movementBlend;
++            if (!MoveEonSeaPlayer(dt, input, speed))
++            {
++                var targetVelocity = input * speed;
++                var movementBlend = 1 - Mathf.Exp(-14f * dt);
++                _gameSim.Player.Velocity += (targetVelocity - _gameSim.Player.Velocity) * movementBlend;
++                _gameSim.Player.Position += _gameSim.Player.Velocity * dt;
++            }
+             var velocity = _gameSim.Player.Velocity;
+-            _gameSim.Player.Position += velocity * dt;
+             ApplyNullCityMovement(dt, input);
+             _playerTrailTimer -= dt;
+             if (_qualityPreset.PlayerTrail &&
+                 !(_saveData?.settings != null && _saveData.settings.reducedMotion) &&
+@@ -540,9 +545,9 @@ namespace VoidFall.Runtime
+             if (enemy.EliteKind.HasValue)
+                 return (float)EliteRules.EliteVariantDef(enemy.EliteKind.Value).ThreatCost;
+             if (enemy.Elite) return 8f;
+             return (float)DirectorRules.EnemyThreatCost(enemy.Id) *
+-                (float)(enemy.Roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoThreatMultiplier : 1f);
++                (float)EnemyRosterRules.ThreatMultiplier(enemy.Roster);
+         }
+ 
+         private int SpawnRusherPressure(int edge, int amount)
+         {
+@@ -688,8 +693,9 @@ namespace VoidFall.Runtime
+             _gameSim.EnemyParticleScaleHook = EnemyParticleScaleForSim;
+             _gameSim.EnemyFxRollHook = EnemyFxRollForSim;
+             _gameSim.EnemyDamagePlayerHook = EnemyDamagePlayerForSim;
+             _gameSim.EnemyBlastWaveHook = EnemyBlastWaveForSim;
++            _gameSim.EnemyBlastWaveFxOnlyHook = EnemyBlastWaveFxOnlyForSim;
+             _gameSim.EnemyImpactMarkHook = EnemyImpactMarkForSim;
+             _gameSim.EnemyFreezeHook = EnemyFreezeForSim;
+             _gameSim.EnemyAmberFlashHook = EnemyAmberFlashForSim;
+             _gameSim.EnemyDamageAreaHook = EnemyDamageAreaForSim;
+@@ -708,8 +714,9 @@ namespace VoidFall.Runtime
+             {
+                 var i = _gameSim.EnemyOrder[order];
+                 var enemy = _gameSim.Enemies[i];
+                 if (!enemy.Active) continue;
++                var eonOldPosition = enemy.Position;
+                 enemy.Age += dt;
+                 var delta = _gameSim.Player.Position - enemy.Position;
+                 var distance = SourceLengthOrOne(delta);
+                 var direction = delta / distance;
+@@ -740,8 +747,12 @@ namespace VoidFall.Runtime
+                 else if (enemy.Elite && !enemy.EliteKind.HasValue)
+                 {
+                     UpdateStandardElite(ref enemy, dt, distance, direction);
+                 }
++                else if (UsesRosterProgression(enemy))
++                {
++                    UpdateProgressedEnemy(ref enemy, dt, distance, direction);
++                }
+                 else if (enemy.EliteKind.HasValue && enemy.EliteKind.Value == EliteVariantId.Gunner)
+                 {
+                     UpdateGunner(ref enemy, dt, distance, direction);
+                 }
+@@ -788,16 +799,8 @@ namespace VoidFall.Runtime
+                 else if (IsNullCityEnemy(enemy.Id))
+                 {
+                     UpdateNullCityEnemy(ref enemy, dt, distance, direction);
+                 }
+-                else if (enemy.Roster == EnemyRoster.Two && enemy.Id == "chaser")
+-                {
+-                    UpdateRosterPincer(ref enemy, dt, distance, direction);
+-                }
+-                else if (enemy.Roster == EnemyRoster.Two && enemy.Id == "guard")
+-                {
+-                    UpdateRosterGuard(ref enemy, dt, direction);
+-                }
+                 else
+                 {
+                     // The browser only ever adds a small symmetric wobble here,
+                     // so every body in this branch drives at the player along a
+@@ -820,8 +823,9 @@ namespace VoidFall.Runtime
+                     enemy.Knockback *= Mathf.Exp(-8f * dt);
+                     enemy.Position += (enemy.Velocity + enemy.Knockback) * dt;
+                     ConstrainNullCityEnemy(ref enemy);
+                 }
++                ResolveEonSeaEnemyMovement(i, ref enemy, eonOldPosition);
+                 if ((!enemy.Elite || enemy.EliteKind.HasValue) && distance > 1750f)
+                 {
+                     var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
+                     var viewportHalf = GameplayViewportHalfExtent();
+@@ -829,12 +833,19 @@ namespace VoidFall.Runtime
+                         Mathf.Pow(viewportHalf.x * 2f, 2) +
+                         Mathf.Pow(viewportHalf.y * 2f, 2)) * 0.5f + 90f;
+                     enemy.Position = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                     enemy.Age = 0;
++                    ResolveEonSeaEnemyMovement(i, ref enemy, enemy.Position);
+                 }
+ 
+                 var canContactPlayer = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
+                     _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0;
++                if (CurrentVoidIsEonSea)
++                {
++                    delta = _gameSim.Player.Position - enemy.Position;
++                    distance = SourceLengthOrOne(delta);
++                    direction = delta / distance;
++                }
+                 if (enemy.Active && enemy.Id != "exploder" && enemy.Age > 0.4f &&
+                     distance < enemy.Radius + PlayerRadius && enemy.ContactCooldown <= 0 &&
+                     canContactPlayer)
+                 {
+@@ -926,8 +937,11 @@ namespace VoidFall.Runtime
+         private void EnemyDamagePlayerForSim(float damage, Vector2 sourceDirection) => DamagePlayer(damage, sourceDirection);
+ 
+         private void EnemyBlastWaveForSim(Vector2 position, float maxRadius, float life, bool bomb) => SpawnBlastWave(position, maxRadius, life, bomb);
+ 
++        private void EnemyBlastWaveFxOnlyForSim(Vector2 position, float maxRadius, float life, bool bomb)
++            => SpawnBlastWave(position, maxRadius, life, bomb, false);
++
+         private void EnemyImpactMarkForSim(Vector2 position, float radius, float rotation) => SpawnImpactMark(position, radius, rotation);
+ 
+         private void EnemyFreezeForSim(float seconds) => TriggerFreeze(seconds);
+ 
+@@ -1048,8 +1062,10 @@ namespace VoidFall.Runtime
+             var limit = explosive ? MeteorRules.MaxExplosiveMeteors : _meteorTarget;
+             if (CountMeteors(explosive) >= limit) return;
+             var variant = Mathf.FloorToInt((float)(_gameSim.Rng.Next() * MeteorRules.MeteorVariantCount(explosive)));
+             var radius = (float)MeteorRules.MeteorCollisionRadius(variant, explosive);
++            var nebula = _arenaId == ArenaId.RedNebula;
++            if (nebula && !explosive) radius *= .8f;
+             var enemyCount = 0;
+             for (var index = 0; index < _gameSim.Enemies.Length; index++)
+             {
+                 if (!_gameSim.Enemies[index].Active) continue;
+@@ -1093,8 +1109,18 @@ namespace VoidFall.Runtime
+                     variant,
+                     explosive,
+                     _time);
+                 if (slot < 0) return;
++                if (nebula)
++                {
++                    var meteor = _gameSim.Meteors[slot];
++                    if (!explosive) meteor.VisibleRadius *= .8f;
++                    meteor.Orbital = true;
++                    meteor.OrbitPhase = meteor.Seed;
++                    meteor.OrbitCentre = meteor.Position - new Vector2(Mathf.Cos(meteor.OrbitPhase) * 48f, Mathf.Sin(meteor.OrbitPhase) * 32f);
++                    meteor.Spin = meteor.Spin < 0 ? -.32f : .32f;
++                    _gameSim.Meteors[slot] = meteor;
++                }
+                 var view = EnsureMeteorView(slot);
+                 view.sprite = ProceduralSpriteFactory.Meteor(variant, explosive);
+                 view.transform.rotation = Quaternion.Euler(0, 0, _gameSim.Meteors[slot].Rotation * Mathf.Rad2Deg);
+                 view.color = Color.white;
+@@ -1244,8 +1270,9 @@ namespace VoidFall.Runtime
+             for (var order = 0; order < initialBossOrderCount; order++)
+             {
+                 var i = _gameSim.BossOrder[order];
+                 var boss = _gameSim.Bosses[i];
++                var eonOldPosition = boss.Position;
+                 if (!boss.Active)
+                 {
+                     if (boss.DeathTimer > 0)
+                     {
+@@ -1417,8 +1444,9 @@ namespace VoidFall.Runtime
+                         if (boss.Id == HydraBossId) PrepareHydraAttack(ref boss);
+                     }
+                 }
+ 
++                ResolveEonSeaBossMovement(i, ref boss, eonOldPosition);
+                 var contactDelta = _gameSim.Player.Position - boss.Position;
+                 var contactDistance = SourceLengthOrOne(contactDelta);
+                 var canContactPlayer = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
+                     _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0;
+@@ -1606,8 +1634,9 @@ namespace VoidFall.Runtime
+             {
+                 _audio?.Play(ProceduralAudio.Cue.BossSlam, 0.92f);
+                 AddCameraShake(0.55f);
+                 var radius = BossSlamRadius((float)(attack.Radius ?? 190), encounterCycle);
++                StressEonSeaIce(boss.Position, radius);
+                 var delta = _gameSim.Player.Position - boss.Position;
+                 SpawnRingWave(boss.Position, 24f, radius * 2.2f, 0.62f, BossAccent(boss));
+                 if (delta.magnitude < radius + AttackPlayerRadius) DamagePlayer(attackDamage, delta);
+             }
+@@ -1664,8 +1693,9 @@ namespace VoidFall.Runtime
+             {
+                 boss.Position = boss.TargetPosition;
+                 var delta = _gameSim.Player.Position - boss.Position;
+                 var radius = (float)(attack.Radius ?? 80);
++                StressEonSeaIce(boss.Position, radius);
+                 SpawnRingWave(boss.Position, 18f, radius * 2.2f, 0.42f,
+                     new Color(0.376f, 0.647f, 0.98f, 0.8f));
+                 BurstFx(boss.Position, SourceDotColor("blue"),
+                     14, 270, 0.48f, 0.8f);
+@@ -1791,8 +1821,9 @@ namespace VoidFall.Runtime
+         }
+ 
+         private void UpdateBullets(float dt)
+         {
++            ConfigureEonSeaProjectileHooks();
+             // The loop skeleton, homing targeting, identity bookkeeping and
+             // hit resolution live in GameSim.AdvanceBullets; the runtime owns
+             // the FX/damage cascades behind these cached hooks. Hook bodies
+             // are the original in-loop blocks, unchanged. Delegates are cached
+@@ -1860,8 +1891,9 @@ namespace VoidFall.Runtime
+                         critical);
+                     if (railgun) RailgunImpact(boss.Position, bullet.Hits);
+                     if (bullet.BlastRadius > 0)
+                     {
++                        StressEonSeaIce(bullet.Position, bullet.BlastRadius);
+                         // The browser gives a boss hit a cyan presentation
+                         // cue only; its blast damage is for enemy/meteor
+                         // hits, not an extra boss-area hit.
+                         BurstFx(
+@@ -2663,9 +2695,9 @@ namespace VoidFall.Runtime
+                     _upgradeProgress.Evolved[3] ? "#5eead4" : weapon.Accent,
+                     new Color(0.2f, 0.85f, 0.65f, 1));
+                 view.enabled = true;
+ 
+-                var enemyCandidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
++                var enemyCandidateCount = _gameSim.QueryEnemyNeighborhood(
+                     position.x,
+                     position.y,
+                     1,
+                     _gameSim.EnemyGridBulletCandidates);
+@@ -2765,9 +2797,9 @@ namespace VoidFall.Runtime
+                 var candidate = _gameSim.Enemies[index];
+                 if (!candidate.Active || candidate.Age < 0.15f || (candidate.Position - _gameSim.Player.Position).sqrMagnitude > maximumRangeSquared) continue;
+                 eligibleCount++;
+                 var count = 0;
+-                var neighborCount = _gameSim.EnemyGrid.QueryNeighborhood(
++                var neighborCount = _gameSim.QueryEnemyNeighborhood(
+                     candidate.Position.x,
+                     candidate.Position.y,
+                     2,
+                     _gameSim.EnemyGridBulletCandidates);
+@@ -2799,9 +2831,9 @@ namespace VoidFall.Runtime
+         }
+ 
+         private void UpdateHollowBladeDamage(Vector2 position, WeaponStatsDefinition stats, float recoveryScale)
+         {
+-            var enemyCandidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
++            var enemyCandidateCount = _gameSim.QueryEnemyNeighborhood(
+                 position.x,
+                 position.y,
+                 1,
+                 _gameSim.EnemyGridBulletCandidates);
+@@ -3053,13 +3085,12 @@ namespace VoidFall.Runtime
+             var variantStats = eliteKind.HasValue
+                 ? EliteRules.EliteVariantStatsFor(eliteKind.Value)
+                 : default(EliteVariantStats);
+             var enemyId = _nextEnemyId++;
+-            // Browser spawnEnemy only selects time-based Roster II for ordinary
+-            // world spawns. Boss summons stay in Roster I unless a pressure
+-            // tier explicitly supplies forcedRoster.
++            // Shared ambient and elite variants use the global run clock.
++            // Boss summons and child forms retain their explicitly authored tier.
+             var roster = forcedRoster ?? (
+-                elite || carrierDrone || splitterFragment || summonedByBossTelemetryId != 0
++                standardElite || carrierDrone || splitterFragment || summonedByBossTelemetryId != 0
+                     ? EnemyRoster.One
+                     : EnemyRosterRules.EnemyRosterForSpawn(
+                         id,
+                         _time,
+@@ -3078,12 +3109,12 @@ namespace VoidFall.Runtime
+                 _bossCycle,
+                 healthMultiplier * (carrierDrone ? 0.55f : 1f));
+             var speedScale = EnemySpeedScaleAt(_time, _bossCycle);
+             var damageScale = EnemyDamageScaleAt(_time, _bossCycle);
+-            var rosterHealth = roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoHealthMultiplier : 1;
+-            var rosterRadius = roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoRadiusMultiplier : 1;
+-            var rosterSpeed = roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoSpeedMultiplier : 1;
+-            var rosterDamage = roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoDamageMultiplier : 1;
++            var rosterHealth = eliteKind.HasValue ? EliteTierHealth(roster) : EnemyRosterRules.HealthMultiplier(roster);
++            var rosterRadius = eliteKind.HasValue ? EliteTierRadius(roster) : EnemyRosterRules.RadiusMultiplier(roster);
++            var rosterSpeed = eliteKind.HasValue ? EliteTierSpeed(id, roster) : EnemyRosterRules.SpeedMultiplier(roster);
++            var rosterDamage = eliteKind.HasValue ? EliteTierDamage(roster) : EnemyRosterRules.DamageMultiplier(roster);
+             var baseHealth = eliteKind.HasValue
+                 ? variantStats.Health
+                 : standardElite ? ContentCatalog.Elite.Health : definition.Health;
+             var baseSpeed = eliteKind.HasValue
+@@ -3107,9 +3138,9 @@ namespace VoidFall.Runtime
+                 elite,
+                 HydraRecombinationStage,
+                 definition?.Behavior ?? "direct");
+             var mutation = MutationRules.ModifiersFor(mutationGene);
+-            var shield = !elite && id == "guard"
++            var shield = !elite && roster == EnemyRoster.One && id == "guard"
+                 ? (float)((definition.Shield ?? 0) * healthScale * rosterHealth)
+                 : 0;
+             // Matriarch bodyguards orbit and shoot; they carry no shields.
+             var enemy = new EnemyState
+@@ -3120,9 +3151,9 @@ namespace VoidFall.Runtime
+                 MaxHealth = (float)(baseHealth * mutation.HealthMultiplier) * healthScale * (float)rosterHealth,
+                 Radius = (float)baseRadius * (float)rosterRadius,
+                 Speed = (float)(baseSpeed * mutation.SpeedMultiplier) * speedScale * (float)rosterSpeed * (0.92f + (float)_gameSim.Rng.Next() * 0.16f),
+                 Damage = (float)baseDamage * damageScale * (float)rosterDamage,
+-                Xp = Mathf.Max(1, SourceRound((float)(baseXp * (roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoXpMultiplier : 1)))),
++                Xp = Mathf.Max(1, SourceRound((float)(baseXp * (roster > EnemyRoster.One ? EnemyRosterRules.RosterTwoXpMultiplier : 1)))),
+                 Age = 0,
+                 Shield = shield,
+                 MaxShield = shield,
+                 Roster = roster,
+@@ -3164,8 +3195,10 @@ namespace VoidFall.Runtime
+             if (eliteKind.HasValue && eliteKind.Value == EliteVariantId.Exploder)
+                 enemy.Spin = _gameSim.Rng.Next() < 0.5 ? -0.42f : 0.42f;
+             enemy.Health = enemy.MaxHealth;
+             _gameSim.Enemies[slot] = enemy;
++            _crascendoEnemies[slot] = CurrentVoidIsCrascendo ? new CrascendoGrowthState { Identity = enemy.SpawnId, BaseRadius = enemy.Radius } : default;
++            _rosterActorStates[slot] = default; // Spawn IDs restart each run; clear recycled state explicitly.
+             AppendEnemyOrder(slot);
+             if (elite)
+                 _telemetry.RecordEliteSpawn(
+                     ArenaIdName(_arenaId),
+@@ -3319,8 +3352,9 @@ namespace VoidFall.Runtime
+         }
+ 
+         private void UpdateHostileShots(float dt)
+         {
++            ConfigureEonSeaProjectileHooks();
+             // The runtime keeps DamagePlayer and telemetry; GameSim drives the
+             // loop and calls back at the exact points the browser resolves an
+             // impact, so iframes set by one hit still gate later shots in the
+             // same pass. Delegates are cached - no per-step allocation.
+@@ -3627,15 +3661,21 @@ namespace VoidFall.Runtime
+             bool critical,
+             int weaponIndex = -1)
+         {
+             var enemy = _gameSim.Enemies[index];
+-            if (!enemy.Active) return;
++            if (!enemy.Active || (CurrentVoidIsCrascendo && enemy.Health <= 0)) return;
+             if (IsNullCityEnemy(enemy.Id) && _nullCityUnits[index].Identity == enemy.SpawnId && _nullCityUnits[index].Grace > 0f) return;
+             damage *= PlayerDamageMultiplier();
+             var appliedDamage = Mathf.Max(0, damage);
+             if (enemy.Id == "null-marshal" && enemy.Age % 6f < 3f && direction.sqrMagnitude > .001f &&
+                 Vector2.Dot(enemy.Facing, -direction.normalized) > .25f) appliedDamage *= .3f;
+-            if (enemy.Id == "bulwark" && direction.sqrMagnitude > 0.001f)
++            if (UsesRosterProgression(enemy) && direction.sqrMagnitude > .001f)
++            {
++                var traits = RosterProgressionTraits.Get(enemy.Id, enemy.Roster, enemy.EliteKind.HasValue);
++                if (traits.ShieldReduction > 0 && Vector2.Dot(enemy.Facing, -direction.normalized) > Mathf.Cos(traits.ShieldArc * .5f))
++                    appliedDamage *= 1 - traits.ShieldReduction;
++            }
++            if (!UsesRosterProgression(enemy) && enemy.Id == "bulwark" && direction.sqrMagnitude > 0.001f)
+             {
+                 var sourceDirection = -direction.normalized;
+                 if (Vector2.Dot(enemy.Facing, sourceDirection) > Mathf.Cos(1.08f))
+                 {
+@@ -3651,8 +3691,9 @@ namespace VoidFall.Runtime
+                         BurstFx(enemy.Position, SourceDotColor("cyan"), 3, 110, 0.22f, 0.5f);
+                     }
+                 }
+             }
++            var shieldBefore = enemy.Shield;
+             var remaining = appliedDamage;
+             var shieldBroken = false;
+             if (enemy.Shield > 0)
+             {
+@@ -3673,8 +3714,9 @@ namespace VoidFall.Runtime
+             }
+ 
+             var appliedHealth = Mathf.Min(Mathf.Max(0, remaining), enemy.Health);
+             enemy.Health -= remaining;
++            GrowCrascendoEnemy(index, ref enemy, appliedHealth + Mathf.Max(0, shieldBefore - enemy.Shield));
+             enemy.HitTimer = 0.09f;
+             _damageDealt += appliedHealth;
+             TrackWeaponDamage(weaponIndex, appliedHealth);
+             if (knockback > 0)
+@@ -3765,8 +3807,9 @@ namespace VoidFall.Runtime
+             var appliedDamage = Mathf.Min(Mathf.Max(0, damage), boss.Health);
+             _damageDealt += appliedDamage;
+             TrackWeaponDamage(weaponIndex, appliedDamage);
+             boss.Health -= appliedDamage;
++            GrowCrascendoBoss(index, ref boss, appliedDamage);
+             boss.HitTimer = 0.08f;
+             _gameSim.Bosses[index] = boss;
+             if (appliedDamage > 0)
+             {
+@@ -3841,11 +3884,12 @@ namespace VoidFall.Runtime
+             float damage,
+             int excludedEnemyIdentity,
+             int weaponIndex = -1)
+         {
++            if (weaponIndex >= 0) StressEonSeaIce(origin, radius);
+             DamageMeteorsInRadius(origin, radius, damage);
+             var cellSpan = Mathf.CeilToInt(radius / CollisionGrid.CellSize) + 1;
+-            var candidateCount = _gameSim.EnemyGrid.QueryNeighborhood(
++            var candidateCount = _gameSim.QueryEnemyNeighborhood(
+                 origin.x,
+                 origin.y,
+                 cellSpan,
+                 _gameSim.EnemyGridAreaCandidates);
+@@ -3980,8 +4024,9 @@ namespace VoidFall.Runtime
+             enemy.Active = false;
+             _gameSim.Enemies[index] = enemy;
+             RemoveEnemyOrder(index);
+             OnNullCityEnemyDeath(enemy);
++            CrascendoEnemyDeath(index, enemy);
+             var enemyDefinition = FindEnemy(enemy.Id);
+             SpawnDeathGhost(enemy, index);
+             var destroyedExploder = enemy.Id == "exploder";
+             var shouldReward = !selfDetonated || enemy.EliteKind.HasValue;
+@@ -4116,9 +4161,15 @@ namespace VoidFall.Runtime
+                 }
+                 _audio?.Play(ProceduralAudio.Cue.Die, 1.08f);
+             }
+ 
+-            if (enemy.Id == "splitter" && !enemy.SplitterFragment)
++            if (enemy.Id == "splitter" && UsesRosterProgression(enemy))
++            {
++                var traits = RosterProgressionTraits.Get(enemy.Id, enemy.Roster);
++                for (var child = 0; child < (int)traits.SplitCount; child++)
++                    SpawnProgressedChild(enemy, child, (int)traits.SplitCount, (EnemyRoster)(int)traits.ChildTier, false);
++            }
++            else if (enemy.Id == "splitter" && !enemy.SplitterFragment)
+             {
+                 for (var fragment = 0; fragment < 3; fragment++)
+                 {
+                     var angle = fragment / 3f * Mathf.PI * 2 + enemy.Seed;
+@@ -4180,8 +4231,9 @@ namespace VoidFall.Runtime
+             boss.DeathTimer = 1.4f;
+             boss.Health = 0;
+             boss.ActiveAttack = null;
+             _gameSim.Bosses[index] = boss;
++            CrascendoBossDeath(index, boss);
+             if (boss.Id == HydraBossId) EndHydraBossEncounter();
+             if (IsMotherload(boss.Id)) EndNullCityBossEncounter();
+             var noBossesRemain = ActiveBosses() == 0;
+             TriggerFreeze(0.14f);
+@@ -5374,10 +5426,11 @@ namespace VoidFall.Runtime
+                 Hide(_ringWaveGlowViews[slot]);
+                 Hide(_ringWaveSpriteViews[slot]);
+             }
+         }
+-        private void SpawnBlastWave(Vector2 position, float maxRadius, float life, bool bomb)
++        private void SpawnBlastWave(Vector2 position, float maxRadius, float life, bool bomb, bool stressTerrain = true)
+         {
++            if (stressTerrain) StressEonSeaIce(position, maxRadius);
+             var slot = -1;
+             var oldestAge = -1f;
+             for (var index = 0; index < _blastWaves.Length; index++)
+             {
+@@ -5624,9 +5677,9 @@ namespace VoidFall.Runtime
+                     ? 8
+                     : enemy.EliteKind.HasValue
+                     ? EliteRules.EliteVariantDef(enemy.EliteKind.Value).ThreatCost
+                     : DirectorRules.EnemyThreatCost(enemy.Id) *
+-                        (enemy.Roster == EnemyRoster.Two ? EnemyRosterRules.RosterTwoThreatMultiplier : 1);
++                        EnemyRosterRules.ThreatMultiplier(enemy.Roster);
+             }
+ 
+             return total;
+         }
+diff --git a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.cs b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.cs
+index f16e723..c1a5286 100644
+--- a/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.cs
++++ b/Assets/VoidFall/Runtime/Gameplay/VoidFallGameRuntime.cs
+@@ -1076,9 +1076,9 @@ namespace VoidFall.Runtime
+             SetupPlayer();
+             SetupAudio();
+             SetupFx();
+             SetupHydraPresentation();
+-            _saveStore = new SaveStore(OverclockHudProbe.ProfilePath);
++            _saveStore = new SaveStore(OverclockHudProbe.ProfilePath ?? VisualDeliveryProbe.ProfilePath ?? VisualCaptureProfilePath());
+             _saveData = _saveStore.Load();
+             _gameBridge = new RuntimeGameBridge(this);
+             _settingsController = new SettingsController(_gameBridge);
+             ApplySettings();
+@@ -1139,14 +1139,17 @@ namespace VoidFall.Runtime
+             });
+             AttachWorkshopFramePreview();
+             ConfigureVisualCapture();
+             PrepareNullCityCaptureProfile();
++            PrepareEonSeaCaptureProfile();
++            PrepareCrascendoCaptureProfile();
+             EnterMainMenu();
+             if (_visualCaptureWorkshop) _menuPage = MenuPage.Workshop;
+             if (_visualCaptureSettings) _menuPage = MenuPage.Settings;
+             if (_visualCaptureRecords) _menuPage = MenuPage.Records;
+             if (_visualCaptureRun)
+             {
++                _diagnosticRunSeedOverride = FixtureRunSeed;
+                 StartRunInternal(false);
+                 for (var stack = 0; stack < _visualCaptureOverclockStreak; stack++)
+                     _overclock.ApplyPickup();
+                 if (_visualCaptureOverclockStreak > 0)
+@@ -1164,8 +1167,10 @@ namespace VoidFall.Runtime
+                 }
+                 if (_visualCaptureHydraBoss) BeginHydraBossEncounterForCapture();
+                 if (_visualCaptureCourtBoss) BeginMonochromeBossEncounterForCapture();
+                 BeginNullCityCapture();
++                BeginEonSeaCapture();
++                BeginCrascendoCapture();
+             }
+             _startupMenuReadyRealtime = Time.realtimeSinceStartupAsDouble;
+             _startupMenuSkipNextFrame = true;
+             Debug.Log(
+@@ -1212,8 +1217,10 @@ namespace VoidFall.Runtime
+         }
+ 
+         private void OnDestroy()
+         {
++            DestroyMonochromePresentation();
++            DestroyNebulaArt();
+             // A duplicate runtime is destroyed by Awake before it owns any
+             // shared/static resources. Only the singleton owner may perform
+             // cleanup that also belongs to the surviving runtime.
+             if (!_ownsGlobalResources || _instance != this) return;
+@@ -1705,14 +1712,39 @@ namespace VoidFall.Runtime
+                 ? _saveData.highScores[0].score
+                 : 0;
+         }
+ 
++        private bool _visualCaptureLegacyNebula;
++
++        private static string VisualCaptureProfilePath()
++        {
++            // Resolve diagnostics before the first load so captures cannot migrate or save the player's profile.
++            var args = Environment.GetCommandLineArgs();
++            for (var i = 0; i < args.Length; i++)
++            {
++                string path = null;
++                if (args[i].StartsWith("-vfcapture=", StringComparison.OrdinalIgnoreCase))
++                {
++                    path = args[i].Substring("-vfcapture=".Length).Trim('"');
++                    if (string.IsNullOrWhiteSpace(path) && i + 1 < args.Length)
++                        path = args[++i].Trim('"');
++                }
++                else if (string.Equals(args[i], "-vfcapture", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
++                    path = args[i + 1].Trim('"');
++                if (!string.IsNullOrWhiteSpace(path))
++                    return System.IO.Path.GetFullPath(path) + ".profile.json";
++            }
++            return null;
++        }
++
+         private void ConfigureVisualCapture()
+         {
+             var args = Environment.GetCommandLineArgs();
+             for (var index = 0; index < args.Length; index++)
+             {
+                 var argument = args[index];
++                if (string.Equals(argument, "-vfnebula-legacy", StringComparison.OrdinalIgnoreCase))
++                    _visualCaptureLegacyNebula = true;
+                 if (argument.StartsWith("-vfcapture=", StringComparison.OrdinalIgnoreCase))
+                 {
+                     var inlinePath = argument.Substring("-vfcapture=".Length).Trim('"');
+                     if (string.IsNullOrWhiteSpace(inlinePath) && index + 1 < args.Length)
+@@ -1729,8 +1761,19 @@ namespace VoidFall.Runtime
+                 else if (string.Equals(argument, "-vfcapture-run", StringComparison.OrdinalIgnoreCase))
+                 {
+                     _visualCaptureRun = true;
+                 }
++                else if (argument.StartsWith("-vfcrascendo=", StringComparison.OrdinalIgnoreCase))
++                {
++                    _visualCaptureCrascendo = argument.Substring("-vfcrascendo=".Length).ToLowerInvariant();
++                    _visualCaptureRun = true; _visualCaptureArena = "crascendo";
++                }
++                else if (argument.StartsWith("-vfeonsea=", StringComparison.OrdinalIgnoreCase))
++                {
++                    _visualCaptureEonSea = argument.Substring("-vfeonsea=".Length).ToLowerInvariant();
++                    _visualCaptureRun = true;
++                    _visualCaptureArena = "eon-sea";
++                }
+                 else if (argument.StartsWith("-vfnullcity=", StringComparison.OrdinalIgnoreCase))
+                 {
+                     _visualCaptureNullCity = argument.Substring("-vfnullcity=".Length).ToLowerInvariant();
+                     _visualCaptureRun = true;
+@@ -1862,8 +1905,9 @@ namespace VoidFall.Runtime
+             _stressScenario = null;
+             _stressTopUpTimer = 0;
+             _runSeed = SelectRunSeed();
+             _gameSim.Rng = new Rng(_runSeed);
++            _gameSim.ResetMeteorIdentityForRun();
+             _fxSim.FxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
+             ResetRouletteLuck();
+             _spatialZoomScale = 1f;
+             HideRouletteChest();
+@@ -2409,8 +2453,10 @@ namespace VoidFall.Runtime
+                     _gameSim.Player.MaxHealth,
+                     _gameSim.Player.Health + 0.6f * SupportRank("regenerator") * dt);
+             }
+             RebuildEnemyGrid();
++            StepEonSea(dt);
++            StepCrascendo(dt);
+             MovePlayer(dt);
+             ApplyHydraRibCageCollision();
+             // The browser applies current-step movement/iframes/boost effects
+             // first, then expires their timers before the remaining systems run.
+@@ -5839,4 +5885,5 @@ namespace VoidFall.Runtime
+             public LifetimeStats GetLifetimeStats() => _rt._saveData?.stats;
+         }
+     }
+ }
++

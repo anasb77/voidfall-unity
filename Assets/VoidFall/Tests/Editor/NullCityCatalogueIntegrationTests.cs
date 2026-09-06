@@ -45,11 +45,13 @@ namespace VoidFall.Tests.Editor
                 ArenaId.Hydra,
                 ArenaId.MonochromeCourt,
                 ArenaId.NullCity,
+                ArenaId.EonSea,
+                ArenaId.Crascendo,
             }));
         }
 
         [Test]
-        public void Menu_residency_keeps_one_package_for_all_six_prepared_arenas()
+        public void Menu_residency_keeps_one_package_for_all_eight_prepared_arenas()
         {
             var packages = ContentOrder.PreparedArenas
                 .Select(arena => new ArenaPackageKey(ArenaCatalogRules.StableId(arena), 0))
@@ -57,7 +59,7 @@ namespace VoidFall.Tests.Editor
 
             var resident = ArenaResidencyPlanner.MenuCatalogue(packages);
 
-            Assert.That(resident.Count, Is.EqualTo(6));
+            Assert.That(resident.Count, Is.EqualTo(8));
             Assert.That(resident.Items.Select(item => item.StableArenaId), Is.EqualTo(new[]
             {
                 "abyss",
@@ -66,6 +68,8 @@ namespace VoidFall.Tests.Editor
                 "hydra",
                 "monochrome-court",
                 "null-city",
+                "eon-sea",
+                "crascendo",
             }));
         }
 

@@ -100,6 +100,16 @@ namespace VoidFall.Core
                     hint = "CHESS ARMIES / BURNING TILES";
                     encounter = "defeat the Twin Grandmasters";
                     break;
+                case "crascendo":
+                    arena = CrascendoContent.Arena;
+                    hint = "ENEMIES GROW WHEN HIT";
+                    encounter = "clear a random boss encounter";
+                    break;
+                case "eon-sea":
+                    arena = EonSeaContent.Arena;
+                    hint = "MELTING GLACIERS / SLIPPERY ICE";
+                    encounter = "clear a random boss encounter";
+                    break;
                 case "null-city":
                     arena = NullCityContent.Arena;
                     hint = "PURGE LANES / LAW ENFORCEMENT";

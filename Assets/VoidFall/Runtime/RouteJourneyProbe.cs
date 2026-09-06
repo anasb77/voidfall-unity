@@ -33,6 +33,7 @@ namespace VoidFall.Runtime
         {
             var mode = Argument("-vfjourney");
             if (string.IsNullOrEmpty(mode)) return;
+            Application.runInBackground = true;
             var root = new GameObject("VoidFall Journey Check");
             DontDestroyOnLoad(root);
             var probe = root.AddComponent<RouteJourneyProbe>();
@@ -45,6 +46,16 @@ namespace VoidFall.Runtime
             var routine = Run();
             while (true)
             {
+                // An automated player must keep progressing when the desktop focuses
+                // another app. Normal gameplay retains its focus-loss pause behavior.
+                if (_runtime != null && (bool)Get("_applicationInactive"))
+                {
+                    Call("SetApplicationActive", true);
+                    if (!(bool)Get("_gameOver") && !(bool)Get("_rouletteActive") &&
+                        !(bool)Get("_prizeRevealActive") && !(bool)Get("_levelUpActive") &&
+                        !(bool)Get("_revivePending") && !(bool)Get("_routeMapOpen"))
+                        Set("_paused", false);
+                }
                 var more = false;
                 object current = null;
                 try
@@ -78,6 +89,18 @@ namespace VoidFall.Runtime
             Set("_diagnosticRunSeedOverride", 2848592627u);
             Call("SetApplicationActive", true);
             Call("StartRun");
+
+            if (_mode == "collection" || _mode == "countdown")
+            {
+                // Exercise a real far-from-origin drop, not just the initial camera bounds.
+                var simulation = Get("_gameSim");
+                var playerField = simulation.GetType().GetField("Player", Flags);
+                var player = playerField.GetValue(simulation);
+                var position = new Vector2(2200f, 1000f);
+                player.GetType().GetField("Position", Flags).SetValue(player, position);
+                playerField.SetValue(simulation, player);
+                Set("_cameraFollowPosition", position);
+            }
 
             if (_mode == "roulette")
             {
@@ -150,10 +173,28 @@ namespace VoidFall.Runtime
                     if ((bool)boss.GetType().GetField("Active", Flags).GetValue(boss)) Call("KillBoss", index);
                 }
                 Call("StepObjectiveTracker", 0d);
-                var deadline = Time.realtimeSinceStartup + 25f;
+                if (_mode == "collection")
+                {
+                    yield return new WaitForSecondsRealtime(2f);
+                    if (_runtime.JourneyStatus != "Rewards" || _runtime.ActivePickupsCount == 0)
+                        throw new InvalidOperationException("Collection window did not preserve the cleared arena's loot.");
+                    yield return new WaitForEndOfFrame();
+                    ScreenCapture.CaptureScreenshot(_output);
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    Debug.Log("VOIDJOURNEY COLLECTION CAPTURE " + _output);
+                    Application.Quit(0);
+                    yield break;
+                }
+                var deadline = Time.realtimeSinceStartup + 75f;
+                var nextHeartbeat = 0f;
                 while (Time.realtimeSinceStartup < deadline)
                 {
-                    if ((bool)Get("_rouletteChestActive"))
+                    if (Time.realtimeSinceStartup >= nextHeartbeat)
+                    {
+                        nextHeartbeat = Time.realtimeSinceStartup + 5f;
+                        Debug.Log($"VOIDJOURNEY state={_runtime.JourneyStatus} remaining={Get("_voidCompletionDelayRemaining")} paused={Get("_paused")} relic={Get("_rouletteChestActive")} wheel={Get("_rouletteActive")} prize={Get("_prizeRevealActive")} level={Get("_levelUpActive")}");
+                    }
+                    if ((bool)Get("_rouletteChestActive") && _mode != "countdown")
                     {
                         Set("_rouletteChestPulse", 2f);
                         Call("CollectRouletteChest");
@@ -164,11 +205,27 @@ namespace VoidFall.Runtime
                         RouletteRules.Spin(session, (Rng)Get("_rouletteRng"));
                         Call("OnRouletteComplete", session);
                     }
-                    if ((bool)Get("_prizeRevealActive")) Call("ClosePrizeReveal");
+                    if ((bool)Get("_prizeRevealActive"))
+                    {
+                        Call("ClosePrizeReveal");
+                    }
                     if ((bool)Get("_levelUpActive"))
                     {
                         Set("_levelUpPromptOpenedAt", -100f);
                         Call("SelectLevelOption", 0);
+                    }
+                    if (_mode == "countdown" && _runtime.JourneyStatus == "Rewards" &&
+                        !(bool)Get("_paused") && (float)Get("_voidCompletionDelayRemaining") <= 10f &&
+                        (float)Get("_voidCompletionDelayRemaining") > 0f)
+                    {
+                        yield return null;
+                        yield return null;
+                        yield return new WaitForEndOfFrame();
+                        ScreenCapture.CaptureScreenshot(_output);
+                        yield return new WaitForSecondsRealtime(0.5f);
+                        Debug.Log("VOIDJOURNEY COUNTDOWN CAPTURE " + _output);
+                        Application.Quit(0);
+                        yield break;
                     }
                     if ((bool)Get("_mainMenuBrowsing"))
                     {

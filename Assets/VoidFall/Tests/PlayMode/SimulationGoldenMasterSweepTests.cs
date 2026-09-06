@@ -35,6 +35,8 @@ namespace VoidFall.Tests.PlayMode
             yield return null;
             yield return null;
 
+            using var profile = new SimulationProfileScope(runtime);
+
             SimulationGoldenMasterTests.PinHermeticPresentationState(runtime);
 
             var apply = typeof(VoidFallGameRuntime).GetMethod(

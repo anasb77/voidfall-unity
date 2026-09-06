@@ -200,6 +200,7 @@ namespace VoidFall.Core
 
         private static string WeaponUpgradeDescription(WeaponDefinition weapon, int nextRank)
         {
+            if (ArsenalContent.IsArsenalWeapon(weapon.Id)) return ArsenalContent.RankDescription(weapon, nextRank);
             if (nextRank <= 1) return WeaponAcquisitionDescription(weapon);
 
             var current = weapon.Ranks[nextRank - 1].Stats;
@@ -410,7 +411,7 @@ namespace VoidFall.Core
                 var supportIndex = SupportIndex(evolution.SupportId);
                 if (!IsEvolutionReady(progress, rankIndex, supportIndex)) continue;
                 var weapon = ContentCatalog.Weapons[weaponIndex];
-                var support = ContentCatalog.Supports[supportIndex];
+                var support = ExtendedCatalog.AllSupports()[supportIndex];
                 ready.Add(new UpgradeOptionDefinition
                 {
                     Id = "evolution:" + evolution.WeaponId,

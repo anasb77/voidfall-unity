@@ -39,6 +39,12 @@ MonoBehaviour:
     m_SerializedLabels:
     - vf-arena-null-city
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4860b11411a67574ea3772d379120345
+    m_Address: VoidFall/Arenas/eon-sea/recipe-3
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-eon-sea
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 4c77e88bfe51497498c72adea04e4f5a
     m_Address: VoidFall/Arenas/monochrome-court/recipe-1
     m_ReadOnly: 0
@@ -75,6 +81,18 @@ MonoBehaviour:
     m_SerializedLabels:
     - vf-arena-red-nebula
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 83f87711e3fbf6b40a0b540f2b342a29
+    m_Address: VoidFall/Arenas/eon-sea/recipe-2
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-eon-sea
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8d015b50c63ed914d8c7f57fc8c3d8b3
+    m_Address: VoidFall/Arenas/crascendo/recipe-2
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-crascendo
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 8f3ec5f105ebda84fbdfc1d3bcfe33fa
     m_Address: VoidFall/Arenas/white-sakura/recipe-3
     m_ReadOnly: 0
@@ -92,6 +110,12 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels:
     - vf-arena-white-sakura
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9936f0c485963264ba2641022c7f4bec
+    m_Address: VoidFall/Arenas/crascendo/recipe-1
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-crascendo
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: a22ada07c4e497745901b47e0e796593
     m_Address: VoidFall/Arenas/abyss/recipe-2
@@ -111,6 +135,12 @@ MonoBehaviour:
     m_SerializedLabels:
     - vf-arena-null-city
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b57b9e18dec833a46abc9c826c8ca6b3
+    m_Address: VoidFall/Arenas/eon-sea/recipe-1
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-eon-sea
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: c4660644e75c4f04da40e7a7af46b069
     m_Address: VoidFall/Arenas/abyss/recipe-3
     m_ReadOnly: 0
@@ -122,6 +152,12 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels:
     - vf-arena-monochrome-court
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d4ad52f4a531a134eb25427ea9f1125a
+    m_Address: VoidFall/Arenas/crascendo/recipe-3
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - vf-arena-crascendo
     FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: c0d6df4ff4e485d40ab0d40784fe82f8, type: 2}

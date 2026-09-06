@@ -31,19 +31,19 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
-        public void Current_catalogue_gives_one_branch_and_five_arenas_per_path()
+        public void Current_catalogue_gives_two_branches_and_six_arenas_per_path()
         {
             var run = PlayableVoidRoutes.Create(42u);
-            var widths = new int[5];
+            var widths = new int[6];
             Assert.That(run.StartId, Is.EqualTo("abyss"));
             Assert.That(run.CurrentVoidId, Is.EqualTo("abyss"));
-            Assert.That(run.Nodes.Count, Is.EqualTo(6));
+            Assert.That(run.Nodes.Count, Is.EqualTo(8));
             foreach (var node in run.Nodes)
             {
-                Assert.That(node.Depth, Is.InRange(0, 4));
+                Assert.That(node.Depth, Is.InRange(0, 5));
                 widths[node.Depth]++;
             }
-            Assert.That(widths, Is.EqualTo(new[] { 1, 2, 1, 1, 1 }));
+            Assert.That(widths, Is.EqualTo(new[] { 1, 2, 2, 1, 1, 1 }));
         }
 
         [Test]
@@ -81,7 +81,7 @@ namespace VoidFall.Tests.Editor
                 foreach (var path in paths)
                 {
                     var journey = PlayableVoidRoutes.Create(seed);
-                    Assert.That(path.Count, Is.EqualTo(5));
+                    Assert.That(path.Count, Is.EqualTo(6));
                     Assert.That(new HashSet<string>(path).Count, Is.EqualTo(path.Count));
                     for (var index = 0; index < path.Count; index++)
                     {
@@ -142,7 +142,7 @@ namespace VoidFall.Tests.Editor
             }
             Assert.That(run.Node("hydra").ObjectiveSummary, Does.Contain("Hydra Prime"));
             Assert.That(run.Node("monochrome-court").ObjectiveSummary, Does.Contain("Grandmasters"));
-            foreach (var id in new[] { "abyss", "red-nebula", "white-sakura" })
+            foreach (var id in new[] { "abyss", "red-nebula", "white-sakura", "eon-sea" })
                 Assert.That(run.Node(id).ObjectiveSummary, Does.Contain("random").And.Contain("boss"));
         }
 
@@ -194,6 +194,8 @@ namespace VoidFall.Tests.Editor
             if (id == "hydra") return HydraContent.Arena;
             if (id == "monochrome-court") return MonochromeContent.Arena;
             if (id == "null-city") return NullCityContent.Arena;
+            if (id == "crascendo") return CrascendoContent.Arena;
+            if (id == "eon-sea") return EonSeaContent.Arena;
             var catalogueId = id == "abyss" ? "void" : id == "red-nebula" ? "redNebula" : "whiteSakura";
             foreach (var arena in ContentCatalog.Arenas)
                 if (arena.Id == catalogueId) return arena;

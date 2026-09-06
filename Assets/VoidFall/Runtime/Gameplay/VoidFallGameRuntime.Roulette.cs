@@ -135,7 +135,7 @@ namespace VoidFall.Runtime
             {
                 _openRouteAfterRoulette = false;
                 _voidCompletionPending = true;
-                _voidCompletionDelayRemaining = 0f;
+                // A manually collected reward must not skip the grace period/countdown.
                 StepVoidCompletionDelay(0f);
                 return;
             }
@@ -286,9 +286,12 @@ namespace VoidFall.Runtime
         {
             var weaponCandidates = new List<int>();
             var supportCandidates = new List<int>();
+            var ownedWeapons = 0;
+            foreach (var rank in _upgradeProgress.WeaponRanks) if (rank > 0) ownedWeapons++;
+            var hasWeaponSlot = ownedWeapons < UpgradeRules.WeaponSlotLimit(_upgradeProgress);
             for (var index = 0; index < _upgradeProgress.WeaponRanks.Length; index++)
             {
-                if (_upgradeProgress.WeaponRanks[index] <= 0) weaponCandidates.Add(index);
+                if (hasWeaponSlot && _upgradeProgress.WeaponRanks[index] <= 0) weaponCandidates.Add(index);
             }
             for (var index = 0; index < _upgradeProgress.SupportRanks.Length; index++)
             {

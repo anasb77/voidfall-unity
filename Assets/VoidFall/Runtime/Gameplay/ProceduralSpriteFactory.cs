@@ -6,8 +6,9 @@ using VoidFall.Runtime.Rendering;
 
 namespace VoidFall.Runtime
 {
-    internal static class ProceduralSpriteFactory
+    internal static partial class ProceduralSpriteFactory
     {
+        private static bool _retainBakePixels;
         public static bool InstallBakedCatalog(ProceduralSpriteCatalog catalog)
         {
             if (catalog == null || !catalog.IsUsable()) return false;
@@ -209,8 +210,9 @@ namespace VoidFall.Runtime
         {
             ClearSpriteCachesForCatalogInstall();
             SpriteAtlasPacker.ResetForBake();
-            WarmCatalogSprites();
-            FlushAtlas();
+            _retainBakePixels = true;
+            try { WarmCatalogSprites(); FlushAtlas(); }
+            finally { _retainBakePixels = false; }
 
             var entries = new List<ProceduralSpriteCatalogEntry>();
             AddFixedCatalogEntries(entries);
@@ -1513,7 +1515,7 @@ namespace VoidFall.Runtime
                 wrapMode = TextureWrapMode.Clamp,
             };
             texture.SetPixels32(pixels);
-            texture.Apply(false, true);
+            texture.Apply(false, !_retainBakePixels);
             _workshopPreviewWideBackdrop = Sprite.Create(
                 texture,
                 new Rect(0, 0, width, height),
@@ -1566,7 +1568,7 @@ namespace VoidFall.Runtime
                 wrapMode = TextureWrapMode.Clamp,
             };
             texture.SetPixels32(pixels);
-            texture.Apply(false, true);
+            texture.Apply(false, !_retainBakePixels);
             _workshopPreviewMobilityTrail = Sprite.Create(
                 texture,
                 new Rect(0, 0, width, height),
@@ -3803,7 +3805,7 @@ namespace VoidFall.Runtime
                 }
             }
             texture.SetPixels32(pixels);
-            texture.Apply(false, true);
+            texture.Apply(false, !_retainBakePixels);
             return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
         }
 
@@ -4741,7 +4743,7 @@ namespace VoidFall.Runtime
                     wrapMode = TextureWrapMode.Clamp,
                 };
                 texture.SetPixels32(_pixels);
-                texture.Apply(false, !keepReadable);
+                texture.Apply(false, !keepReadable && !_retainBakePixels);
                 return Sprite.Create(texture, new Rect(0, 0, _size, _size), new Vector2(0.5f, 0.5f), _size);
             }
 
@@ -4764,7 +4766,7 @@ namespace VoidFall.Runtime
                     wrapMode = TextureWrapMode.Clamp,
                 };
                 texture.SetPixels32(pixels);
-                texture.Apply(false, !keepReadable);
+                texture.Apply(false, !keepReadable && !_retainBakePixels);
                 return Sprite.Create(
                     texture,
                     new Rect(0, 0, _size, cropHeight),

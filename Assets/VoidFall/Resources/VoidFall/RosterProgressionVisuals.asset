@@ -1,0 +1,287 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76c7cc5a1443a1a44997dea0f353e728, type: 3}
+  m_Name: RosterProgressionVisuals
+  m_EditorClassIdentifier: VoidFall.Runtime::VoidFall.Runtime.RosterProgressionVisualAsset
+  _entries:
+  - Id: chaser
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 8cfe3413079454c429e473217a66da4f, type: 3}
+  - Id: chaser
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: d61727105c227b94a9691f5a27cc6dd9, type: 3}
+  - Id: chaser
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 733a1ab36c6f8e64ebe79a6e4579f671, type: 3}
+  - Id: chaser
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: a70188a333ad7024d94d694ab1f35274, type: 3}
+  - Id: runner
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 2091d9dc47aec024f8284029be736458, type: 3}
+  - Id: runner
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 98d3013552498624d86bcb024320fc8f, type: 3}
+  - Id: runner
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 6dba9f7060899474c81cb926c05d8f7f, type: 3}
+  - Id: runner
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 8735ac5467e307a409487ad7c9f616fc, type: 3}
+  - Id: gunner
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: d06288e83843b364db77a166319f36a1, type: 3}
+  - Id: gunner
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: cb37f59f128be1145866677d1e0e22a3, type: 3}
+  - Id: gunner
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: f3e53fe87660462478eca32b509329ae, type: 3}
+  - Id: gunner
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 4ea5e7c3cc563e7458e55f417bf727cc, type: 3}
+  - Id: twinGunner
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: bbbf3c285d8103349a0b784cc9f56144, type: 3}
+  - Id: twinGunner
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 23a7697db76a891439b79dc533edbaa5, type: 3}
+  - Id: twinGunner
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 0ba4cb02a2089dd48b70c3c7f1359806, type: 3}
+  - Id: twinGunner
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: da85d9837d3f722489f70fcc2966c494, type: 3}
+  - Id: dasher
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 349dd348e8d7fa4459804166ad1485b5, type: 3}
+  - Id: dasher
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: f59f3069dbcaa28459d7820d1c353d10, type: 3}
+  - Id: dasher
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: bdf9ac8f31c542444a61a38dc93254f5, type: 3}
+  - Id: dasher
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 15d60e060696eb84789b419741bc8a45, type: 3}
+  - Id: brute
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 9472adae2d70d9045a784fbd7f46325c, type: 3}
+  - Id: brute
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 461f7583fb484004a9661a2d32970886, type: 3}
+  - Id: brute
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 76336bd8eaae62c46ab6f574c06f3ae2, type: 3}
+  - Id: brute
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 874722a4c6df80c499b254ecfe087865, type: 3}
+  - Id: exploder
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 2cf563e18fe40d94b9f20221c49a0ffc, type: 3}
+  - Id: exploder
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 71f49fa6036afac4ba028c3c07623047, type: 3}
+  - Id: exploder
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 5b8af3584b71c7b47839b26cb2a4bd7c, type: 3}
+  - Id: exploder
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 89b267d276633224ead1aa088e42b5e4, type: 3}
+  - Id: guard
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 48000bea8b2e9aa4fa0725f2e47f35b9, type: 3}
+  - Id: guard
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 9a62067eb38a4d042810be6fceae8535, type: 3}
+  - Id: guard
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 53c7df96fe3ca184c823b3f7e67153fb, type: 3}
+  - Id: guard
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: d61138e6b409376449111577da9e4b7c, type: 3}
+  - Id: technician
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: f5ad6588256d28f48901ba5da9364c49, type: 3}
+  - Id: technician
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 11c29b94bc9174c4d98bde692a5278ed, type: 3}
+  - Id: technician
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 3612c9850049d4f4f9b9ba02bb0d6b52, type: 3}
+  - Id: technician
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: f515584cb8f99d3499bbb9955f303f3e, type: 3}
+  - Id: mortar
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: dc1d3ea0fbd68b144b13acbde3a5522b, type: 3}
+  - Id: mortar
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 4c48fc34a477e864baaec343a98671ab, type: 3}
+  - Id: mortar
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: b74e4c4afd429754894962792a8158df, type: 3}
+  - Id: mortar
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 8ae078a842cf01e429eb3c07c0256012, type: 3}
+  - Id: splitter
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: edcc9a299dad69747991dad5275fb955, type: 3}
+  - Id: splitter
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 31d3e88d48e1fc64d9c7c65481730126, type: 3}
+  - Id: splitter
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: de8fdfce38061344083b2d935d823a67, type: 3}
+  - Id: splitter
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: bd5b39abf2ae31a44a634d7ee7dd189f, type: 3}
+  - Id: bulwark
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: bf4061eb51e60914fb0f9fe4d1fbd4f4, type: 3}
+  - Id: bulwark
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: bc28fad655a8f164b8d4c16d9b581ca2, type: 3}
+  - Id: bulwark
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: d874a488af35bd449bc28db283904549, type: 3}
+  - Id: bulwark
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: bf9c8c6f016e22c448652466d838e976, type: 3}
+  - Id: harvester
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 1838109270f1529439ed25ba0e19dc4c, type: 3}
+  - Id: harvester
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 4c6a6dc32a3f4134bbd235a685b72fba, type: 3}
+  - Id: harvester
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 9bd8245cf13c116419dde4ece09cd2fa, type: 3}
+  - Id: harvester
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: bd27f216d473bed468c19104329b7fdb, type: 3}
+  - Id: carrier
+    Tier: 1
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 28f321ddbe383174cbec01f5ddc029c0, type: 3}
+  - Id: carrier
+    Tier: 2
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 9ea396977b12eac44bb9ab138265c086, type: 3}
+  - Id: carrier
+    Tier: 3
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 3609ac10a5d589f4895e74a354e7d172, type: 3}
+  - Id: carrier
+    Tier: 4
+    Elite: 0
+    Sprite: {fileID: 21300000, guid: 4f84cf0d6669c0b449fdb07870e92d2f, type: 3}
+  - Id: exploder
+    Tier: 1
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: cdc7df449ef6ff64085868ce74fe6113, type: 3}
+  - Id: exploder
+    Tier: 2
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: 655c5522b06207249bec07a2ca1d49fa, type: 3}
+  - Id: exploder
+    Tier: 3
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: 9ec1c7fed777ccf499dd15515f13b3dd, type: 3}
+  - Id: exploder
+    Tier: 4
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: 617df6445192e964eb566a04d9dd8530, type: 3}
+  - Id: mortar
+    Tier: 1
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: 2b752b01e2e9aaf4d83685e0355ea0eb, type: 3}
+  - Id: mortar
+    Tier: 2
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: 13e67120c79345048a759d2a8f3055df, type: 3}
+  - Id: mortar
+    Tier: 3
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: 56a55cdf11ac77e4397651de98ea859e, type: 3}
+  - Id: mortar
+    Tier: 4
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: c4b54f7e21905984593c6d907072f52c, type: 3}
+  - Id: gunner
+    Tier: 1
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: e59aa16dce620754a982ab62edc04db2, type: 3}
+  - Id: gunner
+    Tier: 2
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: 357f622b7fb809343b2ec42e3347c893, type: 3}
+  - Id: gunner
+    Tier: 3
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: 71c7898d62f62d44797982d7d535184c, type: 3}
+  - Id: gunner
+    Tier: 4
+    Elite: 1
+    Sprite: {fileID: 21300000, guid: 77212aeaec7f5d646b05d6bf1427dd10, type: 3}

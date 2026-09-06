@@ -38,7 +38,9 @@ namespace VoidFall.Runtime
             float stereoWidth,
             float criticalWarp,
             float submersion,
-            float visualDamping)
+            float visualDamping,
+            float bassBoost = 0f,
+            float gain = 1f)
         {
             PlaybackRate = playbackRate;
             LowPassHz = lowPassHz;
@@ -47,6 +49,8 @@ namespace VoidFall.Runtime
             CriticalWarp = criticalWarp;
             Submersion = submersion;
             VisualDamping = visualDamping;
+            BassBoost = bassBoost;
+            Gain = gain;
         }
 
         public float PlaybackRate { get; }
@@ -56,6 +60,8 @@ namespace VoidFall.Runtime
         public float CriticalWarp { get; }
         public float Submersion { get; }
         public float VisualDamping { get; }
+        public float BassBoost { get; }
+        public float Gain { get; }
     }
 
     public static class MusicStateComposer
@@ -63,7 +69,8 @@ namespace VoidFall.Runtime
         public const float OpenFilterHz = 22000f;
         public const float SubmergedFilterHz = 390f;
 
-        public static MusicMixTargets Compose(in MusicReactiveState state, float criticalPulse)
+        public static MusicMixTargets Compose(in MusicReactiveState state, float criticalPulse,
+            float magnetRelease = 0f, float recovery = 0f, float stackAccent = 0f, float recoveryWave = 0f)
         {
             if (!state.GameplayActive)
                 return new MusicMixTargets(1f, OpenFilterHz, 1f, 1f, 0f, 0f, 1f);
@@ -72,23 +79,26 @@ namespace VoidFall.Runtime
             var critical = state.CriticalHealth ? Math.Max(0f, Math.Min(1f, criticalPulse)) : 0f;
             var submerged = state.LevelUpOpen ? 1f : 0f;
 
-            // Critical health does not cancel the fast tape rate. It drives a
-            // separate warp envelope and darkens the track, preserving a clear
-            // FAST + DRAGGED combination without pretending this is true
-            // pitch-independent time stretching.
-            var rate = tierRate;
-            if (state.CriticalHealth && state.OverclockTier <= 0)
-            {
-                rate = 0.50f + critical * 0.14f;
-            }
+            // Each mechanic modifies the current song. Low health slows even
+            // the overclocked tape; darkness remains audible when rates cancel.
+            recovery = state.CriticalHealth ? 0f : Clamp01(recovery);
+            stackAccent = Clamp01(stackAccent);
+            var rate = tierRate * (state.CriticalHealth ? .50f + critical * .14f : 1f);
+            rate *= 1f + recovery * Math.Max(-1f, Math.Min(1f, recoveryWave)) * .012f;
             if (state.LevelUpOpen) rate = 1f;
             var criticalDarkening = state.CriticalHealth ? 0.48f + critical * 0.22f : 0f;
-            var lowPass = LogLerp(OpenFilterHz, SubmergedFilterHz, Math.Max(submerged, criticalDarkening));
+            var darkness = 1f - (1f - criticalDarkening) * (1f - state.MagnetIntensity * .28f);
+            darkness *= 1f - stackAccent * .28f - recovery * .20f;
+            var lowPass = LogLerp(OpenFilterHz, SubmergedFilterHz, Math.Max(submerged, darkness));
             var resonance = 1f + submerged + critical * 0.7f;
-            var width = Math.Max(0.24f, 1f - state.MagnetIntensity * 0.62f - critical * 0.14f);
+            var width = Math.Max(.24f, Math.Min(1.2f, 1f - state.MagnetIntensity * .62f - critical * .14f
+                + Clamp01(magnetRelease) * .65f + recovery * .25f + stackAccent * .14f));
             var visualDamping = state.LevelUpOpen ? 0.28f : state.CriticalHealth ? 0.82f : 1f;
-            return new MusicMixTargets(rate, lowPass, resonance, width, critical, submerged, visualDamping);
+            return new MusicMixTargets(rate, lowPass, resonance, width, critical, submerged, visualDamping,
+                state.MagnetIntensity, 1f - state.MagnetIntensity * .05f + (state.LevelUpOpen ? 0f : stackAccent * .06f));
         }
+
+        private static float Clamp01(float value) => Math.Max(0f, Math.Min(1f, value));
 
         private static float LogLerp(float from, float to, float amount)
         {

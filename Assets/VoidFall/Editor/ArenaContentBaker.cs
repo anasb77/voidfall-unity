@@ -32,6 +32,8 @@ namespace VoidFall.Editor
             ArenaId.Hydra,
             ArenaId.MonochromeCourt,
             ArenaId.NullCity,
+            ArenaId.EonSea,
+        ArenaId.Crascendo,
         };
 
         [MenuItem("Tools/VoidFall/Bake Prepared Arena Content")]
@@ -109,12 +111,21 @@ namespace VoidFall.Editor
                 ValidateTexture(asset.BaseSprite, arena + " base", errors);
                 ValidateTexture(asset.DetailSprite, arena + " details", errors);
                 if (arena == ArenaId.NullCity) NullCityContentBaker.Validate(asset, errors);
+                if (arena == ArenaId.Crascendo && (asset.CrascendoVisuals == null || !asset.CrascendoVisuals.IsValid)) errors.Add("Crascendo material package is incomplete.");
+                if (arena == ArenaId.EonSea && (asset.EonSeaVisuals == null || !asset.EonSeaVisuals.IsValid))
+                    errors.Add("Eon Sea visual package is missing or invalid.");
             }
             return errors;
         }
 
         private static void BakeArena(ArenaId arena)
         {
+            if (arena == ArenaId.Crascendo) { CrascendoContentBaker.Bake(); return; }
+            if (arena == ArenaId.EonSea)
+            {
+                EonSeaContentBaker.Bake();
+                return;
+            }
             if (arena == ArenaId.NullCity)
             {
                 NullCityContentBaker.Bake();

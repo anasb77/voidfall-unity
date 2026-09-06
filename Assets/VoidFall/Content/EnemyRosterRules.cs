@@ -6,6 +6,8 @@ namespace VoidFall.Core
     {
         One = 1,
         Two = 2,
+        Three = 3,
+        Four = 4,
     }
 
     public static class EnemyRosterRules
@@ -27,7 +29,8 @@ namespace VoidFall.Core
             "chaser",
             "gunner",
             "exploder",
-            "guard",
+            "guard", "runner", "twinGunner", "dasher", "brute", "technician",
+            "mortar", "splitter", "bulwark", "harvester", "carrier",
         };
 
         public static double RosterSpawnRoll(uint seed, int spawnId)
@@ -69,8 +72,7 @@ namespace VoidFall.Core
         public static EnemyRoster EnemyRosterForSpawn(string type, double elapsedSeconds, double roll)
         {
             if (!RosterTwoEligible(type)) return EnemyRoster.One;
-            var safeRoll = IsFinite(roll) ? Math.Min(1, Math.Max(0, roll)) : 1;
-            return safeRoll < RosterTwoShare(elapsedSeconds) ? EnemyRoster.Two : EnemyRoster.One;
+            return TierAt(elapsedSeconds, roll);
         }
 
         public static EnemyRoster EnemyRosterForSpawn(EnemyId type, double elapsedSeconds, double roll)
@@ -80,8 +82,28 @@ namespace VoidFall.Core
 
         public static double RosterCooldownSeconds(double seconds, EnemyRoster roster)
         {
-            return Math.Max(0, seconds * (roster == EnemyRoster.Two ? RosterTwoCooldownMultiplier : 1));
+            return Math.Max(0, seconds * CooldownMultiplier(roster));
         }
+
+        public static EnemyRoster TierAt(double seconds, double roll)
+        {
+            if (!IsFinite(seconds)) seconds = 0;
+            roll = IsFinite(roll) ? Math.Min(1, Math.Max(0, roll)) : 1;
+            if (seconds >= 2400) return EnemyRoster.Four;
+            if (seconds > 2040) return roll < (seconds - 2040) / 360 ? EnemyRoster.Four : EnemyRoster.Three;
+            if (seconds >= 1800) return EnemyRoster.Three;
+            if (seconds > 1440) return roll < (seconds - 1440) / 360 ? EnemyRoster.Three : EnemyRoster.Two;
+            if (seconds >= 900) return EnemyRoster.Two;
+            if (seconds > 540) return roll < (seconds - 540) / 360 ? EnemyRoster.Two : EnemyRoster.One;
+            return EnemyRoster.One;
+        }
+        public static double HealthMultiplier(EnemyRoster tier) => tier == EnemyRoster.Four ? 4.2 : tier == EnemyRoster.Three ? 2.6 : tier == EnemyRoster.Two ? 1.3 : 1;
+        public static double SpeedMultiplier(EnemyRoster tier) => tier == EnemyRoster.Four ? 1.16 : tier == EnemyRoster.Three ? 1.12 : tier == EnemyRoster.Two ? 1.06 : 1;
+        public static double RadiusMultiplier(EnemyRoster tier) => tier == EnemyRoster.Four ? 1.23 : tier == EnemyRoster.Three ? 1.16 : tier == EnemyRoster.Two ? 1.08 : 1;
+        public static double DamageMultiplier(EnemyRoster tier) => tier == EnemyRoster.Four ? 1.9 : tier == EnemyRoster.Three ? 1.5 : tier == EnemyRoster.Two ? 1.12 : 1;
+        public static double CooldownMultiplier(EnemyRoster tier) => tier == EnemyRoster.Four ? .58 : tier == EnemyRoster.Three ? .65 : tier == EnemyRoster.Two ? .82 : 1;
+        public static double ProjectileMultiplier(EnemyRoster tier) => tier == EnemyRoster.Four ? 1.18 : tier == EnemyRoster.Three ? 1.15 : tier == EnemyRoster.Two ? 1.06 : 1;
+        public static double ThreatMultiplier(EnemyRoster tier) => tier > EnemyRoster.One ? RosterTwoThreatMultiplier : 1;
 
         private static uint Mix32(uint value)
         {
@@ -101,7 +123,7 @@ namespace VoidFall.Core
                 case EnemyId.Gunner: return "gunner";
                 case EnemyId.Exploder: return "exploder";
                 case EnemyId.Guard: return "guard";
-                default: return type.ToString();
+                default: var name = type.ToString(); return char.ToLowerInvariant(name[0]) + name.Substring(1);
             }
         }
 

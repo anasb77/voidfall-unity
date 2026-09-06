@@ -41,8 +41,6 @@ namespace VoidFall.Runtime
             _rouletteChestActive = true;
             _rouletteChestPulse = 0;
             _rouletteChestSparkleTimer = 0;
-            position.x = Mathf.Clamp(position.x, -600f, 600f);
-            position.y = Mathf.Clamp(position.y, -330f, 330f);
             _rouletteRelicPosition = position;
             _rouletteChestBody.transform.position = position;
             _rouletteChestGlow.transform.position = position;

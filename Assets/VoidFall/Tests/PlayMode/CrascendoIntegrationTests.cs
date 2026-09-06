@@ -1,0 +1,202 @@
+using System;
+using System.Collections;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+using VoidFall.Core;
+using VoidFall.Persistence;
+using VoidFall.Runtime;
+
+namespace VoidFall.Tests.PlayMode
+{
+    public sealed class CrascendoIntegrationTests
+    {
+        private VoidFallGameRuntime _runtime;
+        private SaveStore _previousStore;
+        private SaveData _previousProfile;
+        private string _temporaryDirectory;
+        private bool _previousEnabled;
+        private bool _previousApplicationInactive;
+        private bool _previousRunSaved;
+        private uint _previousSeedOverride;
+
+        [UnitySetUp]
+        public IEnumerator SetUp()
+        {
+            _runtime = UnityEngine.Object.FindAnyObjectByType<VoidFallGameRuntime>();
+            Assert.That(_runtime, Is.Not.Null);
+            _previousEnabled = _runtime.enabled;
+            _runtime.enabled = false;
+            _previousStore = (SaveStore)Get(_runtime, "_saveStore");
+            _previousProfile = (SaveData)Get(_runtime, "_saveData");
+            _previousApplicationInactive = (bool)Get(_runtime, "_applicationInactive");
+            _previousRunSaved = (bool)Get(_runtime, "_runSaved");
+            _previousSeedOverride = (uint)Get(_runtime, "_diagnosticRunSeedOverride");
+
+            _temporaryDirectory = Path.Combine(Path.GetTempPath(),
+                "voidfall-crascendo-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_temporaryDirectory);
+            var testStore = new SaveStore(Path.Combine(_temporaryDirectory, "profile.json"));
+            var profile = SaveStore.CreateDefault();
+            testStore.Save(profile);
+            Set(_runtime, "_saveStore", testStore);
+            Set(_runtime, "_saveData", profile);
+            Set(_runtime, "_runSaved", true);
+            Set(_runtime, "_applicationInactive", false);
+            Set(_runtime, "_diagnosticRunSeedOverride", 2848592627u);
+            Invoke(_runtime, "StartRun");
+            yield return null;
+        }
+
+        [UnityTearDown]
+        public IEnumerator TearDown()
+        {
+            if (_runtime != null)
+            {
+                _runtime.enabled = false;
+                Set(_runtime, "_runSaved", true);
+                Set(_runtime, "_gameOver", false);
+                Set(_runtime, "_saveData", _previousProfile);
+                Set(_runtime, "_saveStore", _previousStore);
+                Invoke(_runtime, "EnterMainMenu");
+                Set(_runtime, "_runSaved", _previousRunSaved);
+                Set(_runtime, "_diagnosticRunSeedOverride", _previousSeedOverride);
+                Set(_runtime, "_applicationInactive", _previousApplicationInactive);
+                _runtime.enabled = _previousEnabled;
+            }
+            if (!string.IsNullOrEmpty(_temporaryDirectory) && Directory.Exists(_temporaryDirectory))
+                Directory.Delete(_temporaryDirectory, true);
+            yield return null;
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void Positive_native_hits_grow_normal_and_elite_bodies_with_cap_and_no_stat_boost(bool elite)
+        {
+            EnterCrascendo(); Enemy(0, 101, elite);
+            var enemy = HitEnemy(0, 0); Assert.That(Get(enemy, "Radius"), Is.EqualTo(20f));
+            enemy = HitEnemy(0, 1); Assert.That((float)Get(enemy, "Radius"), Is.EqualTo(24f).Within(.001));
+            for (var hit = 1; hit < 30; hit++) enemy = HitEnemy(0, 1);
+            Assert.That(Get(enemy, "Radius"), Is.EqualTo(100f)); Assert.That(Get(enemy, "Speed"), Is.EqualTo(77f)); Assert.That(Get(enemy, "Damage"), Is.EqualTo(12f));
+            Assert.That((float)Get(enemy, "Health"), Is.LessThan(10000));
+            Enemy(0, 102, elite); enemy = HitEnemy(0, 1); Assert.That((float)Get(enemy, "Radius"), Is.EqualTo(24f).Within(.001), "Pool reuse resets growth");
+        }
+        [Test]
+        public void Giant_death_pushes_survivors_once_without_damage_or_growth()
+        {
+            EnterCrascendo(); Enemy(0, 101); Enemy(1, 102);
+            for (var hit = 0; hit < 20; hit++) HitEnemy(0, 1);
+            var bosses = (Array)Get(GameSim, "Bosses"); var boss = bosses.GetValue(0);
+            Set(boss, "Active", true); Set(boss, "Health", 10000f); Set(boss, "Position", new Vector2(100, 0)); Set(boss, "Radius", 56f); bosses.SetValue(boss, 0);
+            var source = ((Array)Get(GameSim, "Enemies")).GetValue(0);
+            HitEnemy(0, 100000);
+            var survivor = ((Array)Get(GameSim, "Enemies")).GetValue(1); var push = (Vector2)Get(survivor, "Knockback");
+            Assert.That(((Vector2[])Get(_runtime, "_crascendoBossPush"))[0].x, Is.GreaterThan(0));
+            Assert.That(Get(bosses.GetValue(0), "Health"), Is.EqualTo(10000f)); Assert.That(Get(bosses.GetValue(0), "Radius"), Is.EqualTo(56f));
+            Assert.That(push.x, Is.GreaterThan(0)); Assert.That(Get(survivor, "Health"), Is.EqualTo(10000f)); Assert.That(Get(survivor, "Radius"), Is.EqualTo(20f));
+            Invoke(_runtime, "CrascendoEnemyDeath", 0, source); survivor = ((Array)Get(GameSim, "Enemies")).GetValue(1); Assert.That(Get(survivor, "Knockback"), Is.EqualTo(push));
+        }
+        [Test]
+        public void Area_damage_reaches_grown_hitboxes_outside_the_legacy_cell_neighborhood()
+        {
+            EnterCrascendo(); Enemy(0, 101); Invoke(_runtime, "AppendEnemyOrder", 0);
+            for (var hit = 0; hit < 20; hit++) HitEnemy(0, 1);
+            var enemies = (Array)Get(GameSim, "Enemies"); var enemy = enemies.GetValue(0); Set(enemy, "Position", new Vector2(100, 0)); enemies.SetValue(enemy, 0);
+            Invoke(_runtime, "RebuildEnemyGrid"); var health = (float)Get(enemy, "Health");
+            Invoke(_runtime, "DamageArea", new Vector2(-5, 0), 10f, 1f, -1, -1, false);
+            Assert.That((float)Get(enemies.GetValue(0), "Health"), Is.LessThan(health));
+        }
+
+        [Test]
+        public void Native_harvester_size_and_hit_growth_accumulate_without_shrinking()
+        {
+            EnterCrascendo(); var enemy = Enemy(0, 101); Set(enemy, "Id", "harvester"); Set(enemy, "Radius", 18f); Set(enemy, "StoredXp", 0f); Set(enemy, "View", 0);
+            var enemies = (Array)Get(GameSim, "Enemies"); enemies.SetValue(enemy, 0);
+            var pickups = (Array)Get(GameSim, "Pickups"); var pickup = pickups.GetValue(0);
+            Set(pickup, "Active", true); Set(pickup, "Kind", Enum.Parse(Get(pickup, "Kind").GetType(), "Xp")); Set(pickup, "Value", 16f); Set(pickup, "Position", new Vector2(13, 0)); Set(pickup, "Pull", false); pickups.SetValue(pickup, 0);
+            var args = new object[] { enemy, .02f, Vector2.right, 0f, 1000, 0f, 0 };
+            InvokeArgs(GameSim, "UpdateHarvester", args); enemy = args[0]; enemies.SetValue(enemy, 0);
+            var harvested = (float)Get(enemy, "Radius"); Assert.That(harvested, Is.GreaterThan(18f));
+            enemy = HitEnemy(0, 1); Assert.That((float)Get(enemy, "Radius"), Is.EqualTo(harvested + 3.6f).Within(.001));
+        }
+        [Test]
+        public void Reward_clock_animates_obsidian_but_pauses_with_modal_owner()
+        {
+            EnterCrascendo(); SetStage("Rewards"); Set(_runtime, "_crascendoElapsed", 300f); Set(_runtime, "_paused", false);
+            Set(_runtime, "_voidCompletionDelayRemaining", 100f); Invoke(_runtime, "UpdateJourneyFlow", .1f);
+            Assert.That((float)Get(_runtime, "_crascendoElapsed"), Is.GreaterThan(300));
+            var elapsed = (float)Get(_runtime, "_crascendoElapsed"); Set(_runtime, "_paused", true); Invoke(_runtime, "UpdateJourneyFlow", .1f);
+            Assert.That(Get(_runtime, "_crascendoElapsed"), Is.EqualTo(elapsed));
+        }
+
+        [Test]
+        public void Newly_spawned_boss_keeps_pulse_momentum_when_its_first_hit_arrives()
+        {
+            EnterCrascendo(); Invoke(_runtime, "SpawnBoss", "warden", 1d, 1d);
+            var bosses = (Array)Get(GameSim, "Bosses"); var boss = bosses.GetValue(0);
+            Set(boss, "State", 0); Set(boss, "Position", new Vector2(100, 0)); bosses.SetValue(boss, 0);
+            Enemy(0, 201); for (var hit = 0; hit < 20; hit++) HitEnemy(0, 1); HitEnemy(0, 100000);
+            var push = ((Vector2[])Get(_runtime, "_crascendoBossPush"))[0]; Assert.That(push.x, Is.GreaterThan(0));
+            Invoke(_runtime, "ApplyBossDamage", 0, 1f, -1, false);
+            Assert.That(((Vector2[])Get(_runtime, "_crascendoBossPush"))[0], Is.EqualTo(push));
+        }
+
+        [Test]
+        public void Native_boss_damage_grows_and_ordinary_arena_resets_optional_query_extension()
+        {
+            EnterCrascendo(); var bosses = (Array)Get(GameSim, "Bosses"); var boss = bosses.GetValue(0);
+            Set(boss, "Active", true); Set(boss, "Id", "warden"); Set(boss, "State", 0); Set(boss, "Health", 10000f); Set(boss, "MaxHealth", 10000f); Set(boss, "Radius", 56f); Set(boss, "TelemetryInstanceId", 777); bosses.SetValue(boss, 0);
+            for (var hit = 0; hit < 20; hit++) Invoke(_runtime, "ApplyBossDamage", 0, 1f, -1, false);
+            Assert.That((float)Get(bosses.GetValue(0), "Radius"), Is.EqualTo(280f).Within(.001));
+            Set(_runtime, "_arenaId", ArenaId.Void); Invoke(_runtime, "ResetCrascendoState"); Assert.That(Get(GameSim, "EnemyQueryPadding"), Is.EqualTo(0));
+            Enemy(0, 104); Assert.That(Get(HitEnemy(0, 1), "Radius"), Is.EqualTo(20f));
+        }
+
+        private object GameSim => Get(_runtime, "_gameSim");
+        private void EnterCrascendo()
+        {
+            Set(_runtime, "_arenaId", ArenaId.Crascendo); Set(_runtime, "_mainMenuBrowsing", false); SetStage("Combat"); Invoke(_runtime, "ResetCrascendoState");
+        }
+        private object Enemy(int slot, int identity, bool elite = false)
+        {
+            var enemies = (Array)Get(GameSim, "Enemies"); var enemy = enemies.GetValue(slot);
+            Set(enemy, "Active", true); Set(enemy, "Health", 10000f); Set(enemy, "MaxHealth", 10000f); Set(enemy, "Id", "chaser");
+            Set(enemy, "SpawnId", identity); Set(enemy, "Radius", 20f); Set(enemy, "Speed", 77f); Set(enemy, "Damage", 12f); Set(enemy, "Elite", elite); Set(enemy, "Shield", 0f);
+            Set(enemy, "Position", new Vector2(slot * 100, 0)); Set(enemy, "Knockback", Vector2.zero); enemies.SetValue(enemy, slot); return enemy;
+        }
+        private object HitEnemy(int slot, float damage)
+        {
+            Invoke(_runtime, "ApplyEnemyDamage", slot, damage, Vector2.zero, 0f, false, -1);
+            return ((Array)Get(GameSim, "Enemies")).GetValue(slot);
+        }
+        private void SetStage(string name)
+        {
+            var field = _runtime.GetType().GetField("_journeyStage", BindingFlags.NonPublic | BindingFlags.Instance);
+            field.SetValue(_runtime, Enum.Parse(field.FieldType, name));
+        }
+        private void SetPlayer(string name, object value)
+        {
+            var player = Get(GameSim, "Player"); Set(player, name, value); Set(GameSim, "Player", player);
+        }
+        private static object Get(object target, string name)
+        {
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+            var field = target.GetType().GetField(name, flags);
+            if (field != null) return field.GetValue(target);
+            return target.GetType().GetProperty(name, flags).GetValue(target);
+        }
+        private static void Set(object target, string name, object value)
+        {
+            target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).SetValue(target, value);
+        }
+        private static object Invoke(object target, string name, params object[] arguments) => InvokeArgs(target, name, arguments);
+        private static object InvokeArgs(object target, string name, object[] arguments)
+        {
+            try { return target.GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Single(method => method.Name == name && method.GetParameters().Length == arguments.Length).Invoke(target, arguments); }
+            catch (TargetInvocationException error) { throw error.InnerException ?? error; }
+        }
+    }
+}

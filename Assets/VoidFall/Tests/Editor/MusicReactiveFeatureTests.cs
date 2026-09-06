@@ -101,7 +101,7 @@ namespace VoidFall.Tests.Editor
 
             var mix = MusicStateComposer.Compose(state, criticalPulse: 0.5f);
 
-            Assert.That(mix.PlaybackRate, Is.GreaterThan(1.3f));
+            Assert.That(mix.PlaybackRate, Is.InRange(1f, 1.28f), "Critical drag multiplies the overclocked tape rate.");
             Assert.That(mix.CriticalWarp, Is.GreaterThan(0f));
             Assert.That(mix.StereoWidth, Is.LessThan(1f));
             Assert.That(mix.LowPassHz, Is.LessThan(22000f));

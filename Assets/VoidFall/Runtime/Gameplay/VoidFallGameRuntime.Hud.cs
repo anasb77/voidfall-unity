@@ -221,7 +221,7 @@ namespace VoidFall.Runtime
                         }
                         if (_bossHealthText != null)
                         {
-                            _bossHealthText.text = bossHpInt.ToString();
+                            _bossHealthText.text = bossHpInt.ToString("N0") + " / " + Mathf.CeilToInt(bossMaxHealth).ToString("N0");
                             _bossHealthText.enabled = true;
                         }
                     }
@@ -423,8 +423,8 @@ namespace VoidFall.Runtime
                 var rank = _upgradeProgress != null && index < _upgradeProgress.SupportRanks.Length
                     ? _upgradeProgress.SupportRanks[index]
                     : 0;
-                var active = index < ContentCatalog.Supports.Length && rank > 0;
-                var support = active ? ContentCatalog.Supports[index] : null;
+                var active = index < ExtendedCatalog.AllSupports().Length && rank > 0;
+                var support = active ? ExtendedCatalog.AllSupports()[index] : null;
                 SetBuildChipView(
                     _supportChipBackgrounds[index],
                     _supportChipAccentBars[index],
@@ -629,16 +629,16 @@ namespace VoidFall.Runtime
 
             builder.Append('\n').Append("SUP  ");
             var wroteSupport = false;
-            for (var index = 0; index < Mathf.Min(ContentCatalog.Supports.Length, _upgradeProgress.SupportRanks.Length); index++)
+            for (var index = 0; index < Mathf.Min(ExtendedCatalog.AllSupports().Length, _upgradeProgress.SupportRanks.Length); index++)
             {
                 var rank = _upgradeProgress.SupportRanks[index];
                 if (rank <= 0) continue;
                 if (wroteSupport) builder.Append("  ·  ");
-                builder.Append(ContentCatalog.Supports[index].Name)
+                builder.Append(ExtendedCatalog.AllSupports()[index].Name)
                     .Append(' ')
                     .Append(rank)
                     .Append('/')
-                    .Append(ContentCatalog.Supports[index].MaxRank);
+                    .Append(ExtendedCatalog.AllSupports()[index].MaxRank);
                 wroteSupport = true;
             }
             if (!wroteSupport) builder.Append("none");
@@ -683,16 +683,16 @@ namespace VoidFall.Runtime
             }
             else
             {
-                for (var index = 0; index < Mathf.Min(ContentCatalog.Supports.Length, _upgradeProgress.SupportRanks.Length); index++)
+                for (var index = 0; index < Mathf.Min(ExtendedCatalog.AllSupports().Length, _upgradeProgress.SupportRanks.Length); index++)
                 {
                     var rank = _upgradeProgress.SupportRanks[index];
                     if (rank <= 0) continue;
                     if (builder.Length > 0) builder.Append('\n');
-                    builder.Append(ContentCatalog.Supports[index].Name)
+                    builder.Append(ExtendedCatalog.AllSupports()[index].Name)
                         .Append("  ")
                         .Append(rank)
                         .Append('/')
-                        .Append(ContentCatalog.Supports[index].MaxRank);
+                        .Append(ExtendedCatalog.AllSupports()[index].MaxRank);
                 }
             }
 
