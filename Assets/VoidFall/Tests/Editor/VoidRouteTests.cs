@@ -7,6 +7,93 @@ namespace VoidFall.Tests.Editor
     public sealed class VoidRouteTests
     {
         [Test]
+        public void Legacy_node_constructor_uses_the_node_id_as_its_arena_identity()
+        {
+            var node = new VoidRouteNode("hydra", "Hydra", 1, 1, "MUTATION", "desc", "objective", "reward");
+
+            var property = typeof(VoidRouteNode).GetProperty("ArenaId");
+            Assert.That(property, Is.Not.Null, "VoidRouteNode must expose stable arena identity");
+            Assert.That(property.GetValue(node), Is.EqualTo("hydra"));
+        }
+
+        [Test]
+        public void Run_exposes_current_node_and_arena_identity_independently()
+        {
+            var constructor = typeof(VoidRouteNode).GetConstructor(new[]
+            {
+                typeof(string), typeof(string), typeof(string), typeof(int), typeof(double),
+                typeof(string), typeof(string), typeof(string), typeof(string), typeof(string[])
+            });
+            Assert.That(constructor, Is.Not.Null, "Generated nodes need separate node and arena ids");
+            var start = (VoidRouteNode)constructor.Invoke(new object[]
+            {
+                "start-node", "abyss", "Abyss", 0, 1d, "BASELINE", "desc", "objective", "reward",
+                new[] { "branch-node" }
+            });
+            var branch = (VoidRouteNode)constructor.Invoke(new object[]
+            {
+                "branch-node", "hydra", "Hydra", 1, 1d, "MUTATION", "desc", "objective", "reward",
+                new string[0]
+            });
+            var run = new VoidRouteRun(new[] { start, branch }, start.Id);
+
+            Assert.That(run.CurrentVoidId, Is.EqualTo("start-node"));
+            Assert.That(CurrentArenaId(run), Is.EqualTo("abyss"));
+            Assert.That(run.NotifyVoidCompleted(start.Id), Is.True);
+            Assert.That(run.SelectNextVoid(branch.Id), Is.True);
+            Assert.That(run.CurrentVoidId, Is.EqualTo("branch-node"));
+            Assert.That(CurrentArenaId(run), Is.EqualTo("hydra"));
+        }
+
+        [Test]
+        public void Planning_uses_the_first_unlocked_route_through_a_target_without_mutating_the_run()
+        {
+            var run = new VoidRouteRun(new[]
+            {
+                Node("start", 0, "left", "right"),
+                Node("left", 1, "target"),
+                Node("right", 1, "target"),
+                Node("target", 2, "terminal-b", "terminal-a"),
+                Node("terminal-a", 3),
+                Node("terminal-b", 3),
+            }, "start");
+            var method = typeof(VoidRouteRun).GetMethod("PlannedPathThrough", new[] { typeof(string) });
+            Assert.That(method, Is.Not.Null, "VoidRouteRun must share deterministic planned-path rules");
+            var before = RouteState(run);
+
+            Assert.That((IReadOnlyList<string>)method.Invoke(run, new object[] { "target" }),
+                Is.EqualTo(new[] { "start", "left", "target", "terminal-b" }));
+            Assert.That(RouteState(run), Is.EqualTo(before), "Planning must not change route state");
+
+            run.NotifyVoidCompleted("start");
+            run.SelectNextVoid("right");
+            Assert.That((IReadOnlyList<string>)method.Invoke(run, new object[] { "right" }), Is.Empty);
+            Assert.That((IReadOnlyList<string>)method.Invoke(run, new object[] { "start" }), Is.Empty);
+            Assert.That((IReadOnlyList<string>)method.Invoke(run, new object[] { "left" }), Is.Empty);
+            Assert.That((IReadOnlyList<string>)method.Invoke(run, new object[] { "target" }),
+                Is.EqualTo(new[] { "right", "target", "terminal-b" }));
+        }
+
+        private static VoidRouteNode Node(string id, int depth, params string[] outgoing)
+        {
+            return new VoidRouteNode(id, id, depth, 1, "THREAT", "desc", "objective", "reward", outgoing);
+        }
+
+        private static string RouteState(VoidRouteRun run)
+        {
+            var result = run.CurrentVoidId + ":" + string.Join(",", run.History) + ":";
+            foreach (var node in run.Nodes) result += node.Id + "=" + run.StateOf(node.Id) + ";";
+            return result;
+        }
+
+        private static string CurrentArenaId(VoidRouteRun run)
+        {
+            var property = typeof(VoidRouteRun).GetProperty("CurrentArenaId");
+            Assert.That(property, Is.Not.Null, "VoidRouteRun must expose the selected arena identity");
+            return (string)property.GetValue(run);
+        }
+
+        [Test]
         public void Initial_view_shows_start_selected_and_layer_one_revealed()
         {
             var run = VoidRouteRun.PrototypeGraph();

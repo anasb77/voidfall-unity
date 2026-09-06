@@ -35,7 +35,7 @@ namespace VoidFall.Runtime
         private int _monochromeSpawnSequence;
 
         private bool CurrentVoidIsMonochrome =>
-            _voidRoute != null && _voidRoute.CurrentVoidId == "monochrome-court";
+            _voidRoute != null && _voidRoute.CurrentArenaId == "monochrome-court";
 
         private static bool IsCourtEnemy(string id) =>
             !string.IsNullOrEmpty(id) && id.StartsWith("court-", System.StringComparison.Ordinal) &&

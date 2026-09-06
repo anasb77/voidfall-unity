@@ -17,7 +17,7 @@ namespace VoidFall.Runtime
     /// </summary>
     public sealed partial class VoidFallGameRuntime
     {
-        private const string RiftPortalResourcePath = "VoidFall/Portals";
+        private const string RiftPortalResourcePath = "VoidFall/Portals/Neutral";
         private const float RiftPortalFrameSeconds = 0.1f;
         private const float RiftPortalWorldSize = 120f;
         private const float RiftCollapseSeconds = 0.72f;
@@ -93,9 +93,8 @@ namespace VoidFall.Runtime
             // One exit: teleport straight there when the delay expires. No
             // portal, no cards - the portal is the multi-destination choice.
             _riftAutoVoidId = available.Count == 1 ? available[0] : null;
-            _voidCompletionDelayRemaining = EscapeCollectionSeconds + EscapeCountdownSeconds;
+            _voidCompletionDelayRemaining = EscapeDurationSeconds;
             _voidCompletionPending = true;
-            _escapeStatusSecond = int.MinValue;
             UpdateEscapeStatus();
         }
 
@@ -109,18 +108,16 @@ namespace VoidFall.Runtime
             AdvanceRunLevelUps(Mathf.Max(0f, dt));
             if (_levelUpActive || _levelUpTimer >= 0) return;
             _voidCompletionDelayRemaining = Mathf.Max(0f, _voidCompletionDelayRemaining - Mathf.Max(0f, dt));
-            if (_voidCompletionDelayRemaining > EscapeCountdownSeconds)
-            {
-                UpdateEscapeStatus();
-                return;
-            }
-
-            if (_rouletteChestActive)
+            StepEscapeEnemyRetirement();
+            RecoverEscapeLoot(Mathf.Max(0, dt), _voidCompletionDelayRemaining <= 0f);
+            AdvanceRunLevelUps(0f);
+            UpdateEscapeStatus();
+            if (_levelUpActive || _levelUpTimer >= 0) return;
+            if (_rouletteChestActive && EscapeElapsed >= EscapeEnemyClearSeconds)
             {
                 _openRouteAfterRoulette = true;
-                // Manual pickup is available throughout the grace period. Deliver any
-                // unclaimed boss reward before starting the full final countdown.
-                _voidCompletionDelayRemaining = EscapeCountdownSeconds;
+                // An off-screen relic cannot strand the run. Its ceremony pauses this
+                // same window; completing the wheel resumes without a second popup.
                 _rouletteChestPulse = Mathf.Max(_rouletteChestPulse, 1.8f);
                 CollectRouletteChest();
                 return;
@@ -163,7 +160,7 @@ namespace VoidFall.Runtime
             if (!(_objectives.Objective is MultiPhaseObjective phases) || phases.PhaseIndex < 1) return;
 
             _voidBossEncounterSpawned = true;
-            var voidId = _voidRoute?.CurrentVoidId ?? ArenaCatalogRules.StableId(_arenaId);
+            var voidId = _voidRoute?.CurrentArenaId ?? ArenaCatalogRules.StableId(_arenaId);
             if (voidId == "hydra")
             {
                 BeginHydraBossEncounter();
@@ -265,12 +262,13 @@ namespace VoidFall.Runtime
             HideJunction();
             _journeyStage = JourneyStage.Travel;
             _routeMapOpen = false;
-            _plannedRouteId = null;
+            if (_plannedRouteId == voidId || _voidRoute.PlannedPathThrough(_plannedRouteId).Count == 0)
+                _plannedRouteId = null;
             _gameSim.Player.Velocity = Vector2.zero;
             _gameSim.Player.Position = Vector2.zero;
             _cameraFollowPosition = Vector2.zero;
             _telemetry.RecordArenaWarning(_completedVoids - 1,
-                ArenaIdName(_arenaId), ArenaIdName(ArenaIdForVoidId(voidId)), (float)_time);
+                ArenaIdName(_arenaId), ArenaIdName(ArenaIdForRouteNode(voidId)), (float)_time);
             Debug.Log($"VOIDFLOW choice void={voidId} t={_time:F1}");
             _routeSelectOpen = false;
             _riftAutoVoidId = null;
@@ -291,7 +289,7 @@ namespace VoidFall.Runtime
             _riftTransitionActive = true;
             _riftTransitionSwapped = false;
             _riftTransitionVoidId = voidId;
-            var incoming = ArenaIdForVoidId(voidId);
+            var incoming = ArenaIdForRouteNode(voidId);
             _arenaTransitionState = new ArenaTransitionState(
                 Mathf.Max(0, _completedVoids - 1),
                 _time,
@@ -379,7 +377,7 @@ namespace VoidFall.Runtime
             ClearTransitionProjectiles();
             ClearMeteors();
 
-            _arenaId = ArenaIdForVoidId(_riftTransitionVoidId);
+            _arenaId = ArenaIdForRouteNode(_riftTransitionVoidId);
             SelectRecipeForCurrentArena();
             PrepareArenaNeighborhood();
             _meteorSpawnTimer = 2.2f;
@@ -488,17 +486,26 @@ namespace VoidFall.Runtime
         /// <summary>
         /// Stable Void id to prepared arena identity.
         /// </summary>
+        private ArenaId ArenaIdForRouteNode(string nodeId)
+        {
+            if (_voidRoute != null)
+            {
+                foreach (var node in _voidRoute.Nodes)
+                {
+                    if (string.Equals(node.Id, nodeId, StringComparison.Ordinal))
+                        return ArenaCatalogRules.LegacyArena(node.ArenaId);
+                }
+            }
+
+            return ArenaIdForVoidId(nodeId);
+        }
+
         private static ArenaId ArenaIdForVoidId(string voidId)
         {
-            switch (voidId)
-            {
-                case "red-nebula": return ArenaId.RedNebula;
-                case "white-sakura": return ArenaId.WhiteSakura;
-                case "hydra": return ArenaId.Hydra;
-                case "monochrome-court": return ArenaId.MonochromeCourt;
-                case "null-city": return ArenaId.NullCity;
-                default: return ArenaId.Void;
-            }
+            // Repeated arena identities on mutually exclusive branches have a node suffix.
+            // Arena packages and objectives always retain the catalogue's stable identity.
+            var suffix = voidId?.IndexOf('@') ?? -1;
+            return ArenaCatalogRules.LegacyArena(suffix < 0 ? voidId : voidId.Substring(0, suffix));
         }
 
         private void ShowRiftPortal()

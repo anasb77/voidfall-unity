@@ -21,6 +21,7 @@ namespace VoidFall.Core
     public sealed class VoidRouteNode
     {
         public string Id;
+        public string ArenaId { get; }
         public string DisplayName;
         public int Depth;
         public double ThreatMultiplier;
@@ -42,8 +43,25 @@ namespace VoidFall.Core
             string objectiveSummary,
             string rewardSummary,
             params string[] outgoing)
+            : this(id, id, displayName, depth, threatMultiplier, threatLabel,
+                description, objectiveSummary, rewardSummary, outgoing)
+        {
+        }
+
+        public VoidRouteNode(
+            string id,
+            string arenaId,
+            string displayName,
+            int depth,
+            double threatMultiplier,
+            string threatLabel,
+            string description,
+            string objectiveSummary,
+            string rewardSummary,
+            params string[] outgoing)
         {
             Id = id;
+            ArenaId = arenaId;
             DisplayName = displayName;
             Depth = depth;
             ThreatMultiplier = threatMultiplier;
@@ -97,6 +115,7 @@ namespace VoidFall.Core
 
         public string StartId { get; }
         public string CurrentVoidId { get; private set; }
+        public string CurrentArenaId => _nodes[CurrentVoidId].ArenaId;
         public bool HasEscaped { get; private set; }
         public IReadOnlyList<string> History => _history;
         /// <summary>Graph nodes in their construction order, independent of dictionary enumeration.</summary>
@@ -120,6 +139,60 @@ namespace VoidFall.Core
                 if (pair.Value == state) result.Add(pair.Key);
             result.Sort(StringComparer.Ordinal);
             return result;
+        }
+
+        /// <summary>
+        /// Returns the first unlocked path from the current node through a future target and
+        /// onward to a terminal node. Graph construction order controls deterministic choices.
+        /// </summary>
+        public IReadOnlyList<string> PlannedPathThrough(string targetId)
+        {
+            if (string.IsNullOrEmpty(targetId) || !_nodes.ContainsKey(targetId) ||
+                string.Equals(targetId, CurrentVoidId, StringComparison.Ordinal) ||
+                _history.Contains(targetId) || _states[targetId] == RouteNodeState.Locked)
+                return new string[0];
+
+            var toTarget = new List<string>();
+            if (!TryFindPath(CurrentVoidId, targetId,
+                    new HashSet<string>(StringComparer.Ordinal), toTarget))
+                return new string[0];
+
+            var toTerminal = new List<string>();
+            if (!TryFindTerminalPath(targetId,
+                    new HashSet<string>(StringComparer.Ordinal), toTerminal))
+                return new string[0];
+
+            for (var index = 1; index < toTerminal.Count; index++)
+                toTarget.Add(toTerminal[index]);
+            return toTarget.AsReadOnly();
+        }
+
+        private bool TryFindPath(string nodeId, string targetId,
+            HashSet<string> visited, List<string> path)
+        {
+            if (!_nodes.TryGetValue(nodeId, out var node) ||
+                _states[nodeId] == RouteNodeState.Locked || !visited.Add(nodeId))
+                return false;
+            path.Add(nodeId);
+            if (string.Equals(nodeId, targetId, StringComparison.Ordinal)) return true;
+            foreach (var child in node.Outgoing)
+                if (TryFindPath(child, targetId, visited, path)) return true;
+            path.RemoveAt(path.Count - 1);
+            return false;
+        }
+
+        private bool TryFindTerminalPath(string nodeId,
+            HashSet<string> visited, List<string> path)
+        {
+            if (!_nodes.TryGetValue(nodeId, out var node) ||
+                _states[nodeId] == RouteNodeState.Locked || !visited.Add(nodeId))
+                return false;
+            path.Add(nodeId);
+            if (node.Outgoing.Count == 0) return true;
+            foreach (var child in node.Outgoing)
+                if (TryFindTerminalPath(child, visited, path)) return true;
+            path.RemoveAt(path.Count - 1);
+            return false;
         }
 
         /// <summary>

@@ -10,20 +10,25 @@ namespace VoidFall.UI
     public sealed class RouteMapView : UIViewBase
     {
         private const float PanelWidth = 1160f;
-        private const float PanelHeight = 840f;
-        private const float CardWidth = 404f;
+        private const float PanelHeight = 720f;
+        private const float CardWidth = 158f;
+        private const float CardHeight = 142f;
+        private const string ThumbnailResourceRoot = "VoidFall/RouteThumbnails/";
+
         private readonly List<NodeWidgets> _cards = new List<NodeWidgets>();
         private readonly List<EdgeWidgets> _edges = new List<EdgeWidgets>();
-        private readonly Dictionary<string, NodeWidgets> _byId = new Dictionary<string, NodeWidgets>(StringComparer.Ordinal);
+        private readonly Dictionary<string, NodeWidgets> _byId =
+            new Dictionary<string, NodeWidgets>(StringComparer.Ordinal);
+        private readonly Dictionary<string, Sprite> _thumbnails =
+            new Dictionary<string, Sprite>(StringComparer.Ordinal);
         private readonly HashSet<string> _reachable = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _plannedNodes = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _plannedEdges = new HashSet<string>(StringComparer.Ordinal);
         private readonly List<VoidRouteNode> _ordered = new List<VoidRouteNode>();
         private readonly List<int> _depths = new List<int>();
         private RectTransform _panel;
         private RectTransform _nodeLayer;
         private RectTransform _edgeLayer;
-        private Text _current;
-        private Text _progress;
-        private Text _plan;
         private VoidRouteRun _run;
         private string _plannedId;
         private Action<string> _onPlan;
@@ -35,16 +40,14 @@ namespace VoidFall.UI
             public RectTransform Root;
             public Image Fill;
             public Image Border;
-            public Image Accent;
+            public Image Thumbnail;
             public Text Name;
             public Text State;
-            public Text Hint;
             public Button Button;
             public bool Sealed;
             public bool Visited;
             public bool Current;
             public bool CanPlan;
-            public bool Mystery;
         }
 
         private sealed class EdgeWidgets
@@ -57,36 +60,21 @@ namespace VoidFall.UI
 
         protected override void Build()
         {
-            UIBuilder.CreateScrim(Root, "Scrim", UITheme.WithAlpha(UITheme.Void, 0.9f));
+            var scrim = UIBuilder.CreateScrim(Root, "Scrim", UITheme.WithAlpha(UITheme.Void, 0.92f));
+            var dismiss = scrim.gameObject.AddComponent<Button>();
+            dismiss.targetGraphic = scrim;
+            dismiss.transition = Selectable.Transition.None;
+            dismiss.onClick.AddListener(Close);
+
             _panel = UIBuilder.CreatePanel(Root, "Route Map", new Vector2(PanelWidth, PanelHeight));
             Label(_panel, "Title", "VOID MAP", 30f, Color.white,
-                new Vector2(-300f, 369f), new Vector2(448f, 48f), FontStyle.Bold);
-            _progress = Label(_panel, "Progress", string.Empty, 14f, UITheme.CyanPale,
-                new Vector2(300f, 370f), new Vector2(448f, 30f), FontStyle.Bold, TextAnchor.MiddleRight);
-            _current = Label(_panel, "Current Void", string.Empty, 13f, UITheme.CyanLight,
-                new Vector2(-220f, 333f), new Vector2(608f, 24f));
-            Label(_panel, "Pause Status", "PAUSED  /  PLAN YOUR ESCAPE", 11f, UITheme.TextStrong,
-                new Vector2(310f, 333f), new Vector2(428f, 24f), FontStyle.Normal, TextAnchor.MiddleRight);
-            Rule("Header Rule", 311f);
-            Label(_panel, "Escape", "ESCAPE", 11f, UITheme.CyanPale,
-                new Vector2(0f, 294f), new Vector2(300f, 20f), FontStyle.Bold, TextAnchor.MiddleCenter);
+                new Vector2(0f, 319f), new Vector2(560f, 48f), FontStyle.Bold, TextAnchor.MiddleCenter);
+            var rule = UIBuilder.CreateFill(_panel, "Header Rule", UITheme.BorderRule);
+            Place(rule.rectTransform, new Vector2(0f, 284f), new Vector2(1060f, 1f));
 
             // Separate layers keep every connection behind every node, including pooled additions.
             _edgeLayer = UIBuilder.Stretch(UIBuilder.CreateRect(_panel, "Connections"));
             _nodeLayer = UIBuilder.Stretch(UIBuilder.CreateRect(_panel, "Voids"));
-
-            Rule("Footer Rule", -294f);
-            Legend("Current", UITheme.Cyan, -452f);
-            Legend("Cleared path", UITheme.CyanLight, -242f);
-            Legend("Future", UITheme.WithAlpha(UITheme.TextStrong, 0.7f), -20f);
-            Legend("Sealed", UITheme.WithAlpha(UITheme.TextStrong, 0.28f), 150f);
-            Legend("Planned", UITheme.GoldLight, 324f);
-            _plan = Label(_panel, "Plan", string.Empty, 13f, UITheme.TextStrong,
-                new Vector2(-130f, -349f), new Vector2(788f, 24f));
-            Label(_panel, "Travel Hint", "Mark a destination. Enter its portal to travel.", 12f,
-                UITheme.WithAlpha(UITheme.TextStrong, 0.72f), new Vector2(-130f, -377f), new Vector2(788f, 22f));
-            var close = UIBuilder.CreateSecondaryAction(_panel, "Close Map", "TAB / ESC   CLOSE", string.Empty, Close, 46f);
-            Place(close.GetComponent<RectTransform>(), new Vector2(404f, -366f), new Vector2(240f, 46f));
         }
 
         public void Show(VoidRouteRun run, string plannedId, Action<string> onPlan, Action onClose)
@@ -111,12 +99,6 @@ namespace VoidFall.UI
             LayoutNodes();
             LayoutEdges();
             RefreshPlan();
-
-            var cleared = 0;
-            foreach (var node in _ordered)
-                if (run.StateOf(node.Id) == RouteNodeState.Completed) cleared++;
-            _current.text = "CURRENT  /  " + run.Node(run.CurrentVoidId).DisplayName.ToUpperInvariant();
-            _progress.text = cleared + " / " + _depths.Count + " VOIDS CLEARED";
             FitPanel();
             SetVisible(true);
         }
@@ -137,23 +119,23 @@ namespace VoidFall.UI
         private void LayoutNodes()
         {
             _byId.Clear();
-            var compact = _depths.Count >= 6;
-            var height = compact ? 78f : 96f;
             for (var index = 0; index < _ordered.Count; index++)
             {
                 if (_cards.Count <= index) _cards.Add(BuildNode(index));
                 var card = _cards[index];
                 var node = _ordered[index];
-                var row = _depths.IndexOf(node.Depth);
+                var column = _depths.IndexOf(node.Depth);
                 var first = index;
                 while (first > 0 && _ordered[first - 1].Depth == node.Depth) first--;
                 var last = index;
                 while (last + 1 < _ordered.Count && _ordered[last + 1].Depth == node.Depth) last++;
                 var count = last - first + 1;
-                var width = count <= 2 ? CardWidth : Mathf.Min(CardWidth, 1008f / count - 20f);
-                var x = (index - first - (count - 1) * 0.5f) * (width + 76f);
-                var y = _depths.Count <= 1 ? 0f : Mathf.Lerp(-230f, 233f, row / (float)(_depths.Count - 1));
-                Place(card.Root, new Vector2(x, y), new Vector2(width, height));
+                var lane = index - first;
+                var x = _depths.Count <= 1
+                    ? 0f
+                    : Mathf.Lerp(-490f, 490f, column / (float)(_depths.Count - 1));
+                var y = count <= 1 ? 0f : lane == 0 ? 126f : -126f;
+                Place(card.Root, new Vector2(x, y - 8f), new Vector2(CardWidth, CardHeight));
                 card.Root.gameObject.SetActive(true);
                 card.Node = node;
                 var state = _run.StateOf(node.Id);
@@ -161,58 +143,67 @@ namespace VoidFall.UI
                 card.Visited = state == RouteNodeState.Selected || state == RouteNodeState.Completed;
                 card.Sealed = state == RouteNodeState.Locked || (!card.Visited && !_reachable.Contains(node.Id));
                 card.CanPlan = !card.Visited && !card.Sealed && _reachable.Contains(node.Id);
-                card.Mystery = node.IsMystery && !card.Visited;
-                card.Name.text = card.Mystery ? "? UNKNOWN VOID" : node.DisplayName.ToUpperInvariant();
-                // Objective and description can name an exclusive boss, so neither is shown for a mystery.
-                card.Hint.text = card.Mystery
-                    ? node.ThreatLabel + "  /  Revealed on entry"
-                    : ShortHint(string.IsNullOrEmpty(node.Description) ? node.ObjectiveSummary : node.Description, compact ? 47 : 88);
+                card.Name.text = node.DisplayName.ToUpperInvariant();
+                card.State.text = card.Current ? "YOU ARE HERE" : string.Empty;
+                card.State.gameObject.SetActive(card.Current);
                 card.Button.interactable = card.CanPlan;
-                var top = height * 0.5f;
-                Place(card.State.rectTransform, new Vector2(0f, top - 15f), new Vector2(width - 32f, 18f));
-                Place(card.Name.rectTransform, new Vector2(0f, top - 39f), new Vector2(width - 32f, 28f));
-                Place(card.Hint.rectTransform, new Vector2(0f, compact ? -24f : -28f), new Vector2(width - 32f, compact ? 20f : 34f));
-                card.Hint.alignment = compact ? TextAnchor.MiddleLeft : TextAnchor.UpperLeft;
+                card.Thumbnail.sprite = Thumbnail(node.ArenaId);
+                card.Thumbnail.enabled = card.Thumbnail.sprite != null;
                 _byId.Add(node.Id, card);
             }
-            for (var index = _ordered.Count; index < _cards.Count; index++) _cards[index].Root.gameObject.SetActive(false);
+            for (var index = _ordered.Count; index < _cards.Count; index++)
+                _cards[index].Root.gameObject.SetActive(false);
         }
 
         private NodeWidgets BuildNode(int index)
         {
             var root = UIBuilder.CreateRect(_nodeLayer, "Void " + index);
             var fill = UIBuilder.CreateSurface(root, "Fill", UISprites.Rounded(
-                UITheme.RadiusCard, Color.white, Color.white, Color.clear), true);
+                UITheme.RadiusCard, UITheme.Rgba(7, 12, 23, 1f), UITheme.Rgba(7, 12, 23, 1f), Color.clear), true);
             UIBuilder.Stretch(fill.rectTransform);
             var border = UIBuilder.CreateSurface(root, "Border", UISprites.Rounded(
                 UITheme.RadiusCard, Color.clear, Color.clear, Color.white, 2f));
             UIBuilder.Stretch(border.rectTransform);
-            var accent = UIBuilder.CreateFill(root, "State Marker", UITheme.Cyan);
-            accent.rectTransform.anchorMin = new Vector2(0f, 0.18f);
-            accent.rectTransform.anchorMax = new Vector2(0f, 0.82f);
-            accent.rectTransform.anchoredPosition = new Vector2(1f, 0f);
-            accent.rectTransform.sizeDelta = new Vector2(3f, 0f);
+            var thumbnail = UIBuilder.CreateSurface(root, "Arena Thumbnail", null);
+            Place(thumbnail.rectTransform, new Vector2(0f, 13f), new Vector2(148f, 84f));
+            thumbnail.preserveAspect = true;
+            thumbnail.raycastTarget = false;
+
             var button = root.gameObject.AddComponent<Button>();
             button.targetGraphic = fill;
             button.transition = Selectable.Transition.ColorTint;
             var colors = button.colors;
             colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1.45f, 1.45f, 1.45f, 1f);
+            colors.highlightedColor = new Color(1.35f, 1.35f, 1.35f, 1f);
             colors.selectedColor = colors.highlightedColor;
-            colors.pressedColor = new Color(1.8f, 1.8f, 1.8f, 1f);
+            colors.pressedColor = new Color(1.6f, 1.6f, 1.6f, 1f);
             colors.disabledColor = Color.white;
             colors.fadeDuration = 0.1f;
             button.colors = colors;
+
             var card = new NodeWidgets
             {
-                Root = root, Fill = fill, Border = border, Accent = accent, Button = button,
-                State = Label(root, "State", string.Empty, 10.5f, UITheme.CyanLight, Vector2.zero, Vector2.zero, FontStyle.Bold),
-                Name = Label(root, "Name", string.Empty, 19f, Color.white, Vector2.zero, Vector2.zero, FontStyle.Bold),
-                Hint = Label(root, "Mechanic", string.Empty, 12f, UITheme.TextStrong, Vector2.zero, Vector2.zero)
+                Root = root,
+                Fill = fill,
+                Border = border,
+                Thumbnail = thumbnail,
+                Button = button,
+                Name = Label(root, "Name", string.Empty, 14f, Color.white,
+                    new Vector2(0f, -50f), new Vector2(CardWidth - 8f, 32f), FontStyle.Bold, TextAnchor.MiddleCenter),
+                State = Label(root, "State", string.Empty, 10f, UITheme.CyanPale,
+                    new Vector2(0f, 63f), new Vector2(CardWidth - 8f, 18f), FontStyle.Bold, TextAnchor.MiddleCenter),
             };
-            card.Hint.horizontalOverflow = HorizontalWrapMode.Wrap;
             button.onClick.AddListener(() => Plan(card));
             return card;
+        }
+
+        private Sprite Thumbnail(string arenaId)
+        {
+            if (string.IsNullOrEmpty(arenaId)) return null;
+            if (_thumbnails.TryGetValue(arenaId, out var sprite)) return sprite;
+            sprite = Resources.Load<Sprite>(ThumbnailResourceRoot + arenaId);
+            _thumbnails.Add(arenaId, sprite);
+            return sprite;
         }
 
         private void LayoutEdges()
@@ -224,7 +215,10 @@ namespace VoidFall.UI
                 {
                     if (!_byId.TryGetValue(child, out var to)) continue;
                     if (_edges.Count <= index)
-                        _edges.Add(new EdgeWidgets { Line = UIBuilder.CreateFill(_edgeLayer, "Connection " + index, Color.white) });
+                        _edges.Add(new EdgeWidgets
+                        {
+                            Line = UIBuilder.CreateFill(_edgeLayer, "Connection " + index, Color.white)
+                        });
                     var edge = _edges[index++];
                     edge.From = _byId[node.Id];
                     edge.To = to;
@@ -234,8 +228,10 @@ namespace VoidFall.UI
                     var start = edge.From.Root.anchoredPosition + Boundary(edge.From.Root, direction);
                     var end = to.Root.anchoredPosition + Boundary(to.Root, -direction);
                     var delta = end - start;
-                    Place(edge.Line.rectTransform, (start + end) * 0.5f, new Vector2(delta.magnitude, edge.Traversed ? 3f : 2f));
-                    edge.Line.rectTransform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
+                    Place(edge.Line.rectTransform, (start + end) * 0.5f,
+                        new Vector2(delta.magnitude, edge.Traversed ? 3f : 2f));
+                    edge.Line.rectTransform.localRotation = Quaternion.Euler(
+                        0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
                 }
             }
             for (; index < _edges.Count; index++) _edges[index].Line.gameObject.SetActive(false);
@@ -250,39 +246,57 @@ namespace VoidFall.UI
 
         private void RefreshPlan()
         {
-            if (!_byId.TryGetValue(_plannedId ?? string.Empty, out var planned) || !planned.CanPlan) planned = null;
+            if (!_byId.TryGetValue(_plannedId ?? string.Empty, out var planned) || !planned.CanPlan)
+                planned = null;
+            BuildPlannedRoute(planned);
+
             foreach (var card in _cards)
             {
                 if (!card.Root.gameObject.activeSelf) continue;
-                var focused = card == planned;
-                var accent = card.Current ? UITheme.Cyan : focused ? UITheme.GoldLight
+                var plannedPath = _plannedNodes.Contains(card.Node.Id) && !card.Current;
+                var accent = card.Current ? UITheme.Cyan : plannedPath ? UITheme.GoldLight
                     : card.Visited ? UITheme.CyanLight : UITheme.TextStrong;
                 card.Fill.color = card.Current ? UITheme.Rgba(8, 42, 54, 1f)
-                    : focused ? UITheme.Rgba(43, 37, 23, 1f) : UITheme.Rgba(11, 17, 29, 1f);
+                    : plannedPath ? UITheme.Rgba(43, 37, 23, 1f) : UITheme.Rgba(7, 12, 23, 1f);
                 card.Border.color = UITheme.WithAlpha(accent,
-                    card.Current || focused ? 1f : card.Sealed ? 0.12f : card.Visited ? 0.65f : 0.32f);
-                card.Accent.color = UITheme.WithAlpha(accent, card.Sealed ? 0.16f : 1f);
-                card.Name.color = UITheme.WithAlpha(card.Current ? UITheme.CyanPale : UITheme.TextStrong, card.Sealed ? 0.35f : 1f);
-                card.Hint.color = UITheme.WithAlpha(UITheme.TextStrong, card.Sealed ? 0.26f : 0.78f);
-                card.State.color = UITheme.WithAlpha(accent, card.Sealed ? 0.35f : 0.95f);
-                var state = card.Current ? "YOU ARE HERE" : card.Visited ? "CLEARED" : card.Sealed ? "SEALED"
-                    : focused ? "PLANNED" : _run.Node(_run.CurrentVoidId).Outgoing.Contains(card.Node.Id) ? "NEXT CHOICE" : "FUTURE";
-                card.State.text = state + (card.Node.Outgoing.Count == 0 ? "  /  ESCAPE" : string.Empty)
-                    + (card.Current && _run.StateOf(card.Node.Id) == RouteNodeState.Completed ? "  /  CLEARED" : string.Empty);
+                    card.Current || plannedPath ? 1f : card.Sealed ? 0.12f : card.Visited ? 0.58f : 0.34f);
+                card.Name.color = UITheme.WithAlpha(card.Current ? UITheme.CyanPale : accent,
+                    card.Sealed ? 0.3f : card.Visited ? 0.72f : 1f);
+                card.Thumbnail.color = UITheme.WithAlpha(Color.white,
+                    card.Sealed ? 0.16f : card.Visited && !card.Current ? 0.52f : 0.9f);
             }
+
             foreach (var edge in _edges)
             {
                 if (!edge.Line.gameObject.activeSelf) continue;
-                var sealedEdge = edge.From.Sealed || edge.To.Sealed || (edge.From.Visited && !edge.From.Current && !edge.Traversed);
-                edge.Line.color = edge.Traversed ? UITheme.WithAlpha(UITheme.Cyan, 0.95f)
-                    : sealedEdge ? UITheme.WithAlpha(UITheme.TextStrong, 0.09f)
-                    : edge.To == planned ? UITheme.WithAlpha(UITheme.GoldLight, 0.78f)
-                    : UITheme.WithAlpha(UITheme.CyanLight, edge.From.Current ? 0.48f : 0.24f);
+                var plannedPath = _plannedEdges.Contains(EdgeKey(edge.From.Node.Id, edge.To.Node.Id));
+                var available = _reachable.Contains(edge.From.Node.Id) && _reachable.Contains(edge.To.Node.Id) &&
+                                !edge.From.Sealed && !edge.To.Sealed;
+                edge.Line.color = plannedPath ? UITheme.WithAlpha(UITheme.GoldLight, 0.92f)
+                    : edge.Traversed ? UITheme.WithAlpha(UITheme.Cyan, 0.95f)
+                    : available ? UITheme.WithAlpha(UITheme.CyanLight, 0.36f)
+                    : UITheme.WithAlpha(UITheme.TextStrong, 0.08f);
             }
-            _plan.text = planned == null ? "Choose a future Void to mark your route."
-                : "PLANNED  /  " + (planned.Mystery ? "? UNKNOWN VOID" : planned.Node.DisplayName.ToUpperInvariant());
-            _plan.color = planned == null ? UITheme.TextStrong : UITheme.GoldLight;
         }
+
+        private void BuildPlannedRoute(NodeWidgets planned)
+        {
+            _plannedNodes.Clear();
+            _plannedEdges.Clear();
+            if (planned == null) return;
+            AddPath(_run.PlannedPathThrough(planned.Node.Id));
+        }
+
+        private void AddPath(IReadOnlyList<string> path)
+        {
+            for (var index = 0; index < path.Count; index++)
+            {
+                _plannedNodes.Add(path[index]);
+                if (index > 0) _plannedEdges.Add(EdgeKey(path[index - 1], path[index]));
+            }
+        }
+
+        private static string EdgeKey(string from, string to) => from + "\n" + to;
 
         private void Plan(NodeWidgets card)
         {
@@ -313,38 +327,20 @@ namespace VoidFall.UI
             _panel.localScale = Vector3.one * Mathf.Max(0.1f, scale);
         }
 
-        private void Legend(string text, Color color, float x)
-        {
-            var mark = UIBuilder.CreateFill(_panel, text + " Legend Marker", color);
-            Place(mark.rectTransform, new Vector2(x, -319f), new Vector2(14f, 3f));
-            Label(_panel, text + " Legend", text, 11f, UITheme.TextStrong,
-                new Vector2(x + 91f, -319f), new Vector2(150f, 22f));
-        }
-
-        private void Rule(string name, float y)
-        {
-            var rule = UIBuilder.CreateFill(_panel, name, UITheme.BorderRule);
-            Place(rule.rectTransform, new Vector2(0f, y), new Vector2(1048f, 1f));
-        }
-
         private static Vector2 Boundary(RectTransform rect, Vector2 direction)
         {
-            var x = Mathf.Abs(direction.x) < 0.01f ? float.PositiveInfinity : rect.sizeDelta.x * 0.5f / Mathf.Abs(direction.x);
-            var y = Mathf.Abs(direction.y) < 0.01f ? float.PositiveInfinity : rect.sizeDelta.y * 0.5f / Mathf.Abs(direction.y);
+            var x = Mathf.Abs(direction.x) < 0.01f
+                ? float.PositiveInfinity
+                : rect.sizeDelta.x * 0.5f / Mathf.Abs(direction.x);
+            var y = Mathf.Abs(direction.y) < 0.01f
+                ? float.PositiveInfinity
+                : rect.sizeDelta.y * 0.5f / Mathf.Abs(direction.y);
             return direction * Mathf.Min(x, y);
         }
 
-        private static string ShortHint(string value, int maxLength)
-        {
-            if (string.IsNullOrEmpty(value)) return "Clear this Void's escape condition.";
-            value = value.Replace('\n', ' ').Replace('\r', ' ');
-            if (value.Length <= maxLength) return value;
-            var end = value.LastIndexOf(' ', maxLength - 1, maxLength);
-            return value.Substring(0, end > maxLength / 2 ? end : maxLength - 1).TrimEnd(' ', '.', ',') + "…";
-        }
-
         private static Text Label(Transform parent, string name, string text, float size, Color color,
-            Vector2 position, Vector2 dimensions, FontStyle style = FontStyle.Normal, TextAnchor anchor = TextAnchor.MiddleLeft)
+            Vector2 position, Vector2 dimensions, FontStyle style = FontStyle.Normal,
+            TextAnchor anchor = TextAnchor.MiddleLeft)
         {
             var label = UIBuilder.CreateText(parent, name, text, size, color, anchor, true, style);
             label.supportRichText = false;

@@ -135,9 +135,10 @@ namespace VoidFall.Runtime
                 yield return new WaitForSecondsRealtime(0.4f);
                 typeof(VoidFall.UI.RouletteView).GetMethod("OnSpinPressed", Flags).Invoke(ui.Roulette, null);
                 yield return new WaitForSecondsRealtime(9f);
-                if (!(bool)Get("_prizeRevealActive")) throw new InvalidOperationException("Spin did not automatically reveal its reward.");
+                if ((bool)Get("_prizeRevealActive") || (bool)Get("_rouletteActive"))
+                    throw new InvalidOperationException("Spin did not release the escape without an extra popup.");
                 yield return new WaitForEndOfFrame();
-                ScreenCapture.CaptureScreenshot(_output + "-prize.png");
+                ScreenCapture.CaptureScreenshot(_output + "-resumed.png");
                 yield return new WaitForSecondsRealtime(0.4f);
                 Call("ClosePrizeReveal");
                 Debug.Log("ROULETTE PLAYER CHECK PASSED");
@@ -166,6 +167,15 @@ namespace VoidFall.Runtime
                 Call("StepObjectiveTracker", 300d);
                 Call("StepObjectiveTracker", 0d);
                 var sim = Get("_gameSim");
+                var captureIndex = 0;
+                if (_mode == "escape")
+                {
+                    Set("_xpNeed", 1000000);
+                    var charge = new OverclockState(); charge.ApplyPickup();
+                    Set("_overclock", charge);
+                    for (var enemy = 0; enemy < 55; enemy++) Call("SpawnEnemy", enemy % 3 == 0 ? "runner" : "chaser");
+                    Call("SpawnPickup", new Vector2(2400f, 1600f), 15f);
+                }
                 var bosses = (Array)sim.GetType().GetField("Bosses", Flags).GetValue(sim);
                 for (var index = 0; index < bosses.Length; index++)
                 {
@@ -189,6 +199,14 @@ namespace VoidFall.Runtime
                 var nextHeartbeat = 0f;
                 while (Time.realtimeSinceStartup < deadline)
                 {
+                    if (_mode == "escape" && _runtime.JourneyStatus == "Rewards" && !(bool)Get("_paused") &&
+                        captureIndex < 3 && 15f - (float)Get("_voidCompletionDelayRemaining") >= new[] { 2f, 7f, 13f }[captureIndex])
+                    {
+                        yield return new WaitForEndOfFrame();
+                        ScreenCapture.CaptureScreenshot(_output + "-escape-" + captureIndex + ".png");
+                        Debug.Log("VOIDJOURNEY capture charge=" + ((OverclockState)Get("_overclock")).RemainingSeconds + " enemies=" + _runtime.ActiveEnemiesCount);
+                        captureIndex++;
+                    }
                     if (Time.realtimeSinceStartup >= nextHeartbeat)
                     {
                         nextHeartbeat = Time.realtimeSinceStartup + 5f;
@@ -244,15 +262,14 @@ namespace VoidFall.Runtime
                     {
                         if (_runtime.ActiveEnemiesCount != 0 || _runtime.ActiveHostileShotsCount != 0)
                             throw new InvalidOperationException("Junction is not safe.");
-                        if (_mode == "junction")
+                        if (_mode == "junction" || _mode == "escape")
                         {
                             for (var frame = 0; frame < 15; frame++) yield return null;
                             yield return new WaitForEndOfFrame();
-                            ScreenCapture.CaptureScreenshot(_output);
+                            ScreenCapture.CaptureScreenshot(_mode == "escape" ? _output + "-junction.png" : _output);
                             yield return new WaitForSecondsRealtime(0.5f);
                             Debug.Log("VOIDJOURNEY JUNCTION CAPTURE " + _output);
-                            Application.Quit(0);
-                            yield break;
+                            if (_mode == "junction") { Application.Quit(0); yield break; }
                         }
                         var portals = (SpriteRenderer[])Get("_junctionPortals");
                         Set("_junctionAge", 1f);
@@ -261,7 +278,22 @@ namespace VoidFall.Runtime
                         player.GetType().GetField("Position", Flags).SetValue(player, (Vector2)portals[branch].transform.position);
                         playerField.SetValue(sim, player);
                     }
-                    if (_runtime.JourneyStatus == "Combat" && _runtime.CurrentVoidId != source) break;
+                    if (_runtime.JourneyStatus == "Combat" && _runtime.CurrentVoidId != source)
+                    {
+                        var route = (VoidRouteRun)Get("_voidRoute");
+                        var expected = ArenaCatalogRules.LegacyArena(route.CurrentArenaId);
+                        if ((ArenaId)Get("_arenaId") != expected) throw new InvalidOperationException("Route and loaded arena disagree.");
+                        if (_mode == "escape")
+                        {
+                            yield return new WaitForEndOfFrame();
+                            ScreenCapture.CaptureScreenshot(_output + "-arrival.png");
+                            File.WriteAllText(_output + ".json", JsonUtility.ToJson(new Report
+                            { success = true, seed = 2848592627u, visited = new[] { source, route.CurrentArenaId } }, true));
+                            yield return new WaitForSecondsRealtime(0.5f);
+                            Application.Quit(0); yield break;
+                        }
+                        break;
+                    }
                     yield return null;
                 }
                 if (Time.realtimeSinceStartup >= deadline)

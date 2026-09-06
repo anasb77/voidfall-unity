@@ -208,7 +208,7 @@ namespace VoidFall.Runtime
                 return;
             }
             if (HydraRuntimeRules.SuppressAmbientSpawns(
-                _voidRoute?.CurrentVoidId,
+                _voidRoute?.CurrentArenaId,
                 _hydraBossEncounterActive))
             {
                 _spawnTimer = Mathf.Max(_spawnTimer, 0.45f);
@@ -2128,15 +2128,7 @@ namespace VoidFall.Runtime
                     }
                     else if (pickup.Kind == PickupKind.Part)
                     {
-                        var parts = Mathf.Max(1, Mathf.RoundToInt(pickup.Value));
-                        _partsEarned += parts;
-                        SpawnFloater(
-                            _gameSim.Player.Position + Vector2.up * 18f,
-                            "+" + parts + " Part" + (parts > 1 ? "s" : string.Empty),
-                            new Color(0.98f, 0.79f, 0.08f, 1f),
-                            12);
-                        _audio?.Play(ProceduralAudio.Cue.Currency, 1f);
-                        BurstFx(_gameSim.Player.Position, SourceDotColor("yellow"), 3, 130, 0.28f, 0.65f);
+                        GrantPartPickup(pickup.Value);
                     }
                     else if (pickup.Kind == PickupKind.Magnet)
                     {
@@ -2176,7 +2168,9 @@ namespace VoidFall.Runtime
                     }
                     else if (pickup.Kind == PickupKind.Bomb)
                     {
-                        DetonateBomb();
+                        if (_journeyStage == JourneyStage.Rewards && JourneyStopsCombat)
+                            SpawnRingWave(_gameSim.Player.Position, 30f, 500f, 0.7f, UITheme.CyanPale);
+                        else DetonateBomb();
                     }
                     else if (pickup.Kind == PickupKind.Overdrive)
                     {
@@ -2203,7 +2197,8 @@ namespace VoidFall.Runtime
                         BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"), 10, 200, 0.4f, 0.75f);
                         ShowArenaToast("TRACK SHIFT", 2f, ToastKind.Reward);
                     }
-                    _telemetry.RecordPickup(PickupKindName(pickup.Kind), pickup.Value);
+                    if (pickup.Kind != PickupKind.Part)
+                        _telemetry.RecordPickup(PickupKindName(pickup.Kind), pickup.Value);
                 };
             }
             _gameSim.PickupCollectedHook = _pickupCollectedHook;
@@ -2219,6 +2214,20 @@ namespace VoidFall.Runtime
             CountPendingMusicGems();
             _pickupStepTimer = Mathf.Max(0, _pickupStepTimer - dt);
             if (_pickupStepTimer <= 0) _pickupStep = 0;
+        }
+
+        private void GrantPartPickup(float value)
+        {
+            var parts = Mathf.Max(1, Mathf.RoundToInt(value));
+            _partsEarned += parts;
+            SpawnFloater(
+                _gameSim.Player.Position + Vector2.up * 18f,
+                "+" + parts + " Part" + (parts > 1 ? "s" : string.Empty),
+                new Color(0.98f, 0.79f, 0.08f, 1f),
+                12);
+            _audio?.Play(ProceduralAudio.Cue.Currency, 1f);
+            BurstFx(_gameSim.Player.Position, SourceDotColor("yellow"), 3, 130, 0.28f, 0.65f);
+            _telemetry.RecordPickup(PickupKindName(PickupKind.Part), value);
         }
 
         private void UpdateWeapons(float dt)
@@ -4049,14 +4058,18 @@ namespace VoidFall.Runtime
         {
             var enemy = _gameSim.Enemies[index];
             if (!enemy.Active) return;
+            var escaping = JourneyStopsCombat && _journeyStage == JourneyStage.Rewards;
             // Browser removeEnemy marks the object dead and compacts the
             // dynamic array before resolving death effects. Do the same in
             // the logical order list while retaining the pooled slot.
             enemy.Active = false;
             _gameSim.Enemies[index] = enemy;
             RemoveEnemyOrder(index);
-            OnNullCityEnemyDeath(enemy);
-            CrascendoEnemyDeath(index, enemy);
+            if (!escaping)
+            {
+                OnNullCityEnemyDeath(enemy);
+                CrascendoEnemyDeath(index, enemy);
+            }
             var enemyDefinition = FindEnemy(enemy.Id);
             SpawnDeathGhost(enemy, index);
             var destroyedExploder = enemy.Id == "exploder";
@@ -4157,7 +4170,7 @@ namespace VoidFall.Runtime
                 _audio?.Play(ProceduralAudio.Cue.Elite, 0.72f);
                 ShowArenaToast("Elite cleared", 2.5f, ToastKind.Reward, "+8 Parts");
             }
-            else if ((destroyedExploder || enemy.MutationGene == MutationGene.Volatile) && !selfDetonated)
+            else if (!escaping && (destroyedExploder || enemy.MutationGene == MutationGene.Volatile) && !selfDetonated)
             {
                 // A destroyed Exploder, including the Elite Exploder variant,
                 // produces the browser's friendly-side chain blast. Its self-
@@ -4193,13 +4206,13 @@ namespace VoidFall.Runtime
                 _audio?.Play(ProceduralAudio.Cue.Die, 1.08f);
             }
 
-            if (enemy.Id == "splitter" && UsesRosterProgression(enemy))
+            if (!escaping && enemy.Id == "splitter" && UsesRosterProgression(enemy))
             {
                 var traits = RosterProgressionTraits.Get(enemy.Id, enemy.Roster);
                 for (var child = 0; child < (int)traits.SplitCount; child++)
                     SpawnProgressedChild(enemy, child, (int)traits.SplitCount, (EnemyRoster)(int)traits.ChildTier, false);
             }
-            else if (enemy.Id == "splitter" && !enemy.SplitterFragment)
+            else if (!escaping && enemy.Id == "splitter" && !enemy.SplitterFragment)
             {
                 for (var fragment = 0; fragment < 3; fragment++)
                 {
@@ -4217,7 +4230,7 @@ namespace VoidFall.Runtime
                     ParseColor(enemyDefinition?.Color, new Color(0.96f, 0.45f, 0.71f, 0.72f)));
             }
 
-            if (enemy.Id == "carrier")
+            if (!escaping && enemy.Id == "carrier")
             {
                 for (var child = 0; child < _gameSim.Enemies.Length; child++)
                 {
@@ -4237,7 +4250,8 @@ namespace VoidFall.Runtime
             // enemy, including Carrier Drones and Splitter Fragments.
             if (!enemy.Elite && _gameSim.Rng.Next() < 0.045)
             {
-                SpawnSpecialPickup(enemy.Position, 1, PickupKind.Part);
+                if (!SpawnSpecialPickup(enemy.Position, 1, PickupKind.Part) && escaping)
+                    GrantPartPickup(1);
             }
             var rareChance = enemy.EliteKind.HasValue ? 0.35 : 0.011;
             if ((enemy.Elite && !enemy.EliteKind.HasValue) || _gameSim.Rng.Next() < rareChance)

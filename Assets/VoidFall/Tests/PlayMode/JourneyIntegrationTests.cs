@@ -48,6 +48,7 @@ namespace VoidFall.Tests.PlayMode
             Set(_runtime, "_applicationInactive", false);
             Set(_runtime, "_diagnosticRunSeedOverride", 2848592627u);
             Invoke(_runtime, "StartRun");
+            Invoke(_runtime, "DestroyEnemiesForVoidTransition");
             yield return null;
         }
 
@@ -108,13 +109,10 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Map_shortcuts_and_stale_close_cannot_dismiss_an_active_prize()
+        public IEnumerator Map_shortcuts_cannot_dismiss_roulette_and_its_completion_releases_navigation()
         {
             Invoke(_runtime, "OpenBossRoulette");
             Assert.That(Get(_runtime, "_rouletteActive"), Is.True);
-            RouletteRules.Spin((RouletteSession)Get(_runtime, "_rouletteSession"), new Rng(200));
-            Invoke(_runtime, "OnRouletteComplete", Get(_runtime, "_rouletteSession"));
-            Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.PrizeReveal));
 
             Invoke(_runtime, "ToggleRouteMap");
             Invoke(_runtime, "CloseRouteMap");
@@ -123,10 +121,14 @@ namespace VoidFall.Tests.PlayMode
             _runtime.enabled = false;
 
             Assert.That(Get(_runtime, "_routeMapOpen"), Is.False);
-            Assert.That(Get(_runtime, "_prizeRevealActive"), Is.True);
+            Assert.That(Get(_runtime, "_rouletteActive"), Is.True);
             Assert.That(Get(_runtime, "_paused"), Is.True);
-            Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.PrizeReveal));
-            Assert.That(Ui.PrizeReveal.IsVisible, Is.True);
+            Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.Roulette));
+            RouletteRules.Spin((RouletteSession)Get(_runtime, "_rouletteSession"), new Rng(200));
+            Invoke(_runtime, "OnRouletteComplete", Get(_runtime, "_rouletteSession"));
+            Assert.That(Get(_runtime, "_prizeRevealActive"), Is.False);
+            Assert.That(Get(_runtime, "_paused"), Is.False);
+            Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.None));
         }
 
         [UnityTest]
@@ -180,7 +182,7 @@ namespace VoidFall.Tests.PlayMode
             Invoke(_runtime, "OnRouletteComplete", session);
             Invoke(_runtime, "OnRouletteComplete", session);
             Assert.That(Get(_runtime, "_partsEarned"), Is.EqualTo(270));
-            Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.PrizeReveal));
+            Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.None));
             yield return null;
         }
 

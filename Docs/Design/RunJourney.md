@@ -178,3 +178,18 @@ are under `Runtime/Gameplay/`. See `Docs/REPO_MAP.md` for the architecture.
 ## September6 approved addition
 
 The owner approved Crascendo as a standard-pool Void, joining the implemented Eon Sea. Crascendo uses shared enemies/elites/global tiers and a random shared boss after native five-minute survival. Its approved identity is per-hit size growth and an indigo-to-crying-violet obsidian setting. This expands the prepared pool to eight while preserving six arenas per generated route.
+
+## September 6 approved journey refinement
+
+The owner approved the interactive browser study, then requested implementation
+with a fifteen-second collapse, staggered enemy explosions, full earned XP/Parts
+recovery, frozen Overclock until arrival, animated `Escaping...` dots, and three
+increasing shake patterns. This supersedes the earlier 25+10-second timing and
+leaving earned loot behind. Roulette remains; its additional prize-confirmation
+popup is removed. Physical portals use their destination colors and names only.
+
+The latest map direction is minimal: centered `VOID MAP`, arena thumbnail/name
+nodes and `YOU ARE HERE`, with connections carrying route state and planning.
+Descriptions, progress/state text and emoji are removed. The visual map and
+portals show consistent destination identities. The approved implementation
+contract is `Docs/Design/2026-09-06-JourneyPolish.md`.

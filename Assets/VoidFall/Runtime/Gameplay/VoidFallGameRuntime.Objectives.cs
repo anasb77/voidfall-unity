@@ -41,7 +41,7 @@ namespace VoidFall.Runtime
             // arena: Hydra shares the Abyss arena as a placeholder but must
             // not share its escape condition.
             var key = _voidRoute != null
-                ? _voidRoute.CurrentVoidId
+                ? _voidRoute.CurrentArenaId
                 : ArenaCatalogRules.StableId(_arenaId);
             var objective = VoidObjectives.ForArena(key);
             Debug.Log($"VOIDFLOW begin key={key} null={objective == null} t={_time:F1}");

@@ -135,20 +135,33 @@ polling is chiefly movement, with menu shortcuts in the runtime's `Update`.
 
 Normal runs use `Content/PlayableVoidRoutes.cs`: a seeded finite graph of
 prepared, objective-ready arenas with known metadata. The eight prepared arenas
-produce widths 1/2/2/1/1/1, with six arenas visited per path. The Tab overview is
-`UI/Views/RouteMapView.cs`; clicks plan, while physical portals commit choices.
+produce six visits per path across split/reconnect layouts. Nine route nodes
+reuse one arena only across mutually exclusive branches; no legal path repeats
+an arena. `VoidRouteNode.ArenaId` and `VoidRouteRun.CurrentArenaId` keep arena
+identity separate from internal node IDs (duplicate nodes use an `@` suffix).
+The minimal Tab overview is `UI/Views/RouteMapView.cs`; clicks highlight
+`PlannedPathThrough`, while physical portals commit choices.
 `Runtime/Gameplay/VoidFallGameRuntime.Journey.cs` owns reward/junction/travel
 stages, map pause ownership, the safe portal room, load retry and terminal
 return to Home. `VoidFallGameRuntime.LevelUps.cs` advances upgrade prompts in
 both combat and safe reward phases. `.Roulette.cs` explicitly owns PrizeReveal
 until Continue; `SyncUiScreen` must preserve that ownership.
 
-Escape timing now lives in Journey/Rift: 25 seconds of normal loot collection
-with camera follow and "Initiating Escape", then a ten-second visible countdown.
-Modal UI pauses that clock; early relic Continue preserves the remainder.
-An unclaimed relic is delivered before countdown, and its drop uses the boss's
-actual world position. Uncollected ordinary pickups are left in the outgoing
-arena. See `Docs/Design/2026-09-05-escape-window-fix.md` and `EscapeWindowTests.cs`.
+Escape timing lives in Journey/Rift and `.Escape.cs`: fifteen active seconds
+with normal movement, staggered harmless enemy deaths, animated `Escaping...`
+dots and three increasing shake patterns. At eleven seconds, remaining XP and
+Parts sweep toward the player; departure settles them through the normal grant
+path and drains queued level choices. Overclock time remains held until combat
+resumes. Modal UI pauses the window. The relic stays at the boss's actual death
+site and is delivered if unclaimed; roulette grants once and resumes without a
+second prize confirmation. See `Docs/Design/2026-09-06-JourneyPolish.md` and
+`EscapePolishTests.cs` / `EscapeWindowTests.cs`.
+
+The map uses small arena thumbnails from `Resources/VoidFall/RouteThumbnails/`;
+it does not load all full arena packages. `Editor/RouteMapThumbnailBaker.cs`
+authors those previews from prepared plates. `Editor/JourneyVisualBaker.cs`
+also neutralizes the existing portal sheet into `Resources/VoidFall/Portals/Neutral/`,
+so portals can use each destination's native StarTint. Portals show names only.
 
 - `Core/VoidRoute.cs`: `VoidRouteNode`, `VoidRouteRun`, `RouteNodeState`, graph
   definitions, history, sibling locking, `NotifyVoidCompleted`, `SelectNextVoid`.

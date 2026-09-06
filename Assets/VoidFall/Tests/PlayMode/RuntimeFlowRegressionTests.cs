@@ -16,6 +16,7 @@ namespace VoidFall.Tests.PlayMode
         private VoidFallGameRuntime _isolatedRuntime;
         private object _previousStore, _previousProfile;
         private bool _previousEnabled;
+        private bool _previousApplicationInactive;
 
         [Test]
         public void Court_split_and_boss_hazards_switch_without_leaking_views()
@@ -57,6 +58,8 @@ namespace VoidFall.Tests.PlayMode
             _isolatedRuntime = UnityEngine.Object.FindAnyObjectByType<VoidFallGameRuntime>();
             Assert.That(_isolatedRuntime, Is.Not.Null);
             _previousEnabled = _isolatedRuntime.enabled;
+            _previousApplicationInactive = (bool)GetField(_isolatedRuntime, "_applicationInactive");
+            SetField(_isolatedRuntime, "_applicationInactive", false);
             _isolatedRuntime.enabled = false;
             _previousStore = GetField(_isolatedRuntime, "_saveStore");
             _previousProfile = GetField(_isolatedRuntime, "_saveData");
@@ -76,6 +79,7 @@ namespace VoidFall.Tests.PlayMode
                 SetField(_isolatedRuntime, "_saveStore", _previousStore);
                 SetField(_isolatedRuntime, "_saveData", _previousProfile);
                 _isolatedRuntime.enabled = _previousEnabled;
+                SetField(_isolatedRuntime, "_applicationInactive", _previousApplicationInactive);
             }
             yield return null;
         }
@@ -258,9 +262,10 @@ namespace VoidFall.Tests.PlayMode
             yield return null;
 
             Invoke(runtime, "StartRun");
+            Invoke(runtime, "DestroyEnemiesForVoidTransition");
             Invoke(runtime, "OnVoidObjectiveCompleted");
             Invoke(runtime, "SpawnRouletteChest", Vector2.zero);
-            SetField(runtime, "_voidCompletionDelayRemaining", 31f);
+            SetField(runtime, "_voidCompletionDelayRemaining", 11f);
 
             Invoke(runtime, "StepVoidCompletionDelay", 0f);
 
@@ -285,8 +290,8 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(GetField(runtime, "_openRouteAfterRoulette"), Is.False);
             Assert.That(GetField(runtime, "_paused"), Is.False);
             Assert.That(runtime.JourneyStatus, Is.EqualTo("Rewards"));
-            Assert.That(GetField(runtime, "_voidCompletionDelayRemaining"), Is.EqualTo(31f));
-            Invoke(runtime, "StepVoidCompletionDelay", 31f);
+            Assert.That(GetField(runtime, "_voidCompletionDelayRemaining"), Is.EqualTo(11f));
+            Invoke(runtime, "StepVoidCompletionDelay", 11f);
             var ui = (UIManager)GetField(runtime, "_ui");
             Assert.That(ui.CurrentScreen, Is.EqualTo(UIScreen.None));
             Assert.That(runtime.JourneyStatus, Is.EqualTo("Junction"));
@@ -323,7 +328,7 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Double_boss_completion_keeps_prize_reveal_until_the_player_continues()
+        public IEnumerator Double_boss_completion_resumes_escape_after_roulette_without_a_second_confirmation()
         {
             var runtime = UnityEngine.Object.FindAnyObjectByType<VoidFallGameRuntime>();
             Assert.That(runtime, Is.Not.Null);
@@ -339,16 +344,16 @@ namespace VoidFall.Tests.PlayMode
             Invoke(runtime, "KillBoss", 0);
             Invoke(runtime, "StepObjectiveTracker", 0d);
             Assert.That(((VoidObjectiveTracker)GetField(runtime, "_objectives")).IsComplete, Is.True);
-            SetField(runtime, "_voidCompletionDelayRemaining", 0f);
-            Invoke(runtime, "StepVoidCompletionDelay", 0f);
             SetField(runtime, "_rouletteChestPulse", 2f);
             Invoke(runtime, "CollectRouletteChest");
             Assert.That(GetField(runtime, "_rouletteActive"), Is.True);
             RouletteRules.Spin((RouletteSession)GetField(runtime, "_rouletteSession"), new Rng(200));
             Invoke(runtime, "OnRouletteComplete", GetField(runtime, "_rouletteSession"));
             Invoke(runtime, "SyncUiScreen");
-            Assert.That(((UIManager)GetField(runtime, "_ui")).CurrentScreen, Is.EqualTo(UIScreen.PrizeReveal),
-                "Frame reconciliation must not replace the reward's Continue screen with Pause.");
+            Assert.That(GetField(runtime, "_prizeRevealActive"), Is.False);
+            Assert.That(GetField(runtime, "_paused"), Is.False);
+            Assert.That(runtime.JourneyStatus, Is.EqualTo("Rewards"));
+            Assert.That((float)GetField(runtime, "_voidCompletionDelayRemaining"), Is.GreaterThan(0f));
         }
 
         [UnityTest]

@@ -65,7 +65,7 @@ namespace VoidFall.Runtime
         private float _hydraSurvivalElapsed;
 
         private bool CurrentVoidIsHydra =>
-            _voidRoute != null && _voidRoute.CurrentVoidId == "hydra";
+            _voidRoute != null && _voidRoute.CurrentArenaId == "hydra";
 
         private void SetupHydraPresentation()
         {

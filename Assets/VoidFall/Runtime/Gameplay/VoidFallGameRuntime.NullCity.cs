@@ -594,7 +594,7 @@ namespace VoidFall.Runtime
         private void ClearNullCityHostiles()
         {
             // Preserve the defeated boss and its native dissolution/relic-emergence timer.
-            for (var i = 0; i < _gameSim.Enemies.Length; i++)
+            for (var i = 0; i < _gameSim.Enemies.Length && (_voidRoute == null || _stressScenario != null); i++)
             {
                 _gameSim.Enemies[i] = default;
                 Hide(_enemyViews[i]);
@@ -603,7 +603,7 @@ namespace VoidFall.Runtime
                 Hide(_enemyTelegraphRingViews[i]); Hide(_enemyTelegraphLineViews[i]);
                 Hide(_enemyTelegraphSecondaryLineViews[i]); Hide(_enemyTelegraphTertiaryLineViews[i]);
             }
-            ResetEnemyOrder();
+            if (_voidRoute == null || _stressScenario != null) ResetEnemyOrder();
             for (var i = 0; i < _gameSim.HostileShots.Length; i++)
             { _gameSim.HostileShots[i] = default; Hide(_hostileShotViews[i]); }
             ResetHostileShotOrder();
