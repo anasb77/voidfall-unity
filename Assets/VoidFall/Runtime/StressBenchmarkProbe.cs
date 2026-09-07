@@ -2,16 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Profiling;
 using VoidFall.Core;
 
 namespace VoidFall.Runtime
 {
-    /// <summary>
-    /// Opt-in benchmark driver for the source-defined stress scenarios.
-    /// Enable with -vfbench=1. It is not created for normal player sessions.
-    /// </summary>
+    /// <summary>Opt-in, isolated-profile measurement of advancing production combat.</summary>
     [DefaultExecutionOrder(-700)]
     public sealed class StressBenchmarkProbe : MonoBehaviour
     {
@@ -19,45 +17,61 @@ namespace VoidFall.Runtime
         private sealed class Sample
         {
             public float elapsedSeconds;
+            public float combatSeconds;
+            public long simulationTicks;
+            public string pauseReason;
+            public int kills;
+            public double damageDealt;
             public float frameEmaMilliseconds;
-            public int enemies;
-            public int bosses;
-            public int bullets;
-            public int hostileShots;
-            public int pickups;
-            public int meteors;
-            public long managedBytes;
-            public long allocatedBytes;
-            public long reservedBytes;
+            public int enemies, bosses, bullets, hostileShots, pickups, meteors;
+            public long managedBytes, allocatedBytes, reservedBytes;
         }
 
         [Serializable]
         private sealed class Report
         {
-            public string scenario;
-            public string scenarioName;
-            public string sourceCommit = "4d5e955";
-            public string unityEditor;
-            public int seed;
-            public float warmupSeconds;
-            public float measureSeconds;
+            public bool valid;
+            public string error, scenario, scenarioName, sourceCommit, unityEditor, cpu, gpu;
+            public int seed, width, height, frameCount, timingFrames;
+            public float warmupSeconds, measureSeconds, combatSecondsAdvanced;
+            public long simulationTicksAdvanced, gcBytes;
+            public bool gcRecorderAvailable;
+            public double medianFrameMs, p95FrameMs, p99FrameMs, maximumFrameMs;
+            public double meanSimulationCpuMs, meanMainThreadMs, meanRenderThreadMs, meanGpuMs;
             public Sample[] samples;
         }
 
         private const float SampleIntervalSeconds = 5f;
-        private VoidFallGameRuntime _runtime;
-        private string _scenarioId;
-        private string _outputPath;
-        private uint _seed;
-        private float _warmupSeconds;
-        private float _measureSeconds;
-        private float _phaseElapsed;
-        private float _sampleElapsed;
-        private float _lastRealtime;
-        private bool _started;
-        private bool _measuring;
-        private bool _finished;
+        private const int FrameCapacity = 72000;
+        private readonly float[] _frameTimes = new float[FrameCapacity];
+        private readonly FrameTiming[] _timings = new FrameTiming[1];
         private readonly List<Sample> _samples = new List<Sample>(64);
+        private VoidFallGameRuntime _runtime;
+        private string _scenarioId, _outputPath;
+        private uint _seed;
+        private float _warmupSeconds, _measureSeconds, _phaseElapsed, _sampleElapsed, _stalledSeconds;
+        private double _lastRealtime, _simulationCpuTotal, _mainTotal, _renderTotal, _gpuTotal;
+        private float _measureStartCombat;
+        private long _lastTicks, _measureStartTicks, _gcBytes;
+        private double _measureStartDamage;
+        private int _measureStartKills, _frameCount, _timingFrames;
+        private bool _started, _measuring, _finished;
+        private ProfilerRecorder _gcRecorder;
+
+        // Resolve before the runtime loads any real progression. Benchmark output
+        // and its fresh profile are adjacent, just like the existing capture probes.
+        public static string ProfilePath
+        {
+            get
+            {
+                if (!HasArgument("-vfbench")) return null;
+                var output = GetArgumentValue("-vfoutput");
+                var directory = string.IsNullOrWhiteSpace(output)
+                    ? Path.Combine(Application.persistentDataPath, "benchmarks")
+                    : Path.GetDirectoryName(Path.GetFullPath(output));
+                return Path.Combine(directory, "benchmark-profile.json");
+            }
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void CreateIfRequested()
@@ -76,14 +90,15 @@ namespace VoidFall.Runtime
             _outputPath = GetArgumentValue("-vfoutput");
             _warmupSeconds = ParseFloat(GetArgumentValue("-vfwarmup"), -1f);
             _measureSeconds = ParseFloat(GetArgumentValue("-vfmeasure"), -1f);
-            _lastRealtime = Time.realtimeSinceStartup;
+            _lastRealtime = Time.realtimeSinceStartupAsDouble;
+            _gcRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Memory, "GC Allocated In Frame");
         }
 
         private void Update()
         {
             if (_finished) return;
-            var now = Time.realtimeSinceStartup;
-            var frameSeconds = Mathf.Max(0f, now - _lastRealtime);
+            var now = Time.realtimeSinceStartupAsDouble;
+            var frameSeconds = (float)Math.Max(0, now - _lastRealtime);
             _lastRealtime = now;
             if (_runtime == null)
             {
@@ -94,55 +109,72 @@ namespace VoidFall.Runtime
             if (!_started)
             {
                 var definition = FindScenario(_scenarioId);
-                if (definition == null)
-                {
-                    FinishWithError("Unknown stress scenario: " + _scenarioId);
-                    return;
-                }
-
+                if (definition == null) { Finish("Unknown stress scenario: " + _scenarioId); return; }
                 _warmupSeconds = _warmupSeconds >= 0 ? _warmupSeconds : (float)definition.WarmupSeconds;
-                _measureSeconds = _measureSeconds >= 0 ? _measureSeconds : (float)definition.MeasureSeconds;
+                _measureSeconds = _measureSeconds > 0 ? _measureSeconds : (float)definition.MeasureSeconds;
                 if (!_runtime.ApplyStressScenario(_scenarioId, _seed))
-                {
-                    FinishWithError("Stress scenario could not be applied: " + _scenarioId);
-                    return;
-                }
-
+                { Finish("Stress scenario could not be applied."); return; }
                 _started = true;
-                _phaseElapsed = 0;
-                Debug.Log(
-                    $"[VoidFallStress] START scenario={_scenarioId} seed={_seed} " +
-                    $"warmup={_warmupSeconds:0.###} measure={_measureSeconds:0.###}");
+                _lastTicks = _runtime.DiagnosticSimulationTicks;
+                Debug.Log($"[VoidFallStress] START scenario={_scenarioId} seed={_seed} warmup={_warmupSeconds} measure={_measureSeconds}");
                 return;
             }
 
+            if (_runtime.DiagnosticSimulationTicks == _lastTicks) _stalledSeconds += frameSeconds;
+            else _stalledSeconds = 0;
+            _lastTicks = _runtime.DiagnosticSimulationTicks;
+            if (_stalledSeconds > 5)
+            { Finish("Combat stalled for five seconds: " + _runtime.DiagnosticPauseReason); return; }
+
+            if (_measuring)
+            {
+                if (_frameCount >= FrameCapacity) { Finish("Frame sample capacity exceeded."); return; }
+                _frameTimes[_frameCount++] = frameSeconds * 1000f;
+                _simulationCpuTotal += _runtime.DiagnosticSimulationCpuMilliseconds;
+                if (_gcRecorder.Valid) _gcBytes += Math.Max(0, _gcRecorder.LastValue);
+                if (FrameTimingManager.GetLatestTimings(1, _timings) > 0)
+                {
+                    _timingFrames++;
+                    _mainTotal += _timings[0].cpuMainThreadFrameTime;
+                    _renderTotal += _timings[0].cpuRenderThreadFrameTime;
+                    _gpuTotal += _timings[0].gpuFrameTime;
+                }
+            }
+            FrameTimingManager.CaptureFrameTimings();
+            _runtime.PrepareBenchmarkFrame();
             _phaseElapsed += frameSeconds;
             if (!_measuring)
             {
                 if (_phaseElapsed < _warmupSeconds) return;
                 _measuring = true;
-                _phaseElapsed = 0;
-                _sampleElapsed = 0;
+                _phaseElapsed = _sampleElapsed = 0;
+                _measureStartCombat = _runtime.DiagnosticCombatSeconds;
+                _measureStartTicks = _runtime.DiagnosticSimulationTicks;
+                _measureStartDamage = _runtime.DiagnosticDamageDealt;
+                _measureStartKills = _runtime.DiagnosticKills;
                 CaptureSample();
                 return;
             }
-
             _sampleElapsed += frameSeconds;
             if (_sampleElapsed >= SampleIntervalSeconds)
             {
-                _sampleElapsed -= SampleIntervalSeconds;
+                _sampleElapsed = 0;
                 CaptureSample();
             }
-
-            if (_phaseElapsed >= _measureSeconds)
-                Finish();
+            if (_phaseElapsed >= _measureSeconds) Finish(null);
         }
 
         private void CaptureSample()
         {
+            if (_runtime == null) return;
             _samples.Add(new Sample
             {
                 elapsedSeconds = _phaseElapsed,
+                combatSeconds = _runtime.DiagnosticCombatSeconds,
+                simulationTicks = _runtime.DiagnosticSimulationTicks,
+                pauseReason = _runtime.DiagnosticPauseReason,
+                kills = _runtime.DiagnosticKills,
+                damageDealt = _runtime.DiagnosticDamageDealt,
                 frameEmaMilliseconds = _runtime.FrameEmaMilliseconds,
                 enemies = _runtime.ActiveEnemiesCount,
                 bosses = _runtime.ActiveBossesCount,
@@ -152,121 +184,101 @@ namespace VoidFall.Runtime
                 meteors = _runtime.ActiveMeteorsCount,
                 managedBytes = GC.GetTotalMemory(false),
                 allocatedBytes = Profiler.GetTotalAllocatedMemoryLong(),
-                reservedBytes = Profiler.GetTotalReservedMemoryLong(),
+                reservedBytes = Profiler.GetTotalReservedMemoryLong()
             });
-            Debug.Log(
-                $"[VoidFallStress] SAMPLE t={_phaseElapsed:0.###} " +
-                $"frame={_runtime.FrameEmaMilliseconds:0.###}ms " +
-                $"enemies={_runtime.ActiveEnemiesCount} bosses={_runtime.ActiveBossesCount} " +
-                $"shots={_runtime.ActiveBulletsCount + _runtime.ActiveHostileShotsCount} " +
-                $"pickups={_runtime.ActivePickupsCount}");
+            Debug.Log($"[VoidFallStress] SAMPLE elapsed={_phaseElapsed:0.00} combat={_runtime.DiagnosticCombatSeconds:0.00} ticks={_runtime.DiagnosticSimulationTicks} enemies={_runtime.ActiveEnemiesCount} kills={_runtime.DiagnosticKills} state={_runtime.DiagnosticPauseReason}");
         }
 
-        private void Finish()
+        private void Finish(string error)
         {
             if (_finished) return;
             _finished = true;
-            if (_samples.Count == 0 || _samples[_samples.Count - 1].elapsedSeconds < _phaseElapsed)
-                CaptureSample();
-            _runtime.ClearStressScenario();
+            CaptureSample();
+            var combatAdvanced = _measuring && _runtime != null ? _runtime.DiagnosticCombatSeconds - _measureStartCombat : 0;
+            var ticksAdvanced = _measuring && _runtime != null ? _runtime.DiagnosticSimulationTicks - _measureStartTicks : 0;
+            if (error == null && (combatAdvanced <= 0.1f || ticksAdvanced == 0 ||
+                (_runtime.DiagnosticDamageDealt <= _measureStartDamage && _runtime.DiagnosticKills <= _measureStartKills)))
+                error = "No advancing attacking combat was measured.";
+            var sorted = new float[_frameCount];
+            Array.Copy(_frameTimes, sorted, _frameCount);
+            Array.Sort(sorted);
             var report = new Report
             {
-                scenario = _scenarioId,
-                scenarioName = FindScenario(_scenarioId)?.Name ?? _scenarioId,
+                valid = error == null, error = error,
+                scenario = _scenarioId, scenarioName = FindScenario(_scenarioId)?.Name ?? _scenarioId,
+                sourceCommit = GetArgumentValue("-vfsourcecommit") ?? "unrecorded",
                 unityEditor = Application.unityVersion,
-                seed = unchecked((int)_seed),
-                warmupSeconds = _warmupSeconds,
-                measureSeconds = _measureSeconds,
-                samples = _samples.ToArray(),
+                cpu = SystemInfo.processorType, gpu = SystemInfo.graphicsDeviceName,
+                width = Screen.width, height = Screen.height, seed = unchecked((int)_seed),
+                warmupSeconds = _warmupSeconds, measureSeconds = _phaseElapsed,
+                combatSecondsAdvanced = combatAdvanced, simulationTicksAdvanced = ticksAdvanced,
+                frameCount = _frameCount, timingFrames = _timingFrames,
+                gcBytes = _gcBytes, gcRecorderAvailable = _gcRecorder.Valid,
+                medianFrameMs = Percentile(sorted, .5), p95FrameMs = Percentile(sorted, .95),
+                p99FrameMs = Percentile(sorted, .99),
+                maximumFrameMs = sorted.Length > 0 ? sorted[sorted.Length - 1] : 0,
+                meanSimulationCpuMs = _frameCount > 0 ? _simulationCpuTotal / _frameCount : 0,
+                meanMainThreadMs = _timingFrames > 0 ? _mainTotal / _timingFrames : 0,
+                meanRenderThreadMs = _timingFrames > 0 ? _renderTotal / _timingFrames : 0,
+                meanGpuMs = _timingFrames > 0 ? _gpuTotal / _timingFrames : 0,
+                samples = _samples.ToArray()
             };
-            var path = ResolveOutputPath();
+            _runtime?.ClearStressScenario();
+            var output = ResolveOutputPath();
             try
             {
-                var directory = Path.GetDirectoryName(path);
-                if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
-                File.WriteAllText(path, JsonUtility.ToJson(report, true));
-                Debug.Log(
-                    $"[VoidFallStress] COMPLETE scenario={_scenarioId} samples={_samples.Count} " +
-                    $"report={path}");
+                Directory.CreateDirectory(Path.GetDirectoryName(output));
+                File.WriteAllText(output, JsonUtility.ToJson(report, true));
             }
-            catch (Exception exception)
-            {
-                Debug.LogError("[VoidFallStress] Report write failed: " + exception.Message);
-            }
-
-            // A benchmark invocation is a finite diagnostic command. Quit so a
-            // scripted player run cannot be mistaken for a hung process.
-            Application.Quit(0);
+            catch (Exception exception) { error = "Cannot write benchmark report: " + exception.Message; }
+            if (error == null) Debug.Log($"[VoidFallStress] COMPLETE valid=true p95={report.p95FrameMs:0.00}ms progress={combatAdvanced:0.00}s report={output}");
+            else Debug.LogError("[VoidFallStress] INVALID " + error);
+            Application.Quit(error == null ? 0 : 1);
         }
 
-        private void FinishWithError(string message)
-        {
-            if (_finished) return;
-            _finished = true;
-            Debug.LogError("[VoidFallStress] " + message);
-            Application.Quit(1);
-        }
+        private void OnDestroy() { _gcRecorder.Dispose(); }
 
-        private string ResolveOutputPath()
-        {
-            if (!string.IsNullOrWhiteSpace(_outputPath)) return Path.GetFullPath(_outputPath);
-            return Path.Combine(
-                Application.persistentDataPath,
-                "voidfall-unity-bench-" + _scenarioId + ".json");
-        }
+        private static double Percentile(float[] sorted, double fraction) =>
+            sorted.Length == 0 ? 0 : sorted[Math.Min(sorted.Length - 1, (int)Math.Ceiling(sorted.Length * fraction) - 1)];
+
+        private string ResolveOutputPath() => !string.IsNullOrWhiteSpace(_outputPath)
+            ? Path.GetFullPath(_outputPath)
+            : Path.Combine(Application.persistentDataPath, "benchmarks", "voidfall-unity-bench-" + _scenarioId + ".json");
 
         private static StressScenarioDefinition FindScenario(string id)
         {
-            for (var index = 0; index < ContentCatalog.StressScenarios.Length; index++)
-                if (ContentCatalog.StressScenarios[index].Id == id)
-                    return ContentCatalog.StressScenarios[index];
+            for (var i = 0; i < ContentCatalog.StressScenarios.Length; i++)
+                if (ContentCatalog.StressScenarios[i].Id == id) return ContentCatalog.StressScenarios[i];
             return null;
         }
 
         private static bool HasArgument(string name)
         {
             var args = Environment.GetCommandLineArgs();
-            for (var index = 0; index < args.Length; index++)
+            for (var i = 0; i < args.Length; i++)
             {
-                if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase)) return true;
-                if (args[index].StartsWith(name + "=", StringComparison.OrdinalIgnoreCase))
-                    return !string.Equals(args[index].Substring(name.Length + 1), "0", StringComparison.Ordinal);
+                if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase)) return true;
+                if (args[i].StartsWith(name + "=", StringComparison.OrdinalIgnoreCase))
+                    return !string.Equals(args[i].Substring(name.Length + 1), "0", StringComparison.Ordinal);
             }
             return false;
         }
-
-        private static string GetArgumentValue(string name)
-        {
-            return GetArgumentValue(Environment.GetCommandLineArgs(), name);
-        }
-
+        private static string GetArgumentValue(string name) => GetArgumentValue(Environment.GetCommandLineArgs(), name);
         private static string GetArgumentValue(string[] args, string name)
         {
             if (args == null || string.IsNullOrEmpty(name)) return null;
             var prefix = name + "=";
-            for (var index = 0; index < args.Length; index++)
+            for (var i = 0; i < args.Length; i++)
             {
-                if (args[index].StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                    return args[index].Substring(prefix.Length);
-                if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase) &&
-                    index + 1 < args.Length)
-                    return args[index + 1];
+                if (args[i].StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return args[i].Substring(prefix.Length);
+                if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) return args[i + 1];
             }
             return null;
         }
-
-        private static float ParseFloat(string value, float fallback)
-        {
-            return float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-                ? parsed
-                : fallback;
-        }
-
-        private static uint ParseUInt(string value, uint fallback)
-        {
-            return uint.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
-                ? parsed
-                : fallback;
-        }
+        private static float ParseFloat(string value, float fallback) =>
+            float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) &&
+            !float.IsNaN(parsed) && !float.IsInfinity(parsed) ? parsed : fallback;
+        private static uint ParseUInt(string value, uint fallback) =>
+            uint.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
     }
 }

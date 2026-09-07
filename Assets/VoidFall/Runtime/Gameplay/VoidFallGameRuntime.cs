@@ -1076,7 +1076,7 @@ namespace VoidFall.Runtime
             SetupAudio();
             SetupFx();
             SetupHydraPresentation();
-            _saveStore = new SaveStore(ArsenalValidationProbe.ProfilePath ?? OverclockHudProbe.ProfilePath ?? VisualDeliveryProbe.ProfilePath ?? VisualCaptureProfilePath());
+            _saveStore = new SaveStore(StressBenchmarkProbe.ProfilePath ?? ArsenalValidationProbe.ProfilePath ?? OverclockHudProbe.ProfilePath ?? VisualDeliveryProbe.ProfilePath ?? VisualCaptureProfilePath());
             _saveData = _saveStore.Load();
             _gameBridge = new RuntimeGameBridge(this);
             _settingsController = new SettingsController(_gameBridge);
@@ -2091,6 +2091,7 @@ namespace VoidFall.Runtime
             _targetTimeScale = 1f;
             _freezeTimer = 0;
             _time = 0;
+            ResetDiagnosticCounters();
             _spawnTimer = 0.9f;
             _bladeAngle = 0;
             _nextBossTime = DirectorRules.BossIntervalSeconds(_runSeed, 0);
@@ -2336,6 +2337,7 @@ namespace VoidFall.Runtime
         /// <summary>Stop the diagnostic top-up loop and release its invulnerability.</summary>
         public void ClearStressScenario()
         {
+            _benchmarkDriving = false;
             _stressScenario = null;
             _stressTopUpTimer = 0;
             if (float.IsInfinity(_gameSim.Player.Iframes)) _gameSim.Player.Iframes = 0;
@@ -2444,6 +2446,7 @@ namespace VoidFall.Runtime
             if (frozen) _freezeTimer = Mathf.Max(0, _freezeTimer - realDt);
             var dt = frozen ? 0 : realDt * _timeScale;
             _time += dt;
+            var diagnosticStepStarted = BeginDiagnosticStep(dt);
             if (_gameSim.Player.Health > 0)
             {
                 _gameSim.Player.Health = Mathf.Min(
@@ -2602,6 +2605,7 @@ namespace VoidFall.Runtime
                 (1 - Mathf.Exp(-9f * realDt));
 
             StepObjectiveTracker(dt);
+            EndDiagnosticStep(diagnosticStepStarted);
         }
 
         private static readonly Color DotCyan = ParseColor("#22d3ee", Color.white);
