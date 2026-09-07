@@ -91,6 +91,26 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
+        public void Nonfinite_fraction_only_discards_its_own_progress_channel()
+        {
+            var pressure = new RunPressureState();
+            pressure.Reset(300, 2);
+
+            pressure.ObserveStage(0, 0.5, double.NaN);
+            Assert.That(pressure.PressureHundredths, Is.EqualTo(60));
+            Assert.That(pressure.CreditedProgressSeconds, Is.EqualTo(150));
+
+            pressure.ObserveStage(0, double.NaN, 0.5);
+            Assert.That(pressure.PressureHundredths, Is.EqualTo(75));
+            Assert.That(pressure.CreditedProgressSeconds, Is.EqualTo(180));
+
+            pressure.ObserveStage(1, 0.5, double.PositiveInfinity);
+            pressure.ObserveStage(1, double.NegativeInfinity, 0.5);
+            Assert.That(pressure.PressureHundredths, Is.EqualTo(150));
+            Assert.That(pressure.CreditedProgressSeconds, Is.EqualTo(360));
+        }
+
+        [Test]
         public void Reset_sanitizes_limits_and_clears_frozen_progress()
         {
             var pressure = new RunPressureState();
@@ -175,6 +195,17 @@ namespace VoidFall.Tests.Editor
             Assert.That(sanitized.PressureHundredths, Is.EqualTo(0));
             Assert.That(sanitized.MultiplierHundredths, Is.EqualTo(100));
             Assert.That(sanitized.FinalScore, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Default_frozen_score_preserves_the_one_times_multiplier_floor()
+        {
+            var score = default(FrozenRunScore);
+
+            Assert.That(score.BaseScore, Is.EqualTo(0));
+            Assert.That(score.PressureHundredths, Is.EqualTo(0));
+            Assert.That(score.MultiplierHundredths, Is.EqualTo(100));
+            Assert.That(score.FinalScore, Is.EqualTo(0));
         }
 
         [Test]

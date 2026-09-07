@@ -40,12 +40,15 @@ namespace VoidFall.Core
         public void ObserveStage(int stageIndex, double survivalFraction, double bossFraction)
         {
             if (IsFrozen || _survivalHighWater == null ||
-                stageIndex < 0 || stageIndex >= _visitCount ||
-                !IsFinite(survivalFraction) || !IsFinite(bossFraction))
+                stageIndex < 0 || stageIndex >= _visitCount)
                 return;
 
-            var survival = Clamp01(survivalFraction);
-            var boss = Clamp01(bossFraction);
+            var survival = IsFinite(survivalFraction)
+                ? Clamp01(survivalFraction)
+                : _survivalHighWater[stageIndex];
+            var boss = IsFinite(bossFraction)
+                ? Clamp01(bossFraction)
+                : _bossHighWater[stageIndex];
             var survivalIncrease = Math.Max(0, survival - _survivalHighWater[stageIndex]);
             var bossIncrease = Math.Max(0, boss - _bossHighWater[stageIndex]);
             if (survivalIncrease <= 0 && bossIncrease <= 0)
@@ -92,14 +95,13 @@ namespace VoidFall.Core
     {
         public long BaseScore { get; }
         public int PressureHundredths { get; }
-        public int MultiplierHundredths { get; }
+        public int MultiplierHundredths => Math.Max(100, PressureHundredths);
         public long FinalScore { get; }
 
         public FrozenRunScore(long baseScore, int pressureHundredths)
         {
             BaseScore = Math.Max(0, baseScore);
             PressureHundredths = Math.Max(0, pressureHundredths);
-            MultiplierHundredths = Math.Max(100, PressureHundredths);
             FinalScore = RunScoreRules.FinalScore(BaseScore, PressureHundredths);
         }
     }
