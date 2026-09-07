@@ -76,8 +76,6 @@ namespace VoidFall.Runtime
                 : elite ? 8 : (float)(DirectorRules.EnemyThreatCost(id) * EnemyRosterRules.ThreatMultiplier(roster));
             var budget = DirectorBodyLimit() * (ActiveBosses() > 0 ? 1.25f : 1.55f);
             if (ActiveEnemyThreat() + cost > budget) { _lastSpawnBlockReason = "threat"; return false; }
-            if (ActiveBosses() == 0 && IsDemandingEnemy(id) && ActiveDemandingEnemies() >= DirectorProfiles.AttackLimit(_runDirectorProfile, PressureHundredths))
-            { _lastSpawnBlockReason = "attention"; return false; }
             _lastSpawnBlockReason = null;
             return true;
         }

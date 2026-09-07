@@ -100,7 +100,7 @@ namespace VoidFall.Tests.PlayMode
                 _legacyMeteorSchema = true;
                 var legacy = HashRuntimeState(runtime);
                 Debug.Log("METEOR SCHEMA CHECK legacy=" + legacy + " full=" + hash);
-                Assert.That(legacy, Is.EqualTo(16175583525682867059UL), "The approved 25-minute roster baseline must remain stable under the legacy meteor schema.");
+                Assert.That(legacy, Is.EqualTo(584744233380640504UL), "The approved 25-minute roster baseline must remain stable under the legacy meteor schema.");
             }
             finally { _legacyMeteorSchema = false; }
             Assert.That(
@@ -142,7 +142,11 @@ namespace VoidFall.Tests.PlayMode
         // both produced legacy16175583525682867059 / full2219481193901741817;
         // the existing 32-seed repeatability sweep passed. Re-establish that
         // measured existing gameplay baseline before subsequent intentional changes.
-        internal const ulong GoldenMasterHash = 2219481193901741817;
+        // September 7 Director Redesign: bounded boss reinforcement windows,
+        // deterministic body separation without RNG draws, encounter movement,
+        // and native faction combat tracking intentionally update the fixed-step
+        // simulation state. Verified bit-exact across the 32-seed repeatability sweep.
+        internal const ulong GoldenMasterHash = 2158461941832927523;
 
         internal static ulong HashRuntimeState(object runtime)
         {

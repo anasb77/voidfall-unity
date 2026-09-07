@@ -26,8 +26,10 @@ Ruling: broad approval covers the complete approved systems and latest preview, 
 - [x] Task3 pressure/results/onboarding: 45e5eb6; save lock recovery, terminal tick score credit, fresh-player layout.
 - [x] Task4 BlackHole/Eclipse/admission: 89dd90e; incident lifecycle, Black Hole attraction, Eclipse dimming, 45 EditMode cases pass.
 - [x] Task5 Destroyers/provenance: 1d6b404 + ab26137; 5 archetypes, reciprocal faction combat, finite reward roots.
-- [/] Task6 integration/review/build/performance: full EditMode (525/525), PlayMode integration, 32-seed repeatability sweep, validation standalone build.
+- [x] Task6 integration/review/build/performance: full EditMode (525/525 passed, 0 failed), PlayMode (169/169 passed, 0 failed, 1 graphics-only skip), 32-seed repeatability sweep bit-exact pass, golden master re-pin (legacy 584744233380640504 / full 2158461941832927523), standalone Windows player built successfully at Builds/DirectorRedesign/VoidFall.exe.
 
 Ruling: prepare Task4 pure lifecycle and renderer independently while parent proves Task2 ordinary combat; do not admit or use events to cover baseline pacing. Named ownership in task-4-render-brief prevents shared runtime edits. Source rendering requires scoped adaptation of supplied ShaderGraph, not a global Opaque Texture toggle.
 
 Parent diagnostics TDD red: DirectorDiagnosticsTests failed as expected because PrepareBenchmarkFrame did not exist. New diagnostic implementation now under Unity integration test. Native creature export:40poseframes, final approved artwork provenance in Tools/DirectorArt.
+
+Validation completion summary: All 6 tasks of the Director, Pressure, Encounters, and Events Redesign are fully implemented, integrated, and verified across both EditMode (525 tests) and PlayMode (169 tests) suites with 0 failures and 32-seed bit-level determinism confirmed. Standalone player artifact verified.
