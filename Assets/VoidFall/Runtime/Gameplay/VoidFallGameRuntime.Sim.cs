@@ -5772,7 +5772,7 @@ namespace VoidFall.Runtime
         private static EnemyDefinition FindEnemy(string id)
         {
             foreach (var definition in ContentCatalog.Enemies) if (definition.Id == id) return definition;
-            return MonochromeContent.FindEnemy(id) ?? NullCityContent.FindEnemy(id);
+            return MonochromeContent.FindEnemy(id) ?? NullCityContent.FindEnemy(id) ?? DestroyerContent.Find(id);
         }
 
         private static BossDefinition FindBoss(string id)

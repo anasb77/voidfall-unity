@@ -23,7 +23,7 @@ Exactly coincident enemy bodies now receive a deterministic SpawnId-pair axis wi
 - `StartDestroyerRaid(Vector2 center)`, `StepDestroyerRaid(float dt, bool withdrawing)`, `EndDestroyerRaid()`; scheduler owns 2.5/32/3 timing and admission for all five bodies/threat.
 - `ResetFactionAndRewardArena()` after native arena/new-run pool clear. `ResetFactionRunDiagnostics()` only on new run; preserves fractional score and counters over travel.
 - `TryRenderDestroyer(int slot, EnemyState enemy)` in enemy render after active guard; continue when true. `DestroyDestroyerPresentation()` on teardown. Imported Resource sprites are never destroyed.
-- main FindEnemy fallback `DestroyerContent.Find(id)`.
+- Runtime `.Sim` and GameSim FindEnemy fallbacks now include `DestroyerContent.Find(id)` (implemented here; no parent lookup hook required).
 - CurrentEarnedBaseScore must add `_fractionalFactionScore` to `_score` before its one existing final roundoff.
 - public `RivalOnlyDefeats`, `AssistedDefeats`, `DirectFactionDefeats` counters for local record/telemetry facts.
 - `.Sim` now calls parent `ApplyMajorIncidentPlayerDisplacement(dt)` after ordinary integration and `ApplyMajorIncidentEnemyDisplacement(ref enemy,dt)` before refreshed contact geometry.
