@@ -5,6 +5,16 @@ namespace VoidFall.Tests.Editor
 {
     public sealed class MajorIncidentRulesTests
     {
+        [Test]
+        public void Rounded_final_step_completes_in_the_same_tick()
+        {
+            var state = new MajorIncidentState();
+            state.Begin(MajorIncidentKind.BlackHole);
+            state.Step(13);
+            state.Step(1 - 1e-16);
+            Assert.That(state.Phase, Is.EqualTo(MajorIncidentPhase.None));
+            Assert.That(state.Kind, Is.EqualTo(MajorIncidentKind.None));
+        }
         [TestCase(MajorIncidentKind.BlackHole, 10, 1.5, 14)]
         [TestCase(MajorIncidentKind.DestroyerRaid, 32, 3, 37.5)]
         [TestCase(MajorIncidentKind.Eclipse, 19.5, 2, 24)]

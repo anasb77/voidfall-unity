@@ -76,6 +76,7 @@ namespace VoidFall.Runtime
 
         private void ClearCombatForJourney()
         {
+            CancelEncounterDirector();
             if (_journeyStage == JourneyStage.Rewards) BeginEscapeEnemyRetirement();
             else DestroyEnemiesForVoidTransition();
             ClearTransitionProjectiles();
@@ -141,7 +142,7 @@ namespace VoidFall.Runtime
             var dt = Mathf.Clamp(deltaTime, 0f, 0.1f);
             if (_returnToMenuAfterRun)
             {
-                if (_runSaved) ReturnToMenuAfterResult();
+                if (_runSaved && !DirectorResultNeedsAcknowledgement) ReturnToMenuAfterResult();
                 return;
             }
             if (_journeyStage == JourneyStage.Combat) return;
@@ -363,7 +364,7 @@ namespace VoidFall.Runtime
 
         private void ReturnToMenuAfterResult()
         {
-            if (!_runSaved) return;
+            if (!_runSaved || DirectorResultNeedsAcknowledgement) return;
             var notice = _runVictory ? "ESCAPED — " + _completedVoids + " Voids cleared. Progress saved." : "Run ended. Progress saved.";
             Debug.Log($"VOIDFLOW run-end victory={_runVictory} voids={_completedVoids} t={_time:F1} saved={_runSaved}");
             EnterMainMenu();

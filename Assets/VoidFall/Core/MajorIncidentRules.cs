@@ -33,6 +33,11 @@ namespace VoidFall.Core
                 return;
             }
             Elapsed += dt;
+            if (Elapsed >= MajorIncidentRules.TotalDuration(Kind))
+            {
+                Reset();
+                return;
+            }
             var activeElapsed = Elapsed - MajorIncidentRules.WarningSeconds;
             if (activeElapsed < 0)
             {

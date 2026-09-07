@@ -214,6 +214,11 @@ namespace VoidFall.Runtime
                 _spawnTimer = Mathf.Max(_spawnTimer, 0.45f);
                 return;
             }
+            if (_encounterInitialized)
+            {
+                UpdateEncounterSpawns(dt);
+                return;
+            }
             UpdateDirector(dt);
             var bossActive = ActiveBosses() > 0;
             var activeBossCount = ActiveBosses();
@@ -753,7 +758,11 @@ namespace VoidFall.Runtime
 
                 var bodyguardOrbiting = enemy.MatriarchBodyguard &&
                     TryUpdateMatriarchBodyguard(ref enemy, dt, distance, direction);
-                if (bodyguardOrbiting)
+                if (TryUpdateEncounterMember(ref enemy, dt))
+                {
+                    bodyguardOrbiting = false;
+                }
+                else if (bodyguardOrbiting)
                 {
                     enemy.Knockback = Vector2.zero;
                 }
@@ -838,7 +847,8 @@ namespace VoidFall.Runtime
                     ConstrainNullCityEnemy(ref enemy);
                 }
                 ResolveEonSeaEnemyMovement(i, ref enemy, eonOldPosition);
-                if ((!enemy.Elite || enemy.EliteKind.HasValue) && distance > 1750f)
+                if ((!enemy.Elite || enemy.EliteKind.HasValue) && distance > 1750f &&
+                    _encounterMembers[i].Movement == EncounterMovement.None)
                 {
                     var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                     var viewportHalf = GameplayViewportHalfExtent();
@@ -852,7 +862,7 @@ namespace VoidFall.Runtime
 
                 var canContactPlayer = _gameSim.Player.Health > 0 && !_gameOver && !_revivePending &&
                     _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0;
-                if (CurrentVoidIsEonSea)
+                if (CurrentVoidIsEonSea || _encounterInitialized)
                 {
                     delta = _gameSim.Player.Position - enemy.Position;
                     distance = SourceLengthOrOne(delta);
@@ -3120,7 +3130,7 @@ namespace VoidFall.Runtime
             var variantStats = eliteKind.HasValue
                 ? EliteRules.EliteVariantStatsFor(eliteKind.Value)
                 : default(EliteVariantStats);
-            var enemyId = _nextEnemyId++;
+            var enemyId = _nextEnemyId;
             // Shared ambient and elite variants use the global run clock.
             // Boss summons and child forms retain their explicitly authored tier.
             var roster = forcedRoster ?? (
@@ -3128,8 +3138,10 @@ namespace VoidFall.Runtime
                     ? EnemyRoster.One
                     : EnemyRosterRules.EnemyRosterForSpawn(
                         id,
-                        _time,
+                        _encounterInitialized ? DirectorChallengeSeconds : _time,
                         EnemyRosterRules.RosterSpawnRoll(_runSeed, enemyId)));
+            if (!AdmitDirectorSpawn(id, roster, eliteKind, elite)) return false;
+            _nextEnemyId++;
             var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
             var viewportHalf = GameplayViewportHalfExtent();
             var distance = Mathf.Sqrt(
@@ -3140,11 +3152,13 @@ namespace VoidFall.Runtime
             // keep that source-specific health reduction coupled to the flag
             // so every carrier-drone spawn path uses the same rule.
             var healthScale = EnemyHealthScaleAt(
-                _time,
+                _encounterInitialized ? DirectorChallengeSeconds : _time,
                 _bossCycle,
                 healthMultiplier * (carrierDrone ? 0.55f : 1f));
-            var speedScale = EnemySpeedScaleAt(_time, _bossCycle);
-            var damageScale = EnemyDamageScaleAt(_time, _bossCycle);
+            if (_encounterInitialized && !elite && !IsCourtEnemy(id) && !IsNullCityEnemy(id))
+                healthScale = (1 + 3 * DirectorChallengeSeconds / 2400f) * healthMultiplier * (carrierDrone ? .55f : 1);
+            var speedScale = EnemySpeedScaleAt(_encounterInitialized ? DirectorChallengeSeconds : _time, _bossCycle);
+            var damageScale = EnemyDamageScaleAt(_encounterInitialized ? DirectorChallengeSeconds : _time, _bossCycle);
             var rosterHealth = eliteKind.HasValue ? EliteTierHealth(roster) : EnemyRosterRules.HealthMultiplier(roster);
             var rosterRadius = eliteKind.HasValue ? EliteTierRadius(roster) : EnemyRosterRules.RadiusMultiplier(roster);
             var rosterSpeed = eliteKind.HasValue ? EliteTierSpeed(id, roster) : EnemyRosterRules.SpeedMultiplier(roster);
@@ -3231,6 +3245,7 @@ namespace VoidFall.Runtime
                 enemy.Spin = _gameSim.Rng.Next() < 0.5 ? -0.42f : 0.42f;
             enemy.Health = enemy.MaxHealth;
             _gameSim.Enemies[slot] = enemy;
+            RegisterDirectorActor(slot, enemy);
             _crascendoEnemies[slot] = CurrentVoidIsCrascendo ? new CrascendoGrowthState { Identity = enemy.SpawnId, BaseRadius = enemy.Radius, NaturalRadius = enemy.Radius } : default;
             _rosterActorStates[slot] = default; // Spawn IDs restart each run; clear recycled state explicitly.
             AppendEnemyOrder(slot);

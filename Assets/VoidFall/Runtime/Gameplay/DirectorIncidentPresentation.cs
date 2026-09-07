@@ -79,7 +79,13 @@ namespace VoidFall.Runtime
             _view.transform.rotation = Quaternion.identity;
             // The shader boundary is at normalized radius .91; map it to the supplied gameplay radius.
             var diameter = radius * (2 / 0.91f);
-            _view.transform.localScale = new Vector3(diameter / rootScale.x, diameter / rootScale.y, 1);
+            var scale = new Vector3(diameter / rootScale.x, diameter / rootScale.y, 1);
+            if (!Finite(scale.x) || !Finite(scale.y))
+            {
+                Hide();
+                return;
+            }
+            _view.transform.localScale = scale;
             var hasBackdrop = backdrop != null && ValidRect(backdropWorldRect);
             _properties.SetFloat(StrengthId, strength);
             _properties.SetFloat(WarningId, warning ? 1 : 0);

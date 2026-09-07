@@ -61,6 +61,8 @@ namespace VoidFall.Runtime
             _voidBossEncounterSpawned = false;
             _voidCompletionPending = false;
             _voidCompletionDelayRemaining = 0f;
+            BeginPressureArena();
+            ResetEncounterDirector();
         }
 
         private void NotifyObjectiveKill() => _objectives?.NotifyKill();
@@ -82,6 +84,7 @@ namespace VoidFall.Runtime
             if (_objectives == null) return;
             _objectives.Step(deltaTime);
             SyncVoidBossEncounterWithObjective();
+            StepRunPressure();
             if (_objectives.IsComplete && !_objectivesCompletionHandled)
             {
                 _objectivesCompletionHandled = true;

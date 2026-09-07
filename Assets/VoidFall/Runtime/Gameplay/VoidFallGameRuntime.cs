@@ -1092,6 +1092,8 @@ namespace VoidFall.Runtime
             {
                 StartRun = StartRun,
                 RestartRun = StartRun,
+                OpenDirectorSelection = OpenDirectorSelectionFromHome,
+                AcknowledgeDirectorResult = AcknowledgeDirectorResult,
                 ResumeRun = ResumeRunFromUi,
                 AbortToMenu = EnterMainMenu,
 
@@ -1523,6 +1525,7 @@ namespace VoidFall.Runtime
             LogSlowStartupPhase("arena-decor", startupPhaseStarted);
             startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
             Render();
+            RenderEncounterWarnings();
             RenderJunction();
             LogSlowStartupPhase("render", startupPhaseStarted);
             startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
@@ -1884,12 +1887,12 @@ namespace VoidFall.Runtime
 
         private void StartRun()
         {
-            if (_gameOver && !_runSaved)
+            if (_gameOver)
             {
-                SaveRun();
-                if (_runSaved) ReturnToMenuAfterResult();
+                AcknowledgeDirectorResult();
                 return;
             }
+            if (TryOpenDirectorSelection()) return;
             StartRunInternal(true);
         }
 
@@ -2214,13 +2217,14 @@ namespace VoidFall.Runtime
             _arenaId = playStartCue ? ArenaId.Void : ArenaIdFromName(_saveData?.arena);
             SelectRecipeForCurrentArena();
             EnsureVoidRouteForRun();
+            ResetPressureForRun();
             _nextBossTime = float.PositiveInfinity;
             BeginObjectiveForCurrentArena();
             PrepareArenaNeighborhood();
             _arenaTransitionState = ArenaRules.CreateTransitionState(_runSeed);
             _telemetry.RecordLevel(0, _level, _xpNeed, 0);
 
-            for (var i = 0; i < 6; i++) SpawnEnemy("chaser");
+            // The timer starts in an empty arena; first deployment follows the opening.
             RebuildEnemyGrid();
             // Browser reset() records the initial six-enemy snapshot before the
             // first presented frame; keep that sample in the Unity report too.
@@ -2250,6 +2254,7 @@ namespace VoidFall.Runtime
             _stressScenario = scenario;
             _stressTopUpTimer = 0;
             _time = Mathf.Max(_time, (float)scenario.TimeSeconds);
+            SeedDiagnosticDirectorProgress(_time);
             _bossCycle = Mathf.Max(_bossCycle, Mathf.FloorToInt(_time / (4f * 180f)));
 
             ApplyStressRanks(scenario);
@@ -3221,6 +3226,7 @@ namespace VoidFall.Runtime
             _magnetIntensity = 0f;
             _music?.ResetReactiveState();
             _audio?.StopPad();
+            FreezePressureAndScore();
             // Browser endRun() records the terminal state before exporting the
             // game-over report, including the final frame sample.
             RecordTelemetrySample(Mathf.Max(0.0001f, _debugFrameEmaMs / 1000f));
@@ -3243,6 +3249,7 @@ namespace VoidFall.Runtime
                     weaponDamage: _weaponDamage,
                     totalDamageDealt: _damageDealt,
                     buildChips: BuildRecapChips());
+                ApplyDirectorResultSummary(ref summary);
                 _ui.GameOver?.Show(summary);
             }
         }
@@ -3262,7 +3269,7 @@ namespace VoidFall.Runtime
 
         private int CurrentScore()
         {
-            return Mathf.FloorToInt(_score + _time * 5f + (_level - 1) * 35f + 0.5f);
+            return (int)Math.Min(int.MaxValue, CurrentEarnedBaseScore());
         }
 
         private static WorkshopEntry[] BuildRankEntries(string[] ids, int[] ranks)

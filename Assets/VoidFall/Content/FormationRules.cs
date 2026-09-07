@@ -94,6 +94,7 @@ namespace VoidFall.Core
             double viewportHalfHeight,
             int capacityCap)
         {
+            if (capacityCap <= 0) return Array.Empty<FormationSpawn>();
             var direction = (int)(hash % 4);
             var time = Math.Max(0, elapsedSeconds);
             var list = new System.Collections.Generic.List<FormationSpawn>();
@@ -133,8 +134,7 @@ namespace VoidFall.Core
                     var placed = 0;
                     while (placed < count)
                     {
-                        var depth = (direction < 2 ? halfWidth : halfHeight) +
-                            OffscreenMargin + row * DepthSpacing;
+                        var depth = row * DepthSpacing;
                         var halfSpread = 40 + row * 55;
                         if (row == 0)
                         {
@@ -175,7 +175,7 @@ namespace VoidFall.Core
                 case FormationKind.Phalanx:
                 {
                     var id = "guard";
-                    var columns = Math.Min(PhalanxColumns(time), Math.Max(1, capacityCap / PhalanxRows));
+                    var columns = Math.Min(PhalanxColumns(time), capacityCap / PhalanxRows);
                     for (var row = 0; row < PhalanxRows; row++)
                     {
                         for (var column = 0; column < columns; column++)
