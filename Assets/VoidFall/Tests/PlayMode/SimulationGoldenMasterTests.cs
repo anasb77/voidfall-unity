@@ -100,7 +100,7 @@ namespace VoidFall.Tests.PlayMode
                 _legacyMeteorSchema = true;
                 var legacy = HashRuntimeState(runtime);
                 Debug.Log("METEOR SCHEMA CHECK legacy=" + legacy + " full=" + hash);
-                Assert.That(legacy, Is.EqualTo(14088908808337278323UL), "The approved 25-minute roster baseline must remain stable under the legacy meteor schema.");
+                Assert.That(legacy, Is.EqualTo(16175583525682867059UL), "The approved 25-minute roster baseline must remain stable under the legacy meteor schema.");
             }
             finally { _legacyMeteorSchema = false; }
             Assert.That(
@@ -136,7 +136,13 @@ namespace VoidFall.Tests.PlayMode
         // counters are kept outside EnemyState, so this is behavioral, not a
         // new reflected-enemy-field artifact. Legacy meteor hash is updated
         // alongside the full hash for the same intentional encounter change.
-        internal const ulong GoldenMasterHash = 14161069325177094174;
+        // September 7 baseline audit: acf5103 already added swept orbital-shot
+        // interception and combined support behavior after the previous pin.
+        // Before this redesign touched combat, full-suite and isolated runs
+        // both produced legacy16175583525682867059 / full2219481193901741817;
+        // the existing 32-seed repeatability sweep passed. Re-establish that
+        // measured existing gameplay baseline before subsequent intentional changes.
+        internal const ulong GoldenMasterHash = 2219481193901741817;
 
         internal static ulong HashRuntimeState(object runtime)
         {
