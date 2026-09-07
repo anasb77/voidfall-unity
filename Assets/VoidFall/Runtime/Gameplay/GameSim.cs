@@ -27,6 +27,9 @@ namespace VoidFall.Runtime
         public readonly BossState[] Bosses;
         public readonly MeteorState[] Meteors;
         public readonly MeteorState[] PendingMeteorDetonations;
+        public readonly CombatFaction[] MeteorDamageFactions;
+        public readonly int[] MeteorDamageIdentities;
+        public Func<CombatFaction> DamageFactionQuery;
 
         /// <summary>Deferred detonation queue depth for this simulation step.</summary>
         public int PendingMeteorDetonationCount;
@@ -76,6 +79,11 @@ namespace VoidFall.Runtime
         public Action<int, Vector2> HostileShotImpact;
         // Origin metadata stays outside the golden-master-hashed projectile struct.
         public readonly bool[] HostileShotBlockable;
+        public struct ShotSource { public CombatFaction Faction; public int Slot, SpawnId; }
+        public readonly ShotSource[] HostileShotSources;
+        public delegate bool ShotBodyQuery(int slot, Vector2 from, Vector2 to, float radius, out float fraction, out int target, out int identity);
+        public ShotBodyQuery HostileShotBodyQuery;
+        public Action<int, int, int> HostileShotBodyImpact;
         public Func<int, Vector2, Vector2, float, bool> HostileShotInterceptQuery;
         public delegate bool TerrainProjectileCollision(Vector2 from, Vector2 to, float radius, out Vector2 hit);
         public TerrainProjectileCollision TerrainProjectileCollisionHook;
@@ -105,10 +113,13 @@ namespace VoidFall.Runtime
             Bullets = new BulletState[maxBullets];
             HostileShots = new HostileShotState[maxHostileShots];
             HostileShotBlockable = new bool[maxHostileShots];
+            HostileShotSources = new ShotSource[maxHostileShots];
             Pickups = new PickupState[maxPickupSlots];
             Bosses = new BossState[maxBosses];
             Meteors = new MeteorState[maxMeteors];
             PendingMeteorDetonations = new MeteorState[maxMeteors];
+            MeteorDamageFactions = new CombatFaction[maxMeteors];
+            MeteorDamageIdentities = new int[maxMeteors];
 
             EnemyOrder = new int[maxEnemies];
             EnemyOrderPosition = new int[maxEnemies];
@@ -499,6 +510,7 @@ namespace VoidFall.Runtime
             };
             // Unknown/boss/elite callers are protected unless runtime explicitly marks ordinary origin.
             HostileShotBlockable[slot] = false;
+            HostileShotSources[slot] = new ShotSource { Faction = CombatFaction.Enemy, Slot = -1 };
             HostileShotOrder.Append(slot);
             if (curved) CurvedShotCount++;
             return slot;
@@ -539,6 +551,17 @@ namespace VoidFall.Runtime
                 if (shot.Curved) shot.Velocity += shot.Acceleration * dt;
                 shot.Position += shot.Velocity * dt;
                 shot.Life -= dt;
+                var bodyTarget = -2;
+                var bodyIdentity = 0;
+                var bodyFraction = 1f;
+                var bodyImpact = shot.Life > 0 && HostileShotBodyQuery != null &&
+                    HostileShotBodyQuery(index, previousPosition, shot.Position, shot.Radius,
+                        out bodyFraction, out bodyTarget, out bodyIdentity);
+                if (bodyImpact)
+                {
+                    // Cover and orbital defenses test only the path before the closest physical body.
+                    shot.Position = Vector2.Lerp(previousPosition, shot.Position, bodyFraction);
+                }
                 if (shot.Life > 0 && TerrainProjectileCollisionHook != null &&
                     TerrainProjectileCollisionHook(previousPosition, shot.Position, shot.Radius, out var coverHit))
                 {
@@ -549,7 +572,12 @@ namespace VoidFall.Runtime
                     HostileShotBlockable[index] && HostileShotInterceptQuery != null &&
                     HostileShotInterceptQuery(index, previousPosition, shot.Position, shot.Radius))
                     shot.Life = 0;
-                if (shot.Life > 0 && Player.Health > 0 &&
+                if (shot.Life > 0 && bodyImpact)
+                {
+                    HostileShotBodyImpact?.Invoke(index, bodyTarget, bodyIdentity);
+                    shot.Life = 0;
+                }
+                if (HostileShotBodyQuery == null && shot.Life > 0 && Player.Health > 0 &&
                     PlayerVulnerableQuery != null && PlayerVulnerableQuery() &&
                     Vector2.Distance(shot.Position, Player.Position) <
                         shot.Radius + attackPlayerRadius)
@@ -563,6 +591,7 @@ namespace VoidFall.Runtime
                 {
                     shot.Active = false;
                     HostileShotBlockable[index] = false;
+                    HostileShotSources[index] = default;
                     if (shot.Curved) CurvedShotCount = Mathf.Max(0, CurvedShotCount - 1);
                     if (expiredSlots != null && expiredCount < expiredSlots.Length)
                         expiredSlots[expiredCount++] = index;
@@ -1073,14 +1102,25 @@ namespace VoidFall.Runtime
                     var delta = other.Position - enemy.Position;
                     var distanceSquared = delta.sqrMagnitude;
                     var minimumDistance = SeparationRules.MinimumDistance(enemy.Radius, other.Radius);
-                    if (minimumDistance <= 0 || distanceSquared >= minimumDistance * minimumDistance ||
-                        distanceSquared < 0.0001f) continue;
+                    if (minimumDistance <= 0 || distanceSquared >= minimumDistance * minimumDistance) continue;
+                    if (distanceSquared < 0.0001f)
+                    {
+                        // A stable pair axis breaks exact coincidence without consuming combat RNG.
+                        var axis = unchecked(enemy.SpawnId * 73856093 ^ other.SpawnId * 19349663) & 3;
+                        delta = axis == 0 ? Vector2.right : axis == 1 ? Vector2.up : axis == 2 ? Vector2.left : Vector2.down;
+                        distanceSquared = 1f;
+                    }
 
                     var distance = Mathf.Sqrt(distanceSquared);
 
                     var push = SeparationRules.PushMagnitude(minimumDistance, distance);
                     delta *= push;
                     var otherWeight = SeparationRules.OtherWeight(enemy.Radius, other.Radius);
+                    var anchored = EnemyAnchoredQuery != null && EnemyAnchoredQuery(enemy);
+                    var otherAnchored = EnemyAnchoredQuery != null && EnemyAnchoredQuery(other);
+                    if (anchored && otherAnchored) continue;
+                    if (anchored) otherWeight = 0;
+                    else if (otherAnchored) otherWeight = 1;
                     enemy.Position -= delta * otherWeight;
                     other.Position += delta * (1f - otherWeight);
                     Enemies[otherIndex] = other;
@@ -1222,6 +1262,8 @@ namespace VoidFall.Runtime
                 if ((meteor.Position - origin).sqrMagnitude > (radius + meteor.Radius) * (radius + meteor.Radius)) continue;
                 meteor.Health = 0;
                 meteor.FuseTimer = (float)MeteorRules.ExplosiveChainDelaySeconds(link);
+                MeteorDamageFactions[index] = DamageFactionQuery?.Invoke() ?? CombatFaction.Player;
+                MeteorDamageIdentities[index] = meteor.Identity;
                 Meteors[index] = meteor;
                 link++;
             }
@@ -1261,6 +1303,11 @@ namespace VoidFall.Runtime
         public Func<float> EnemyParticleScaleHook;
         public Func<double> EnemyFxRollHook;
         public Action<float, Vector2> EnemyDamagePlayerHook;
+        public Func<Vector2> EnemyTargetPositionQuery, EnemyTargetVelocityQuery;
+        public Action<Vector2, float, float> EnemyFactionBlastHook;
+        public Func<EnemyState, EnemyState, bool> EnemyAlliedQuery;
+        public Func<EnemyState, bool> EnemyAnchoredQuery;
+        public bool EnemyFactionTargeting;
         public Action<Vector2, float, float, bool> EnemyBlastWaveHook;
         public Action<Vector2, float, float, bool> EnemyBlastWaveFxOnlyHook;
         public Action<Vector2, float, float> EnemyImpactMarkHook;
@@ -1339,7 +1386,8 @@ namespace VoidFall.Runtime
             {
                 var index = EnemyOrder[order];
                 var other = Enemies[index];
-                if (!other.Active || index == enemy.View || other.Elite) continue;
+                if (!other.Active || index == enemy.View || other.Elite ||
+                    (EnemyAlliedQuery != null && !EnemyAlliedQuery(enemy, other))) continue;
                 if ((other.Position - enemy.Position).sqrMagnitude > 235f * 235f) continue;
                 var capacity = Mathf.Max(8, other.MaxHealth * 0.12f);
                 other.MaxShield = Mathf.Max(other.MaxShield, capacity);
@@ -1379,7 +1427,7 @@ namespace VoidFall.Runtime
             {
                 var index = EnemyOrder[order];
                 var other = Enemies[index];
-                if (!other.Active || index == enemy.View) continue;
+                if (!other.Active || index == enemy.View || (EnemyAlliedQuery != null && !EnemyAlliedQuery(enemy, other))) continue;
                 if ((other.Position - enemy.Position).sqrMagnitude > 260f * 260f) continue;
                 var healthRatio = other.Health / Mathf.Max(1, other.MaxHealth);
                 var shieldRatio = other.MaxShield > 0 ? other.Shield / other.MaxShield : 1;
@@ -1602,7 +1650,8 @@ namespace VoidFall.Runtime
                 if (enemy.StateTimer > 0) return;
                 var impact = siege ? (float)stats.BlastRadius : (float)(definition?.BlastRadius ?? 82);
                 var distanceToImpact = Vector2.Distance(Player.Position, enemy.DashDirection);
-                if (distanceToImpact < impact + AttackPlayerRadius)
+                if (EnemyFactionBlastHook != null) EnemyFactionBlastHook(enemy.DashDirection, impact, enemy.Damage);
+                else if (distanceToImpact < impact + AttackPlayerRadius)
                 {
                     var impactDirection = Player.Position - enemy.DashDirection;
                     var canImpactPlayer = Player.Health > 0 && !EnemyGameOverQuery() && !EnemyRevivePendingQuery() &&
@@ -1639,7 +1688,7 @@ namespace VoidFall.Runtime
             {
                 enemy.State = 1;
                 enemy.StateTimer = siege ? (float)stats.TelegraphSeconds : (float)(definition?.TelegraphSeconds ?? 1.15);
-                enemy.AimPosition = Player.Position + Player.Velocity * 0.24f;
+                enemy.AimPosition = (EnemyTargetPositionQuery?.Invoke() ?? Player.Position) + (EnemyTargetVelocityQuery?.Invoke() ?? Player.Velocity) * 0.24f;
                 enemy.DashDirection = enemy.AimPosition;
                 EnemyAudioCueHook?.Invoke(ProceduralAudio.Cue.Warning, 0.84f);
             }
@@ -1680,7 +1729,8 @@ namespace VoidFall.Runtime
                     : 0.24f - progress * 0.15f;
             }
             if (enemy.StateTimer > 0) return;
-            if (Vector2.Distance(Player.Position, enemy.Position) < radius + AttackPlayerRadius)
+            if (EnemyFactionBlastHook != null) EnemyFactionBlastHook(enemy.Position, radius, enemy.Damage);
+            else if (Vector2.Distance(Player.Position, enemy.Position) < radius + AttackPlayerRadius)
             {
                 var impactDirection = Player.Position - enemy.Position;
                 var canImpactPlayer = Player.Health > 0 && !EnemyGameOverQuery() && !EnemyRevivePendingQuery() &&
@@ -1902,7 +1952,7 @@ namespace VoidFall.Runtime
                     }
                     else
                     {
-                        SpawnHostileShot(enemy.Position, direction, enemy.Damage * 0.7f, projectileSpeed, 0);
+                        SpawnHostileShot(enemy.Position, EnemyFactionTargeting ? enemy.DashDirection : direction, enemy.Damage * 0.7f, projectileSpeed, 0);
                         enemy.State = 0;
                         enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
                             definition?.AttackCooldown ?? 2.8,
