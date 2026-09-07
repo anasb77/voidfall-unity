@@ -113,10 +113,12 @@ namespace VoidFall.Runtime
         private void RefreshMenuProfileUi()
         {
             if (_ui?.MainMenu == null) return;
+            _ui.MainMenu.SetDirectorChoice(_saveData?.directorOnboardingSeen == true,
+                DirectorProfiles.For((DirectorProfileId)(_saveData?.directorId ?? 0)).Name);
             _ui.MainMenu.UpdateProfile(new UIProfileState
             {
                 Parts = _saveData?.parts ?? 0,
-                BestScore = CurrentBestScore(),
+                BestScore = Math.Max(CurrentBestScore(), _saveData?.stats?.bestFinalScore ?? 0),
                 TotalRuns = _saveData?.stats?.totalRuns ?? 0,
                 ArenaName = ArenaName(_arenaId)
             });
@@ -144,7 +146,8 @@ namespace VoidFall.Runtime
             if (_ui == null) return;
 
             UIScreen screen;
-            if (_menuPage == MenuPage.Home) screen = UIScreen.Home;
+            if (_directorSelectionOpen) screen = UIScreen.DirectorSelection;
+            else if (_menuPage == MenuPage.Home) screen = UIScreen.Home;
             else if (_menuPage == MenuPage.Workshop) screen = UIScreen.Workshop;
             else if (_menuPage == MenuPage.Records) screen = UIScreen.Records;
             else if (_menuPage == MenuPage.Settings) screen = UIScreen.Settings;

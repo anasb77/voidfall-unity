@@ -21,6 +21,15 @@ namespace VoidFall.UI
         private Text _workshopDetail;
         private Text _recordsDetail;
         private Text _arenaName;
+        private Button _directorButton;
+
+        public void SetDirectorChoice(bool visible, string name)
+        {
+            if (_directorButton == null) return;
+            _directorButton.transform.parent.gameObject.SetActive(visible);
+            var label = _directorButton.GetComponentInChildren<Text>();
+            if (label != null) label.text = name + " · Change";
+        }
 
         protected override void Build()
         {
@@ -47,6 +56,11 @@ namespace VoidFall.UI
             content.sizeDelta = new Vector2(ContentWidth, cursor + 40f);
 
             BuildQuitButton();
+            var directorSlot = Place(content, "DirectorChoice", cursor + 45f, 36f, 270f);
+            _directorButton = UIBuilder.CreateSecondaryAction(directorSlot, "Director", "Director I", null,
+                () => Callbacks?.OpenDirectorSelection?.Invoke(), 36f);
+            UIBuilder.Stretch(_directorButton.GetComponent<RectTransform>());
+            directorSlot.gameObject.SetActive(false);
         }
 
         /// <summary>
@@ -325,7 +339,7 @@ namespace VoidFall.UI
         }
 
         /// <summary>Retained signature used by the runtime's arena cycling.</summary>
-        public void UpdateProfile(int parts, int bestScore, string arenaName)
+        public void UpdateProfile(int parts, long bestScore, string arenaName)
         {
             // Use the common setter for every live label. Besides keeping the
             // text update path consistent, this preserves any tracking/fallback

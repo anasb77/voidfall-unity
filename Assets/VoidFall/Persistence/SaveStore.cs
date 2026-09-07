@@ -67,6 +67,7 @@ namespace VoidFall.Persistence
         public long totalDamageTaken;
         public int totalPartsEarned;
         public int bestScore;
+        public long bestFinalScore;
         public int bestTime;
         public int bestKills;
         public int highestLevel = 1;
@@ -76,6 +77,12 @@ namespace VoidFall.Persistence
     public class HighScoreEntry
     {
         public int score;
+        public long baseScore;
+        public int pressureHundredths;
+        public int multiplierHundredths;
+        public long finalScore;
+        public int scoringVersion;
+        public int directorId;
         public int kills;
         public int time;
         public int level;
@@ -102,6 +109,8 @@ namespace VoidFall.Persistence
     {
         public int version = SaveStore.SaveVersion;
         public int parts;
+        public int directorId;
+        public bool directorOnboardingSeen;
         public SaveSettings settings = new SaveSettings();
         public WorkshopEntry[] workshop = Array.Empty<WorkshopEntry>();
         public LifetimeStats stats = new LifetimeStats();
@@ -113,7 +122,7 @@ namespace VoidFall.Persistence
 
     public sealed class SaveStore
     {
-        public const int SaveVersion = 5;
+        public const int SaveVersion = 6;
         public const string SaveKey = "voidfall_save_v4";
         public const int MaxHighScores = 8;
         public const int MaxRecentRuns = 12;
@@ -518,11 +527,12 @@ namespace VoidFall.Persistence
             var result = data ?? CreateDefault();
             var sourceVersion = ClampInt(result.version, 0, SaveVersion);
             var legacyProtocolRank = LegacyProtocolRank(result.workshop);
-            var protocolRefund = sourceVersion > 0 && sourceVersion < SaveVersion
+            var protocolRefund = sourceVersion > 0 && sourceVersion < 5
                 ? legacyProtocolRank >= 3 ? 360 : legacyProtocolRank == 2 ? 160 : 0
                 : 0;
             var migratedParts = (long)Math.Max(0, result.parts) + protocolRefund;
             result.version = SaveVersion;
+            result.directorId = (int)DirectorProfiles.For((DirectorProfileId)result.directorId).Id;
             result.parts = ClampInt(
                 migratedParts > int.MaxValue ? int.MaxValue : migratedParts < int.MinValue ? int.MinValue : (int)migratedParts,
                 0,
@@ -538,6 +548,7 @@ namespace VoidFall.Persistence
             {
                 if (score == null) continue;
                 result.stats.bestScore = Math.Max(result.stats.bestScore, score.score);
+                if (score.scoringVersion > 0) result.stats.bestFinalScore = Math.Max(result.stats.bestFinalScore, score.finalScore);
                 result.stats.bestTime = Math.Max(result.stats.bestTime, score.time);
                 result.stats.bestKills = Math.Max(result.stats.bestKills, score.kills);
                 result.stats.highestLevel = Math.Max(result.stats.highestLevel, score.level);
@@ -635,6 +646,7 @@ namespace VoidFall.Persistence
             value.totalDamageTaken = ClampLong(value.totalDamageTaken, 0, MaxDamageCounter);
             value.totalPartsEarned = ClampInt(value.totalPartsEarned, 0, (int)MaxCounter);
             value.bestScore = ClampInt(value.bestScore, 0, (int)MaxCounter);
+            value.bestFinalScore = Math.Max(0, value.bestFinalScore);
             value.bestTime = ClampInt(value.bestTime, 0, 86_400);
             value.bestKills = ClampInt(value.bestKills, 0, (int)MaxCounter);
             value.highestLevel = ClampInt(value.highestLevel, 1, 999);
@@ -691,7 +703,7 @@ namespace VoidFall.Persistence
             if (ReferenceEquals(left, right)) return 0;
             if (left == null) return 1;
             if (right == null) return -1;
-            var comparison = right.score.CompareTo(left.score);
+            var comparison = ScoreForRanking(right).CompareTo(ScoreForRanking(left));
             if (comparison != 0) return comparison;
             comparison = right.kills.CompareTo(left.kills);
             if (comparison != 0) return comparison;
@@ -700,10 +712,20 @@ namespace VoidFall.Persistence
             return left.date.CompareTo(right.date);
         }
 
+        public static long ScoreForRanking(HighScoreEntry entry) => entry == null ? 0 :
+            entry.scoringVersion > 0 ? Math.Max(0, entry.finalScore) : Math.Max(0, entry.score);
+
         private static HighScoreEntry SanitizeHighScore(HighScoreEntry score)
         {
             var value = score ?? new HighScoreEntry();
             value.score = ClampInt(value.score, 0, (int)MaxCounter);
+            value.scoringVersion = ClampInt(value.scoringVersion, 0, int.MaxValue);
+            value.directorId = (int)DirectorProfiles.For((DirectorProfileId)value.directorId).Id;
+            value.baseScore = Math.Max(0, value.baseScore);
+            value.finalScore = Math.Max(0, value.finalScore);
+            value.pressureHundredths = ClampInt(value.pressureHundredths, 0,
+                DirectorProfiles.For((DirectorProfileId)value.directorId).PressureCeilingHundredths);
+            value.multiplierHundredths = value.scoringVersion > 0 ? Math.Max(100, value.pressureHundredths) : 0;
             value.kills = ClampInt(value.kills, 0, (int)MaxCounter);
             value.time = ClampInt(value.time, 0, 86_400);
             value.level = ClampInt(value.level, 1, 999);

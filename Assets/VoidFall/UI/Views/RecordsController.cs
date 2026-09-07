@@ -39,7 +39,8 @@ namespace VoidFall.UI
                     if (entry == null) continue;
                     rows.Add(new HighScoreRow
                     {
-                        Score = entry.score,
+                        Score = SaveStore.ScoreForRanking(entry),
+                        ScoringVersion = entry.scoringVersion,
                         Time = entry.time,
                         Level = entry.level,
                         Kills = entry.kills,
@@ -54,7 +55,7 @@ namespace VoidFall.UI
             {
                 TotalRuns = stats.totalRuns,
                 TotalKills = stats.totalKills,
-                BestScore = stats.bestScore,
+                BestScore = System.Math.Max(stats.bestScore, stats.bestFinalScore),
                 BestTime = stats.bestTime,
                 TotalBossKills = stats.totalBossKills,
                 TotalEliteKills = stats.totalEliteKills,

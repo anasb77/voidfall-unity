@@ -41,6 +41,7 @@ namespace VoidFall.Tests.PlayMode
             var profile = SaveStore.CreateDefault();
             profile.parts = 120;
             profile.stats.totalRuns = 7;
+            profile.directorOnboardingSeen = true;
             _testStore.Save(profile);
             Set(_runtime, "_saveStore", _testStore);
             Set(_runtime, "_saveData", profile);
@@ -360,8 +361,12 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(Get(_runtime, "_kills"), Is.EqualTo(4));
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Complete"));
 
+            var frozenScore = _runtime.TerminalRunScore;
+            Set(_runtime, "_score", 5000);
             Set(_runtime, "_saveStore", _testStore);
-            Invoke(_runtime, "StartRun");
+            Invoke(_runtime, "AcknowledgeDirectorResult");
+            Assert.That(_testStore.Load().recentRuns[0].finalScore, Is.EqualTo(frozenScore.FinalScore));
+            Assert.That(_testStore.Load().recentRuns[0].baseScore, Is.EqualTo(frozenScore.BaseScore));
 
             Assert.That(Get(_runtime, "_mainMenuBrowsing"), Is.True,
                 "A successful retry should resolve the preserved result before starting another run.");
@@ -397,6 +402,10 @@ namespace VoidFall.Tests.PlayMode
             yield return null;
             _runtime.enabled = false;
 
+            Assert.That(Get(_runtime, "_mainMenuBrowsing"), Is.False);
+            Assert.That(_runtime.DirectorResultNeedsAcknowledgement, Is.True);
+            Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.GameOver));
+            Invoke(_runtime, "AcknowledgeDirectorResult");
             Assert.That(Get(_runtime, "_mainMenuBrowsing"), Is.True);
             Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.Home));
             Invoke(_runtime, "UpdateJourneyFlow", 0.1f);

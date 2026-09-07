@@ -7,7 +7,8 @@ namespace VoidFall.UI
     /// <summary>One row of the high-score table.</summary>
     public struct HighScoreRow
     {
-        public int Score;
+        public long Score;
+        public int ScoringVersion;
         public float Time;
         public int Level;
         public int Kills;
@@ -19,7 +20,7 @@ namespace VoidFall.UI
     {
         public int TotalRuns;
         public int TotalKills;
-        public int BestScore;
+        public long BestScore;
         public float BestTime;
         public int TotalBossKills;
         public int TotalEliteKills;
@@ -219,7 +220,7 @@ namespace VoidFall.UI
             var values = new[]
             {
                 (index + 1).ToString(),
-                FormatNumber(score.Score),
+                FormatNumber(score.Score) + (score.ScoringVersion > 0 ? " · v" + score.ScoringVersion : " · legacy"),
                 FormatNumber(score.Kills),
                 FormatTime(score.Time),
                 FormatNumber(score.BossKills)

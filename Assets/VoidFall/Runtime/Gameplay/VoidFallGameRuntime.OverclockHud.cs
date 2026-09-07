@@ -140,7 +140,7 @@ namespace VoidFall.Runtime
             _bossHudGhost.enabled = visible;
             _bossHudBottom = 0;
             if (!visible) { _lastBossFraction = -1; return; }
-            var top = _arenaBannerPanel != null && _arenaBannerPanel.enabled ? 162f : 97f;
+            var top = _arenaBannerPanel != null && _arenaBannerPanel.enabled ? 162f : 118f;
             const float width = 432f;
             PositionTop(_bossNameText.rectTransform, 0, top, width, 16);
             PositionTop(_bossBarBackground.rectTransform, 0, top + 18, width, 14);

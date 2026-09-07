@@ -45,6 +45,7 @@ namespace VoidFall.Runtime
             // Snapshot the complete profile before mutating it. SaveStore.Save
             // serializes its own clone, but this runtime object is updated in
             // place below; restore it if the disk transaction fails.
+            FreezePressureAndScore();
             var previousSaveData = CloneSaveData(_saveData);
             var previousLastRunIsBest = _lastRunIsBest;
             var previousLastRunRank = _lastRunRank;
@@ -61,7 +62,7 @@ namespace VoidFall.Runtime
             var savedDamageDealt = RoundedDamageCounter(_damageDealt);
             var savedDamageTaken = RoundedDamageCounter(_damageTaken);
             var previousBestScore = _saveData.highScores != null && _saveData.highScores.Length > 0 && _saveData.highScores[0] != null
-                ? _saveData.highScores[0].score
+                ? SaveStore.ScoreForRanking(_saveData.highScores[0])
                 : -1;
             _saveData.stats.totalRuns = AddCounter(_saveData.stats.totalRuns, 1);
             _saveData.stats.totalPlaySeconds = AddCounter(
@@ -77,14 +78,21 @@ namespace VoidFall.Runtime
             // pickups, elite/boss rewards, and tune-limit Parts are all saved
             // once and a live run cannot mutate the profile early.
             CommitRunParts(_saveData, _partsEarned);
-            _saveData.stats.bestScore = Mathf.Max(_saveData.stats.bestScore, CurrentScore());
+            _saveData.stats.bestScore = Mathf.Max(_saveData.stats.bestScore, (int)Math.Min(999_999_999L, _frozenRunScore.BaseScore));
+            _saveData.stats.bestFinalScore = Math.Max(_saveData.stats.bestFinalScore, _frozenRunScore.FinalScore);
             _saveData.stats.bestTime = Mathf.Max(_saveData.stats.bestTime, Mathf.FloorToInt(_time));
             _saveData.stats.bestKills = Mathf.Max(_saveData.stats.bestKills, _kills);
             _saveData.stats.highestLevel = Mathf.Max(_saveData.stats.highestLevel, _level);
 
             var run = new RunRecordEntry
             {
-                score = CurrentScore(),
+                score = (int)Math.Min(999_999_999L, _frozenRunScore.BaseScore),
+                baseScore = _frozenRunScore.BaseScore,
+                pressureHundredths = _frozenRunScore.PressureHundredths,
+                multiplierHundredths = _frozenRunScore.MultiplierHundredths,
+                finalScore = _frozenRunScore.FinalScore,
+                scoringVersion = RunScoreRules.Version,
+                directorId = (int)_runDirectorProfile,
                 kills = _kills,
                 time = Mathf.Max(0, Mathf.FloorToInt(_time)),
                 level = Mathf.Max(1, _level),
@@ -100,7 +108,7 @@ namespace VoidFall.Runtime
                 late = BuildRankEntries(LateIds(), _upgradeProgress?.LateRanks),
                 evolved = BuildEvolvedEntries(),
             };
-            _lastRunIsBest = run.score > previousBestScore;
+            _lastRunIsBest = run.finalScore > previousBestScore;
             var recentRuns = new List<RunRecordEntry>();
             foreach (var previous in _saveData.recentRuns ?? Array.Empty<RunRecordEntry>())
             {
@@ -114,6 +122,12 @@ namespace VoidFall.Runtime
             var scoreEntry = new HighScoreEntry
             {
                 score = run.score,
+                baseScore = run.baseScore,
+                pressureHundredths = run.pressureHundredths,
+                multiplierHundredths = run.multiplierHundredths,
+                finalScore = run.finalScore,
+                scoringVersion = run.scoringVersion,
+                directorId = run.directorId,
                 kills = run.kills,
                 time = run.time,
                 level = run.level,
@@ -163,7 +177,7 @@ namespace VoidFall.Runtime
             _lastTelemetryPath = _telemetry.Export(
                 status,
                 (float)_time,
-                CurrentScore(),
+                (int)Math.Min(int.MaxValue, _hasFrozenRunScore ? _frozenRunScore.BaseScore : CurrentEarnedBaseScore()),
                 _kills,
                 _eliteKills,
                 _bossKills,
@@ -178,7 +192,8 @@ namespace VoidFall.Runtime
                 BuildTelemetryDamage(),
                 Mathf.FloorToInt(XpOnGround()),
                 XpHeldByHarvesters(),
-                _saveStore == null ? null : System.IO.Path.GetDirectoryName(_saveStore.PathOnDisk));
+                _saveStore == null ? null : System.IO.Path.GetDirectoryName(_saveStore.PathOnDisk),
+                _hasFrozenRunScore ? (FrozenRunScore?)_frozenRunScore : null, (int)_runDirectorProfile);
             if (!string.IsNullOrEmpty(_lastTelemetryPath))
             {
                 EnqueueToast("Run data exported", _lastTelemetryPath, 2.2f, ToastKind.Info);

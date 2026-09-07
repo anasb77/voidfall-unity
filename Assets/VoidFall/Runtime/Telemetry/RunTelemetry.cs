@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using VoidFall.Core;
 
 namespace VoidFall.Runtime
 {
@@ -84,6 +85,12 @@ namespace VoidFall.Runtime
         public string status;
         public float timeSeconds;
         public int score;
+        public long baseScore;
+        public int pressureHundredths;
+        public int multiplierHundredths;
+        public long finalScore;
+        public int scoringVersion;
+        public int directorId;
         public int kills;
         public int eliteKills;
         public int bossKills;
@@ -563,7 +570,8 @@ namespace VoidFall.Runtime
             UnityTelemetryDamageValue[] weaponDamage = null,
             int xpOnGround = 0,
             float xpHeldByHarvesters = 0,
-            string outputDirectory = null)
+            string outputDirectory = null,
+            FrozenRunScore? frozenScore = null, int directorId = 0)
         {
             var safeWeaponDamage = weaponDamage ?? Array.Empty<UnityTelemetryDamageValue>();
             long attributedDamage = 0;
@@ -580,6 +588,12 @@ namespace VoidFall.Runtime
                     status = status ?? "active",
                     timeSeconds = BrowserRounded(timeSeconds),
                     score = Mathf.Max(0, score),
+                    baseScore = frozenScore?.BaseScore ?? Math.Max(0, score),
+                    pressureHundredths = frozenScore?.PressureHundredths ?? 0,
+                    multiplierHundredths = frozenScore?.MultiplierHundredths ?? 0,
+                    finalScore = frozenScore?.FinalScore ?? 0,
+                    scoringVersion = frozenScore.HasValue ? RunScoreRules.Version : 0,
+                    directorId = directorId,
                     kills = Mathf.Max(0, kills),
                     eliteKills = Mathf.Max(0, eliteKills),
                     bossKills = Mathf.Max(0, bossKills),

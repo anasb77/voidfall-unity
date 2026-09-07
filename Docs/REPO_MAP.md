@@ -325,11 +325,21 @@ test profile. `Tests/Editor/WorkshopControllerTests.cs` covers transactions.
 
 `Persistence/SaveStore.cs` defines `SaveData`, `SaveSettings`, `LifetimeStats`,
 record/bestiary entries and schema handling. It saves under
-`Application.persistentDataPath`; schema v5 intentionally retains the filename
+`Application.persistentDataPath`; schema v6 intentionally retains the filename
 `voidfall_save_v4.json`. Writes use temp + flush + atomic replacement + backup.
 Recovery prioritizes the current backup over legacy profiles and protects it
 across failed writes. `BrowserSaveImporter.cs` / `BrowserSaveExporter.cs` are
 compatibility adapters, not a reason to reopen the deprecated browser project.
+
+`Runtime/Gameplay/VoidFallGameRuntime.Pressure.cs` observes scaled survival and
+complete boss health high-water per visit, then freezes the exact score once.
+`.DirectorMenu.cs` owns first-completed-run selection and result acknowledgement;
+`UI/Views/DirectorSelectionView.cs` projects its callbacks. The live pressure label
+belongs beneath `.Hud.cs`'s timer. Result/save/telemetry share `FrozenRunScore`.
+Schema v6 adds director choice/onboarding and versioned 64-bit score facts;
+legacy records keep their legacy score/version. Historical protocol refunds
+remain scoped to pre-v5 saves. Browser adapters preserve the new fields and
+integer precision; local rankings select final score only for versioned runs.
 
 `Runtime/Gameplay/VoidFallGameRuntime.Persist.cs` owns `SaveRun`, reward/stat
 commit and failure rollback. Live-run snapshots/resume are not implemented in

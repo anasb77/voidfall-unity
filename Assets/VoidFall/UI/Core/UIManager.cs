@@ -24,7 +24,8 @@ namespace VoidFall.UI
         Roulette,
         RouteSelect,
         PrizeReveal,
-        RouteMap
+        RouteMap,
+        DirectorSelection
     }
 
     /// <summary>
@@ -37,6 +38,8 @@ namespace VoidFall.UI
     public sealed class UICallbacks
     {
         public Action StartRun;
+        public Action OpenDirectorSelection;
+        public Action AcknowledgeDirectorResult;
         public Action RestartRun;
         public Action ResumeRun;
         public Action AbortToMenu;
@@ -114,7 +117,7 @@ namespace VoidFall.UI
     public struct UIProfileState
     {
         public int Parts;
-        public int BestScore;
+        public long BestScore;
         public int TotalRuns;
         public string ArenaName;
     }
@@ -131,6 +134,7 @@ namespace VoidFall.UI
         public HUDView HUD { get; private set; }
         public ToastView Toasts { get; private set; }
         public MainMenuView MainMenu { get; private set; }
+        public DirectorSelectionView DirectorSelection { get; private set; }
         public LevelUpView LevelUp { get; private set; }
         public GameOverView GameOver { get; private set; }
         public PauseView Pause { get; private set; }
@@ -242,6 +246,8 @@ namespace VoidFall.UI
 
             MainMenu = CreateView<MainMenuView>(_menuLayerRect, "Main Menu");
             MainMenu.Initialize(this);
+            DirectorSelection = CreateView<DirectorSelectionView>(_menuLayerRect, "Director Selection");
+            DirectorSelection.Initialize(this);
 
             Workshop = CreateView<WorkshopView>(_menuLayerRect, "Workshop");
             Workshop.Initialize(this);
@@ -383,7 +389,7 @@ namespace VoidFall.UI
             _screen = screen;
 
             var menuVisible = screen == UIScreen.Home || screen == UIScreen.Workshop ||
-                screen == UIScreen.Records || screen == UIScreen.Settings;
+                screen == UIScreen.Records || screen == UIScreen.Settings || screen == UIScreen.DirectorSelection;
 
             if (_menuScrim != null) _menuScrim.enabled = menuVisible;
             if (_backdropWash != null) _backdropWash.enabled = menuVisible;
@@ -391,6 +397,7 @@ namespace VoidFall.UI
             if (_menuLayer != null) _menuLayer.blocksRaycasts = menuVisible;
 
             MainMenu?.SetVisible(screen == UIScreen.Home);
+            DirectorSelection?.SetVisible(screen == UIScreen.DirectorSelection);
             Workshop?.SetVisible(screen == UIScreen.Workshop);
             Records?.SetVisible(screen == UIScreen.Records);
             Settings?.SetVisible(screen == UIScreen.Settings);
