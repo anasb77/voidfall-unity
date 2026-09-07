@@ -63,6 +63,8 @@ namespace VoidFall.Runtime
             _voidCompletionDelayRemaining = 0f;
             BeginPressureArena();
             ResetEncounterDirector();
+            StopMajorIncident();
+            ResetFactionAndRewardArena();
         }
 
         private void NotifyObjectiveKill() => _objectives?.NotifyKill();
@@ -81,11 +83,24 @@ namespace VoidFall.Runtime
 
         private void StepObjectiveTracker(double deltaTime)
         {
+            AdvanceCombatObjectiveProgress(deltaTime);
+            FinishCombatObjectiveProgress(deltaTime);
+        }
+
+        private void AdvanceCombatObjectiveProgress(double deltaTime)
+        {
             if (_objectives == null) return;
             _objectives.Step(deltaTime);
-            SyncVoidBossEncounterWithObjective();
+            if (_gameSim.Player.Health > 0) SyncVoidBossEncounterWithObjective();
             StepRunPressure();
-            if (_objectives.IsComplete && !_objectivesCompletionHandled)
+        }
+
+        private void FinishCombatObjectiveProgress(double deltaTime)
+        {
+            if (_objectives == null) return;
+            // A simultaneous lethal hit must finish death/revive ownership first;
+            // entering safe Rewards with a pending death timer would stop its clock.
+            if (_objectives.IsComplete && !_objectivesCompletionHandled && !_gameOver && _gameSim.Player.Health > 0)
             {
                 _objectivesCompletionHandled = true;
                 _objectiveCompleteAt = (float)_time;

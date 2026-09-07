@@ -63,6 +63,34 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
+        public void Boss_completion_credit_survives_an_upgrade_prompt_in_the_same_tick()
+        {
+            Tracker.Step(300);Set(_runtime,"_voidBossEncounterSpawned",true);
+            SetBoss(0,"herald",100,100,101);Tracker.NotifyNamedSpawned("herald");Tracker.Step(0);
+            Invoke(_runtime,"StepRunPressure");
+            SetBoss(0,"herald",0,100,101,false);Tracker.NotifyNamedKilled("herald");
+            Invoke(_runtime,"OpenLevelUp");Set(_runtime,"_levelUpTimer",.001f);
+            Invoke(_runtime,"Simulate",1.0/60);
+            Assert.That(Get(_runtime,"_levelUpActive"),Is.True);
+            Assert.That(Pressure.PressureHundredths,Is.EqualTo(50));
+            Assert.That(Pressure.CreditedProgressSeconds,Is.EqualTo(360));
+        }
+
+        [Test]
+        public void Terminal_tick_credits_boss_damage_before_freezing_the_result()
+        {
+            Tracker.Step(300);Set(_runtime,"_voidBossEncounterSpawned",true);
+            SetBoss(0,"herald",100,100,101);Invoke(_runtime,"StepRunPressure");
+            SetBoss(0,"herald",40,100,101);
+            var game=Get(_runtime,"_gameSim");var bosses=(Array)Get(game,"Bosses");var boss=bosses.GetValue(0);
+            Set(boss,"Position",new Vector2(1000,1000));bosses.SetValue(boss,0);
+            var player=Get(game,"Player");Set(player,"Health",0f);Set(player,"DyingTimer",.001f);Set(game,"Player",player);
+            Set(_runtime,"_revivesRemaining",0);Invoke(_runtime,"Simulate",1.0/60);
+            Assert.That(Get(_runtime,"_gameOver"),Is.True);
+            Assert.That(_runtime.TerminalRunScore.PressureHundredths,Is.EqualTo(46));
+        }
+
+        [Test]
         public void OpeningHasNoCreditAndWallClockCannotFarmPressureOrScore()
         {
             Tracker.Step(1.5);

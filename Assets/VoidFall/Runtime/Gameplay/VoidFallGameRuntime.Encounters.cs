@@ -76,7 +76,7 @@ namespace VoidFall.Runtime
                 : elite ? 8 : (float)(DirectorRules.EnemyThreatCost(id) * EnemyRosterRules.ThreatMultiplier(roster));
             var budget = DirectorBodyLimit() * (ActiveBosses() > 0 ? 1.25f : 1.55f);
             if (ActiveEnemyThreat() + cost > budget) { _lastSpawnBlockReason = "threat"; return false; }
-            if (IsDemandingEnemy(id) && ActiveDemandingEnemies() >= DirectorProfiles.AttackLimit(_runDirectorProfile, PressureHundredths))
+            if (ActiveBosses() == 0 && IsDemandingEnemy(id) && ActiveDemandingEnemies() >= DirectorProfiles.AttackLimit(_runDirectorProfile, PressureHundredths))
             { _lastSpawnBlockReason = "attention"; return false; }
             _lastSpawnBlockReason = null;
             return true;
@@ -103,6 +103,8 @@ namespace VoidFall.Runtime
         private void UpdateEncounterSpawns(float dt)
         {
             if (dt <= 0) return;
+            if (_majorIncident.Kind != MajorIncidentKind.None)
+            { _spawnTimer = .65f; _lastSpawnBlockReason = "major incident reservation"; return; }
             _directorActive = _directorWarned = false;
             if (_stressScenario != null)
             {

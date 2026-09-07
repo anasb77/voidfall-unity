@@ -1219,6 +1219,8 @@ namespace VoidFall.Runtime
 
         private void OnDestroy()
         {
+            _incidentPresentation?.Dispose();
+            DestroyDestroyerPresentation();
             DestroyMonochromePresentation();
             DestroyNebulaArt();
             // A duplicate runtime is destroyed by Awake before it owns any
@@ -1521,11 +1523,13 @@ namespace VoidFall.Runtime
             }
 
             var startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
+            RestoreIncidentEnvironment();
             UpdateArenaDecor(frameDt, reducedMotion);
             LogSlowStartupPhase("arena-decor", startupPhaseStarted);
             startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
             Render();
             RenderEncounterWarnings();
+            RenderMajorIncidents();
             RenderJunction();
             LogSlowStartupPhase("render", startupPhaseStarted);
             startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
@@ -2218,6 +2222,8 @@ namespace VoidFall.Runtime
             SelectRecipeForCurrentArena();
             EnsureVoidRouteForRun();
             ResetPressureForRun();
+            ResetMajorIncidentRun();
+            ResetFactionRunDiagnostics();
             _nextBossTime = float.PositiveInfinity;
             BeginObjectiveForCurrentArena();
             PrepareArenaNeighborhood();
@@ -2445,13 +2451,14 @@ namespace VoidFall.Runtime
 
         private void Simulate(double fixedDt)
         {
-            if (_mainMenuBrowsing || JourneyStopsCombat) return;
+            if (_mainMenuBrowsing || JourneyStopsCombat || _gameOver || (_paused && _stressScenario == null)) return;
             var realDt = (float)fixedDt;
             var frozen = _freezeTimer > 0;
             if (frozen) _freezeTimer = Mathf.Max(0, _freezeTimer - realDt);
             var dt = frozen ? 0 : realDt * _timeScale;
             _time += dt;
             var diagnosticStepStarted = BeginDiagnosticStep(dt);
+            StepMajorIncidents(dt);
             if (_gameSim.Player.Health > 0)
             {
                 _gameSim.Player.Health = Mathf.Min(
@@ -2579,6 +2586,7 @@ namespace VoidFall.Runtime
             UpdateRingWaves(dt);
             UpdateFloaters(dt);
             CheckMilestones();
+            AdvanceCombatObjectiveProgress(dt);
             AdvanceRunLevelUps(realDt);
 
             // The browser resolves the defeat/revive transition after the
@@ -2609,7 +2617,7 @@ namespace VoidFall.Runtime
             _timeScale += (_targetTimeScale - _timeScale) *
                 (1 - Mathf.Exp(-9f * realDt));
 
-            StepObjectiveTracker(dt);
+            FinishCombatObjectiveProgress(dt);
             EndDiagnosticStep(diagnosticStepStarted);
         }
 
@@ -3216,6 +3224,7 @@ namespace VoidFall.Runtime
         private void EndRun()
         {
             if (_gameOver) return;
+            StopMajorIncident();
             _revivePending = false;
             _gameSim.Player.DyingTimer = 0;
             _gameOver = true;

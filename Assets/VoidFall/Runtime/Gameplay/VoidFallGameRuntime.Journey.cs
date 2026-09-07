@@ -77,6 +77,7 @@ namespace VoidFall.Runtime
         private void ClearCombatForJourney()
         {
             CancelEncounterDirector();
+            StopMajorIncident();
             if (_journeyStage == JourneyStage.Rewards) BeginEscapeEnemyRetirement();
             else DestroyEnemiesForVoidTransition();
             ClearTransitionProjectiles();

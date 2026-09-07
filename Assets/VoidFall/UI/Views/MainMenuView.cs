@@ -22,6 +22,8 @@ namespace VoidFall.UI
         private Text _recordsDetail;
         private Text _arenaName;
         private Button _directorButton;
+        private RectTransform _homeContent;
+        private Vector2 _expandedContentSize, _expandedNavPosition;
 
         public void SetDirectorChoice(bool visible, string name)
         {
@@ -61,6 +63,9 @@ namespace VoidFall.UI
                 () => Callbacks?.OpenDirectorSelection?.Invoke(), 36f);
             UIBuilder.Stretch(_directorButton.GetComponent<RectTransform>());
             directorSlot.gameObject.SetActive(false);
+            _homeContent = content;
+            _expandedContentSize = content.sizeDelta;
+            _expandedNavPosition = ((RectTransform)content.Find("NavGrid")).anchoredPosition;
         }
 
         /// <summary>
@@ -357,6 +362,28 @@ namespace VoidFall.UI
             UpdateProfile(profile.Parts, profile.BestScore, profile.ArenaName);
             UIBuilder.SetText(_runsValue, FormatNumber(profile.TotalRuns));
             UIBuilder.SetText(_recordsDetail, FormatNumber(profile.TotalRuns) + " runs");
+            SetFreshPlayerLayout(profile.TotalRuns <= 0);
+        }
+
+        private void SetFreshPlayerLayout(bool fresh)
+        {
+            if (_homeContent == null) return;
+            var status = _homeContent.Find("StatusStrip") as RectTransform;
+            var nav = _homeContent.Find("NavGrid") as RectTransform;
+            var records = nav?.Find("Records");
+            var arena = _homeContent.Find("ArenaSelector");
+            if (status != null) status.gameObject.SetActive(!fresh);
+            if (records != null) records.gameObject.SetActive(!fresh);
+            if (arena != null) arena.gameObject.SetActive(!fresh);
+            if (nav == null || status == null) return;
+            nav.anchoredPosition = _expandedNavPosition + (fresh ? Vector2.up * (status.sizeDelta.y + 11) : Vector2.zero);
+            var grid = nav.GetComponent<GridLayoutGroup>();
+            if (grid != null)
+            {
+                grid.constraintCount = fresh ? 2 : 3;
+                grid.cellSize = new Vector2((ContentWidth - (fresh ? 10 : 20)) / (fresh ? 2 : 3), 67);
+            }
+            _homeContent.sizeDelta = _expandedContentSize - (fresh ? new Vector2(0, status.sizeDelta.y + 57) : Vector2.zero);
         }
     }
 }

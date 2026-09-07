@@ -118,7 +118,7 @@ namespace VoidFall.Runtime
         {
             var progress = _runPressure.CreditedProgressSeconds;
             if (double.IsNaN(progress) || double.IsInfinity(progress)) progress = 0;
-            var earned = (double)_score;
+            var earned = (double)_score + _fractionalFactionScore;
             if (double.IsNaN(earned) || double.IsInfinity(earned)) earned = 0;
             var total = Math.Max(0, earned) + 5 * Math.Max(0, progress) + 35.0 * Math.Max(0, _level - 1);
             return total >= long.MaxValue ? long.MaxValue : (long)Math.Floor(total + 0.5);

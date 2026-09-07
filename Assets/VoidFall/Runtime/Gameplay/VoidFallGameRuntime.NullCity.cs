@@ -27,6 +27,7 @@ namespace VoidFall.Runtime
 
         private readonly NullCityUnitState[] _nullCityUnits = new NullCityUnitState[MaxEnemies];
         private readonly Vector2[] _nullCityBirthQueue = new Vector2[64];
+        private readonly long[] _nullCityBirthRoots = new long[64];
         private readonly Vector2[] _nullCityBlastQueue = new Vector2[64];
         private readonly NullCityBomb[] _nullCityBombs = new NullCityBomb[3];
         private readonly int[] _nullCityDamageSlots = new int[MaxEnemies];
@@ -84,7 +85,8 @@ namespace VoidFall.Runtime
             _nullCityHeavySequence = 0;
             _nullCityPoliceWave = 0;
             _nullCityLastCyclePass = -1;
-            _nullCityBirthCount = _nullCityBlastCount = 0;
+            ClearNullCityBirthQueue();
+            _nullCityBlastCount = 0;
             _nullCityDashRemaining = _nullCityDashCooldown = 0f;
             _nullCityDashRequested = false;
             _nullCityWarnClock = _nullCityTractorClock = _nullCityVentClock = 0f;
@@ -138,7 +140,14 @@ namespace VoidFall.Runtime
         private bool SpawnNullCityUnit(int type, Vector2 position, bool newborn = false, bool fromHangar = false)
         {
             if (type < 0 || type >= NullCityContent.Enemies.Length || _nullCityCleared) return false;
-            if (!SpawnEnemy(NullCityContent.Enemies[type].Id, position, forcedRoster: EnemyRoster.One)) return false;
+            bool spawned;
+            if (_nullCityBossActive && !_spawnFromActor && _spawnRewardRoot == 0 && _nullCityBossSlot >= 0)
+            {
+                using (FactionBirthScope(BossRewardRoot(_gameSim.Bosses[_nullCityBossSlot].TelemetryInstanceId)))
+                    spawned = SpawnEnemy(NullCityContent.Enemies[type].Id, position, forcedRoster: EnemyRoster.One);
+            }
+            else spawned = SpawnEnemy(NullCityContent.Enemies[type].Id, position, forcedRoster: EnemyRoster.One);
+            if (!spawned) return false;
             var identity = _nextEnemyId - 1;
             for (var i = 0; i < _gameSim.Enemies.Length; i++)
             {
@@ -268,6 +277,13 @@ namespace VoidFall.Runtime
             for (var i = 0; i < count && _nullCityBirthCount < _nullCityBirthQueue.Length; i++)
             {
                 var angle = i * Mathf.PI * 2f / count;
+                var root = CaptureFactionBirthRoot();
+                if (root == 0 && !_spawnFromActor && _nullCityBossActive && _nullCityBossSlot >= 0)
+                {
+                    using (FactionBirthScope(BossRewardRoot(_gameSim.Bosses[_nullCityBossSlot].TelemetryInstanceId)))
+                        root = CaptureFactionBirthRoot();
+                }
+                _nullCityBirthRoots[_nullCityBirthCount] = root;
                 _nullCityBirthQueue[_nullCityBirthCount++] = position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
             }
         }
@@ -278,9 +294,25 @@ namespace VoidFall.Runtime
             for (var i = 0; i < _nullCityBirthCount; i++)
             {
                 var p = _nullCityBirthQueue[i];
-                if (!SpawnNullCityUnit(3, p, newborn: true)) _nullCityBirthQueue[remaining++] = p;
+                var root = _nullCityBirthRoots[i];
+                _nullCityBirthRoots[i] = 0;
+                bool spawned;
+                using (FactionBirthScope(root)) spawned = SpawnNullCityUnit(3, p, newborn: true);
+                if (spawned) ReleaseFactionBirthRoot(root);
+                else
+                {
+                    _nullCityBirthRoots[remaining] = root;
+                    _nullCityBirthQueue[remaining++] = p;
+                }
             }
             _nullCityBirthCount = remaining;
+        }
+
+        private void ClearNullCityBirthQueue()
+        {
+            for (var i = 0; i < _nullCityBirthCount; i++)
+            { ReleaseFactionBirthRoot(_nullCityBirthRoots[i]); _nullCityBirthRoots[i] = 0; }
+            _nullCityBirthCount = 0;
         }
 
         private void OnNullCityEnemyDeath(EnemyState enemy)
@@ -474,7 +506,8 @@ namespace VoidFall.Runtime
         {
             if (_nullCityBossSpawned) return;
             ClearHydraBossArena();
-            _nullCityBirthCount = _nullCityBlastCount = 0;
+            ClearNullCityBirthQueue();
+            _nullCityBlastCount = 0;
             SpawnBoss(NullCityContent.MotherloadId, 1.0, 1.0, 0);
             for (var i = 0; i < _gameSim.Bosses.Length; i++)
             {
@@ -583,7 +616,8 @@ namespace VoidFall.Runtime
         {
             _nullCityCleared = true;
             _nullCityBossActive = false;
-            _nullCityBirthCount = _nullCityBlastCount = 0;
+            ClearNullCityBirthQueue();
+            _nullCityBlastCount = 0;
             _nullCityTractorClock = _nullCityWarnClock = 0f;
             _nullCityCannonCount = 0;
             Array.Clear(_nullCityBombs, 0, _nullCityBombs.Length);

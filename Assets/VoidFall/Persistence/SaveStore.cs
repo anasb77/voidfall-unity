@@ -185,6 +185,47 @@ namespace VoidFall.Persistence
 
         public bool StorageUnreadable => _storageUnreadable;
 
+        /// <summary>Explicit retry after an unreadable-profile latch. Never creates or writes a default profile.</summary>
+        public bool TryReloadExisting(out SaveData recovered)
+        {
+            recovered = null;
+            var source = FindLoadPath();
+            var backup = _path + ".bak";
+            if (source == null && File.Exists(backup)) source = backup;
+            if (source == null) return false;
+            string raw;
+            try { raw = File.ReadAllText(source); }
+            catch (Exception) { return false; }
+            if (!TryParseExisting(raw, out recovered))
+            {
+                if (source == backup || !File.Exists(backup)) return false;
+                try { raw = File.ReadAllText(backup); }
+                catch (Exception) { return false; }
+                if (!TryParseExisting(raw, out recovered)) return false;
+                source = backup;
+            }
+            _storageUnreadable = false;
+            _preserveBackupUntilSave |= string.Equals(source, backup, StringComparison.OrdinalIgnoreCase);
+            return true;
+        }
+
+        private static bool TryParseExisting(string raw, out SaveData recovered)
+        {
+            recovered = null;
+            try
+            {
+                if (BrowserSaveImporter.TryConvert(raw, out var browser)) recovered = Sanitize(browser);
+                else
+                {
+                    var data = JsonUtility.FromJson<SaveData>(raw);
+                    if (data == null || data.version <= 0) return false;
+                    recovered = Sanitize(data);
+                }
+                return true;
+            }
+            catch (Exception) { recovered = null; return false; }
+        }
+
         public SaveData Load()
         {
             // A migrated legacy file can still exist, but the current backup

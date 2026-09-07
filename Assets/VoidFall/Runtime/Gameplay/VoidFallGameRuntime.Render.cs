@@ -352,6 +352,7 @@ namespace VoidFall.Runtime
                 var i = _gameSim.EnemyOrder[order];
                 if (i < 0 || i >= _gameSim.Enemies.Length || !_gameSim.Enemies[i].Active || _enemyViews[i] == null) continue;
                 var enemy = _gameSim.Enemies[i];
+                if (TryRenderDestroyer(i, enemy)) continue;
                 _enemyViews[i].rendererPriority = order;
                 SetEnemyPresentationPriority(i, order);
                 var progressedSprite = ProgressedEnemySprite(enemy);

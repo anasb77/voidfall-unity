@@ -71,6 +71,13 @@ namespace VoidFall.Runtime
         private void AcknowledgeDirectorResult()
         {
             if (!_gameOver) return;
+            if (!_runSaved && _saveStore?.StorageUnreadable == true)
+            {
+                if (!_saveStore.TryReloadExisting(out var recovered)) { ShowDirectorResult(); return; }
+                // Merge this still-frozen run through SaveRun onto the recovered
+                // profile, never onto the temporary defaults returned by a failed load.
+                _saveData = recovered;
+            }
             if (!_runSaved) SaveRun();
             if (!_runSaved)
             {

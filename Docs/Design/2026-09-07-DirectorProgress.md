@@ -2,6 +2,8 @@
 
 Baseline acf5103, isolated worktree codex/director-redesign-2026-09-07. Owner approved full implementation Sept7. Unity baseline EditMode444/444 passed; PlayMode running in original checkout. Parent is sole Unity launcher.
 
+Baseline follow-up: PlayMode131 passed/1 failed/1 graphics-only skipped. Failure is the pre-existing golden pin: expected legacy14088908808337278323, actual16175583525682867059; full actual2219481193901741817. Isolated golden-only run reproduced EXACT same values. The32-seed test passed in full baseline suite. Pin last changed9696676; subsequent acf5103 intentionally added orbital projectile interception and consolidated support behavior without re-pinning. These are established baseline changes, not this redesign's regression. Preserve evidence before any later hash update. Unity test teardown deleted tracked Addressables link.xml/meta; restored only those known test-generated deletions in original clean checkout.
+
 | Task / shared interface | Check / ruling |
 |---|---|
 |1 internal rules/tests|Exact hundredths, stage high-water,64-bit score, profile thresholds agree; tests include saturation and freeze.|
@@ -19,9 +21,13 @@ Baseline acf5103, isolated worktree codex/director-redesign-2026-09-07. Owner ap
 
 Ruling: broad approval covers the complete approved systems and latest preview, but not previously excluded online backend/co-op/new-tree/gameplay-blackout ideas. Worktree creation was included in approved proposal; no renewed permission question.
 
-- [ ] Task1 pure rules
-- [ ] Task2 ordinary encounters/diagnostics
-- [ ] Task3 pressure/results/onboarding
-- [ ] Task4 BlackHole/Eclipse/admission
-- [ ] Task5 Destroyers/provenance
-- [ ] Task6 integration/review/build/performance
+- [x] Task1 pure rules: 271d9f0 + 994e5e5; task review passed after independent-valid-channel/default-struct floor fixes; Unity 18/18 cases pass.
+- [x] Task2 ordinary encounters/diagnostics: 69cfa86 + 06839de + cf2ba25; bounded encounters, attention limits, reinforcement waves.
+- [x] Task3 pressure/results/onboarding: 45e5eb6; save lock recovery, terminal tick score credit, fresh-player layout.
+- [x] Task4 BlackHole/Eclipse/admission: 89dd90e; incident lifecycle, Black Hole attraction, Eclipse dimming, 45 EditMode cases pass.
+- [x] Task5 Destroyers/provenance: 1d6b404 + ab26137; 5 archetypes, reciprocal faction combat, finite reward roots.
+- [/] Task6 integration/review/build/performance: full EditMode (525/525), PlayMode integration, 32-seed repeatability sweep, validation standalone build.
+
+Ruling: prepare Task4 pure lifecycle and renderer independently while parent proves Task2 ordinary combat; do not admit or use events to cover baseline pacing. Named ownership in task-4-render-brief prevents shared runtime edits. Source rendering requires scoped adaptation of supplied ShaderGraph, not a global Opaque Texture toggle.
+
+Parent diagnostics TDD red: DirectorDiagnosticsTests failed as expected because PrepareBenchmarkFrame did not exist. New diagnostic implementation now under Unity integration test. Native creature export:40poseframes, final approved artwork provenance in Tools/DirectorArt.
