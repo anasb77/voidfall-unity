@@ -38,6 +38,11 @@ the preceding four seconds.
 | Neon Street | 158.76 s | 49.25 s; -14.45 dBFS, +0.54 dB rise, 1.93 novelty | 102.25 s; -14.35 dBFS, +1.18 dB rise, 2.63 novelty |
 | Rooftop Chase | 45.53 s | 18.00 s; -16.20 dBFS, +1.08 dB rise, 2.51 novelty | 25.00 s; -15.91 dBFS, +0.45 dB rise, 1.45 novelty |
 | Synth Syndicate | 124.73 s | 67.50 s; -13.33 dBFS, +0.49 dB rise, 1.46 novelty | 80.75 s; -13.65 dBFS, +2.79 dB rise, 2.86 novelty |
+| 8 Bit atmosphere - 002 - Beyond the Pixelated Horizon | 211.10 s | 20.50 s; -15.22 dBFS, +4.53 dB rise | 124.25 s; -15.22 dBFS, +5.90 dB rise |
+| 8 Bit atmosphere - 003 - The Gentle Descent into the Cosmic Ruin | 197.11 s | 11.00 s; -18.68 dBFS, +8.12 dB rise | 95.00 s; -14.75 dBFS, +1.14 dB rise |
+| 8 Bit atmosphere - 007 - The Surveyor's Quiet, Amiga Reverie | 256.46 s | 7.75 s; -20.46 dBFS, +6.89 dB rise | 138.25 s; -15.96 dBFS, +3.48 dB rise |
+| Cyberpunk Theme 1 | 72.05 s | 5.75 s; -17.21 dBFS, +0.97 dB rise | 56.50 s; -16.27 dBFS, +0.94 dB rise |
+
 
 The runtime's existing playback guard clamps authored starts to
 `clip.length - 1`. The focused editor test additionally loads every actual MP3

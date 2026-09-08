@@ -23,7 +23,12 @@ namespace VoidFall.Tests.Editor
             "Neon Street",
             "Rooftop Chase",
             "Synth Syndicate",
+            "8 Bit atmosphere - 002 - Beyond the Pixelated Horizon",
+            "8 Bit atmosphere - 003 - The Gentle Descent into the Cosmic Ruin",
+            "8 Bit atmosphere - 007 - The Surveyor's Quiet, Amiga Reverie",
+            "Cyberpunk Theme 1",
         };
+
 
         [Test]
         public void Every_ost_track_picks_varied_positive_entries_before_its_final_second()
@@ -65,5 +70,35 @@ namespace VoidFall.Tests.Editor
 
             Assert.That(alternateCase, Is.EqualTo(exact));
         }
+
+        [Test]
+        public void Main_menu_includes_beyond_the_pixelated_horizon()
+        {
+            var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                "Assets/VoidFall/Resources/VoidFall/Music/MainMenu/8 Bit atmosphere - 002 - Beyond the Pixelated Horizon.mp3");
+            Assert.That(clip, Is.Not.Null, "Main menu Beyond the Pixelated Horizon clip is missing");
+            Assert.That(clip.length, Is.GreaterThan(200f));
+        }
+
+        [Test]
+        public void All_ost_and_menu_tracks_use_streaming_audio_presets()
+        {
+            foreach (var trackName in TrackNames)
+            {
+                var path = "Assets/VoidFall/Resources/VoidFall/Music/OST/" + trackName + ".mp3";
+                var importer = AssetImporter.GetAtPath(path) as AudioImporter;
+                Assert.That(importer, Is.Not.Null, path + " importer missing");
+                Assert.That(importer.defaultSampleSettings.loadType, Is.EqualTo(AudioClipLoadType.Streaming), path + " loadType");
+                Assert.That(importer.defaultSampleSettings.compressionFormat, Is.EqualTo(AudioCompressionFormat.Vorbis), path + " compressionFormat");
+                Assert.That(importer.loadInBackground, Is.True, path + " loadInBackground");
+            }
+
+            var menuPath = "Assets/VoidFall/Resources/VoidFall/Music/MainMenu/8 Bit atmosphere - 002 - Beyond the Pixelated Horizon.mp3";
+            var menuImporter = AssetImporter.GetAtPath(menuPath) as AudioImporter;
+            Assert.That(menuImporter, Is.Not.Null, menuPath + " importer missing");
+            Assert.That(menuImporter.defaultSampleSettings.loadType, Is.EqualTo(AudioClipLoadType.Streaming), menuPath + " loadType");
+            Assert.That(menuImporter.defaultSampleSettings.compressionFormat, Is.EqualTo(AudioCompressionFormat.Vorbis), menuPath + " compressionFormat");
+        }
     }
 }
+
