@@ -106,5 +106,33 @@ namespace VoidFall.Tests.Editor
             Assert.That(summary.Weapons[1].Damage, Is.EqualTo(0L));
             Assert.That(summary.Weapons[1].DamagePercent, Is.EqualTo(0f));
         }
+
+        [Test]
+        public void Killer_fields_default_to_empty_and_copy_when_provided()
+        {
+            var plain = GameOverSummaryBuilder.Build(
+                victory: false, score: 1, elapsedSeconds: 1f,
+                kills: 1, eliteKills: 0, bossKills: 0, level: 1, partsEarned: 0,
+                isBest: false, saved: true,
+                weaponRanks: null, weaponDamage: null, totalDamageDealt: 0d,
+                buildChips: new List<UIBuildChip>());
+
+            Assert.That(plain.KilledByName, Is.Empty);
+            Assert.That(plain.KilledByDetail, Is.Empty);
+
+            var withKiller = GameOverSummaryBuilder.Build(
+                victory: false, score: 1, elapsedSeconds: 252f,
+                kills: 1, eliteKills: 0, bossKills: 0, level: 1, partsEarned: 0,
+                isBest: false, saved: true,
+                weaponRanks: null, weaponDamage: null, totalDamageDealt: 0d,
+                buildChips: new List<UIBuildChip>(),
+                killedByName: "Twin Gunner",
+                killedByDetail: "Final blow \u00B7 Red Nebula 4:12",
+                killedByGlyph: "\u25CF");
+
+            Assert.That(withKiller.KilledByName, Is.EqualTo("Twin Gunner"));
+            Assert.That(withKiller.KilledByDetail, Is.EqualTo("Final blow \u00B7 Red Nebula 4:12"));
+            Assert.That(withKiller.KilledByGlyph, Is.EqualTo("\u25CF"));
+        }
     }
 }

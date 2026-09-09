@@ -343,7 +343,8 @@ namespace VoidFall.Runtime
                         0f,
                         false,
                         HydraRibShotVariant,
-                        (float)HydraEncounterRules.RibProjectileRadius);
+                        (float)HydraEncounterRules.RibProjectileRadius,
+                        boss.Id);
                 }
                 SpawnRingWave(_hydraArenaCentre, 80f, 620f, 0.55f, BossAccent(boss));
                 _audio?.Play(ProceduralAudio.Cue.BossSlam, 0.9f);
@@ -364,7 +365,7 @@ namespace VoidFall.Runtime
                     attack.BeamWidth ?? 38,
                     AttackPlayerRadius))
                 {
-                    DamagePlayer(attackDamage, delta);
+                    DamagePlayer(attackDamage, delta, boss.Id);
                     boss.BeamHitCooldown = 0.45f;
                 }
                 return true;
@@ -404,7 +405,7 @@ namespace VoidFall.Runtime
                         var delta = _gameSim.Player.Position - bomb.Position;
                         var radius = (float)(HydraContent.Boss.Attacks[0].Radius ?? 64);
                         if (delta.magnitude < radius + AttackPlayerRadius)
-                            DamagePlayer(bomb.Damage, delta);
+                            DamagePlayer(bomb.Damage, delta, "hydra-prime");
                         SpawnRingWave(
                             bomb.Position,
                             10f,

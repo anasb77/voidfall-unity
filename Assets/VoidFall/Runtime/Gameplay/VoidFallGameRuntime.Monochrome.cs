@@ -308,7 +308,8 @@ namespace VoidFall.Runtime
                     shotDirection,
                     enemy.Damage * 0.9f,
                     (float)(definition.ProjectileSpeed ?? 440),
-                    0f);
+                    0f,
+                    sourceId: enemy.Id);
                 enemy.State = 0;
                 enemy.AttackCooldown = (float)(definition.AttackCooldown ?? 4.2);
             }
@@ -392,7 +393,7 @@ namespace VoidFall.Runtime
             {
                 var angle = index * Mathf.PI * 0.25f;
                 var shotDirection = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                SpawnHostileShot(enemy.Position, shotDirection, enemy.Damage * 0.62f, speed, 0f);
+                SpawnHostileShot(enemy.Position, shotDirection, enemy.Damage * 0.62f, speed, 0f, sourceId: enemy.Id);
             }
             PromoteCourtPawns(CourtFactionOf(enemy), enemy.Position);
             enemy.State = 0;
@@ -453,7 +454,7 @@ namespace VoidFall.Runtime
                     tileFaction,
                     _monochromeFloorDamageCooldown)) return;
 
-            DamagePlayer(phaseTwo ? 20f : 16f, Vector2.zero);
+            DamagePlayer(phaseTwo ? 20f : 16f, Vector2.zero, "chess-floor");
             _monochromeFloorDamageCooldown = 0.65f;
         }
 

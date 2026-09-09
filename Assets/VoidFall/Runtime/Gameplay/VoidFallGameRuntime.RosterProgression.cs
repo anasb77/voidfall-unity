@@ -154,7 +154,7 @@ namespace VoidFall.Runtime
                         var shotAngle = angle + offset * traits.ShotSpread;
                         SpawnHostileShot(enemy.Position, new Vector2(Mathf.Cos(shotAngle), Mathf.Sin(shotAngle)), enemy.Damage * .62f,
                             speed, curved ? offset * traits.CurvatureAcceleration / (float)EliteRules.CurvedLateralAcceleration : 0,
-                            radiusOverride: traits.ProjectileRadius);
+                            radiusOverride: traits.ProjectileRadius, sourceId: enemy.Id, elite: enemy.Elite || enemy.EliteKind.HasValue);
                     }
                     enemy.Volley++;
                     _audio?.Play(ProceduralAudio.Cue.GunnerShot, .9f);
@@ -197,7 +197,7 @@ namespace VoidFall.Runtime
                 {
                     var position = RosterBlastPosition(enemy, traits, impact);
                     if (Vector2.Distance(_gameSim.Player.Position, position) < traits.BlastRadius + PlayerRadius)
-                        DamagePlayer(enemy.Damage, _gameSim.Player.Position - position);
+                        DamagePlayer(enemy.Damage, _gameSim.Player.Position - position, enemy.Id, enemy.Elite || enemy.EliteKind.HasValue);
                     SpawnBlastWave(position, traits.BlastRadius, .5f, false);
                     SpawnImpactMark(position, traits.BlastRadius, 0);
                 }

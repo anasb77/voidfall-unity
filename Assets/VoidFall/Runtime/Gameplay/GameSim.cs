@@ -76,6 +76,13 @@ namespace VoidFall.Runtime
         public Action<int, Vector2> HostileShotImpact;
         // Origin metadata stays outside the golden-master-hashed projectile struct.
         public readonly bool[] HostileShotBlockable;
+        /// <summary>
+        /// Presentational killer attribution per hostile-shot slot. Written on
+        /// spawn, read on player impact for the death report. Never feeds back
+        /// into simulation logic, RNG or the golden-master hash.
+        /// </summary>
+        public readonly string[] HostileShotSources;
+        public readonly bool[] HostileShotElite;
         public Func<int, Vector2, Vector2, float, bool> HostileShotInterceptQuery;
         public delegate bool TerrainProjectileCollision(Vector2 from, Vector2 to, float radius, out Vector2 hit);
         public TerrainProjectileCollision TerrainProjectileCollisionHook;
@@ -105,6 +112,8 @@ namespace VoidFall.Runtime
             Bullets = new BulletState[maxBullets];
             HostileShots = new HostileShotState[maxHostileShots];
             HostileShotBlockable = new bool[maxHostileShots];
+            HostileShotSources = new string[maxHostileShots];
+            HostileShotElite = new bool[maxHostileShots];
             Pickups = new PickupState[maxPickupSlots];
             Bosses = new BossState[maxBosses];
             Meteors = new MeteorState[maxMeteors];
@@ -466,7 +475,9 @@ namespace VoidFall.Runtime
             float speed,
             float curvature,
             bool meteorOwned = false,
-            int visualVariant = -1)
+            int visualVariant = -1,
+            string sourceId = "",
+            bool elite = false)
         {
             var slot = FindInactive(HostileShots);
             if (slot < 0) return -1;
@@ -499,6 +510,8 @@ namespace VoidFall.Runtime
             };
             // Unknown/boss/elite callers are protected unless runtime explicitly marks ordinary origin.
             HostileShotBlockable[slot] = false;
+            HostileShotSources[slot] = sourceId ?? string.Empty;
+            HostileShotElite[slot] = elite;
             HostileShotOrder.Append(slot);
             if (curved) CurvedShotCount++;
             return slot;
@@ -1260,14 +1273,14 @@ namespace VoidFall.Runtime
         public Action<ProceduralAudio.Cue, float> EnemyAudioCueHook;
         public Func<float> EnemyParticleScaleHook;
         public Func<double> EnemyFxRollHook;
-        public Action<float, Vector2> EnemyDamagePlayerHook;
+        public Action<float, Vector2, string, bool> EnemyDamagePlayerHook;
         public Action<Vector2, float, float, bool> EnemyBlastWaveHook;
         public Action<Vector2, float, float, bool> EnemyBlastWaveFxOnlyHook;
         public Action<Vector2, float, float> EnemyImpactMarkHook;
         public Action<float> EnemyFreezeHook;
         public Action<float> EnemyAmberFlashHook;
         public Action<Vector2, float, float, int, int> EnemyDamageAreaHook;
-        public Action<Vector2, Vector2, float, float, float, bool, int> EnemySpawnShotHook;
+        public Action<Vector2, Vector2, float, float, float, bool, int, string, bool> EnemySpawnShotHook;
         public Action<int> EnemyFuseWarningHook;
         public Action<int, bool> EnemyResolveDeathHook;
         public Func<int> EnemyShotsRemainingQuery;
@@ -1607,7 +1620,7 @@ namespace VoidFall.Runtime
                     var impactDirection = Player.Position - enemy.DashDirection;
                     var canImpactPlayer = Player.Health > 0 && !EnemyGameOverQuery() && !EnemyRevivePendingQuery() &&
                         Player.DyingTimer <= 0 && Player.Iframes <= 0;
-                    EnemyDamagePlayerHook?.Invoke(enemy.Damage, impactDirection);
+                    EnemyDamagePlayerHook?.Invoke(enemy.Damage, impactDirection, enemy.Id, enemy.Elite || enemy.EliteKind.HasValue);
                     if (canImpactPlayer) ApplySourcePlayerKnockback(ref enemy, impactDirection);
                 }
                 EnemyBlastWaveHook?.Invoke(enemy.DashDirection, impact, 0.5f, false);
@@ -1685,7 +1698,7 @@ namespace VoidFall.Runtime
                 var impactDirection = Player.Position - enemy.Position;
                 var canImpactPlayer = Player.Health > 0 && !EnemyGameOverQuery() && !EnemyRevivePendingQuery() &&
                     Player.DyingTimer <= 0 && Player.Iframes <= 0;
-                EnemyDamagePlayerHook?.Invoke(enemy.Damage, impactDirection);
+                EnemyDamagePlayerHook?.Invoke(enemy.Damage, impactDirection, enemy.Id, enemy.Elite || enemy.EliteKind.HasValue);
                 if (canImpactPlayer) ApplySourcePlayerKnockback(ref enemy, impactDirection);
             }
             // Keep the browser's self-detonation composition order: the blast
@@ -1701,7 +1714,7 @@ namespace VoidFall.Runtime
                 {
                     var angle = enemy.Rotation + index / 6f * Mathf.PI * 2;
                     var shotDirection = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                    EnemySpawnShotHook?.Invoke(enemy.Position + shotDirection * (enemy.Radius + 8), shotDirection, enemy.Damage * 0.32f, 210, 0, false, -1);
+                    EnemySpawnShotHook?.Invoke(enemy.Position + shotDirection * (enemy.Radius + 8), shotDirection, enemy.Damage * 0.32f, 210, 0, false, -1, enemy.Id, enemy.Elite || enemy.EliteKind.HasValue);
                 }
             }
             if (elite)
@@ -1725,8 +1738,8 @@ namespace VoidFall.Runtime
         }
 
         /// <summary>Five-argument hostile-shot spawn with browser defaults.</summary>
-        private void SpawnHostileShot(Vector2 position, Vector2 direction, float damage, float speed, float curvature)
-            => EnemySpawnShotHook?.Invoke(position, direction, damage, speed, curvature, false, -1);
+        private void SpawnHostileShot(Vector2 position, Vector2 direction, float damage, float speed, float curvature, string sourceId = "", bool elite = false)
+            => EnemySpawnShotHook?.Invoke(position, direction, damage, speed, curvature, false, -1, sourceId, elite);
         public void UpdateHarvester(ref EnemyState enemy, float dt, Vector2 fallbackDirection, ref float globalStoredXp, int xpNeed, float time, int bossCycle)
         {
             var limits = PickupRules.HarvesterXpLimits(xpNeed);
@@ -1849,7 +1862,9 @@ namespace VoidFall.Runtime
                                 new Vector2(Mathf.Cos(baseAngle), Mathf.Sin(baseAngle)),
                                 enemy.Damage * 0.62f,
                                 projectileSpeed,
-                                (float)curvature);
+                                (float)curvature,
+                                enemy.Id,
+                                enemy.Elite || enemy.EliteKind.HasValue);
                         }
 
                         enemy.Volley++;
@@ -1870,7 +1885,9 @@ namespace VoidFall.Runtime
                                     new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)),
                                     enemy.Damage * 0.48f,
                                     projectileSpeed * 1.05f,
-                                    0);
+                                    0,
+                                    enemy.Id,
+                                    enemy.Elite || enemy.EliteKind.HasValue);
                             }
                         }
 
@@ -1891,7 +1908,9 @@ namespace VoidFall.Runtime
                                 new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)),
                                 enemy.Damage * 0.55f,
                                 projectileSpeed,
-                                0);
+                                0,
+                                enemy.Id,
+                                enemy.Elite || enemy.EliteKind.HasValue);
                         }
 
                         enemy.State = 0;
@@ -1902,7 +1921,7 @@ namespace VoidFall.Runtime
                     }
                     else
                     {
-                        SpawnHostileShot(enemy.Position, direction, enemy.Damage * 0.7f, projectileSpeed, 0);
+                        SpawnHostileShot(enemy.Position, direction, enemy.Damage * 0.7f, projectileSpeed, 0, enemy.Id, enemy.Elite || enemy.EliteKind.HasValue);
                         enemy.State = 0;
                         enemy.AttackCooldown = (float)EnemyRosterRules.RosterCooldownSeconds(
                             definition?.AttackCooldown ?? 2.8,

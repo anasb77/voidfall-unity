@@ -240,7 +240,7 @@ namespace VoidFall.Runtime
                 }
                 var p = NullCityCanvas(_gameSim.Player.Position);
                 if (InsideNullCityPurge(p, purge, AttackPlayerRadius * .3f))
-                    DamagePlayer((float)NullCityRules.PurgePlayerDamage, Vector2.up);
+                    DamagePlayer((float)NullCityRules.PurgePlayerDamage, Vector2.up, "null-purge");
                 if (_nullCityCleared) return;
             }
             for (var i = 0; i < _nullCityBombs.Length; i++)
@@ -253,7 +253,7 @@ namespace VoidFall.Runtime
                     bomb.Active = false;
                     SpawnRingWave(bomb.Position, 8f, 160f, .3f, new Color(1f, .7f, .4f, .7f));
                     if ((_gameSim.Player.Position - bomb.Position).sqrMagnitude < 70f * 70f)
-                        DamagePlayer(28f, _gameSim.Player.Position - bomb.Position);
+                        DamagePlayer(28f, _gameSim.Player.Position - bomb.Position, "null-bomb");
                 }
                 _nullCityBombs[i] = bomb;
             }
@@ -327,7 +327,7 @@ namespace VoidFall.Runtime
                 SpawnRingWave(position, 10f, 300f, .4f, new Color(1f, .6f, .3f, .8f));
                 BurstFx(position, SourceDotColor("orange"), 20, 180f, .4f, .7f);
                 if ((_gameSim.Player.Position - position).sqrMagnitude < 124f * 124f)
-                    DamagePlayer(27f, _gameSim.Player.Position - position);
+                    DamagePlayer(27f, _gameSim.Player.Position - position, "null-volatile");
                 if (_nullCityBossActive && _nullCityBossSlot >= 0 &&
                     (_gameSim.Bosses[_nullCityBossSlot].Position - position).sqrMagnitude < 124f * 124f)
                     DamageNullCityBossEnvironment(150f);
@@ -407,7 +407,7 @@ namespace VoidFall.Runtime
                     var mount = mounts - state.Shots;
                     var offset = type == 5 ? (mount == 0 ? -32f : mount == 1 ? 32f : mount == 2 ? -14f : 14f) : mount == 0 ? -16f : 16f;
                     var origin = e.Position + e.Facing * e.Radius + new Vector2(-e.Facing.y, e.Facing.x) * (type == 0 ? 0f : offset);
-                    SpawnHostileShot(origin, type == 0 ? direction : e.Facing, 12f, type == 0 ? 250f : type == 8 ? 340f : 295f, 0f);
+                    SpawnHostileShot(origin, type == 0 ? direction : e.Facing, 12f, type == 0 ? 250f : type == 8 ? 340f : 295f, 0f, sourceId: e.Id);
                     state.Shots--;
                     state.ShotClock = type == 0 ? .14f : .27f;
                 }
@@ -426,7 +426,7 @@ namespace VoidFall.Runtime
                 {
                     e.State = 0;
                     if (type == 1 || type == 9) { e.State = 2; e.StateTimer = type == 9 ? .3f : .5f; e.DashDirection = e.Facing; }
-                    else if (type == 2) SpawnHostileShot(e.Position + e.Facing * 27f, e.Facing, 12f, 465f, 0f);
+                    else if (type == 2) SpawnHostileShot(e.Position + e.Facing * 27f, e.Facing, 12f, 465f, 0f, sourceId: e.Id);
                     else if (type == 4)
                     {
                         _gameSim.Enemies[index] = e;
@@ -437,12 +437,12 @@ namespace VoidFall.Runtime
                     else if (type == 6)
                     {
                         SpawnRingWave(e.Position, 15f, 290f, .35f, new Color(.8f, .6f, 1f, .7f));
-                        if (distance < 128f) DamagePlayer(29f, direction);
+                        if (distance < 128f) DamagePlayer(29f, direction, e.Id);
                     }
                     else if (type == 11)
                     {
                         var muzzle = e.Position + e.Facing * 30f + new Vector2(-e.Facing.y, e.Facing.x) * (state.Barrel == 0 ? -11f : 11f);
-                        SpawnHostileShot(muzzle, e.Facing, 12f, 250f, 0f);
+                        SpawnHostileShot(muzzle, e.Facing, 12f, 250f, 0f, sourceId: e.Id);
                         state.Barrel = 1 - state.Barrel;
                     }
                 }
@@ -508,7 +508,7 @@ namespace VoidFall.Runtime
             var delta = _gameSim.Player.Position - boss.Position;
             var distance = Mathf.Max(.01f, delta.magnitude);
             if (distance < boss.Radius + AttackPlayerRadius && boss.ContactCooldown <= 0f)
-            { DamagePlayer(boss.Damage, delta / distance); boss.ContactCooldown = .85f; }
+            { DamagePlayer(boss.Damage, delta / distance, boss.Id); boss.ContactCooldown = .85f; }
             if (_nullCityTractorClock > 0f || _nullCityMove == MotherloadMove.Tractor && _nullCityWarnClock > 0f)
                 boss.AttackAngle = _nullCityAim;
             else boss.AttackAngle = Mathf.LerpAngle(boss.AttackAngle * Mathf.Rad2Deg, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, dt * .8f) * Mathf.Deg2Rad;
@@ -524,7 +524,7 @@ namespace VoidFall.Runtime
                 if (_nullCityCannonClock <= 0f)
                 {
                     var muzzle = MotherloadMuzzle(boss, (_nullCityTractorBarrel++ & 1) == 0 ? 6 : 7);
-                    SpawnHostileShot(muzzle, (_gameSim.Player.Position - muzzle).normalized, 12f * boss.DamageScale, 295f, 0f);
+                    SpawnHostileShot(muzzle, (_gameSim.Player.Position - muzzle).normalized, 12f * boss.DamageScale, 295f, 0f, sourceId: boss.Id);
                     _nullCityCannonClock = .65f;
                 }
                 if (_nullCityTractorClock <= 0f) { _nullCityVentClock = 4f; _nullCityMove = MotherloadMove.Vent; }
@@ -538,7 +538,7 @@ namespace VoidFall.Runtime
                 {
                     var mount = 8 - _nullCityCannonCount--;
                     var angle = _nullCityAim + (mount - 3.5f) * .15f;
-                    SpawnHostileShot(MotherloadMuzzle(boss, mount), new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)), 12f * boss.DamageScale, 320f, 0f);
+                    SpawnHostileShot(MotherloadMuzzle(boss, mount), new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)), 12f * boss.DamageScale, 320f, 0f, sourceId: boss.Id);
                     _nullCityCannonClock = .18f;
                 }
                 return;

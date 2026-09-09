@@ -43,6 +43,18 @@ namespace VoidFall.UI
 
         /// <summary>Weapons, supports and late upgrades held at the end.</summary>
         public List<UIBuildChip> BuildChips;
+
+        /// <summary>Killer name for the death report. Empty hides the section.</summary>
+        public string KilledByName;
+
+        /// <summary>Small sub-line under the killer name (arena + time).</summary>
+        public string KilledByDetail;
+
+        /// <summary>Portrait glyph for the killer (diamond, triangle, ...).</summary>
+        public string KilledByGlyph;
+
+        /// <summary>Portrait accent for the killer.</summary>
+        public Color KilledByColor;
     }
 
     /// <summary>
@@ -56,6 +68,11 @@ namespace VoidFall.UI
 
         private RectTransform _chipPanel;
         private RectTransform _damagePanel;
+        private RectTransform _killerPanel;
+        private Text _killerGlyph;
+        private Image _killerFrame;
+        private Text _killerName;
+        private Text _killerDetail;
         private Text _kicker;
         private Text _title;
         private RectTransform _badgeRow;
@@ -117,6 +134,7 @@ namespace VoidFall.UI
             _content = UIBuilder.CreateScrollView(scrollHost, "Scroll", out _);
             UIBuilder.AddVerticalLayout(_content, 8f);
 
+            BuildKiller(_content);
             BuildMetricGrid(_content);
             BuildRecap(_content);
             BuildDamage(_content);
@@ -153,6 +171,96 @@ namespace VoidFall.UI
             layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             layout.constraintCount = ChipColumns;
             layout.childAlignment = TextAnchor.UpperLeft;
+        }
+
+        /// <summary>The killed-by panel shown on defeats, hidden on victory.</summary>
+        private void BuildKiller(RectTransform parent)
+        {
+            _killerPanel = UIBuilder.CreateRect(parent, "Killer");
+            UIBuilder.SetHeight(_killerPanel, 84f);
+
+            var accent = UITheme.RosePale;
+            var surface = UIBuilder.CreateSurface(_killerPanel, "Body", UISprites.Rounded(
+                UITheme.RadiusSmall,
+                UITheme.InnerPanel,
+                UITheme.InnerPanel,
+                UITheme.WithAlpha(accent, 0.45f)));
+            UIBuilder.Stretch(surface.rectTransform);
+
+            var frame = UIBuilder.CreateRect(_killerPanel, "Portrait");
+            frame.anchorMin = new Vector2(0f, 0.5f);
+            frame.anchorMax = new Vector2(0f, 0.5f);
+            frame.pivot = new Vector2(0.5f, 0.5f);
+            frame.sizeDelta = new Vector2(52f, 52f);
+            frame.anchoredPosition = new Vector2(38f, 0f);
+
+            _killerFrame = frame.gameObject.AddComponent<Image>();
+            _killerFrame.sprite = UISprites.Rounded(
+                14f,
+                UITheme.MixTransparent(accent, 11f),
+                UITheme.MixTransparent(accent, 11f),
+                UITheme.MixTransparent(accent, 44f));
+            _killerFrame.type = Image.Type.Sliced;
+            _killerFrame.raycastTarget = false;
+            frame.localRotation = Quaternion.Euler(0f, 0f, -8f);
+
+            _killerGlyph = UIBuilder.CreateText(
+                frame,
+                "Glyph",
+                "\u25C6",
+                22f,
+                accent,
+                TextAnchor.MiddleCenter,
+                true,
+                FontStyle.Bold);
+            _killerGlyph.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 8f);
+
+            var kicker = UIBuilder.CreateText(
+                _killerPanel,
+                "Kicker",
+                "KILLED BY",
+                9f,
+                UITheme.RosePale,
+                TextAnchor.LowerLeft,
+                true,
+                FontStyle.Bold,
+                0.3f);
+            kicker.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            kicker.rectTransform.anchorMax = new Vector2(1f, 0.5f);
+            kicker.rectTransform.pivot = new Vector2(0f, 0.5f);
+            kicker.rectTransform.offsetMin = new Vector2(76f, 2f);
+            kicker.rectTransform.offsetMax = new Vector2(-12f, 16f);
+
+            _killerName = UIBuilder.CreateText(
+                _killerPanel,
+                "Name",
+                string.Empty,
+                19f,
+                UITheme.TextBrightest,
+                TextAnchor.MiddleLeft,
+                true,
+                FontStyle.Bold);
+            _killerName.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            _killerName.rectTransform.anchorMax = new Vector2(1f, 0.5f);
+            _killerName.rectTransform.pivot = new Vector2(0f, 0.5f);
+            _killerName.rectTransform.offsetMin = new Vector2(76f, -20f);
+            _killerName.rectTransform.offsetMax = new Vector2(-12f, 2f);
+
+            _killerDetail = UIBuilder.CreateText(
+                _killerPanel,
+                "Detail",
+                string.Empty,
+                12f,
+                UITheme.TextSubtle,
+                TextAnchor.UpperLeft,
+                false);
+            _killerDetail.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            _killerDetail.rectTransform.anchorMax = new Vector2(1f, 0.5f);
+            _killerDetail.rectTransform.pivot = new Vector2(0f, 0.5f);
+            _killerDetail.rectTransform.offsetMin = new Vector2(76f, -40f);
+            _killerDetail.rectTransform.offsetMax = new Vector2(-12f, -20f);
+
+            _killerPanel.gameObject.SetActive(false);
         }
 
         /// <summary>The .damage-breakdown panel, one row per weapon.</summary>
@@ -263,6 +371,7 @@ namespace VoidFall.UI
             if (_bosses != null) _bosses.text = FormatNumber(summary.BossKills);
 
             PopulateBadges(summary);
+            PopulateKiller(summary);
             PopulateChips(summary.BuildChips);
             PopulateDamage(summary.Weapons);
 
@@ -304,6 +413,31 @@ namespace VoidFall.UI
                 element.preferredWidth = 230f;
                 element.preferredHeight = 28f;
             }
+        }
+
+        private void PopulateKiller(GameOverSummary summary)
+        {
+            if (_killerPanel == null) return;
+            var visible = !summary.Victory && !string.IsNullOrEmpty(summary.KilledByName);
+            _killerPanel.gameObject.SetActive(visible);
+            if (!visible) return;
+
+            var accent = summary.KilledByColor.a <= 0f ? UITheme.RosePale : summary.KilledByColor;
+            if (_killerFrame != null)
+            {
+                _killerFrame.sprite = UISprites.Rounded(
+                    14f,
+                    UITheme.MixTransparent(accent, 11f),
+                    UITheme.MixTransparent(accent, 11f),
+                    UITheme.MixTransparent(accent, 44f));
+            }
+            if (_killerGlyph != null)
+            {
+                _killerGlyph.text = string.IsNullOrEmpty(summary.KilledByGlyph) ? "\u25C6" : summary.KilledByGlyph;
+                _killerGlyph.color = accent;
+            }
+            if (_killerName != null) _killerName.text = summary.KilledByName;
+            if (_killerDetail != null) _killerDetail.text = summary.KilledByDetail ?? string.Empty;
         }
 
         private void PopulateChips(List<UIBuildChip> chips)

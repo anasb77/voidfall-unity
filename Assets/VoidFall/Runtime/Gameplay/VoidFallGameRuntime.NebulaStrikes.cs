@@ -129,7 +129,7 @@ namespace VoidFall.Runtime
                 NebulaSegmentDistance(_gameSim.Player.Position, from, to) < NebulaStrikeHitRadius + PlayerRadius)
             {
                 strike.PlayerHit = true;
-                DamagePlayer(28f, strike.Direction);
+                DamagePlayer(28f, strike.Direction, "lane-strike");
             }
         }
 

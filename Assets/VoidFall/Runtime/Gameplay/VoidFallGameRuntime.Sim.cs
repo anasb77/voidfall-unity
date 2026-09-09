@@ -865,7 +865,7 @@ namespace VoidFall.Runtime
                     var contactDamage = enemy.Elite && !enemy.EliteKind.HasValue && enemy.State == 2
                         ? enemy.Damage * (float)ContentCatalog.Elite.ChargeDamageMultiplier
                         : enemy.Damage;
-                    DamagePlayer(contactDamage, direction);
+                    DamagePlayer(contactDamage, direction, enemy.Id, enemy.Elite || enemy.EliteKind.HasValue);
                     ApplySourcePlayerKnockback(ref enemy, direction);
                     enemy.ContactCooldown = 0.72f;
                 }
@@ -949,7 +949,7 @@ namespace VoidFall.Runtime
         private float EnemyParticleScaleForSim() => _qualityPreset.ParticleScale;
 
 
-        private void EnemyDamagePlayerForSim(float damage, Vector2 sourceDirection) => DamagePlayer(damage, sourceDirection);
+        private void EnemyDamagePlayerForSim(float damage, Vector2 sourceDirection, string sourceId = "", bool elite = false) => DamagePlayer(damage, sourceDirection, sourceId, elite);
 
         private void EnemyBlastWaveForSim(Vector2 position, float maxRadius, float life, bool bomb) => SpawnBlastWave(position, maxRadius, life, bomb);
 
@@ -965,8 +965,8 @@ namespace VoidFall.Runtime
         private void EnemyDamageAreaForSim(Vector2 origin, float radius, float damage, int excludedIdentity, int weaponIndex)
             => DamageArea(origin, radius, damage, excludedIdentity, weaponIndex);
 
-        private void EnemySpawnShotForSim(Vector2 position, Vector2 direction, float damage, float speed, float curvature, bool meteorOwned, int visualVariant)
-            => SpawnHostileShot(position, direction, damage, speed, curvature, meteorOwned, visualVariant);
+        private void EnemySpawnShotForSim(Vector2 position, Vector2 direction, float damage, float speed, float curvature, bool meteorOwned, int visualVariant, string sourceId = "", bool elite = false)
+            => SpawnHostileShot(position, direction, damage, speed, curvature, meteorOwned, visualVariant, sourceId: sourceId, elite: elite);
 
         private void EnemyFuseWarningForSim(int stage) => PlayFuseWarning(stage);
 
@@ -1177,7 +1177,8 @@ namespace VoidFall.Runtime
                         (float)MeteorRules.ExplosiveShardSpeed,
                         0,
                         true,
-                        index % 4);
+                        index % 4,
+                        sourceId: "meteor-shard");
                 }
             }
 
@@ -1186,7 +1187,8 @@ namespace VoidFall.Runtime
             {
                 DamagePlayer(
                     ExplosiveMeteorPlayerDamageAt((float)_time, _bossCycle, enemyDamage),
-                    _gameSim.Player.Position - meteor.Position);
+                    _gameSim.Player.Position - meteor.Position,
+                    "explosive-meteor");
                 _telemetry.RecordMeteorPlayerHit(ArenaIdName(_arenaId));
             }
 
@@ -1473,7 +1475,7 @@ namespace VoidFall.Runtime
                     var contactDamage = chargeContact
                         ? (float)boss.ActiveAttack.Damage * boss.DamageScale
                         : boss.Damage;
-                    DamagePlayer(contactDamage, contactDelta / contactDistance);
+                    DamagePlayer(contactDamage, contactDelta / contactDistance, boss.Id);
                     boss.ContactCooldown = 0.75f;
                 }
                 _gameSim.Bosses[i] = boss;
@@ -1530,7 +1532,8 @@ namespace VoidFall.Runtime
                         new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)),
                         (8 + tier * 1.5f) * boss.DamageScale,
                         225,
-                        0);
+                        0,
+                        sourceId: boss.Id);
                 }
             }
             else
@@ -1543,7 +1546,8 @@ namespace VoidFall.Runtime
                         new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)),
                         (9 + tier * 1.5f) * boss.DamageScale,
                         285,
-                        0);
+                        0,
+                        sourceId: boss.Id);
                 }
             }
             var pressureAccent = BossAccent(boss);
@@ -1639,7 +1643,7 @@ namespace VoidFall.Runtime
                     attack.BeamLength ?? 680,
                     attack.BeamWidth ?? 48,
                     AttackPlayerRadius)) return;
-                DamagePlayer(attackDamage, delta);
+                DamagePlayer(attackDamage, delta, boss.Id);
                 boss.BeamHitCooldown = 0.45f;
                 return;
             }
@@ -1653,7 +1657,7 @@ namespace VoidFall.Runtime
                 StressEonSeaIce(boss.Position, radius);
                 var delta = _gameSim.Player.Position - boss.Position;
                 SpawnRingWave(boss.Position, 24f, radius * 2.2f, 0.62f, BossAccent(boss));
-                if (delta.magnitude < radius + AttackPlayerRadius) DamagePlayer(attackDamage, delta);
+                if (delta.magnitude < radius + AttackPlayerRadius) DamagePlayer(attackDamage, delta, boss.Id);
             }
             else if (attack.Id == "burst" || attack.Id == "volley")
             {
@@ -1673,7 +1677,8 @@ namespace VoidFall.Runtime
                         direction,
                         attackDamage,
                         (float)(attack.ProjectileSpeed ?? 215),
-                        0);
+                        0,
+                        sourceId: boss.Id);
                 }
                 SpawnRingWave(boss.Position, 20f, 180f, 0.35f, BossAccent(boss));
                 _audio?.Play(ProceduralAudio.Cue.GunnerShot, 0.9f);
@@ -1714,7 +1719,7 @@ namespace VoidFall.Runtime
                     new Color(0.376f, 0.647f, 0.98f, 0.8f));
                 BurstFx(boss.Position, SourceDotColor("blue"),
                     14, 270, 0.48f, 0.8f);
-                if (delta.magnitude < radius + AttackPlayerRadius) DamagePlayer(attackDamage, delta);
+                if (delta.magnitude < radius + AttackPlayerRadius) DamagePlayer(attackDamage, delta, boss.Id);
                 _audio?.Play(ProceduralAudio.Cue.Dash, 0.94f);
             }
         }
@@ -3346,12 +3351,14 @@ namespace VoidFall.Runtime
             float curvature,
             bool meteorOwned = false,
             int visualVariant = -1,
-            float radiusOverride = 0f)
+            float radiusOverride = 0f,
+            string sourceId = "",
+            bool elite = false)
         {
             // Insertion (curved-cap check, slot find, state write, order
             // append) is GameSim's now; check order matches the browser.
             var slot = _gameSim.TryInsertHostileShot(
-                position, direction, damage, speed, curvature, meteorOwned, visualVariant);
+                position, direction, damage, speed, curvature, meteorOwned, visualVariant, sourceId, elite);
             if (slot < 0) return;
             _gameSim.HostileShotBlockable[slot] = _ordinaryEnemyShotContext && !meteorOwned;
             if (radiusOverride > 0f)
@@ -3404,7 +3411,11 @@ namespace VoidFall.Runtime
                     _gameSim.Player.DyingTimer <= 0 && _gameSim.Player.Iframes <= 0;
                 _hostileShotImpactHandler = (index, impactDirection) =>
                 {
-                    DamagePlayer(_gameSim.HostileShots[index].Damage, impactDirection);
+                    DamagePlayer(
+                        _gameSim.HostileShots[index].Damage,
+                        impactDirection,
+                        _gameSim.HostileShotSources[index],
+                        _gameSim.HostileShotElite[index]);
                     if (_gameSim.HostileShots[index].MeteorOwned)
                         _telemetry.RecordMeteorPlayerHit(ArenaIdName(_arenaId));
                 };
@@ -3628,7 +3639,7 @@ namespace VoidFall.Runtime
             ApplyEnemyDamage(index, damage, Vector2.zero, 0, false, -1);
         }
 
-        private void DamagePlayer(float damage, Vector2 sourceDirection)
+        private void DamagePlayer(float damage, Vector2 sourceDirection, string sourceId = null, bool elite = false)
         {
             if (_gameOver || _revivePending || _gameSim.Player.DyingTimer > 0 || _gameSim.Player.Iframes > 0) return;
             if (CurrentVoidIsNullCity && _nullCityBossActive) damage *= (float)NullCityRules.BossIncomingDamageMultiplier;
@@ -3639,10 +3650,17 @@ namespace VoidFall.Runtime
                 return;
             }
             var appliedDamage = Mathf.Max(1, damage);
-            // Commit the browser's player state before any hurt presentation:
+            // Killer attribution for the death report: every accepted hit
+            // remembers its source; EndRun reads the final one. Purely
+            // presentational - never feeds back into simulation or RNG.
+            if (!string.IsNullOrEmpty(sourceId))
+            {
+                _lastHitSourceId = sourceId;
+                _lastHitElite = elite;
+            }
+            _damageTaken += appliedDamage;
             // later effects in the same simulation step observe the reduced
             // health, pressure timer, and invulnerability window immediately.
-            _damageTaken += appliedDamage;
             _gameSim.Player.Health -= appliedDamage;
             _music?.NotifyPlayerDamage(
                 _gameSim.Player.MaxHealth > 0f ? appliedDamage / _gameSim.Player.MaxHealth : 1f,

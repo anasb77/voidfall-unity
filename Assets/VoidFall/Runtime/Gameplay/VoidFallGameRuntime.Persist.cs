@@ -249,5 +249,106 @@ namespace VoidFall.Runtime
             }
             return _resultSaveWarningStyle;
         }
+
+        // Death report: killed-by attribution for the run-result screen.
+        // Every accepted player hit records its source id; EndRun reads the
+        // final one. All state here is presentational: it never feeds
+        // simulation, RNG or the golden-master hash.
+        private string _lastHitSourceId = string.Empty;
+        private bool _lastHitElite;
+
+        private void ResetDeathReport()
+        {
+            _lastHitSourceId = string.Empty;
+            _lastHitElite = false;
+            if (_gameSim.HostileShotSources != null)
+                System.Array.Clear(_gameSim.HostileShotSources, 0, _gameSim.HostileShotSources.Length);
+            if (_gameSim.HostileShotElite != null)
+                System.Array.Clear(_gameSim.HostileShotElite, 0, _gameSim.HostileShotElite.Length);
+        }
+
+        private void ResolveDeathSource(out string name, out string glyph, out Color accent)
+        {
+            glyph = "\u25C6";
+            accent = ParseColor("#fb7185", new Color(0.98f, 0.44f, 0.52f));
+            name = PrettifySourceId(_lastHitSourceId);
+            if (string.IsNullOrEmpty(_lastHitSourceId)) return;
+
+            string environmental;
+            if (TryEnvironmentalSource(_lastHitSourceId, out environmental))
+            {
+                name = environmental;
+                glyph = "\u25B2";
+                return;
+            }
+
+            var boss = FindBoss(_lastHitSourceId) ??
+                NullCityContent.FindBoss(_lastHitSourceId);
+            if (boss != null)
+            {
+                name = string.IsNullOrEmpty(boss.Name) ? PrettifySourceId(_lastHitSourceId) : boss.Name;
+                accent = ParseColor(boss.Color, accent);
+                return;
+            }
+
+            var enemy = FindDeathEnemyDefinition(_lastHitSourceId);
+            if (enemy != null)
+            {
+                name = string.IsNullOrEmpty(enemy.Name) ? PrettifySourceId(_lastHitSourceId) : enemy.Name;
+                accent = ParseColor(enemy.Color, accent);
+            }
+
+            if (_lastHitElite)
+            {
+                name = "Elite " + name;
+                accent = ParseColor("#facc15", accent);
+            }
+        }
+
+        private static EnemyDefinition FindDeathEnemyDefinition(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            for (var index = 0; index < ContentCatalog.Enemies.Length; index++)
+            {
+                if (ContentCatalog.Enemies[index].Id == id) return ContentCatalog.Enemies[index];
+            }
+            var court = MonochromeContent.FindEnemy(id);
+            if (court != null) return court;
+            var nullIndex = NullCityContent.EnemyIndex(id);
+            if (nullIndex >= 0) return NullCityContent.Enemies[nullIndex];
+            return null;
+        }
+
+        private static bool TryEnvironmentalSource(string id, out string name)
+        {
+            switch (id)
+            {
+                case "lane-strike": name = "Meteor lane"; return true;
+                case "explosive-meteor": name = "Explosive meteor"; return true;
+                case "meteor-shard": name = "Meteor shard"; return true;
+                case "chess-floor": name = "Chess floor"; return true;
+                case "null-purge": name = "Null City purge"; return true;
+                case "null-bomb": name = "Null City bomb"; return true;
+                default: name = null; return false;
+            }
+        }
+
+        private static string PrettifySourceId(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return "The Void";
+            var parts = id.Split('-');
+            for (var index = 0; index < parts.Length; index++)
+            {
+                if (parts[index].Length == 0) continue;
+                parts[index] = char.ToUpperInvariant(parts[index][0]) + parts[index].Substring(1);
+            }
+            return string.Join(" ", parts);
+        }
+
+        private static string FormatDeathTime(float seconds)
+        {
+            var total = Mathf.Max(0, Mathf.FloorToInt(seconds));
+            return (total / 60).ToString() + ":" + (total % 60).ToString("00");
+        }
     }
 }

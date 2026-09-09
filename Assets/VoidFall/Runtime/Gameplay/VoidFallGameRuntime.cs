@@ -2138,6 +2138,7 @@ namespace VoidFall.Runtime
             _partsEarned = 0;
             _damageDealt = 0;
             _damageTaken = 0;
+            ResetDeathReport();
             _score = 0;
             for (var i = 0; i < _weaponDamage.Length; i++) _weaponDamage[i] = 0;
             for (var i = 0; i < _floaters.Length; i++)
@@ -3224,6 +3225,15 @@ namespace VoidFall.Runtime
             _returnToMenuAfterRun = true;
             if (_ui != null)
             {
+                string killerName = string.Empty;
+                string killerDetail = string.Empty;
+                string killerGlyph = string.Empty;
+                var killerColor = new Color(0.98f, 0.44f, 0.52f);
+                if (!_runVictory)
+                {
+                    ResolveDeathSource(out killerName, out killerGlyph, out killerColor);
+                    killerDetail = "Final blow \u00B7 " + ArenaName(_arenaId) + " " + FormatDeathTime(_time);
+                }
                 var summary = GameOverSummaryBuilder.Build(
                     victory: _runVictory,
                     score: CurrentScore(),
@@ -3238,7 +3248,11 @@ namespace VoidFall.Runtime
                     weaponRanks: _upgradeProgress?.WeaponRanks,
                     weaponDamage: _weaponDamage,
                     totalDamageDealt: _damageDealt,
-                    buildChips: BuildRecapChips());
+                    buildChips: BuildRecapChips(),
+                    killedByName: killerName,
+                    killedByDetail: killerDetail,
+                    killedByGlyph: killerGlyph,
+                    killedByColor: killerColor);
                 _ui.GameOver?.Show(summary);
             }
         }

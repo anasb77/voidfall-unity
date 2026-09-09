@@ -26,7 +26,11 @@ namespace VoidFall.UI
             int[] weaponRanks,
             double[] weaponDamage,
             double totalDamageDealt,
-            List<UIBuildChip> buildChips)
+            List<UIBuildChip> buildChips,
+            string killedByName = "",
+            string killedByDetail = "",
+            string killedByGlyph = "",
+            UnityEngine.Color killedByColor = default(UnityEngine.Color))
         {
             var summary = new GameOverSummary
             {
@@ -41,7 +45,11 @@ namespace VoidFall.UI
                 IsBest = isBest,
                 Saved = saved,
                 Weapons = new List<WeaponStatSummary>(),
-                BuildChips = buildChips
+                BuildChips = buildChips,
+                KilledByName = killedByName ?? string.Empty,
+                KilledByDetail = killedByDetail ?? string.Empty,
+                KilledByGlyph = string.IsNullOrEmpty(killedByGlyph) ? "\u25C6" : killedByGlyph,
+                KilledByColor = killedByColor
             };
 
             if (weaponRanks != null)
