@@ -46,10 +46,11 @@ namespace VoidFall.Runtime
         // first playtest, then 25% to 0.2475, then 15% to 0.2104 once the SFX
         // bed was raised, then back up 10% to keep the track present.
         private const float MusicGain = 0.2314f;
-        // Menu tracks get a 20% lift on top of MusicGain. The home screen has
-        // no combat SFX bed competing for attention, so the theme can carry the
-        // landing screen; the OST keeps the tuned level under gameplay audio.
-        private const float MainMenuGainBoost = 1.2f;
+        // Menu tracks get a lift on top of MusicGain (20% base, plus another
+        // 20% requested): the home screen has no combat SFX bed competing
+        // for attention, so the theme can carry the landing screen; the OST
+        // keeps the tuned level under gameplay audio.
+        private const float MainMenuGainBoost = 1.44f;
 
         // Bomb duck. The pickup drops the track out and lets it swell back, so
         // the detonation reads in the music and not just the SFX. Fast attack

@@ -1136,6 +1136,10 @@ namespace VoidFall.Runtime
                 QuitGame = QuitGameFromUi,
                 SetQuitDialogOpen = open => _music?.SetMenuDialog(open)
             });
+            // Every menu/shop/settings click funnels through UIBuilder's
+            // factories or the direct-button EmitUiClick hookups; one
+            // subscription covers them all for the process lifetime.
+            UIBuilder.UiClick += PlayUiClick;
             AttachWorkshopFramePreview();
             ConfigureVisualCapture();
             PrepareNullCityCaptureProfile();
@@ -3687,6 +3691,12 @@ namespace VoidFall.Runtime
             // Keeps the corner control and the settings row in step when mute is
             // toggled from the keyboard rather than from either control.
             _ui?.RefreshMuteGlyph();
+        }
+
+        /// <summary>Single subscriber to UIBuilder.UiClick: the menu click.</summary>
+        private void PlayUiClick()
+        {
+            _audio?.Play(ProceduralAudio.Cue.Ui);
         }
 
         private void ApplyQualityPreset(QualityPreset preset)

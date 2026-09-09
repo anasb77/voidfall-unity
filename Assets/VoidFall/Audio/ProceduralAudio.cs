@@ -384,6 +384,7 @@ namespace VoidFall.Runtime
             switch (cue)
             {
                 case Cue.Hit: return 1.5f;
+                case Cue.Ui: return 0.72f;
                 case Cue.Milestone:
                 case Cue.MilestoneMajor: return 1.65f;
                 default: return 1.2f;

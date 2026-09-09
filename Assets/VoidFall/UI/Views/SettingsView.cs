@@ -289,6 +289,7 @@ namespace VoidFall.UI
                     RefreshQuality();
                     Callbacks?.SetQuality?.Invoke(option);
                 });
+                button.onClick.AddListener(UIBuilder.EmitUiClick);
 
                 var label = UIBuilder.CreateText(
                     segment,
@@ -478,6 +479,7 @@ namespace VoidFall.UI
                 ApplyToggleVisual(state, knobImage);
                 onChange?.Invoke(state.Value);
             });
+            button.onClick.AddListener(UIBuilder.EmitUiClick);
 
             ApplyToggleVisual(state, knobImage);
         }

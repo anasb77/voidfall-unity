@@ -211,6 +211,7 @@ namespace VoidFall.UI
                     RefreshFocus();
                 }
             });
+            card.Button.onClick.AddListener(UIBuilder.EmitUiClick);
         }
 
         private void RefreshFocus()

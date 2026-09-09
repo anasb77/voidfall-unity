@@ -64,6 +64,7 @@ namespace VoidFall.UI
             button.targetGraphic = buttonImage;
             button.transition = Selectable.Transition.None;
             button.onClick.AddListener(() => Callbacks?.ExportTelemetry?.Invoke());
+            button.onClick.AddListener(UIBuilder.EmitUiClick);
 
             UIBuilder.CreateText(
                 export,

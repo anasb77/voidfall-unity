@@ -65,6 +65,7 @@ namespace VoidFall.UI
             dismiss.targetGraphic = scrim;
             dismiss.transition = Selectable.Transition.None;
             dismiss.onClick.AddListener(Close);
+            dismiss.onClick.AddListener(UIBuilder.EmitUiClick);
 
             _panel = UIBuilder.CreatePanel(Root, "Route Map", new Vector2(PanelWidth, PanelHeight));
             Label(_panel, "Title", "VOID MAP", 30f, Color.white,
@@ -194,6 +195,7 @@ namespace VoidFall.UI
                     new Vector2(0f, 63f), new Vector2(CardWidth - 8f, 18f), FontStyle.Bold, TextAnchor.MiddleCenter),
             };
             button.onClick.AddListener(() => Plan(card));
+            button.onClick.AddListener(UIBuilder.EmitUiClick);
             return card;
         }
 

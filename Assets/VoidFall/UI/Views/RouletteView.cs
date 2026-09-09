@@ -87,6 +87,7 @@ namespace VoidFall.UI
             dismiss.transition = Selectable.Transition.None;
             dismiss.navigation = new Navigation { mode = Navigation.Mode.None };
             dismiss.onClick.AddListener(() => SetRewardsOpen(false));
+            dismiss.onClick.AddListener(UIBuilder.EmitUiClick);
             _rewardsPanel = Place(_rewardsOverlay, "Rewards Panel", -424, 0, 396, 600);
             var panelSurface = _rewardsPanel.gameObject.AddComponent<Image>();
             panelSurface.color = new Color(.025f, .034f, .053f, 1f);
@@ -110,6 +111,7 @@ namespace VoidFall.UI
                 var button = row.gameObject.AddComponent<Button>();
                 button.targetGraphic = fill;
                 button.onClick.AddListener(() => DescribePrize(captured));
+                button.onClick.AddListener(UIBuilder.EmitUiClick);
                 AddDrawerCancel(button);
                 _rowAccents.Add(Surface(row, "Tier", -173, 0, 2, 41, RouletteWheelGraphic.Accent(table[index])));
                 Label(row, "Name", table[index].Name, -15, 10, 296, 18, 11, Color.white, TextAnchor.MiddleLeft);

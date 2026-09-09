@@ -713,6 +713,26 @@ namespace VoidFall.UI
         // ------------------------------------------------------------------
 
         /// <summary>
+        /// Fired for every factory-built button press (menus, shop, settings,
+        /// pause, result screens). The runtime subscribes once and plays the
+        /// UI click; gameplay-modal views with their own sounds (level-up
+        /// cards, roulette wheel actions) and direct-Button sites opt in via
+        /// <see cref="EmitUiClick"/> instead. Mute and press-gating live on
+        /// the audio side, so this stays a dumb broadcast.
+        /// </summary>
+        public static event Action UiClick;
+
+        /// <summary>Broadcasts a UI click for direct-Button call sites.</summary>
+        public static void EmitUiClick()
+        {
+            try { UiClick?.Invoke(); }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("VoidFall UI click broadcast skipped: " + exception.Message);
+            }
+        }
+
+        /// <summary>
         /// Wires a Button to swap between two baked sprites on hover, which keeps
         /// the stylesheet's exact hover fill and border rather than approximating
         /// them with a colour multiply.
@@ -739,6 +759,7 @@ namespace VoidFall.UI
 
             image.sprite = normal;
             if (onClick != null) button.onClick.AddListener(() => onClick());
+            button.onClick.AddListener(EmitUiClick);
             return button;
         }
 

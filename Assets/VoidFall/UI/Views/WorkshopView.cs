@@ -436,6 +436,7 @@ namespace VoidFall.UI
             var click = surface.gameObject.AddComponent<Button>();
             click.transition = Selectable.Transition.None;
             click.onClick.AddListener(() => ApplyFocus(item.Id, true));
+            click.onClick.AddListener(UIBuilder.EmitUiClick);
 
             _rows.Add(new RowWidgets
             {
