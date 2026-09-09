@@ -76,7 +76,11 @@ namespace VoidFall.Runtime
 
         private void ClearCombatForJourney()
         {
-            if (_journeyStage == JourneyStage.Rewards) BeginEscapeEnemyRetirement();
+            if (_journeyStage == JourneyStage.Rewards)
+            {
+                BeginEscapeEnemyRetirement();
+                _audio?.Play(ProceduralAudio.Cue.EscapeStart);
+            }
             else DestroyEnemiesForVoidTransition();
             ClearTransitionProjectiles();
             ClearMeteors();

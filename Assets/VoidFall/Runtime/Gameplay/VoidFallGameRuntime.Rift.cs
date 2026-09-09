@@ -145,6 +145,7 @@ namespace VoidFall.Runtime
             }
             Debug.Log($"VOIDFLOW rift-open t={_time:F1}");
             ShowArenaToast("THE RIFT OPENS", 3f);
+            _audio?.Play(ProceduralAudio.Cue.RiftOpen);
             SpawnRingWave(
                 _gameSim.Player.Position, 30f, 640f, 0.95f,
                 new Color(0.133f, 0.827f, 0.933f, 0.95f));
@@ -300,6 +301,7 @@ namespace VoidFall.Runtime
             _ui.SetScreen(UIScreen.None);
             _paused = false;
             _audio?.Play(ProceduralAudio.Cue.BossCharge, 0.96f);
+            _audio?.Play(ProceduralAudio.Cue.RiftOpen);
             AddCameraShake(0.5f);
         }
 

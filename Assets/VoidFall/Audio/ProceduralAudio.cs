@@ -47,6 +47,24 @@ namespace VoidFall.Runtime
             MilestoneMajor,
             Hurt,
             Pause,
+            MineDrop,
+            MineBoom,
+            SummonSpawn,
+            SummonBlast,
+            BoomerangThrow,
+            RiftOpen,
+            ReviveSting,
+            RoulettePrize,
+            RouletteBig,
+            RouletteParts,
+            PartsPickup,
+            TrackShift,
+            SpecialBoss,
+            EliteDeath,
+            EscapeStart,
+            DodgeSfx,
+            DeathAlt,
+            BossHorn,
         }
 
         private const int DefaultSampleRate = 44100;
@@ -63,6 +81,19 @@ namespace VoidFall.Runtime
         private readonly AudioClip[] _currencyClips = new AudioClip[7];
         private readonly AudioClip[] _gemClips = new AudioClip[25];
         private readonly AudioClip[] _fuseWarningClips = new AudioClip[6];
+        // Round-robin alternates: deterministic rotation without touching
+        // either RNG stream, so replays and the golden master are unaffected.
+        private readonly AudioClip[] _summonSpawnClips = new AudioClip[2];
+        private readonly AudioClip[] _summonBlastClips = new AudioClip[2];
+        private readonly AudioClip[] _rouletteBigClips = new AudioClip[3];
+        private readonly AudioClip[] _escapeStartClips = new AudioClip[3];
+        private readonly AudioClip[] _bossDeathClips = new AudioClip[2];
+        private int _summonSpawnIndex;
+        private int _summonBlastIndex;
+        private int _rouletteBigIndex;
+        private int _escapeStartIndex;
+        private int _bossDeathIndex;
+        private int _deathAltCounter;
         private AudioSource[] _effectSources;
         private int _nextEffectSource;
         private AudioSource _musicSource;
@@ -262,7 +293,45 @@ namespace VoidFall.Runtime
 
         public void Play(Cue cue, float pitch = 1f)
         {
+            var roundRobin = ResolveRoundRobin(cue);
+            if (roundRobin != null)
+            {
+                PlayPrepared(cue, roundRobin, pitch, false);
+                return;
+            }
             PlayPrepared(cue, _clips[(int)cue], pitch, true);
+        }
+
+        /// <summary>
+        /// Alternating game-over sting: the classic fall, then the dark tear.
+        /// Deterministic rotation, no RNG involved.
+        /// </summary>
+        public void PlayGameOverSting()
+        {
+            _deathAltCounter++;
+            if (_deathAltCounter % 2 == 0) Play(Cue.DeathAlt);
+            else Play(Cue.GameOver);
+        }
+
+        private AudioClip ResolveRoundRobin(Cue cue)
+        {
+            switch (cue)
+            {
+                case Cue.SummonSpawn: return NextRoundRobin(_summonSpawnClips, ref _summonSpawnIndex);
+                case Cue.SummonBlast: return NextRoundRobin(_summonBlastClips, ref _summonBlastIndex);
+                case Cue.RouletteBig: return NextRoundRobin(_rouletteBigClips, ref _rouletteBigIndex);
+                case Cue.EscapeStart: return NextRoundRobin(_escapeStartClips, ref _escapeStartIndex);
+                case Cue.BossDeath: return NextRoundRobin(_bossDeathClips, ref _bossDeathIndex);
+                default: return null;
+            }
+        }
+
+        private static AudioClip NextRoundRobin(AudioClip[] clips, ref int index)
+        {
+            if (clips == null || clips.Length == 0) return null;
+            var clip = clips[Mathf.Abs(index) % clips.Length];
+            index++;
+            return clip;
         }
 
         public void PlayGem(int step)
@@ -393,6 +462,24 @@ namespace VoidFall.Runtime
                 case Cue.BossSlam: return 0.360f;
                 case Cue.BossDeath: return 1.200f;
                 case Cue.Currency: return 0.042f;
+                case Cue.MineDrop: return 0.090f;
+                case Cue.MineBoom: return 0.150f;
+                case Cue.SummonSpawn: return 0.090f;
+                case Cue.SummonBlast: return 0.150f;
+                case Cue.BoomerangThrow: return 0.120f;
+                case Cue.RiftOpen: return 0.800f;
+                case Cue.ReviveSting: return 0.500f;
+                case Cue.RoulettePrize: return 0.300f;
+                case Cue.RouletteBig: return 0.500f;
+                case Cue.RouletteParts: return 0.200f;
+                case Cue.PartsPickup: return 0.050f;
+                case Cue.TrackShift: return 0.500f;
+                case Cue.SpecialBoss: return 1.000f;
+                case Cue.EliteDeath: return 0.500f;
+                case Cue.EscapeStart: return 0.800f;
+                case Cue.DodgeSfx: return 0.150f;
+                case Cue.DeathAlt: return 1.000f;
+                case Cue.BossHorn: return 0.800f;
                 default: return 0f;
             }
         }
@@ -411,10 +498,10 @@ namespace VoidFall.Runtime
                 new[] { new SequenceNote(240f, 60f, 0.18f, 0f, 0.09f, Waveform.Triangle) },
                 new[] { new SequenceNoise(850f, 0.16f, 0.14f, 0f, 0.8f) });
             _clips[(int)Cue.Crit] = BuildSequence(
-                "vf_crit",
+                "vf_crit_sawgraze",
                 0.12f,
-                new[] { new SequenceNote(1400f, 500f, 0.1f, 0f, 0.07f, Waveform.Saw) },
-                new[] { new SequenceNoise(2400f, 0.09f, 0.09f, 0f, 2f) });
+                new[] { new SequenceNote(800f, 400f, 0.09f, 0f, 0.07f, Waveform.Saw) },
+                new[] { new SequenceNoise(3000f, 0.09f, 0.09f, 0f, 2f) });
             _clips[(int)Cue.Pickup] = BuildTone("vf_pickup", 0.1f, 660, 990, 0.1f, Waveform.Triangle);
             _clips[(int)Cue.Gem] = BuildTone("vf_gem", 0.09f, 540, 729, 0.075f, Waveform.Sine);
             _clips[(int)Cue.Harvest] = BuildSequence(
@@ -434,18 +521,18 @@ namespace VoidFall.Runtime
                 },
                 new[] { new SequenceNoise(3000f, 0.4f, 0.05f, 0.1f, 0.5f) });
             _clips[(int)Cue.Evolution] = BuildSequence(
-                "vf_evolution",
-                0.96f,
+                "vf_evolution_conqueror",
+                1.0f,
                 new[]
                 {
-                    new SequenceNote(261.63f, 266.86f, 0.34f, 0f, 0.12f, Waveform.Triangle),
-                    new SequenceNote(392f, 399.84f, 0.34f, 0.075f, 0.12f, Waveform.Triangle),
-                    new SequenceNote(523.25f, 533.72f, 0.34f, 0.15f, 0.12f, Waveform.Sine),
-                    new SequenceNote(783.99f, 799.67f, 0.34f, 0.225f, 0.12f, Waveform.Sine),
-                    new SequenceNote(1046.5f, 1067.43f, 0.34f, 0.3f, 0.12f, Waveform.Sine),
-                    new SequenceNote(92f, 46f, 0.62f, 0.08f, 0.12f, Waveform.Saw),
+                    new SequenceNote(65f, 32f, 0.6f, 0f, 0.2f, Waveform.Sine),
+                    new SequenceNote(392f, 392f, 0.3f, 0.08f, 0.1f, Waveform.Square),
+                    new SequenceNote(523.25f, 523.25f, 0.3f, 0.16f, 0.1f, Waveform.Square),
+                    new SequenceNote(659.25f, 659.25f, 0.3f, 0.24f, 0.1f, Waveform.Square),
+                    new SequenceNote(783.99f, 783.99f, 0.3f, 0.32f, 0.1f, Waveform.Square),
+                    new SequenceNote(1046.5f, 1046.5f, 0.3f, 0.4f, 0.1f, Waveform.Square),
                 },
-                new[] { new SequenceNoise(2800f, 0.5f, 0.07f, 0.14f) });
+                new[] { new SequenceNoise(2000f, 0.4f, 0.06f, 0.15f) });
             _clips[(int)Cue.Warning] = BuildSequence(
                 "vf_warning",
                 0.42f,
@@ -492,15 +579,6 @@ namespace VoidFall.Runtime
                     new SequenceNoise(150f, 0.32f, 0.15f, 0f, 0.7f),
                     new SequenceNoise(860f, 0.12f, 0.055f, 0f, 1.4f),
                 });
-            _clips[(int)Cue.BossDeath] = BuildSequence(
-                "vf_boss_death",
-                0.82f,
-                new[]
-                {
-                    new SequenceNote(180f, 32f, 0.65f, 0f, 0.16f, Waveform.Saw),
-                    new SequenceNote(360f, 48f, 0.5f, 0.045f, 0.075f, Waveform.Square),
-                },
-                new[] { new SequenceNoise(260f, 0.72f, 0.17f, 0f, 0.8f) });
             _clips[(int)Cue.GameOver] = BuildSequence(
                 "vf_gameover",
                 1.08f,
@@ -512,7 +590,15 @@ namespace VoidFall.Runtime
                     new SequenceNote(196f, 190.12f, 0.34f, 0.48f, 0.14f, Waveform.Triangle),
                 },
                 new[] { new SequenceNoise(240f, 0.9f, 0.16f, 0.1f, 0.5f) });
-            _clips[(int)Cue.Ui] = BuildTone("vf_ui", 0.07f, 700, 980, 0.08f, Waveform.Sine);
+            _clips[(int)Cue.Ui] = BuildSequence(
+                "vf_ui_clawtick",
+                0.09f,
+                new[]
+                {
+                    new SequenceNote(1200f, 1200f, 0.05f, 0f, 0.07f, Waveform.Square),
+                    new SequenceNote(900f, 900f, 0.05f, 0.04f, 0.06f, Waveform.Square),
+                },
+                new[] { new SequenceNoise(2500f, 0.03f, 0.05f, 0f, 2f) });
             _clips[(int)Cue.Bomb] = BuildSequence(
                 "vf_bomb",
                 0.58f,
@@ -626,6 +712,125 @@ namespace VoidFall.Runtime
                 new[] { new SequenceNote(190f, 55f, 0.28f, 0f, 0.2f, Waveform.Saw) },
                 new[] { new SequenceNoise(380f, 0.22f, 0.2f, 0f, 0.7f) });
             _clips[(int)Cue.Pause] = BuildTone("vf_pause", 0.12f, 440, 330, 0.09f, Waveform.Sine);
+            _clips[(int)Cue.MineDrop] = BuildSequence(
+                "vf_mine_drop",
+                0.12f,
+                new[] { new SequenceNote(600f, 1200f, 0.07f, 0f, 0.07f, Waveform.Square) },
+                new[] { new SequenceNoise(2500f, 0.03f, 0.05f, 0f, 2f) });
+            _clips[(int)Cue.MineBoom] = BuildSequence(
+                "vf_mine_boom",
+                0.5f,
+                new[] { new SequenceNote(300f, 40f, 0.45f, 0f, 0.2f, Waveform.Saw) },
+                new[]
+                {
+                    new SequenceNoise(2500f, 0.2f, 0.12f, 0f, 1f),
+                    new SequenceNoise(300f, 0.35f, 0.16f, 0f, 0.7f),
+                });
+            _clips[(int)Cue.BoomerangThrow] = BuildSequence(
+                "vf_boomerang_throw",
+                0.3f,
+                new[] { new SequenceNote(800f, 200f, 0.22f, 0f, 0.06f, Waveform.Sine) },
+                new[] { new SequenceNoise(1800f, 0.2f, 0.08f, 0f, 1.5f) });
+            _clips[(int)Cue.RiftOpen] = BuildSequence(
+                "vf_rift_open",
+                1.3f,
+                new[]
+                {
+                    new SequenceNote(55f, 110f, 1.2f, 0f, 0.16f, Waveform.Saw),
+                    new SequenceNote(220f, 440f, 1.2f, 0f, 0.07f, Waveform.Sine),
+                },
+                new[]
+                {
+                    new SequenceNoise(400f, 0.8f, 0.08f, 0f, 0.8f),
+                    new SequenceNoise(2000f, 0.7f, 0.05f, 0.3f, 1f),
+                });
+            _clips[(int)Cue.ReviveSting] = BuildSequence(
+                "vf_revive_secondwind",
+                1.0f,
+                new[]
+                {
+                    new SequenceNote(392f, 392f, 0.35f, 0f, 0.12f, Waveform.Triangle),
+                    new SequenceNote(523.25f, 523.25f, 0.35f, 0.11f, 0.12f, Waveform.Triangle),
+                    new SequenceNote(659.25f, 659.25f, 0.35f, 0.22f, 0.12f, Waveform.Triangle),
+                    new SequenceNote(783.99f, 783.99f, 0.35f, 0.33f, 0.12f, Waveform.Triangle),
+                    new SequenceNote(196f, 196f, 1.0f, 0.1f, 0.08f, Waveform.Sine),
+                });
+            _clips[(int)Cue.RoulettePrize] = BuildSequence(
+                "vf_roulette_royalhit",
+                0.7f,
+                new[]
+                {
+                    new SequenceNote(523.25f, 523.25f, 0.2f, 0f, 0.09f, Waveform.Square),
+                    new SequenceNote(659.25f, 659.25f, 0.2f, 0.06f, 0.09f, Waveform.Square),
+                    new SequenceNote(783.99f, 783.99f, 0.2f, 0.12f, 0.09f, Waveform.Square),
+                    new SequenceNote(1046.5f, 1046.5f, 0.2f, 0.18f, 0.09f, Waveform.Square),
+                    new SequenceNote(1318.5f, 1318.5f, 0.25f, 0.24f, 0.09f, Waveform.Square),
+                    new SequenceNote(261.63f, 261.63f, 0.6f, 0f, 0.08f, Waveform.Sine),
+                });
+            _clips[(int)Cue.RouletteParts] = BuildSequence(
+                "vf_roulette_coincascade",
+                0.5f,
+                new[]
+                {
+                    new SequenceNote(1568f, 1568f, 0.12f, 0f, 0.07f, Waveform.Square),
+                    new SequenceNote(1319f, 1319f, 0.12f, 0.05f, 0.07f, Waveform.Square),
+                    new SequenceNote(1175f, 1175f, 0.12f, 0.1f, 0.07f, Waveform.Square),
+                    new SequenceNote(988f, 988f, 0.12f, 0.15f, 0.07f, Waveform.Square),
+                    new SequenceNote(784f, 784f, 0.15f, 0.2f, 0.07f, Waveform.Square),
+                },
+                new[] { new SequenceNoise(6000f, 0.4f, 0.04f, 0f, 2f) });
+            _clips[(int)Cue.PartsPickup] = BuildSequence(
+                "vf_parts_silverrain",
+                0.4f,
+                new[]
+                {
+                    new SequenceNote(1047f, 1047f, 0.15f, 0f, 0.08f, Waveform.Triangle),
+                    new SequenceNote(1175f, 1175f, 0.15f, 0.06f, 0.08f, Waveform.Triangle),
+                    new SequenceNote(1319f, 1319f, 0.15f, 0.12f, 0.08f, Waveform.Triangle),
+                },
+                new[] { new SequenceNoise(7000f, 0.3f, 0.04f, 0f, 2f) });
+            _clips[(int)Cue.TrackShift] = BuildSequence(
+                "vf_trackshift_warpjump",
+                0.6f,
+                new[] { new SequenceNote(200f, 1800f, 0.5f, 0f, 0.08f, Waveform.Saw) },
+                new[] { new SequenceNoise(400f, 0.5f, 0.08f, 0f, 1f) });
+            _clips[(int)Cue.SpecialBoss] = BuildSequence(
+                "vf_special_boss_choir",
+                0.9f,
+                new[]
+                {
+                    new SequenceNote(110f, 110f, 0.8f, 0f, 0.12f, Waveform.Saw),
+                    new SequenceNote(117f, 117f, 0.8f, 0f, 0.12f, Waveform.Saw),
+                    new SequenceNote(55f, 55f, 0.8f, 0f, 0.14f, Waveform.Sine),
+                });
+            _clips[(int)Cue.EliteDeath] = BuildSequence(
+                "vf_elite_obliterator",
+                0.5f,
+                new[]
+                {
+                    new SequenceNote(170f, 45f, 0.35f, 0f, 0.16f, Waveform.Saw),
+                    new SequenceNote(85f, 35f, 0.4f, 0.05f, 0.14f, Waveform.Sine),
+                },
+                new[] { new SequenceNoise(2200f, 0.3f, 0.1f, 0f, 1f) });
+            _clips[(int)Cue.DodgeSfx] = BuildSequence(
+                "vf_dodge_wraithpass",
+                0.25f,
+                new[] { new SequenceNote(750f, 190f, 0.22f, 0f, 0.07f, Waveform.Sine) },
+                new[] { new SequenceNoise(1800f, 0.2f, 0.08f, 0f, 1.5f) });
+            _clips[(int)Cue.DeathAlt] = BuildSequence(
+                "vf_death_darktear",
+                1.1f,
+                new[] { new SequenceNote(82f, 41f, 1.1f, 0f, 0.18f, Waveform.Saw) },
+                new[] { new SequenceNoise(2000f, 1.0f, 0.08f, 0f, 0.8f) });
+            _clips[(int)Cue.BossHorn] = BuildSequence(
+                "vf_boss_warhorn",
+                0.85f,
+                new[]
+                {
+                    new SequenceNote(147f, 147f, 0.7f, 0f, 0.12f, Waveform.Square),
+                    new SequenceNote(196f, 196f, 0.7f, 0f, 0.12f, Waveform.Square),
+                    new SequenceNote(98f, 98f, 0.8f, 0f, 0.12f, Waveform.Sine),
+                });
         }
 
         private void BuildParameterizedClips()
@@ -644,23 +849,141 @@ namespace VoidFall.Runtime
 
             for (var index = 0; index < _hitClips.Length; index++)
             {
-                var center = Mathf.Lerp(1500f, 2100f, index / (float)(_hitClips.Length - 1));
+                var drop = Mathf.Lerp(0.94f, 1.06f, index / (float)(_hitClips.Length - 1));
+                var center = Mathf.Lerp(1700f, 2300f, index / (float)(_hitClips.Length - 1));
                 _hitClips[index] = BuildSequence(
-                    "vf_hit_" + index,
-                    0.08f,
-                    Array.Empty<SequenceNote>(),
+                    "vf_hit_deepmark_" + index,
+                    0.09f,
+                    new[] { new SequenceNote(200f * drop, 90f * drop, 0.07f, 0f, 0.09f, Waveform.Sine) },
                     new[] { new SequenceNoise(center, 0.06f, 0.08f, 0f, 1.4f) });
             }
 
             for (var index = 0; index < _dieClips.Length; index++)
             {
                 var center = Mathf.Lerp(700f, 1000f, index / (float)(_dieClips.Length - 1));
+                if (index % 2 == 1)
+                {
+                    _dieClips[index] = BuildSequence(
+                        "vf_die_doompop_" + index,
+                        0.22f,
+                        new[] { new SequenceNote(200f, 50f, 0.18f, 0f, 0.1f, Waveform.Triangle) },
+                        new[] { new SequenceNoise(1000f, 0.16f, 0.14f, 0f, 0.9f) });
+                    continue;
+                }
                 _dieClips[index] = BuildSequence(
                     "vf_die_" + index,
                     0.22f,
                     new[] { new SequenceNote(240f, 60f, 0.18f, 0f, 0.09f, Waveform.Triangle) },
                     new[] { new SequenceNoise(center, 0.16f, 0.14f, 0f, 0.8f) });
             }
+
+            _summonSpawnClips[0] = BuildSequence(
+                "vf_summon_popin",
+                0.12f,
+                new[] { new SequenceNote(380f, 820f, 0.09f, 0f, 0.07f, Waveform.Square) });
+            _summonSpawnClips[1] = BuildSequence(
+                "vf_summon_vinylflip",
+                0.45f,
+                new[] { new SequenceNote(800f, 1600f, 0.4f, 0.15f, 0.06f, Waveform.Sine) },
+                new[] { new SequenceNoise(2000f, 0.25f, 0.07f, 0f, 1.2f) });
+            _summonBlastClips[0] = BuildSequence(
+                "vf_summon_deepfrost",
+                0.35f,
+                new[] { new SequenceNote(1200f, 600f, 0.3f, 0f, 0.09f, Waveform.Triangle) },
+                new[] { new SequenceNoise(4000f, 0.3f, 0.08f, 0f, 1.5f) });
+            _summonBlastClips[1] = BuildSequence(
+                "vf_summon_icicle",
+                0.35f,
+                new[]
+                {
+                    new SequenceNote(3000f, 1500f, 0.15f, 0f, 0.06f, Waveform.Sine),
+                    new SequenceNote(2000f, 900f, 0.2f, 0.12f, 0.06f, Waveform.Sine),
+                });
+            _rouletteBigClips[0] = BuildSequence(
+                "vf_roulette_coronation",
+                1.2f,
+                new[]
+                {
+                    new SequenceNote(261.63f, 261.63f, 0.5f, 0f, 0.1f, Waveform.Triangle),
+                    new SequenceNote(392f, 392f, 0.5f, 0.09f, 0.1f, Waveform.Triangle),
+                    new SequenceNote(523.25f, 523.25f, 0.5f, 0.18f, 0.1f, Waveform.Triangle),
+                    new SequenceNote(659.25f, 659.25f, 0.5f, 0.27f, 0.1f, Waveform.Triangle),
+                    new SequenceNote(783.99f, 783.99f, 0.5f, 0.36f, 0.1f, Waveform.Triangle),
+                    new SequenceNote(1046.5f, 1046.5f, 0.5f, 0.45f, 0.1f, Waveform.Triangle),
+                    new SequenceNote(131f, 131f, 1.2f, 0.1f, 0.09f, Waveform.Sine),
+                },
+                new[] { new SequenceNoise(5000f, 0.9f, 0.04f, 0f, 1.5f) });
+            _rouletteBigClips[1] = BuildSequence(
+                "vf_roulette_jackpot",
+                1.1f,
+                new[]
+                {
+                    new SequenceNote(523.25f, 523.25f, 0.4f, 0f, 0.08f, Waveform.Square),
+                    new SequenceNote(659.25f, 659.25f, 0.4f, 0.06f, 0.08f, Waveform.Square),
+                    new SequenceNote(783.99f, 783.99f, 0.4f, 0.12f, 0.08f, Waveform.Square),
+                    new SequenceNote(1046.5f, 1046.5f, 0.4f, 0.18f, 0.08f, Waveform.Square),
+                    new SequenceNote(1318.5f, 1318.5f, 0.4f, 0.24f, 0.08f, Waveform.Square),
+                    new SequenceNote(1568f, 1568f, 0.4f, 0.3f, 0.08f, Waveform.Square),
+                    new SequenceNote(261.63f, 261.63f, 0.9f, 0f, 0.08f, Waveform.Sine),
+                    new SequenceNote(329.63f, 329.63f, 0.9f, 0.05f, 0.07f, Waveform.Sine),
+                    new SequenceNote(392f, 392f, 0.9f, 0.1f, 0.07f, Waveform.Sine),
+                },
+                new[] { new SequenceNoise(2000f, 0.8f, 0.05f, 0f, 1f) });
+            _rouletteBigClips[2] = BuildSequence(
+                "vf_roulette_vault",
+                1.3f,
+                new[]
+                {
+                    new SequenceNote(65f, 130f, 1.2f, 0f, 0.16f, Waveform.Saw),
+                    new SequenceNote(392f, 392f, 0.5f, 0.14f, 0.09f, Waveform.Triangle),
+                    new SequenceNote(523.25f, 523.25f, 0.5f, 0.28f, 0.09f, Waveform.Triangle),
+                    new SequenceNote(659.25f, 659.25f, 0.5f, 0.42f, 0.09f, Waveform.Triangle),
+                    new SequenceNote(783.99f, 783.99f, 0.5f, 0.56f, 0.09f, Waveform.Triangle),
+                    new SequenceNote(1046.5f, 1046.5f, 0.5f, 0.7f, 0.09f, Waveform.Triangle),
+                },
+                new[] { new SequenceNoise(3000f, 0.7f, 0.04f, 0.5f, 1.2f) });
+            _escapeStartClips[0] = BuildSequence(
+                "vf_escape_ironorbit",
+                0.65f,
+                new[] { new SequenceNote(98f, 98f, 0.6f, 0f, 0.09f, Waveform.Square) },
+                new[] { new SequenceNoise(1500f, 0.2f, 0.05f, 0.1f, 2f) });
+            _escapeStartClips[1] = BuildSequence(
+                "vf_escape_staralign",
+                1.1f,
+                new[]
+                {
+                    new SequenceNote(440f, 440f, 0.5f, 0f, 0.08f, Waveform.Sine),
+                    new SequenceNote(554f, 554f, 0.5f, 0.16f, 0.08f, Waveform.Sine),
+                    new SequenceNote(659f, 659f, 0.5f, 0.32f, 0.08f, Waveform.Sine),
+                    new SequenceNote(880f, 880f, 0.5f, 0.48f, 0.08f, Waveform.Sine),
+                    new SequenceNote(110f, 110f, 1.0f, 0f, 0.08f, Waveform.Sine),
+                });
+            _escapeStartClips[2] = BuildSequence(
+                "vf_escape_homecoming",
+                1.3f,
+                new[]
+                {
+                    new SequenceNote(392f, 392f, 0.5f, 0f, 0.1f, Waveform.Sine),
+                    new SequenceNote(523.25f, 523.25f, 0.5f, 0.15f, 0.1f, Waveform.Sine),
+                    new SequenceNote(659.25f, 659.25f, 0.5f, 0.3f, 0.1f, Waveform.Sine),
+                    new SequenceNote(783.99f, 783.99f, 0.5f, 0.45f, 0.1f, Waveform.Sine),
+                    new SequenceNote(196f, 196f, 1.2f, 0f, 0.09f, Waveform.Sine),
+                });
+            _bossDeathClips[0] = BuildSequence(
+                "vf_bossdeath_dreadroar",
+                0.95f,
+                new[] { new SequenceNote(55f, 55f, 0.9f, 0f, 0.2f, Waveform.Saw) },
+                new[] { new SequenceNoise(400f, 0.8f, 0.14f, 0f, 0.7f) });
+            _bossDeathClips[1] = BuildSequence(
+                "vf_bossdeath_execution2",
+                1.4f,
+                new[]
+                {
+                    new SequenceNote(55f, 22f, 1.4f, 0f, 0.22f, Waveform.Sine),
+                    new SequenceNote(165f, 40f, 0.5f, 0f, 0.12f, Waveform.Square),
+                    new SequenceNote(110f, 30f, 1.1f, 0.05f, 0.14f, Waveform.Sine),
+                },
+                new[] { new SequenceNoise(2500f, 0.9f, 0.1f, 0f, 0.9f) });
 
             for (var index = 0; index < _currencyClips.Length; index++)
             {

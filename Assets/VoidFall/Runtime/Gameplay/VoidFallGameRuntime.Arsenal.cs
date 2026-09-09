@@ -81,7 +81,11 @@ namespace VoidFall.Runtime
                         if (!_arsenalMines[i].Active) { if (free < 0) free = i; }
                         else if ((_arsenalMines[i].Position - player).sqrMagnitude < 24 * 24) nearby = true;
                     }
-                    if (free >= 0 && !nearby) _arsenalMines[free] = new ArsenalEntity { Active = true, Position = player, Rank = rank, Evolved = evolved };
+                    if (free >= 0 && !nearby)
+                    {
+                        _arsenalMines[free] = new ArsenalEntity { Active = true, Position = player, Rank = rank, Evolved = evolved };
+                        _audio?.Play(ProceduralAudio.Cue.MineDrop);
+                    }
                 }
                 else if (weapon == 7)
                 {
@@ -97,6 +101,7 @@ namespace VoidFall.Runtime
                         var spawnOffset = new Vector2(Mathf.Cos(spawnAngle), Mathf.Sin(spawnAngle)) * 24;
                         _arsenalSummons[i] = new ArsenalEntity { Active = true, Position = player + spawnOffset, Rank = rank, Evolved = evolved, Idle = !target.Valid };
                         count--;
+                        _audio?.Play(ProceduralAudio.Cue.SummonSpawn);
                     }
                 }
                 else
@@ -112,6 +117,7 @@ namespace VoidFall.Runtime
                         _arsenalBoomerangs[i] = new ArsenalEntity { Active = true, Position = player, Rank = rank, Evolved = evolved, Angle = Mathf.Atan2(delta.y, delta.x) + (shot - (count - 1) * .5f) * .23f };
                         shot++;
                     }
+                    if (shot > 0) _audio?.Play(ProceduralAudio.Cue.BoomerangThrow);
                 }
                 _weaponCooldowns[weapon] = (float)stats.Cooldown * recovery;
             }
@@ -152,6 +158,7 @@ namespace VoidFall.Runtime
                         }
                     }
                     ArsenalBlast(mine.Position, radius, (float)stats.Damage, 6, mine.Evolved ? "#8ceaff" : "#ffb75e");
+                    _audio?.Play(ProceduralAudio.Cue.MineBoom);
                     if (generation != _arsenalGeneration) return;
                 }
                 _arsenalMines[i] = mine;
@@ -209,6 +216,7 @@ namespace VoidFall.Runtime
                         ArsenalHit(target, (float)stats.Damage, 7, unit.Position);
                         BurstFx(unit.Position, ParseColor("#87f5ab", Color.white), 5, 110, .25f, .45f);
                     }
+                    _audio?.Play(ProceduralAudio.Cue.SummonBlast);
                     if (generation != _arsenalGeneration) return;
                 }
                 _arsenalSummons[i] = unit;

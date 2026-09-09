@@ -344,7 +344,26 @@ namespace VoidFall.Runtime
 
         private void PlayRouletteTick() => _audio?.Play(ProceduralAudio.Cue.Ui, 0.3f);
         private void PlayRouletteWager() => _audio?.Play(ProceduralAudio.Cue.Currency, 0.65f);
-        private void PlayRouletteLanding() => _audio?.Play(ProceduralAudio.Cue.LevelUp, 0.8f);
+        private void PlayRouletteLanding()
+        {
+            var result = _rouletteSession?.Result;
+            if (result == null)
+            {
+                _audio?.Play(ProceduralAudio.Cue.LevelUp, 0.8f);
+                return;
+            }
+            if (result.Kind == RoulettePrizeKind.WildCard)
+            {
+                _audio?.Play(ProceduralAudio.Cue.RouletteBig);
+                return;
+            }
+            if (result.Kind == RoulettePrizeKind.Parts)
+            {
+                _audio?.Play(ProceduralAudio.Cue.RouletteParts);
+                return;
+            }
+            _audio?.Play(ProceduralAudio.Cue.RoulettePrize);
+        }
 
         private void UnbindRouletteAudio()
         {

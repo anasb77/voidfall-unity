@@ -3257,13 +3257,6 @@ namespace VoidFall.Runtime
             }
         }
 
-        private static ProceduralAudio.Cue DefeatCueFor(int revivesRemaining)
-        {
-            return revivesRemaining > 0
-                ? ProceduralAudio.Cue.Boss
-                : ProceduralAudio.Cue.GameOver;
-        }
-
         private static int AddCounter(int current, int amount)
         {
             var total = (long)Math.Max(0, current) + Math.Max(0, amount);

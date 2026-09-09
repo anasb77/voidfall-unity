@@ -2199,6 +2199,7 @@ namespace VoidFall.Runtime
                         // combat entry point; combat never pauses.
                         _music?.ShiftToNextCombatTrack();
                         _score += 150;
+                        _audio?.Play(ProceduralAudio.Cue.TrackShift);
                         BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"), 10, 200, 0.4f, 0.75f);
                         ShowArenaToast("TRACK SHIFT", 2f, ToastKind.Reward);
                     }
@@ -2230,7 +2231,7 @@ namespace VoidFall.Runtime
                 "+" + parts + " Part" + (parts > 1 ? "s" : string.Empty),
                 new Color(0.98f, 0.79f, 0.08f, 1f),
                 12);
-            _audio?.Play(ProceduralAudio.Cue.Currency, 1f);
+            _audio?.Play(ProceduralAudio.Cue.PartsPickup);
             BurstFx(_gameSim.Player.Position, SourceDotColor("yellow"), 3, 130, 0.28f, 0.65f);
             _telemetry.RecordPickup(PickupKindName(PickupKind.Part), value);
         }
@@ -3332,6 +3333,16 @@ namespace VoidFall.Runtime
             bossAccent.a = 0.78f;
             SpawnRingWave(position, 30f, 420f, 0.6f, bossAccent);
             BurstFx(position, BossParticleColor(boss.Id), 18, 300, 0.6f, 0.9f);
+            if (IsSpecialBoss(id)) _audio?.Play(ProceduralAudio.Cue.SpecialBoss);
+            else _audio?.Play(ProceduralAudio.Cue.BossHorn);
+        }
+
+        private static bool IsSpecialBoss(string id)
+        {
+            return id == "hydra-prime" ||
+                id == NullCityContent.MotherloadId ||
+                id == "court-grandmaster-black" ||
+                id == "court-grandmaster-white";
         }
 
         private int FindInactiveBossSlot()
@@ -3647,6 +3658,7 @@ namespace VoidFall.Runtime
             if (dodgeRank > 0 && _gameSim.Rng.Next() < SupportEffectRules.DodgeChance(dodgeRank))
             {
                 SpawnFloater(_gameSim.Player.Position, "DODGE", new Color(0.98f, 0.82f, 0.3f), 13f);
+                _audio?.Play(ProceduralAudio.Cue.DodgeSfx);
                 return;
             }
             var appliedDamage = Mathf.Max(1, damage);
@@ -3698,7 +3710,10 @@ namespace VoidFall.Runtime
                 AddCameraShake(1f);
                 // Browser authority gives a revivable defeat the boss cue, and
                 // reserves the full game-over sting for a terminal defeat.
-                _audio?.Play(DefeatCueFor(_revivesRemaining));
+                // The terminal sting alternates the classic fall and the dark
+                // tear; revivable defeats keep the boss cue.
+                if (_revivesRemaining > 0) _audio?.Play(ProceduralAudio.Cue.Boss);
+                else _audio?.PlayGameOverSting();
                 BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"), 34, 390, 0.85f, 1.1f);
                 BurstFx(_gameSim.Player.Position, SourceDotColor("white"), 18, 270, 0.65f, 0.85f);
                 SpawnRingWave(
@@ -4167,6 +4182,7 @@ namespace VoidFall.Runtime
                 // Browser removeEnemy emits eliteDie after the variant death
                 // layers and immediately before its clear toast.
                 _audio?.Play(ProceduralAudio.Cue.Elite, 0.72f);
+                _audio?.Play(ProceduralAudio.Cue.EliteDeath);
                 ShowArenaToast(
                     $"{EliteRules.EliteVariantDef(enemy.EliteKind.Value).Name} cleared",
                     2.5f,
@@ -4186,6 +4202,7 @@ namespace VoidFall.Runtime
                 // Keep the standard elite cue ordered after its presentation
                 // effects, matching the browser's eliteDie() call.
                 _audio?.Play(ProceduralAudio.Cue.Elite, 0.72f);
+                _audio?.Play(ProceduralAudio.Cue.EliteDeath);
                 ShowArenaToast("Elite cleared", 2.5f, ToastKind.Reward, "+8 Parts");
             }
             else if (!escaping && (destroyedExploder || enemy.MutationGene == MutationGene.Volatile) && !selfDetonated)

@@ -270,6 +270,7 @@ namespace VoidFall.Runtime
             _targetTimeScale = 1;
             TriggerFreeze(0.08f);
             _audio?.Play(ProceduralAudio.Cue.LevelUp, 1.12f);
+            _audio?.Play(ProceduralAudio.Cue.ReviveSting);
             BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"), 26, 380, 0.7f, 1f);
             BurstFx(_gameSim.Player.Position, SourceDotColor("white"), 14, 300, 0.55f, 0.8f);
             SpawnRingWave(_gameSim.Player.Position, 26f, 640f, 0.72f, new Color(0.133f, 0.827f, 0.933f, 1f));
