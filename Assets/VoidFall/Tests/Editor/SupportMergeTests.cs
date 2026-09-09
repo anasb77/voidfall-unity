@@ -16,7 +16,7 @@ namespace VoidFall.Tests.Editor
             var options = UpgradeRules.RollProgressionOptions(new UpgradeProgress(), new Rng(7), 100);
             var scholar = Array.Find(options, o => o.TargetId == "scholar");
             var speed = Array.Find(options, o => o.TargetId == "projectileSpeed");
-            Assert.That(scholar.Description, Does.Contain("Experience gained").And.Contain("Power-up drop chance"));
+            Assert.That(scholar.Description, Does.Contain("Experience").And.Contain("Special drops"));
             Assert.That(speed.Description, Does.Contain("Projectile speed").And.Contain("Camera dezoom"));
         }
 

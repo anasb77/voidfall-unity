@@ -97,7 +97,7 @@ namespace VoidFall.Tests.Editor
                 "Damage 12 \u2192 15\nFire delay 0.42 \u2192 0.40 seconds"));
             Assert.That(amplifier, Is.Not.Null);
             Assert.That(amplifier.Description, Is.EqualTo(
-                "Projectile size 100% \u2192 112%\nBlast size 100% \u2192 112%\nOrbit size 100% \u2192 112%"));
+                "Projectile size 100% \u2192 112%\nBlast size 100% \u2192 112%\nOrbit size 100% \u2192 112%\nOrbit = your spinning rings around you (Blades + Clock)"));
         }
 
         [Test]

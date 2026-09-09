@@ -37,10 +37,10 @@ namespace VoidFall.Core
                 Weight = 8,
                 Descriptions = new[]
                 {
-                    "+8% experience gained; +5% power-up drop chance",
-                    "+16% experience gained; +10% power-up drop chance",
-                    "+24% experience gained; +15% power-up drop chance",
-                    "+32% experience gained; +20% power-up drop chance"
+                    "+8% experience; +5% special drops",
+                    "+16% experience; +10% special drops",
+                    "+24% experience; +15% special drops",
+                    "+32% experience; +20% special drops"
                 },
             },
             new SupportDefinition

@@ -281,7 +281,7 @@ namespace VoidFall.Core
             switch (support.Id)
             {
                 case "calibration": return MultiplierLine("Weapon damage", 1.12, before, after);
-                case "cycling": return MultiplierLine("Fire delay", 0.92, before, after) + "\nAlso speeds up blade and clock rotation";
+                case "cycling": return MultiplierLine("Weapon fire delay", 0.92, before, after) + "\nAlso speeds up blade and clock rotation";
                 case "plating": return BonusLine("Maximum integrity", 20, before, after) + "\nRepair 20";
                 case "mobility": return MultiplierLine("Move speed", 1.08, before, after);
                 case "collector": return MultiplierLine("Pickup range", 1.25, before, after);
@@ -294,10 +294,11 @@ namespace VoidFall.Core
                 case "amplifier":
                     var multiplier = MultiplierValues(1.12, before, after);
                     return "Projectile size " + multiplier + "\nBlast size " + multiplier +
-                           "\nOrbit size " + multiplier;
+                           "\nOrbit size " + multiplier +
+                           "\nOrbit = your spinning rings around you (Blades + Clock)";
                 case "regenerator": return DecimalBonusLine("Integrity per second", 0.6, before, after);
                 case "dodge": return BonusPercentLine("Dodge chance", 4, before, after);
-                case "scholar": return BonusPercentLine("Experience gained", 8, before, after) + "\n" + BonusPercentLine("Power-up drop chance", 5, before, after);
+                case "scholar": return BonusPercentLine("Experience", 8, before, after) + "\n" + BonusPercentLine("Special drops", 5, before, after);
                 case "projectileSpeed": return BonusPercentLine("Projectile speed", 10, before, after) + "\n" + BonusPercentLine("Camera dezoom", 5, before, after) + "\nAlso speeds up blades and clock hands";
                 default:
                     var descriptions = support.Descriptions ?? new string[0];

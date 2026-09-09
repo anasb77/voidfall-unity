@@ -336,10 +336,25 @@ namespace VoidFall.UI
             title.rectTransform.anchoredPosition = new Vector2(0f, -112f);
             title.horizontalOverflow = HorizontalWrapMode.Wrap;
 
+            var mainText = data.Description ?? string.Empty;
+            var footnoteText = string.Empty;
+            var footnoteIndex = mainText.LastIndexOf('\n');
+            if (footnoteIndex >= 0)
+            {
+                var tail = mainText.Substring(footnoteIndex + 1);
+                if (tail == "Also speeds up blade and clock rotation" ||
+                    tail == "Also speeds up blades and clock hands" ||
+                    tail == "Orbit = your spinning rings around you (Blades + Clock)")
+                {
+                    footnoteText = tail;
+                    mainText = mainText.Substring(0, footnoteIndex);
+                }
+            }
+
             var description = UIBuilder.CreateParagraph(
                 visual,
                 "Description",
-                data.Description,
+                mainText,
                 12.5f,
                 UITheme.TextDescription,
                 TextAnchor.UpperCenter);
@@ -347,6 +362,23 @@ namespace VoidFall.UI
             description.rectTransform.anchorMax = new Vector2(1f, 1f);
             description.rectTransform.offsetMin = new Vector2(20f, 44f);
             description.rectTransform.offsetMax = new Vector2(-20f, -146f);
+
+            if (!string.IsNullOrEmpty(footnoteText))
+            {
+                // Small readability notice at ~50% of body size.
+                var footnote = UIBuilder.CreateParagraph(
+                    visual,
+                    "Footnote",
+                    footnoteText,
+                    6.5f,
+                    UITheme.TextIndex,
+                    TextAnchor.LowerCenter);
+                footnote.rectTransform.anchorMin = new Vector2(0f, 0f);
+                footnote.rectTransform.anchorMax = new Vector2(1f, 0f);
+                footnote.rectTransform.pivot = new Vector2(0.5f, 0f);
+                footnote.rectTransform.sizeDelta = new Vector2(-40f, 14f);
+                footnote.rectTransform.anchoredPosition = new Vector2(0f, 32f);
+            }
 
             if (data.MaxRank > 0)
             {
