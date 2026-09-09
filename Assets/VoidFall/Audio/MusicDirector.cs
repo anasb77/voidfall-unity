@@ -481,8 +481,16 @@ namespace VoidFall.Runtime
             // observed, a confirmed stop advances even if a hitch hid the end.
             if (!_playbackObserved || _current.loadState != AudioDataLoadState.Loaded)
             {
-                _notPlayingElapsed = 0f;
-                return;
+                // A track that never starts (missed start frame, device
+                // handoff) would otherwise sit silent forever with no error:
+                // unobserved silence on a fully loaded clip still earns a
+                // restart, on a longer leash than the completion grace.
+                var stagnant = _current != null
+                    && _current.loadState == AudioDataLoadState.Loaded
+                    && !_suspended;
+                _notPlayingElapsed = stagnant ? _notPlayingElapsed + Mathf.Max(0f, dt) : 0f;
+                if (!stagnant || _notPlayingElapsed < PlaybackCompletionGraceSeconds * 25f) return;
+                _playbackObserved = true;
             }
 
             _notPlayingElapsed += Mathf.Max(0f, dt);

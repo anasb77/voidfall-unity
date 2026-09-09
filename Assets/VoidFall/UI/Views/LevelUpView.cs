@@ -362,6 +362,10 @@ namespace VoidFall.UI
             description.rectTransform.anchorMax = new Vector2(1f, 1f);
             description.rectTransform.offsetMin = new Vector2(20f, 44f);
             description.rectTransform.offsetMax = new Vector2(-20f, -146f);
+            // Long upgrade deltas (high-rank scattergun lists nine changed
+            // stats) shrink to fit the fixed card instead of spilling over
+            // the rank pips and neighboring cards.
+            UIBuilder.FitText(description, 9f, 12.5f);
 
             if (!string.IsNullOrEmpty(footnoteText))
             {

@@ -145,7 +145,10 @@ namespace VoidFall.Runtime
             var dt = Mathf.Clamp(deltaTime, 0f, 0.1f);
             if (_returnToMenuAfterRun)
             {
-                if (_runSaved) ReturnToMenuAfterResult();
+                // The run-result screen owns defeats until the player picks
+                // Play again or Main menu. Only victories retire straight
+                // home (interim finale while the true ending is future work).
+                if (_runVictory && _runSaved) ReturnToMenuAfterResult();
                 return;
             }
             if (_journeyStage == JourneyStage.Combat) return;
