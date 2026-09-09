@@ -162,12 +162,12 @@ namespace VoidFall.UI
                 format(Mathf.Lerp(min, max, 1f)),
                 10f,
                 UITheme.TextNavDetail,
-                TextAnchor.UpperLeft,
+                TextAnchor.MiddleRight,
                 false);
-            readout.rectTransform.anchorMin = new Vector2(0f, 0f);
-            readout.rectTransform.anchorMax = new Vector2(0.55f, 0.5f);
-            readout.rectTransform.offsetMin = new Vector2(11f, 8f);
-            readout.rectTransform.offsetMax = Vector2.zero;
+            readout.rectTransform.anchorMin = new Vector2(0.30f, 0f);
+            readout.rectTransform.anchorMax = new Vector2(0.55f, 1f);
+            readout.rectTransform.offsetMin = Vector2.zero;
+            readout.rectTransform.offsetMax = new Vector2(-4f, 0f);
 
             var slider = BuildSlider(control, min, max);
             var row = new SliderRow { Slider = slider, Value = readout, Format = format };

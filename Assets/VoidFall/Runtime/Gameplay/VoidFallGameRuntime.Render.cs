@@ -4856,6 +4856,11 @@ namespace VoidFall.Runtime
             }
             _backdropView.sprite = _arenaPlateSprites[(int)_arenaId];
             _backdropView.color = Color.white;
+            // Eon Sea and Crascendo disable the shared backdrop while their
+            // custom ground is active; every other arena must switch it back
+            // on here (mirrors the detail view and Null City's own sync) or
+            // every plate visited afterwards renders black.
+            _backdropView.enabled = _backdropView.sprite != null;
             var recipe = ArenaCatalogRules.RecipeLayout(_arenaRecipeIndex);
             var skyOverscan = _arenaId == ArenaId.Hydra ? 1f : ArenaSkyOverscan;
             var skyOffset = ArenaParallaxOffsetForViewport(
