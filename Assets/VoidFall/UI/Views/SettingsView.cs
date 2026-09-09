@@ -683,6 +683,7 @@ namespace VoidFall.UI
 
         protected override void OnShown()
         {
+            Root.localScale = Vector3.one * UIBuilder.MenuPanelScale(620f, 660f);
             RefreshMuteLabel();
             _resetArmed = false;
             RefreshResetVisual();

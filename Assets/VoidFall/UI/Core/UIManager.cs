@@ -306,22 +306,6 @@ namespace VoidFall.UI
         }
 
         /// <summary>
-        /// Menu screens (Home, Workshop, Records, Settings) render 35% larger
-        /// than authored. Gameplay overlays keep their sizes: level-up draft
-        /// widths are safe-area clamped and must not be layer-scaled past it.
-        /// Small screens fit instead of clipping: the scale never pushes a
-        /// 700px-tall panel past 92% of the viewport height.
-        /// </summary>
-        private void ApplyMenuScale()
-        {
-            if (_menuLayerRect == null) return;
-            var scale = 1.35f;
-            if (Screen.height > 0)
-                scale = Mathf.Min(scale, Mathf.Max(1f, Screen.height * 0.92f / 700f));
-            _menuLayerRect.localScale = new Vector3(scale, scale, 1f);
-        }
-
-        /// <summary>
         /// The menu background: the baked arena plate the runtime hands over,
         /// then the stylesheet's radial cyan wash and a very light scrim. The
         /// browser build lets the game canvas show through .menu-layer the same
@@ -397,7 +381,6 @@ namespace VoidFall.UI
         public void SetScreen(UIScreen screen)
         {
             _screen = screen;
-            ApplyMenuScale();
 
             var menuVisible = screen == UIScreen.Home || screen == UIScreen.Workshop ||
                 screen == UIScreen.Records || screen == UIScreen.Settings;

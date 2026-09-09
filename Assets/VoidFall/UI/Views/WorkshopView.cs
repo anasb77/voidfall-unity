@@ -538,6 +538,16 @@ namespace VoidFall.UI
         }
 
         /// <summary>
+        /// Workshop tab opens 35% larger than authored (fit-clamped on small
+        /// screens), matching Settings. Reapplied on every open so resolution
+        /// changes take effect on the next visit.
+        /// </summary>
+        protected override void OnShown()
+        {
+            Root.localScale = Vector3.one * UIBuilder.MenuPanelScale(880f, 660f);
+        }
+
+        /// <summary>
         /// Maps a workshop track onto the closest glyph in the shipped home atlas.
         /// The browser build uses a dedicated Lucide icon per track; the atlas only
         /// carries five, so tracks without a match fall back to the wrench.
