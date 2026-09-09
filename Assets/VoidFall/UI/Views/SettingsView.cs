@@ -43,6 +43,7 @@ namespace VoidFall.UI
         private readonly List<Vector2Int> _resolutionSizes = new List<Vector2Int>();
 
         private RectTransform _content;
+        private RectTransform _panel;
         private Text _muteLabel;
         private Text _resetLabel;
         private Image _resetSurface;
@@ -62,14 +63,15 @@ namespace VoidFall.UI
             var area = UIBuilder.CreateProfilePanel(
                 Root,
                 "Panel",
-                new Vector2(620f, 660f),
+                new Vector2(837f, 891f),
                 "Local preferences",
                 "Settings",
                 () => Callbacks?.CloseMenuPage?.Invoke(),
                 out _);
+            _panel = area;
 
             _content = UIBuilder.CreateScrollView(area, "Scroll", out _);
-            UIBuilder.AddVerticalLayout(_content, 8f, new RectOffset(0, 0, 8, 8));
+            UIBuilder.AddVerticalLayout(_content, 12f, new RectOffset(0, 0, 8, 8));
 
             AddSlider("master", "Master volume", 0f, 1f, v => Callbacks?.SetMasterVolume?.Invoke(v), FormatPercent);
             AddSlider("effects", "Effects volume", 0f, 1f, v => Callbacks?.SetEffectsVolume?.Invoke(v), FormatPercent);
@@ -103,7 +105,7 @@ namespace VoidFall.UI
         private RectTransform CreateRow(string name, string label, string detail, out RectTransform control)
         {
             var row = UIBuilder.CreateRect(_content, "Row." + name);
-            UIBuilder.SetHeight(row, 58f);
+            UIBuilder.SetHeight(row, 72f);
 
             var surface = UIBuilder.CreateSurface(row, "Body", UISprites.Rounded(
                 UITheme.RadiusRow,
@@ -147,7 +149,7 @@ namespace VoidFall.UI
             control.anchorMin = new Vector2(0.58f, 0.5f);
             control.anchorMax = new Vector2(1f, 0.5f);
             control.pivot = new Vector2(0.5f, 0.5f);
-            control.sizeDelta = new Vector2(-22f, 24f);
+            control.sizeDelta = new Vector2(-22f, 28f);
             control.anchoredPosition = new Vector2(-6f, 0f);
             return row;
         }
@@ -267,7 +269,7 @@ namespace VoidFall.UI
             // Four segments need more room than a slider, so this row's control
             // column starts further left than the shared default.
             control.anchorMin = new Vector2(0.42f, 0.5f);
-            control.sizeDelta = new Vector2(-22f, 30f);
+            control.sizeDelta = new Vector2(-22f, 34f);
             var layout = UIBuilder.AddHorizontalLayout(control, 4f, null, TextAnchor.MiddleRight);
 
             for (var index = 0; index < QualityOptions.Length; index++)
@@ -683,7 +685,7 @@ namespace VoidFall.UI
 
         protected override void OnShown()
         {
-            Root.localScale = Vector3.one * UIBuilder.MenuPanelScale(620f, 660f);
+            UIBuilder.FitPanel(_panel, 837f, 891f);
             RefreshMuteLabel();
             _resetArmed = false;
             RefreshResetVisual();

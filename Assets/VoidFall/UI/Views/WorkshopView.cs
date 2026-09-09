@@ -39,6 +39,7 @@ namespace VoidFall.UI
         private RectTransform _listContent;
         private RectTransform _rankStripRow;
         private RectTransform _previewStage;
+        private RectTransform _panel;
         private string _focusedId;
 
         /// <summary>
@@ -68,11 +69,12 @@ namespace VoidFall.UI
             var content = UIBuilder.CreateProfilePanel(
                 Root,
                 "Panel",
-                new Vector2(880f, 660f),
+                new Vector2(1188f, 891f),
                 "Permanent upgrades",
                 "Workshop",
                 () => Callbacks?.CloseMenuPage?.Invoke(),
                 out var headerSlot);
+            _panel = content;
 
             _partsBadge = UIBuilder.CreatePartsBadge(headerSlot, "PartsBalance");
 
@@ -108,7 +110,7 @@ namespace VoidFall.UI
             column.anchorMin = new Vector2(0f, 0f);
             column.anchorMax = new Vector2(0f, 1f);
             column.pivot = new Vector2(0f, 0.5f);
-            column.sizeDelta = new Vector2(360f, 0f);
+            column.sizeDelta = new Vector2(480f, 0f);
             column.anchoredPosition = Vector2.zero;
 
             var body = UIBuilder.CreateSurface(column, "Body", UISprites.Rounded(
@@ -166,8 +168,8 @@ namespace VoidFall.UI
             _previewStage.anchorMin = new Vector2(0.5f, 1f);
             _previewStage.anchorMax = new Vector2(0.5f, 1f);
             _previewStage.pivot = new Vector2(0.5f, 1f);
-            _previewStage.sizeDelta = new Vector2(320f, 186f);
-            _previewStage.anchoredPosition = new Vector2(0f, -55f);
+            _previewStage.sizeDelta = new Vector2(420f, 240f);
+            _previewStage.anchoredPosition = new Vector2(0f, -60f);
 
             // The readout (rank caption + focused detail) sits below the stage.
             var readout = UIBuilder.CreateRect(body.rectTransform, "Readout");
@@ -247,11 +249,11 @@ namespace VoidFall.UI
             var column = UIBuilder.CreateRect(parent, "List");
             column.anchorMin = Vector2.zero;
             column.anchorMax = Vector2.one;
-            column.offsetMin = new Vector2(374f, 0f);
+            column.offsetMin = new Vector2(500f, 0f);
             column.offsetMax = Vector2.zero;
 
             _listContent = UIBuilder.CreateScrollView(column, "Scroll", out _);
-            UIBuilder.AddVerticalLayout(_listContent, 8f);
+            UIBuilder.AddVerticalLayout(_listContent, 10f);
         }
 
         /// <summary>
@@ -337,8 +339,8 @@ namespace VoidFall.UI
         private void BuildRow(WorkshopItemData item)
         {
             var row = UIBuilder.CreateRect(_listContent, "Row." + item.Id);
-            row.sizeDelta = new Vector2(0f, 74f);
-            UIBuilder.SetHeight(row, 74f);
+            row.sizeDelta = new Vector2(0f, 86f);
+            UIBuilder.SetHeight(row, 86f);
 
             var rest = UISprites.Rounded(UITheme.RadiusRow, UITheme.RowFill, UITheme.RowFill, UITheme.BorderRow);
             var focused = UISprites.Rounded(
@@ -538,13 +540,14 @@ namespace VoidFall.UI
         }
 
         /// <summary>
-        /// Workshop tab opens 35% larger than authored (fit-clamped on small
+        /// Workshop tab opens larger than before (fit-clamped on small
         /// screens), matching Settings. Reapplied on every open so resolution
-        /// changes take effect on the next visit.
+        /// changes take effect on the next visit. Text stays authored size;
+        /// the room goes to columns, rows and the frame preview.
         /// </summary>
         protected override void OnShown()
         {
-            Root.localScale = Vector3.one * UIBuilder.MenuPanelScale(880f, 660f);
+            UIBuilder.FitPanel(_panel, 1188f, 891f);
         }
 
         /// <summary>

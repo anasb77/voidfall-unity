@@ -432,19 +432,20 @@ namespace VoidFall.UI
         }
 
         /// <summary>
-        /// Enlarged-panel scale for the Workshop and Settings tabs (+35%).
-        /// Small screens fit instead of clipping: the scale never pushes the
-        /// authored panel past 94% of the viewport. Recomputed every time the
-        /// tab opens, so resolution changes apply on the next visit.
+        /// Sizes the Workshop and Settings panels (+35% over the original
+        /// authored sizes). Small screens fit instead of clipping: the panel
+        /// never exceeds 94% of the viewport. Reapplied every time the tab
+        /// opens, so resolution changes take effect on the next visit. Text
+        /// sizes stay authored; the extra room goes to spacing and columns.
         /// </summary>
-        public static float MenuPanelScale(float designWidth, float designHeight)
+        public static void FitPanel(RectTransform panel, float designWidth, float designHeight)
         {
-            var scale = 1.35f;
-            if (Screen.width > 0 && designWidth > 0)
-                scale = Mathf.Min(scale, Screen.width * 0.94f / designWidth);
-            if (Screen.height > 0 && designHeight > 0)
-                scale = Mathf.Min(scale, Screen.height * 0.94f / designHeight);
-            return Mathf.Max(1f, scale);
+            if (panel == null) return;
+            var width = designWidth;
+            var height = designHeight;
+            if (Screen.width > 0) width = Mathf.Min(width, Screen.width * 0.94f);
+            if (Screen.height > 0) height = Mathf.Min(height, Screen.height * 0.94f);
+            panel.sizeDelta = new Vector2(width, height);
         }
 
         public static RectTransform CreateRect(Transform parent, string name)
