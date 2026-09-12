@@ -106,7 +106,8 @@ namespace VoidFall.UI
             for(var i=0;i<2;i++)
             {
                 var visible=i<names.Length;
-                _portals[i].gameObject.SetActive(visible);_pads[i].gameObject.SetActive(visible);_names[i].gameObject.SetActive(visible);_next[i].gameObject.SetActive(visible);
+                _portals[i].gameObject.SetActive(visible);_pads[i].gameObject.SetActive(visible);
+                _names[i].gameObject.SetActive(visible&&!shopOpen);_next[i].gameObject.SetActive(visible&&!shopOpen);
                 if(!visible)continue;
                 SetSprite(_portals[i],portals[i]);
                 _portals[i].color=new Color(colors[i].r,colors[i].g,colors[i].b,.82f);_pads[i].color=colors[i];
