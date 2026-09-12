@@ -278,7 +278,7 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Real_streamed_menu_theme_restarts_after_natural_end()
+        public IEnumerator Real_streamed_menu_theme_continues_after_natural_end()
         {
             _music.PlayMainMenu();
             var source = (AudioSource)Field(_music, "_source");
@@ -288,11 +288,15 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(_music.CurrentChannel, Is.EqualTo(MusicDirector.Channel.MainMenu));
             Assert.That(source.isPlaying, Is.True);
             var clip = source.clip;
+            var nativeLoop = source.loop;
             source.time = clip.length - .4f;
             yield return new WaitForSecondsRealtime(1.3f);
-            Assert.That(source.clip, Is.SameAs(clip));
+            // Main's later menu-shuffle change advances non-looping offset
+            // entries; zero-offset themes still loop in the audio engine.
+            if (nativeLoop) Assert.That(source.clip, Is.SameAs(clip));
+            else Assert.That(source.clip, Is.Not.SameAs(clip));
             Assert.That(source.isPlaying, Is.True);
-            Assert.That(source.time, Is.LessThan(clip.length - 2f));
+            Assert.That(source.time, Is.LessThan(source.clip.length - 2f));
         }
 
         private static MusicReactiveState State(int tier = 0, bool critical = false) =>

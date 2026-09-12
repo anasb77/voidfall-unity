@@ -25,6 +25,10 @@ contains newer menu, Scraps and form changes. Recovery commits precede merging.
   (-20% for four active combat minutes then +40% this run), and one extra
   projectile on an eligible lowest-ranked normal weapon. Preserve normal
   stat/damage paths. Larger draft card pools are not silently approved.
+  More Health and Recovery Plan supply distinct fallback deals when those
+  primary choices are exhausted. Recovery Plan adds five healing charges;
+  each earned level consumes one and heals 3% maximum HP, capped at maximum.
+  Repeated fallback purchases add charges instead of wasting an active effect.
 - Include actual Sound Blade / Charged Rifle fragment artwork from the lab.
   Three distinct pieces assemble each weapon. Save permanent piece ownership
   atomically; no duplicate fragments, no lost profile on failed writes.

@@ -28,6 +28,8 @@ namespace VoidFall.Persistence
                     version = GetInt(root, "version", 0),
                     parts = GetInt(root, "parts", 0),
                     directorId = GetInt(root, "directorId", 0),
+                    soundBladeFragments = GetInt(root, "soundBladeFragments", 0),
+                    chargedRifleFragments = GetInt(root, "chargedRifleFragments", 0),
                     directorOnboardingSeen = GetBool(root, "directorOnboardingSeen", false),
                     settings = ReadSettings(GetObject(root, "settings")),
                     workshop = ReadEntries(GetObject(root, "workshop")),

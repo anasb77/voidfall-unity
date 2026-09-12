@@ -109,6 +109,8 @@ namespace VoidFall.Persistence
     {
         public int version = SaveStore.SaveVersion;
         public int parts;
+        public int soundBladeFragments;
+        public int chargedRifleFragments;
         public int directorId;
         public bool directorOnboardingSeen;
         public SaveSettings settings = new SaveSettings();
@@ -579,6 +581,8 @@ namespace VoidFall.Persistence
                 : 0;
             var migratedParts = (long)Math.Max(0, result.parts) + protocolRefund;
             result.version = SaveVersion;
+            result.soundBladeFragments = DealerRules.SanitizeMask(result.soundBladeFragments);
+            result.chargedRifleFragments = DealerRules.SanitizeMask(result.chargedRifleFragments);
             result.directorId = (int)DirectorProfiles.For((DirectorProfileId)result.directorId).Id;
             result.parts = ClampInt(
                 migratedParts > int.MaxValue ? int.MaxValue : migratedParts < int.MinValue ? int.MinValue : (int)migratedParts,
@@ -745,6 +749,7 @@ namespace VoidFall.Persistence
             var source = runs ?? Array.Empty<RunRecordEntry>();
             var result = new List<RunRecordEntry>(Math.Min(MaxRecentRuns, source.Length));
             var weaponIds = WeaponIds();
+            var damageWeaponIds = new List<string>(weaponIds) { LegendaryRules.Id(LegendaryWeaponId.SoundBlade), LegendaryRules.Id(LegendaryWeaponId.ChargedRifle) }.ToArray();
             var weaponMaxRanks = WeaponMaxRanks();
             var supportIds = SupportIds();
             var supportMaxRanks = SupportMaxRanks();
@@ -759,7 +764,7 @@ namespace VoidFall.Persistence
                 value.damageDealt = ClampLong(value.damageDealt, 0, MaxDamageCounter);
                 value.damageTaken = ClampLong(value.damageTaken, 0, MaxDamageCounter);
                 value.weapons = SanitizeKnownEntries(value.weapons, weaponIds, weaponMaxRanks);
-                value.weaponDamage = SanitizeKnownWeaponDamage(value.weaponDamage, weaponIds);
+                value.weaponDamage = SanitizeKnownWeaponDamage(value.weaponDamage, damageWeaponIds);
                 value.supports = SanitizeMergedSupports(value.supports, supportIds, supportMaxRanks);
                 value.late = SanitizeKnownEntries(value.late, lateIds, lateMaxRanks);
                 value.evolved = SanitizeKnownEntries(value.evolved, weaponIds, evolvedMaxRanks);

@@ -1078,7 +1078,7 @@ namespace VoidFall.Runtime
             SetupFx();
             SetupHydraPresentation();
             WarmHydraPopulationVisuals();
-            _saveStore = new SaveStore(StressBenchmarkProbe.ProfilePath ?? ArsenalValidationProbe.ProfilePath ?? OverclockHudProbe.ProfilePath ?? VisualDeliveryProbe.ProfilePath ?? DiagnosticProfilePath());
+            _saveStore = new SaveStore(DealerIntegrationProbe.ProfilePath ?? StressBenchmarkProbe.ProfilePath ?? ArsenalValidationProbe.ProfilePath ?? OverclockHudProbe.ProfilePath ?? VisualDeliveryProbe.ProfilePath ?? DiagnosticProfilePath());
             _saveData = _saveStore.Load();
             _gameBridge = new RuntimeGameBridge(this);
             _settingsController = new SettingsController(_gameBridge);
@@ -1331,6 +1331,7 @@ namespace VoidFall.Runtime
                 if (_applicationInactive) return;
                 var focusStarted = Time.realtimeSinceStartupAsDouble;
                 _applicationInactive = true;
+                CancelLegendaryInput();
                 RecordRunHistory("application_focus", reason: "lost", detail: ApplicationDisplayContext());
                 _telemetry.FlushHistory();
                 _input?.ResetTouch();
@@ -1394,6 +1395,8 @@ namespace VoidFall.Runtime
         {
             RecordStartupMenuFrame();
             ReadNullCityDashInput();
+            ReadDealerInput();
+            ReadLegendaryInput();
             var startupUpdateStarted = Time.realtimeSinceStartupAsDouble;
             // Debounce settings disk write so slider drags don't save every pixel (audit #14).
             _settingsController?.Tick(Time.unscaledDeltaTime);
@@ -1421,7 +1424,8 @@ namespace VoidFall.Runtime
 
                 if (keyboard.escapeKey.wasPressedThisFrame)
                 {
-                    if (_routeMapOpen)
+                    if (_dealerOpen) CloseDealer();
+                    else if (_routeMapOpen)
                     {
                         CloseRouteMap();
                     }
@@ -1440,14 +1444,14 @@ namespace VoidFall.Runtime
                 }
 
                 if (keyboard.pKey.wasPressedThisFrame &&
-                    !_revivePending && !_gameOver && !_levelUpActive &&
+                    !_dealerOpen && !_revivePending && !_gameOver && !_levelUpActive &&
                     _menuPage == MenuPage.None)
                 {
                     TogglePause();
                 }
 
                 if ((keyboard.enterKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame) &&
-                    !_revivePending && !_levelUpActive && !_rouletteActive)
+                    !_dealerOpen && !_revivePending && !_levelUpActive && !_rouletteActive)
                 {
                     if (_menuPage == MenuPage.Home)
                     {
@@ -1561,6 +1565,7 @@ namespace VoidFall.Runtime
             RenderEncounterWarnings();
             RenderMajorIncidents();
             RenderJunction();
+            RenderLegendaries();
             LogSlowStartupPhase("render", startupPhaseStarted);
             startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
             UpdateHud();
@@ -1571,7 +1576,7 @@ namespace VoidFall.Runtime
                 if (!_mainMenuBrowsing && !_gameOver)
                 {
                     _ui.HUD?.UpdateHealth(_gameSim.Player.Health, _gameSim.Player.MaxHealth);
-                    _ui.HUD?.UpdateShield(0f, 0f);
+                    _ui.HUD?.UpdateShield(_dealerShield, _dealerShield > 0 ? 20 : 0);
                     _ui.HUD?.UpdateXP((int)_xp, _xpNeed, _level);
                     _ui.HUD?.UpdateStats(CurrentScore(), _kills, _time);
                     _ui.HUD?.SetBossWarning(_bossWarned);
@@ -1943,6 +1948,7 @@ namespace VoidFall.Runtime
         private void StartRunInternal(bool playStartCue, bool ensureSpritesWarmed = true)
         {
             FinishRunExport(playStartCue ? "restarted" : "abandoned");
+            ResetDealerRun();
             ResetDirectorRunDiagnostics();
             // Anything the menu-time warm has not reached yet is finished here,
             // so a run never rasterizes a sprite on first sighting.
@@ -2540,6 +2546,8 @@ namespace VoidFall.Runtime
             _adrenalTimer = Mathf.Max(0, _adrenalTimer - dt);
             UpdateCameraFollow(dt);
             UpdateWeapons(dt);
+            if (_dealerDelayedOwned && _gameSim.Player.Health > 0) _dealerCombatSeconds += dt;
+            StepLegendaries(dt);
 
             // Route travel is advanced by UpdateJourneyFlow, independent of combat ticks.
             var arenaStep = _voidRoute == null
@@ -3379,6 +3387,10 @@ namespace VoidFall.Runtime
                 supports = BuildTelemetryRanks(SupportIds(), _upgradeProgress?.SupportRanks),
                 late = BuildTelemetryRanks(LateIds(), _upgradeProgress?.LateRanks),
                 evolved = evolved.ToArray(),
+                legendaryId = LegendaryRules.Id(_legendaryWeapon), legendaryRank = _legendaryRank,
+                soundBladeFragments = _saveData?.soundBladeFragments ?? 0, chargedRifleFragments = _saveData?.chargedRifleFragments ?? 0,
+                dealerShield = _dealerShield, delayedPowerCombatSeconds = _dealerDelayedOwned ? _dealerCombatSeconds : -1,
+                dealerExtraWeapon = _dealerExtraWeapon, dealerHealthBonus = _dealerHealthBonus, dealerRecoveryCharges = _dealerRecoveryCharges,
             };
         }
 
@@ -3427,6 +3439,14 @@ namespace VoidFall.Runtime
 
         private void ApplyLevelRecovery()
         {
+            if (_dealerRecoveryCharges > 0)
+            {
+                _dealerRecoveryCharges--;
+                var before = _gameSim.Player.Health;
+                _gameSim.Player.Health = Mathf.Min(_gameSim.Player.MaxHealth, before + _gameSim.Player.MaxHealth * .03f);
+                RecordRunHistory("dealer_recovery", "G04", sourceId: "dealer", amount: _gameSim.Player.Health - before,
+                    hp: _gameSim.Player.Health, maxHp: _gameSim.Player.MaxHealth, detail: "chargesRemaining=" + _dealerRecoveryCharges);
+            }
             var recovery = WorkshopRank("recovery") * 3;
             if (recovery > 0)
                 _gameSim.Player.Health = Mathf.Min(_gameSim.Player.MaxHealth, _gameSim.Player.Health + recovery);
@@ -3604,7 +3624,7 @@ namespace VoidFall.Runtime
             // The form supplies the base; every recalculation preserves it
             // (spec §05). The default form defers to the Operative entry, so
             // legacy profiles keep their exact numbers.
-            _gameSim.Player.MaxHealth = (float)PlayerForms.BaseMaxHealth(_formId) + _workshopIntegrity * 5 + plating * 20 + frame * 8;
+            _gameSim.Player.MaxHealth = (float)PlayerForms.BaseMaxHealth(_formId) + _workshopIntegrity * 5 + plating * 20 + frame * 8 + _dealerHealthBonus;
             _damageMultiplier = Mathf.Pow(1.12f, SupportRank("calibration")) *
                 (1 + _workshopPower * 0.04f) * Mathf.Pow(1.05f, LateRank("output"));
             _cooldownMultiplier = Mathf.Pow(0.92f, SupportRank("cycling")) *

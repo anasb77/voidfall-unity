@@ -2379,7 +2379,7 @@ namespace VoidFall.Runtime
             var thirdRound = _pulseBurstShots == 1;
             var pulseAngles = CombatRules.ProjectileAngles(
                 angle,
-                stats.ProjectileCount,
+                stats.ProjectileCount + (_dealerExtraWeapon == 0 ? 1 : 0),
                 (float)stats.SpreadDegrees);
             for (var index = 0; index < pulseAngles.Length; index++)
             {
@@ -2439,7 +2439,7 @@ namespace VoidFall.Runtime
             var baseAngle = Mathf.Atan2(direction.y, direction.x);
             var evolved = _upgradeProgress.Evolved[weaponIndex];
             var spread = weapon.Id == "scattergun" && evolved ? 14 : (float)stats.SpreadDegrees;
-            var angles = CombatRules.ProjectileAngles(baseAngle, stats.ProjectileCount, spread);
+            var angles = CombatRules.ProjectileAngles(baseAngle, stats.ProjectileCount + (_dealerExtraWeapon == weaponIndex ? 1 : 0), spread);
             for (var index = 0; index < angles.Length; index++)
             {
                 // Browser fireWeapon breaks before calculating the next
@@ -3776,6 +3776,16 @@ namespace VoidFall.Runtime
                 return;
             }
             var appliedDamage = Mathf.Max(1, damage);
+            if (_dealerShield > 0)
+            {
+                appliedDamage = DealerRules.Absorb(ref _dealerShield, appliedDamage);
+                if (appliedDamage <= 0)
+                {
+                    _gameSim.Player.Iframes = .65f;
+                    SpawnFloater(_gameSim.Player.Position, "SHIELD", UITheme.CyanLight, 13);
+                    return;
+                }
+            }
             // Killer attribution for the death report: every accepted hit
             // remembers its source; EndRun reads the final one. Purely
             // presentational - never feeds back into simulation or RNG.
@@ -4206,6 +4216,8 @@ namespace VoidFall.Runtime
 
         private void TrackWeaponDamage(int weaponIndex, float damage)
         {
+            if (damage > 0 && weaponIndex == LegendaryRules.SoundDamageIndex) { _legendaryDamage[1] += damage; return; }
+            if (damage > 0 && weaponIndex == LegendaryRules.RifleDamageIndex) { _legendaryDamage[2] += damage; return; }
             if (weaponIndex < 0 || weaponIndex >= _weaponDamage.Length || damage <= 0) return;
             _weaponDamage[weaponIndex] += damage;
         }
@@ -4575,6 +4587,8 @@ namespace VoidFall.Runtime
         private WeaponDamageEntry[] BuildWeaponDamageEntries()
         {
             var result = new List<WeaponDamageEntry>();
+            for (var i = 1; i <= 2; i++) if (_legendaryDamage[i] > 0)
+                result.Add(new WeaponDamageEntry { id = LegendaryRules.Id((LegendaryWeaponId)i), damage = RoundedDamageCounter(_legendaryDamage[i]) });
             for (var index = 0; index < Mathf.Min(ContentCatalog.Weapons.Length, _weaponDamage.Length); index++)
             {
                 var damage = RoundedDamageCounter(_weaponDamage[index]);
@@ -4591,6 +4605,8 @@ namespace VoidFall.Runtime
         private UnityTelemetryDamageValue[] BuildTelemetryDamage()
         {
             var result = new List<UnityTelemetryDamageValue>();
+            for (var i = 1; i <= 2; i++) if (_legendaryDamage[i] > 0)
+                result.Add(new UnityTelemetryDamageValue { id = LegendaryRules.Id((LegendaryWeaponId)i), value = RoundedDamageCounter(_legendaryDamage[i]) });
             for (var index = 0; index < Mathf.Min(ContentCatalog.Weapons.Length, _weaponDamage.Length); index++)
             {
                 var damage = RoundedDamageCounter(_weaponDamage[index]);

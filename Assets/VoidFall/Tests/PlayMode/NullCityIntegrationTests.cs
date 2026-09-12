@@ -454,18 +454,7 @@ namespace VoidFall.Tests.PlayMode
 
         private static object Invoke(object target, string name, params object[] arguments)
         {
-            var flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
-            var method = target.GetType().GetMethod(name, flags, null,
-                Array.ConvertAll(arguments, argument => argument?.GetType() ?? typeof(object)), null);
-            Assert.That(method, Is.Not.Null, "Missing method '" + name + "'.");
-            try
-            {
-                return method.Invoke(target, arguments);
-            }
-            catch (TargetInvocationException exception)
-            {
-                throw exception.InnerException ?? exception;
-            }
+            return RuntimeTestReflection.Invoke(target, name, arguments);
         }
     }
 }

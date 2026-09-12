@@ -212,7 +212,6 @@ namespace VoidFall.Tests.PlayMode
             }
         }
         private static void Set(object target, string name, object value) => target.GetType().GetField(name, Flags).SetValue(target, value);
-        private object Invoke(string name, params object[] args) => _runtime.GetType().GetMethods(Flags)
-            .Single(m => m.Name == name && m.GetParameters().Length == args.Length).Invoke(_runtime, args);
+        private object Invoke(string name, params object[] args) => RuntimeTestReflection.Invoke(_runtime, name, args);
     }
 }

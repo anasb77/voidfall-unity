@@ -93,10 +93,11 @@ namespace VoidFall.Runtime
         /// </summary>
         private float PlayerDamageMultiplier()
         {
-            return _activeWildCards.Contains(WildCardId.Standstill) &&
+            var wild = _activeWildCards.Contains(WildCardId.Standstill) &&
                 WildCardRules.StandstillActive(_standstillSeconds)
                 ? (float)WildCardRules.StandstillDamageMultiplier
                 : 1f;
+            return wild * (float)DealerRules.DelayedMultiplier(_dealerDelayedOwned, _dealerCombatSeconds);
         }
 
         private float GreedXpMultiplier()

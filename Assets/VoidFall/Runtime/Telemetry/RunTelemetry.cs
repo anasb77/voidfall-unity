@@ -178,6 +178,10 @@ namespace VoidFall.Runtime
         public UnityTelemetryNamedValue[] supports;
         public UnityTelemetryNamedValue[] late;
         public string[] evolved;
+        public string legendaryId;
+        public int legendaryRank, soundBladeFragments, chargedRifleFragments;
+        public float dealerShield, delayedPowerCombatSeconds;
+        public int dealerExtraWeapon = -1, dealerHealthBonus, dealerRecoveryCharges;
     }
 
     [Serializable]

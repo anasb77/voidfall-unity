@@ -27,6 +27,8 @@ namespace VoidFall.Persistence
             json.Append(',');
             Property(json, "parts");
             json.Append(save.parts);
+            json.Append(','); Property(json, "soundBladeFragments"); json.Append(save.soundBladeFragments);
+            json.Append(','); Property(json, "chargedRifleFragments"); json.Append(save.chargedRifleFragments);
             json.Append(',');
             Property(json, "settings");
             AppendSettings(json, save.settings);

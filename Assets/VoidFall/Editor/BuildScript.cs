@@ -22,7 +22,11 @@ namespace VoidFall.EditorTools
             AssetDatabase.SaveAssets();
             var scenes = new[] { "Assets/Scenes/SampleScene.unity" };
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-            var buildRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "Builds"));
+            var outputOverride = Environment.GetEnvironmentVariable("VOIDFALL_BUILD_OUTPUT");
+            var buildRoot = string.IsNullOrWhiteSpace(outputOverride)
+                ? Path.GetFullPath(Path.Combine(projectRoot, "..", "Builds")) : Path.GetFullPath(outputOverride);
+            if (buildRoot.StartsWith(Application.dataPath, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Build output cannot be inside Assets.");
             Directory.CreateDirectory(buildRoot);
             var development = string.Equals(
                 Environment.GetEnvironmentVariable("VOIDFALL_DEVELOPMENT_BUILD"),
@@ -50,6 +54,7 @@ namespace VoidFall.EditorTools
                     "Built (UTC): " + builtAt.ToString("O") + "\n" +
                     "Build GUID: " + summary.guid + "\n" +
                     "Source project: " + projectRoot + "\n" +
+                    "Source revision: " + (Environment.GetEnvironmentVariable("VOIDFALL_SOURCE_REVISION") ?? "working tree") + "\n" +
                     "Unity: " + Application.unityVersion + "\n" +
                     "Windows renderer: Direct3D11 (Direct3D12 opt-in diagnostics)\n" +
                     "Launch: " + summary.outputPath + "\n" +
@@ -64,6 +69,11 @@ namespace VoidFall.EditorTools
                     "Incidents: smaller stronger Black Hole and revised Destroyer opening\n" +
                     "Maps: approved Court / original Null City 4x / Hydra I populations and teleport\n" +
                     "Hydra II: original Unity map and boss encounter preserved\n");
+                File.AppendAllText(Path.Combine(buildRoot, "BUILD_INFO.txt"),
+                    "Dealer: safe crossing, one purchase per visit, 100 run Scraps per offer\n" +
+                    "Dealer art: four same-face expressions, upper/lower encounters, animated hair\n" +
+                    "Legendaries: Sound Blade / Charged Rifle, saved fragments and separate manual slot\n" +
+                    "Controls: E / controller South browses; mouse + hold LMB/F or right stick + RT attacks\n");
                 Debug.Log($"Build succeeded: {summary.totalSize} bytes at {summary.outputPath}");
                 EditorApplication.Exit(0);
             }

@@ -301,6 +301,40 @@ for proposed additions and unresolved counting/pacing decisions.
 
 ## UI, settings and profile progression
 
+### Dealer crossing and manual legendaries
+
+`Content/DealerRules.cs` owns fixed 100-Scrap transactions, three distinct offers,
+fragment masks and late-stock fallbacks. `Content/LegendaryRules.cs` owns the
+manual weapon timing/ranks and stable attribution IDs. Runtime `.Dealer.cs`
+extends the existing Journey junction (including single exits) with fixed stock,
+upper/lower placement, E/controller interaction, modal ownership and atomic
+fragment saving. Closing/reopening never regenerates the session. One offer
+can be purchased per crossing; ordinary spending uses the run wallet.
+
+`UI/Views/DealerView.cs` provides cards/icons/puzzle art and prices;
+`DealerPortraitView.cs` renders the shared ASCII face in separate hair/feature
+layers. `Resources/VoidFall/Dealer/` is exported by `Tools/Dealer/export-art.mjs`
+from the approved reference snapshot. The importer preserves transparent NPOT
+art. World crossing layers temporarily raise Zack and Workshop cosmetics,
+then restore their original sorting orders on departure.
+
+Runtime `.Legendaries.cs` owns a separate manual slot, keyed hit cooldowns,
+held-input cancellation, waveform/rifle rendering and shared damage calls.
+Sound Blade follows mouse/right-stick aim; Charged Rifle rotates independently
+and fires on release, with a 3-second overload cutoff. The waveform is cosmetic.
+Three distinct saved fragments assemble/equip a weapon; later run equipment and
+three-tier upgrades are dealer offers. Normal arsenal slots remain unchanged.
+`SaveData.soundBladeFragments` / `chargedRifleFragments` are compatible bit masks;
+existing currency keys remain `parts`. Manual damage IDs are retained in run
+records and the existing exporter; see `Docs/RunExports.md`.
+
+`DealerRulesTests`, `LegendaryRulesTests` and `DealerIntegrationTests` cover
+transactions, persistence, cooldown reuse, input guards, damage and exports.
+`-vfdealer-check=<absolute-folder>` runs the rendered `DealerIntegrationProbe`
+with a profile selected before the first load. It writes crossing/shop/weapon
+captures and a success/failure file. No fake preview income controls ship.
+Roulette fragments and the three alternative legendary candidates are deferred.
+
 `UI/Core/UIManager.cs` defines `UIScreen`, `UICallbacks` and `UIManager`.
 The runtime supplies callbacks at startup; its `.UI.cs` partial's
 `SyncUiScreen` selects the visible screen from runtime flags. Views must not

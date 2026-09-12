@@ -24,10 +24,7 @@ namespace VoidFall.Tests.PlayMode
         }
         private object Call(string name, params object[] args)
         {
-            foreach (var method in _runtime.GetType().GetMethods(Flags))
-                if (method.Name == name && method.GetParameters().Length == args.Length)
-                    try { return method.Invoke(_runtime, args); } catch (TargetInvocationException ex) { throw ex.InnerException ?? ex; }
-            throw new MissingMethodException(name);
+            return RuntimeTestReflection.Invoke(_runtime, name, args);
         }
         [UnitySetUp]
         public IEnumerator SetUp()

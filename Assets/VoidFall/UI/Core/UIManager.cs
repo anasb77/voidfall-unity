@@ -25,7 +25,8 @@ namespace VoidFall.UI
         RouteSelect,
         PrizeReveal,
         RouteMap,
-        DirectorSelection
+        DirectorSelection,
+        Dealer
     }
 
     /// <summary>
@@ -141,6 +142,7 @@ namespace VoidFall.UI
         public MainMenuView MainMenu { get; private set; }
         public DirectorSelectionView DirectorSelection { get; private set; }
         public LevelUpView LevelUp { get; private set; }
+        public DealerView Dealer { get; private set; }
         public GameOverView GameOver { get; private set; }
         public PauseView Pause { get; private set; }
         public WorkshopView Workshop { get; private set; }
@@ -264,6 +266,8 @@ namespace VoidFall.UI
             Settings.Initialize(this);
 
             LevelUp = CreateView<LevelUpView>(_overlayLayerRect, "Level Up");
+            Dealer = CreateView<DealerView>(_overlayLayerRect, "Dealer");
+            Dealer.Initialize(this);
             LevelUp.Initialize(this);
 
             Pause = CreateView<PauseView>(_overlayLayerRect, "Pause");
@@ -407,6 +411,7 @@ namespace VoidFall.UI
             Records?.SetVisible(screen == UIScreen.Records);
             Settings?.SetVisible(screen == UIScreen.Settings);
             LevelUp?.SetVisible(screen == UIScreen.LevelUp);
+            Dealer?.SetVisible(screen == UIScreen.Dealer);
             Pause?.SetVisible(screen == UIScreen.Pause);
             Revive?.SetVisible(screen == UIScreen.Revive);
             GameOver?.SetVisible(screen == UIScreen.GameOver);
@@ -421,7 +426,7 @@ namespace VoidFall.UI
             var decisionOverlay = screen == UIScreen.LevelUp || screen == UIScreen.Revive ||
                 screen == UIScreen.Pause || screen == UIScreen.GameOver ||
                 screen == UIScreen.Roulette || screen == UIScreen.RouteSelect ||
-                screen == UIScreen.PrizeReveal || screen == UIScreen.RouteMap;
+                screen == UIScreen.PrizeReveal || screen == UIScreen.RouteMap || screen == UIScreen.Dealer;
             Toasts?.SetObscured(decisionOverlay);
             Roulette?.SetVisible(screen == UIScreen.Roulette);
             RouteSelect?.SetVisible(screen == UIScreen.RouteSelect);

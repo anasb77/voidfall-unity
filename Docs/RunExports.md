@@ -1,5 +1,31 @@
 # Run exports — schema 4
 
+## Dealer and manual legendaries (September 12 additions)
+
+`dealer_stock` records fixed offer IDs plus price, run wallet, recipients,
+zero-based piece indices, fragment masks, equipped legendary/rank, face and
+top/bottom placement in JSON `detail`. `dealer_opened` and `dealer_closed`
+record browsing; close reason is purchased/skipped. `dealer_purchase` is the
+committed transaction with before/after snapshots and offer index;
+`dealer_rejected` records a rejection without claiming a debit. These events
+share source `dealer`, crossing `instanceId`, and normal visit/time context.
+Stable card IDs are G13/C01/G11/G05/G04; fragment IDs are
+`sound-blade-fragment-0..2` / `charged-rifle-fragment-0..2`.
+
+`legendary_equipped` records actual equipment/rank changes. Progress snapshots
+include `legendaryId`, `legendaryRank`, both fragment masks and dealer modifiers.
+The existing `weapon_damage_window` events and summary `weaponDamage` include
+`sound-blade` and `charged-rifle`. Totals use actual shared-path health/shield
+damage, not advertised attack damage. `legendary_activity` aggregates held
+attack seconds, released shots (`amount`) and overloads (`blockedAttempts`)
+per flush. There are no per-hit file writes. `dealer_recovery` records actual
+level-up healing and remaining charges; full-health charges still consume.
+
+`-vfdealer-check` runs are tagged diagnostic. Missing fields in older schema-4
+exports mean that version did not capture these systems. Native profile/run
+record damage also preserves both manual weapon IDs without adding normal
+arsenal slots.
+
 Normal runs export automatically and silently to `RunExports` beside
 `VoidFall.exe`. In Editor the directory is at the Unity project root. There is
 no upload service. The existing manual Export Run action uses the same writer

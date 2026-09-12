@@ -274,6 +274,7 @@ namespace VoidFall.Runtime
                     hp: boss.Health, maxHp: boss.MaxHealth, amount: boss.State,
                     detail: boss.ActiveAttack?.Id);
             }
+            FlushLegendaryTelemetry();
             for (var i = 0; i < _weaponDamage.Length; i++)
             {
                 var delta = _weaponDamage[i] - _telemetryWeaponDamage[i];

@@ -60,6 +60,8 @@ namespace VoidFall.Core
         /// <summary>The catalogue display name of a weapon id, for result text.</summary>
         public static string WeaponDisplayName(string weaponId)
         {
+            if (weaponId == "sound-blade") return "Sound Blade";
+            if (weaponId == "charged-rifle") return "Charged Rifle";
             var index = WeaponIndex(weaponId);
             return index >= 0 && index < ContentCatalog.Weapons.Length
                 ? ContentCatalog.Weapons[index].Name

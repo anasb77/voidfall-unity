@@ -510,6 +510,21 @@ namespace VoidFall.Tests.PlayMode
             var flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
             var method = target.GetType().GetMethod(name, flags, null,
                 Array.ConvertAll(arguments, argument => argument?.GetType() ?? typeof(object)), null);
+            if (method == null)
+            {
+                foreach (var candidate in target.GetType().GetMethods(flags))
+                {
+                    if (candidate.Name != name) continue;
+                    var parameters = candidate.GetParameters(); if (parameters.Length < arguments.Length) continue;
+                    var compatible = true;
+                    for (var i = 0; i < parameters.Length; i++)
+                        if (i < arguments.Length ? arguments[i] != null && !parameters[i].ParameterType.IsInstanceOfType(arguments[i]) : !parameters[i].IsOptional) compatible = false;
+                    if (!compatible) continue;
+                    var expanded = new object[parameters.Length]; Array.Copy(arguments, expanded, arguments.Length);
+                    for (var i = arguments.Length; i < expanded.Length; i++) expanded[i] = Type.Missing;
+                    method = candidate; arguments = expanded; break;
+                }
+            }
             Assert.That(method, Is.Not.Null, "Missing method '" + name + "'.");
             try
             {

@@ -165,6 +165,7 @@ namespace VoidFall.Runtime
             else if (_gameOver) screen = UIScreen.GameOver;
             else if (_routeMapOpen) screen = UIScreen.RouteMap;
             else if (_routeSelectOpen) screen = UIScreen.RouteSelect;
+            else if (_dealerOpen) screen = UIScreen.Dealer;
             else if (_paused) screen = UIScreen.Pause;
             else screen = UIScreen.None;
 

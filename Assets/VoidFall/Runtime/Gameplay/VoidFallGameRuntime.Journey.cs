@@ -48,6 +48,7 @@ namespace VoidFall.Runtime
 
         private void ToggleRouteMap()
         {
+            if (_dealerOpen) return;
             if (_routeMapOpen) { CloseRouteMap(); return; }
             if (_mainMenuBrowsing || _gameOver || _voidRoute == null || _ui?.RouteMap == null ||
                 _rouletteActive || _prizeRevealActive || _revivePending || _levelUpActive ||
@@ -217,7 +218,6 @@ namespace VoidFall.Runtime
         {
             var available = _voidRoute.NodesInState(RouteNodeState.Available);
             if (available.Count == 0) { FinishJourney(); return; }
-            if (available.Count == 1) { OnRouteVoidChosen(available[0]); return; }
             _journeyStage = JourneyStage.Junction;
             _routeSelectOpen = false;
             _junctionDestinations = available.ToArray();
@@ -277,6 +277,7 @@ namespace VoidFall.Runtime
                 _junctionLabels[index].text = node.DisplayName.ToUpperInvariant();
                 _junctionPortals[index].color = PortalDestinationColor(node.Id);
             }
+            BeginDealerCrossing();
             RefreshJunctionPlan();
             SyncUiScreen();
             Debug.Log($"VOIDFLOW junction void={CurrentVoidId} exits={string.Join(",", _junctionDestinations)} t={_time:F1}");
@@ -344,10 +345,14 @@ namespace VoidFall.Runtime
                 _junctionLabels[index].rectTransform.anchoredPosition = local;
             }
             _junctionCanvas.enabled = !_routeMapOpen;
+            RenderDealerCrossing();
         }
 
         private void HideJunction()
         {
+            if (_dealerOpen) CloseDealer();
+            RestoreDealerPlayerPresentation();
+            CancelLegendaryInput();
             if (_junctionRoot != null) _junctionRoot.SetActive(false);
             if (_junctionCanvas != null) _junctionCanvas.gameObject.SetActive(false);
             _junctionDestinations = Array.Empty<string>();
@@ -383,6 +388,7 @@ namespace VoidFall.Runtime
 
         private void DestroyJourneyVisuals()
         {
+            DestroyDealerVisuals();
             if (_junctionFloorSprite != null) Destroy(_junctionFloorSprite);
             if (_riftPortalFrames != null)
                 foreach (var frame in _riftPortalFrames) if (frame != null) Destroy(frame);
