@@ -1,65 +1,97 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace VoidFall.UI
 {
-    public sealed class DealerPortraitView : MonoBehaviour
+    // Explicit CSS-sized glyph quads: the shared UI text scale/line metrics must not reshape the portrait.
+    public sealed class DealerPortraitView : MaskableGraphic
     {
         [Serializable] private sealed class PortraitData { public string[] rows; }
         private struct Run { public int Row, Column, Layer; public string Text; }
         private static readonly float[] Depth = { 1, 1.65f, 1.8f, 1.55f, 2.5f, 2.1f, 1.2f, .45f };
         private static string[] _rows;
         private static Font _font;
-        private Text _hair, _features;
+        private const int AtlasSize = 64;
+        private const string Glyphs = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+        private static readonly Color32[] Tones = {
+            new Color32(154,163,168,255), new Color32(217,223,226,255), new Color32(217,223,226,255),
+            new Color32(195,203,208,255), new Color32(217,223,226,255), new Color32(195,203,208,255),
+            new Color32(140,151,158,255), new Color32(140,151,158,255) };
+        private readonly char[] _cells = new char[64 * 34];
+        private readonly int[] _layers = new int[64 * 34];
+        private float _fontSize, _nextFrame, _phase;
         private float _target, _yaw, _gaze;
         private bool _smile, _reduced;
-        private int _variation, _key = int.MinValue;
+        private int _variation;
+        public override Texture mainTexture => _font != null ? _font.material.mainTexture : Texture2D.whiteTexture;
         public static DealerPortraitView Create(Transform parent, string name, float fontSize, Vector2 size)
         {
             var rect = UIBuilder.CreateRect(parent, name); rect.sizeDelta = size;
             rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f);
             var view = rect.gameObject.AddComponent<DealerPortraitView>();
-            if (_font == null) _font = Font.CreateDynamicFontFromOSFont(new[] { "Consolas", "Courier New" }, 16);
+            if (_font == null) _font = Font.CreateDynamicFontFromOSFont(new[] { "Consolas", "Courier New" }, AtlasSize);
+            _font.RequestCharactersInTexture(Glyphs, AtlasSize, FontStyle.Normal);
             if (_rows == null)
             {
                 var asset = Resources.Load<TextAsset>("VoidFall/Dealer/portrait");
                 _rows = asset != null ? JsonUtility.FromJson<PortraitData>(asset.text).rows : new[] { "(  .  )" };
             }
-            view._hair = view.Layer("Hair", fontSize, new Color(.60f, .64f, .66f));
-            view._features = view.Layer("Features", fontSize, new Color(.85f, .88f, .89f));
+            view._fontSize = fontSize; view.raycastTarget = false;
             return view;
         }
-        private Text Layer(string name, float size, Color color)
-        {
-            var text = UIBuilder.CreateText(transform, name, "", size, color, TextAnchor.UpperCenter, false);
-            UIBuilder.Stretch(text.rectTransform); text.font = _font; text.supportRichText = false;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow; text.verticalOverflow = VerticalWrapMode.Overflow;
-            text.raycastTarget = false; text.lineSpacing = .9f; return text;
-        }
+        protected override void OnEnable() { base.OnEnable(); Font.textureRebuilt += FontRebuilt; }
+        protected override void OnDisable() { Font.textureRebuilt -= FontRebuilt; base.OnDisable(); }
+        private void FontRebuilt(Font font) { if (font == _font) { SetVerticesDirty(); SetMaterialDirty(); } }
         public void SetPose(float look, bool smile, bool reduced, int variation)
         { _target = Mathf.Clamp(look, -1, 1); _smile = smile; _reduced = reduced; _variation = Mathf.Clamp(variation, 0, 3); }
         private void Update()
         {
-            if (_hair == null) return;
+            if (_font == null || _rows == null) return;
             var dt = Time.unscaledDeltaTime;
             _yaw = _reduced ? _target : Mathf.Lerp(_yaw, _target, Mathf.Min(1, dt * 4));
             _gaze = _reduced ? _target : Mathf.Lerp(_gaze, _target, Mathf.Min(1, dt * 10));
-            var pose = Mathf.RoundToInt(_yaw * 5); var gaze = Mathf.RoundToInt(_gaze * 2);
-            var key = pose + gaze * 20 + (_smile ? 200 : 0) + _variation * 500;
-            if (_key != key)
+            if (Time.unscaledTime < _nextFrame) return;
+            _nextFrame = Time.unscaledTime + 1f / 30;
+            _phase = Time.unscaledTime * Mathf.PI * 2 / 4.4f;
+            Render(_yaw, _gaze, _smile, _variation); SetVerticesDirty();
+        }
+        protected override void OnPopulateMesh(VertexHelper mesh)
+        {
+            mesh.Clear(); if (_font == null || _fontSize <= 0) return;
+            _font.GetCharacterInfo('M', out var mono, AtlasSize);
+            var unit = _fontSize / AtlasSize; var advance = mono.advance * unit;
+            var origin = new Vector2(-advance * 32, rectTransform.rect.yMax - _fontSize * .86f);
+            var breath = _reduced ? 0 : Mathf.Sin(_phase);
+            var pivot = new Vector2(0, rectTransform.rect.yMax - 34 * _fontSize * 1.12f * .85f);
+            var tilt = (_variation == 1 ? 4.5f : _variation == 2 ? -1.5f : 0) * Mathf.Deg2Rad;
+            var cos = Mathf.Cos(tilt); var sin = Mathf.Sin(tilt);
+            Vector2 Pose(Vector2 point)
             {
-                _key = key; Render(pose / 5f, gaze / 2f, _smile, _variation, out var hair, out var face);
-                _hair.text = hair; _features.text = face;
+                point = pivot + (point - pivot) * (1 + breath * .003f) + Vector2.up * (breath * 1.4f);
+                var d = point - pivot; return pivot + new Vector2(d.x * cos - d.y * sin, d.x * sin + d.y * cos);
             }
-            var t = Time.unscaledTime;
-            var breath = _reduced ? 0 : Mathf.Sin(t * Mathf.PI * 2 / 4.4f) * 2;
-            _hair.rectTransform.anchoredPosition = new Vector2(_reduced ? 0 : Mathf.Sin(t * .72f) * 1.8f, breath);
-            _features.rectTransform.anchoredPosition = new Vector2(0, breath);
-            transform.localRotation = Quaternion.Euler(0, 0, _variation == 1 ? 4.5f : _variation == 2 ? -1.5f : 0);
+            for (var row = 0; row < 34; row++) for (var col = 0; col < 64; col++)
+            {
+                var index = row * 64 + col; var ch = _cells[index]; if (ch == ' ' || ch == '\0') continue;
+                if (!_font.GetCharacterInfo(ch, out var glyph, AtlasSize)) continue;
+                var position = origin + new Vector2(col * advance, -row * _fontSize * 1.12f);
+                var layer = _layers[index];
+                if (layer == 0 && !_reduced)
+                {
+                    var length = Mathf.Min(1, row / 30f); var side = col < 32 ? -1 : 1;
+                    position.x += Mathf.Sin(_phase * .72f - row * .19f + side * .8f) * (.3f + length * length * 3.2f);
+                    position.y -= Mathf.Cos(_phase * .72f - row * .12f) * length * .5f;
+                }
+                var start = mesh.currentVertCount; var tint = Tones[layer];
+                mesh.AddVert(Pose(position + new Vector2(glyph.minX, glyph.minY) * unit), tint, glyph.uvBottomLeft);
+                mesh.AddVert(Pose(position + new Vector2(glyph.minX, glyph.maxY) * unit), tint, glyph.uvTopLeft);
+                mesh.AddVert(Pose(position + new Vector2(glyph.maxX, glyph.maxY) * unit), tint, glyph.uvTopRight);
+                mesh.AddVert(Pose(position + new Vector2(glyph.maxX, glyph.minY) * unit), tint, glyph.uvBottomRight);
+                mesh.AddTriangle(start, start + 1, start + 2); mesh.AddTriangle(start, start + 2, start + 3);
+            }
         }
         private static int LayerAt(int row, int col)
         {
@@ -77,20 +109,20 @@ namespace VoidFall.UI
         private static int Round(float value) => (int)Math.Floor(value + .5f);
         private static void Patch(string[] rows, int row, int col, string value)
         { rows[row] = rows[row].Substring(0, col) + value + rows[row].Substring(Math.Min(rows[row].Length, col + value.Length)); }
-        private static void Render(float yaw, float gaze, bool smile, int variation, out string hair, out string face)
+        private void Render(float yaw, float gaze, bool smile, int variation)
         {
             const int width = 64, height = 34;
-            var cells = new char[width * height]; var isHair = new bool[cells.Length];
+            var cells = _cells;
             for (var i = 0; i < cells.Length; i++) cells[i] = ' ';
             var rows = (string[])_rows.Clone();
-            if (rows.Length < height) { hair = ""; face = rows[0]; return; }
+            if (rows.Length < height) return;
             if (variation == 1) { Patch(rows, 13, 10, " .######s."); Patch(rows, 14, 26, " .'_____'."); }
             void Stamp(int row, int col, string value, int layer)
             {
                 var compress = layer == 0 || layer == 7 ? 0 : -(col < 22 ? -1 : 1) * Mathf.Abs(yaw) * .65f;
                 var x = 9 + col + Round(yaw * Depth[layer] * 2.2f + compress);
                 for (var i = 0; i < value.Length; i++) if (value[i] != ' ' && x + i >= 0 && x + i < width && row >= 0 && row < height)
-                { var cell = row * width + x + i; cells[cell] = value[i]; isHair[cell] = layer == 0; }
+                { var cell = row * width + x + i; cells[cell] = value[i]; _layers[cell] = layer; }
             }
             var runs = new List<Run>();
             for (var row = 0; row < height; row++)
@@ -120,13 +152,6 @@ namespace VoidFall.UI
                 Stamp(12,30,"\\##",0); Stamp(13,30,":###",0); Stamp(14,31,"|###",0); Stamp(15,31,":###",0);
                 Stamp(16,32,"\\##",0); Stamp(17,33,":#",0); Stamp(18,34,".",0);
             }
-            var h = new StringBuilder(cells.Length + height); var f = new StringBuilder(cells.Length + height);
-            for (var row = 0; row < height; row++)
-            {
-                for (var col = 0; col < width; col++) { var i = row * width + col; h.Append(isHair[i] ? cells[i] : ' '); f.Append(isHair[i] ? ' ' : cells[i]); }
-                h.Append('\n'); f.Append('\n');
-            }
-            hair = h.ToString(); face = f.ToString();
         }
     }
 }

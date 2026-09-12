@@ -12,7 +12,8 @@ namespace VoidFall.EditorTools
             texture.npotScale = TextureImporterNPOTScale.None;
             texture.mipmapEnabled = false; texture.alphaIsTransparency = true;
             texture.wrapMode = TextureWrapMode.Clamp; texture.filterMode = FilterMode.Bilinear;
-            texture.maxTextureSize = 1024; texture.textureCompression = TextureImporterCompression.Uncompressed;
+            texture.maxTextureSize = assetPath.Contains("room-") ? 4096 : 1024;
+            texture.textureCompression = TextureImporterCompression.Uncompressed;
         }
     }
 }

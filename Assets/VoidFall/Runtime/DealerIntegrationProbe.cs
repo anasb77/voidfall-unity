@@ -36,7 +36,14 @@ namespace VoidFall.Runtime
         }
         private void LateUpdate()
         {
-            if (_runtime != null && Get("_ui") is VoidFall.UI.UIManager ui) ui.Pause?.SetVisible(false);
+            if (_runtime != null && Get("_ui") is VoidFall.UI.UIManager ui)
+            {
+                ui.Pause?.SetVisible(false);
+                if (_runtime.JourneyStatus == "Junction")
+                {
+                    Set("_paused", false); Call("RenderJunction"); Set("_paused", true);
+                }
+            }
             if (_runtime == null || _pose == LegendaryWeaponId.None) return;
             var state = (LegendaryState)Get("_legendaryState"); state.Angle = .12;
             if (_pose == LegendaryWeaponId.ChargedRifle)
@@ -78,9 +85,9 @@ namespace VoidFall.Runtime
             Call("StartRunInternal", true, true); Set("_paused", true);
             _runtime.ApplySettings();
             Call("OnVoidObjectiveCompleted"); Call("BeginPortalJunction"); Set("_paused", true);
-            Set("_dealerPosition", new Vector2(0, 105)); SetPlayer("Position", new Vector2(0, -175)); Set("_dealerVariation", 0);
+            Set("_dealerPosition", new Vector2(0, 10)); SetPlayer("Position", new Vector2(0, -210)); Set("_dealerVariation", 0);
             yield return Capture("room-top");
-            Set("_dealerPosition", new Vector2(0, -205)); SetPlayer("Position", new Vector2(-185, 0)); Set("_dealerVariation", 3);
+            Set("_dealerPosition", new Vector2(0, -260)); SetPlayer("Position", new Vector2(-180, -140)); Set("_dealerVariation", 3);
             yield return Capture("room-bottom");
             SetPlayer("Position", (Vector2)Get("_dealerPosition")); Set("_partsEarned", 100); Set("_paused", false); Call("OpenDealer");
             if (!(bool)Get("_dealerOpen")) throw new InvalidOperationException("Dealer did not open.");

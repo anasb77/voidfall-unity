@@ -187,8 +187,8 @@ namespace VoidFall.Runtime
                 _junctionAge += dt;
                 MovePlayer(dt);
                 var position = _gameSim.Player.Position;
-                position.x = Mathf.Clamp(position.x, -490f, 490f);
-                position.y = Mathf.Clamp(position.y, -235f, 235f);
+                position.x = Mathf.Clamp(position.x, -400f, 400f);
+                position.y = Mathf.Clamp(position.y, -270f, 45f);
                 _gameSim.Player.Position = position;
                 _cameraFollowPosition = Vector2.zero;
                 UpdatePickups(dt);
@@ -272,8 +272,7 @@ namespace VoidFall.Runtime
                 _junctionLabels[index].gameObject.SetActive(visible);
                 if (!visible) continue;
                 var node = _voidRoute.Node(_junctionDestinations[index]);
-                var portalX = 250f + variant * 25f;
-                _junctionPortals[index].transform.localPosition = new Vector3(index == 0 ? -portalX : portalX, 45f + variant * 25f, 0);
+                _junctionPortals[index].transform.localPosition = new Vector3(index == 0 ? -310 : 310, -25, 0);
                 _junctionLabels[index].text = node.DisplayName.ToUpperInvariant();
                 _junctionPortals[index].color = PortalDestinationColor(node.Id);
             }
@@ -351,7 +350,6 @@ namespace VoidFall.Runtime
         private void HideJunction()
         {
             if (_dealerOpen) CloseDealer();
-            RestoreDealerPlayerPresentation();
             CancelLegendaryInput();
             if (_junctionRoot != null) _junctionRoot.SetActive(false);
             if (_junctionCanvas != null) _junctionCanvas.gameObject.SetActive(false);

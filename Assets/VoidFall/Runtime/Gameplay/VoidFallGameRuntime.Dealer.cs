@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -15,13 +14,8 @@ namespace VoidFall.Runtime
         private float _dealerShield, _dealerCombatSeconds, _dealerSmileUntil;
         private int _dealerExtraWeapon = -1, _dealerHealthBonus, _dealerVariation, _dealerOpenedFrame, _dealerRecoveryCharges;
         private Vector2 _dealerPosition;
-        private DealerPortraitView _dealerPortrait;
-        private Text _dealerPrompt;
-        private RawImage _dealerPlayerImage;
-        private Mesh _dealerFloorMesh;
-        private readonly LineRenderer[] _dealerRings = new LineRenderer[5];
+        private DealerRoomView _dealerRoom;
         private float _dealerRoomClock;
-        private readonly Dictionary<SpriteRenderer, int> _dealerPlayerOrders = new Dictionary<SpriteRenderer, int>();
 
         private void ResetDealerRun()
         {
@@ -47,8 +41,8 @@ namespace VoidFall.Runtime
             var seed = _runSeed ^ (uint)(_completedVoids + 1) * 0x9e3779b9u;
             seed ^= seed >> 16; seed *= 0x85ebca6bu; seed ^= seed >> 13; seed *= 0xc2b2ae35u; seed ^= seed >> 16;
             var bottom = (seed & 1) != 0;
-            _dealerPosition = new Vector2(0, bottom ? -205 : 105);
-            _gameSim.Player.Position = bottom ? new Vector2(-185, 0) : new Vector2(0, -175);
+            _dealerPosition = new Vector2(0, bottom ? -260 : 10);
+            _gameSim.Player.Position = bottom ? new Vector2(-180, -140) : new Vector2(0, -210);
             _gameSim.Player.Velocity = Vector2.zero;
             _dealerVariation = (int)((seed >> 5) % 4);
             _dealerOpen = false;
@@ -60,7 +54,6 @@ namespace VoidFall.Runtime
                 _legendaryWeapon, _legendaryRank, target, target >= 0 ? UpgradeRules.WeaponDisplayName(ContentCatalog.Weapons[target].Id) : "",
                 _dealerShield > 0, _dealerDelayedOwned, _dealerExtraWeapon >= 0, late));
             EnsureDealerCrossingVisuals();
-            RaiseDealerPlayerPresentation();
             CancelLegendaryInput();
             RecordRunHistory("dealer_stock", "dealer", sourceId: "dealer", instanceId: _completedVoids,
                 options: Array.ConvertAll(_dealerSession.Offers, DealerRules.Id), detail: JsonUtility.ToJson(DealerSnapshot()));
@@ -151,102 +144,34 @@ namespace VoidFall.Runtime
         }
         private void EnsureDealerCrossingVisuals()
         {
-            if (_dealerPortrait != null) return;
-            var floor = _junctionRoot.transform.Find("Crossing Floor"); if (floor != null) floor.gameObject.SetActive(false);
-            foreach (var rim in _junctionRims) if (rim != null) rim.gameObject.SetActive(false);
-            var night = new GameObject("Crossing Night").AddComponent<SpriteRenderer>(); night.transform.SetParent(_junctionRoot.transform, false);
-            night.sprite = _junctionFloorSprite; night.color = new Color(.02f, .027f, .047f); night.sortingOrder = 1000;
-            night.transform.localScale = new Vector3(8000, 8000, 1);
-            var boundary = new[] { new Vector2(-520,-40), new Vector2(-420,160), new Vector2(-200,230), new Vector2(190,230),
-                new Vector2(430,160), new Vector2(530,-40), new Vector2(390,-200), new Vector2(140,-280), new Vector2(-210,-270), new Vector2(-400,-190) };
-            var vertices = new Vector3[boundary.Length + 1]; var colors = new Color[vertices.Length]; var indices = new int[boundary.Length * 3];
-            colors[0] = new Color(.04f,.075f,.10f);
-            for (var i = 0; i < boundary.Length; i++)
-            {
-                vertices[i + 1] = boundary[i]; colors[i + 1] = new Color(.027f,.052f,.075f);
-                indices[i * 3] = 0; indices[i * 3 + 1] = i + 1; indices[i * 3 + 2] = (i + 1) % boundary.Length + 1;
-            }
-            _dealerFloorMesh = new Mesh { name = "Crossing Platform" }; _dealerFloorMesh.vertices = vertices; _dealerFloorMesh.colors = colors; _dealerFloorMesh.triangles = indices; _dealerFloorMesh.RecalculateBounds();
-            var platform = new GameObject("Crossing Platform"); platform.transform.SetParent(_junctionRoot.transform, false);
-            platform.AddComponent<MeshFilter>().sharedMesh = _dealerFloorMesh;
-            var renderer = platform.AddComponent<MeshRenderer>(); renderer.sharedMaterial = VoidFall.Runtime.Rendering.VoidFallRenderMaterials.DefaultUnlit; renderer.sortingOrder = 1002;
-            var edge = CreateLineView("Crossing Platform Edge", 1003); edge.transform.SetParent(_junctionRoot.transform, false);
-            edge.positionCount = boundary.Length + 1; edge.startWidth = edge.endWidth = 1.2f;
-            edge.startColor = edge.endColor = new Color(.4f,.67f,.75f,.18f); edge.enabled = true;
-            for (var i = 0; i <= boundary.Length; i++) edge.SetPosition(i, boundary[i % boundary.Length]);
-            for (var i = 0; i < _dealerRings.Length; i++)
-            {
-                var line = CreateLineView("Crossing Orbit " + i, 1001); line.transform.SetParent(_junctionRoot.transform, false);
-                line.positionCount = 49; line.startWidth = line.endWidth = 6 + i * 4;
-                line.startColor = line.endColor = new Color(.35f,.55f,.68f,.035f); _dealerRings[i] = line;
-            }
-            _dealerPortrait = DealerPortraitView.Create(_junctionCanvas.transform, "Hovering Dealer", 8.3f, new Vector2(500, 340));
-            _dealerPortrait.GetComponent<RectTransform>().pivot = new Vector2(.5f, 0);
-            _dealerPrompt = UIBuilder.CreateText(_junctionCanvas.transform, "Dealer Interaction", "E  Browse", 13, UITheme.TextBody, TextAnchor.MiddleCenter, true);
-            _dealerPrompt.rectTransform.sizeDelta = new Vector2(220, 40);
-            _dealerPlayerImage = UIBuilder.CreateRect(_junctionCanvas.transform, "Player Above Dealer").gameObject.AddComponent<RawImage>();
-            _dealerPlayerImage.raycastTarget = false;
-            foreach (var portal in _junctionPortals) if (portal != null) portal.sortingOrder = 1010;
-        }
-        private void RaiseDealerPlayerPresentation()
-        {
-            void Raise(SpriteRenderer view)
-            {
-                if (view == null || _dealerPlayerOrders.ContainsKey(view)) return;
-                _dealerPlayerOrders[view] = view.sortingOrder; view.sortingOrder += 1000;
-            }
-            Raise(_playerView); Raise(_playerAuraView); Raise(_playerRingView);
-            if (_playerCosmeticViews != null) foreach (var view in _playerCosmeticViews) Raise(view);
-            if (_playerTrailViews != null) foreach (var view in _playerTrailViews) Raise(view);
-        }
-        private void RestoreDealerPlayerPresentation()
-        {
-            foreach (var entry in _dealerPlayerOrders) if (entry.Key != null) entry.Key.sortingOrder = entry.Value;
-            _dealerPlayerOrders.Clear();
+            if (_dealerRoom != null) return;
+            _dealerRoom = DealerRoomView.Create(_junctionCanvas);
         }
         private void RenderDealerCrossing()
         {
-            if (_journeyStage != JourneyStage.Junction || _dealerPortrait == null) return;
-            var root = (RectTransform)_junctionCanvas.transform;
-            var point = _camera.WorldToScreenPoint(_dealerPosition);
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(root, point, null, out var local);
-            var portraitRect = _dealerPortrait.GetComponent<RectTransform>();
-            // Keep the upper encounter clear of the timer while retaining its interaction position.
-            portraitRect.anchoredPosition = new Vector2(local.x, Mathf.Min(local.y, root.rect.height * .5f - portraitRect.rect.height - 90));
+            if (_journeyStage != JourneyStage.Junction || _dealerRoom == null) return;
             var reduced = _saveData?.settings?.reducedMotion == true;
-            _dealerPortrait.SetPose((_gameSim.Player.Position.x - _dealerPosition.x) / 300, Time.unscaledTime < _dealerSmileUntil, reduced, _dealerVariation);
-            _dealerPrompt.gameObject.SetActive(CanOpenDealer && !_dealerOpen);
-            _dealerPrompt.text = Gamepad.current != null && Mouse.current == null ? "A  Browse" : "E  Browse";
-            _dealerPrompt.rectTransform.anchoredPosition = local + Vector2.down * 35;
-            _junctionCanvas.enabled = !_routeMapOpen && !_dealerOpen;
             if (!reduced) _dealerRoomClock += Mathf.Min(Time.unscaledDeltaTime, .1f);
-            for (var ring = 0; ring < _dealerRings.Length; ring++)
+            var names = new string[_junctionDestinations.Length];
+            var colors = new Color[names.Length]; var frames = new Sprite[names.Length];
+            var frame = reduced || _riftPortalFrames.Length == 0 ? 0 : (int)(_dealerRoomClock * 10) % _riftPortalFrames.Length;
+            for (var i = 0; i < names.Length; i++)
             {
-                var line = _dealerRings[ring]; line.enabled = true;
-                for (var i = 0; i < 49; i++)
-                {
-                    var angle = (reduced ? 0 : _dealerRoomClock * .055f) + ring * 1.7f + i / 48f * 2.15f;
-                    line.SetPosition(i, new Vector3(Mathf.Cos(angle) * (320 + ring * 88), 70 + Mathf.Sin(angle) * (320 + ring * 88), 0));
-                }
+                names[i] = _voidRoute.Node(_junctionDestinations[i]).DisplayName;
+                colors[i] = PortalDestinationColor(_junctionDestinations[i]);
+                frames[i] = _riftPortalFrames.Length == 0 ? null : _riftPortalFrames[frame];
+                _junctionPortals[i].enabled = false; _junctionLabels[i].gameObject.SetActive(false);
             }
-            if (_playerView?.sprite != null)
-            {
-                var sprite = _playerView.sprite; var texture = sprite.texture; var rect = sprite.textureRect;
-                _dealerPlayerImage.texture = texture; _dealerPlayerImage.uvRect = new Rect(rect.x / texture.width, rect.y / texture.height, rect.width / texture.width, rect.height / texture.height);
-                point = _camera.WorldToScreenPoint(_gameSim.Player.Position);
-                RectTransformUtility.ScreenPointToLocalPointInRectangle(root, point, null, out local);
-                _dealerPlayerImage.rectTransform.anchoredPosition = local;
-                var edge = _camera.WorldToScreenPoint(_gameSim.Player.Position + Vector2.right * _playerView.bounds.extents.x);
-                var size = Mathf.Abs(edge.x - point.x) * 2 * root.rect.width / Mathf.Max(1, Screen.width);
-                _dealerPlayerImage.rectTransform.sizeDelta = Vector2.one * size;
-                _dealerPlayerImage.enabled = true;
-            }
+            _dealerRoom.Draw(_gameSim.Player.Position, _dealerPosition, _dealerVariation,
+                Time.unscaledTime < _dealerSmileUntil, reduced, CanOpenDealer && !_dealerOpen,
+                _partsEarned, _voidRoute.Node(CurrentVoidId).DisplayName, names, colors, frames, _dealerRoomClock);
+            _dealerRoom.PresentPlayer(_playerAuraView); _dealerRoom.PresentPlayer(_playerRingView);
+            if (_playerTrailViews != null) foreach (var view in _playerTrailViews) _dealerRoom.PresentPlayer(view);
+            if (_playerCosmeticViews != null) foreach (var view in _playerCosmeticViews) _dealerRoom.PresentPlayer(view);
+            _dealerRoom.PresentPlayer(_playerView);
+            _junctionCanvas.enabled = !_routeMapOpen;
         }
-        private void DestroyDealerVisuals()
-        {
-            if (_dealerFloorMesh != null) Destroy(_dealerFloorMesh);
-            DestroyLegendaryVisuals();
-        }
+        private void DestroyDealerVisuals() { DestroyLegendaryVisuals(); }
         [Serializable] private sealed class DealerOfferTelemetry { public string id, kind, legendary, targetWeapon; public int piece; }
         [Serializable] private sealed class DealerTelemetrySnapshot
         {
