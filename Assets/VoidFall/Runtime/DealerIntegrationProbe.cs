@@ -36,6 +36,7 @@ namespace VoidFall.Runtime
         }
         private void LateUpdate()
         {
+            if (_runtime != null && Get("_ui") is VoidFall.UI.UIManager ui) ui.Pause?.SetVisible(false);
             if (_runtime == null || _pose == LegendaryWeaponId.None) return;
             var state = (LegendaryState)Get("_legendaryState"); state.Angle = .12;
             if (_pose == LegendaryWeaponId.ChargedRifle)

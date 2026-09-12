@@ -38,7 +38,7 @@ namespace VoidFall.UI
             var text = UIBuilder.CreateText(transform, name, "", size, color, TextAnchor.UpperCenter, false);
             UIBuilder.Stretch(text.rectTransform); text.font = _font; text.supportRichText = false;
             text.horizontalOverflow = HorizontalWrapMode.Overflow; text.verticalOverflow = VerticalWrapMode.Overflow;
-            text.raycastTarget = false; text.lineSpacing = 1f; return text;
+            text.raycastTarget = false; text.lineSpacing = .9f; return text;
         }
         public void SetPose(float look, bool smile, bool reduced, int variation)
         { _target = Mathf.Clamp(look, -1, 1); _smile = smile; _reduced = reduced; _variation = Mathf.Clamp(variation, 0, 3); }

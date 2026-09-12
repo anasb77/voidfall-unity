@@ -90,6 +90,8 @@ namespace VoidFall.UI
             var titleRect = title.rectTransform; titleRect.anchorMin = titleRect.anchorMax = new Vector2(.5f, 1); titleRect.pivot = new Vector2(.5f, 1);
             titleRect.anchoredPosition = new Vector2(0, -132); titleRect.sizeDelta = new Vector2(265, 40);
             var desc = UIBuilder.CreateText(surface.transform, "Description", description, 12.5f, UITheme.TextDescription, TextAnchor.UpperCenter, false);
+            desc.horizontalOverflow = HorizontalWrapMode.Wrap;
+            desc.verticalOverflow = VerticalWrapMode.Truncate;
             var dr = desc.rectTransform; dr.anchorMin = Vector2.zero; dr.anchorMax = Vector2.one; dr.offsetMin = new Vector2(20, 14); dr.offsetMax = new Vector2(-20, -187);
             UIBuilder.FitText(desc, 10, 12.5f);
             var price = UIBuilder.CreateSecondaryAction(column, "Price", "100 Scraps", null, () => _buy?.Invoke(index), 40);

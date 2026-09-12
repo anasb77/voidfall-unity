@@ -210,7 +210,9 @@ namespace VoidFall.Runtime
             var root = (RectTransform)_junctionCanvas.transform;
             var point = _camera.WorldToScreenPoint(_dealerPosition);
             RectTransformUtility.ScreenPointToLocalPointInRectangle(root, point, null, out var local);
-            _dealerPortrait.GetComponent<RectTransform>().anchoredPosition = local;
+            var portraitRect = _dealerPortrait.GetComponent<RectTransform>();
+            // Keep the upper encounter clear of the timer while retaining its interaction position.
+            portraitRect.anchoredPosition = new Vector2(local.x, Mathf.Min(local.y, root.rect.height * .5f - portraitRect.rect.height - 90));
             var reduced = _saveData?.settings?.reducedMotion == true;
             _dealerPortrait.SetPose((_gameSim.Player.Position.x - _dealerPosition.x) / 300, Time.unscaledTime < _dealerSmileUntil, reduced, _dealerVariation);
             _dealerPrompt.gameObject.SetActive(CanOpenDealer && !_dealerOpen);
