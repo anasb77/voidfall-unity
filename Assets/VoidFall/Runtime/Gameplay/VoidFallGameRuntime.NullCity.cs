@@ -27,6 +27,7 @@ namespace VoidFall.Runtime
 
         private readonly NullCityUnitState[] _nullCityUnits = new NullCityUnitState[MaxEnemies];
         private readonly Vector2[] _nullCityBirthQueue = new Vector2[64];
+        private readonly long[] _nullCityBirthRoots = new long[64];
         private readonly Vector2[] _nullCityBlastQueue = new Vector2[64];
         private readonly NullCityBomb[] _nullCityBombs = new NullCityBomb[3];
         private readonly int[] _nullCityDamageSlots = new int[MaxEnemies];
@@ -38,6 +39,7 @@ namespace VoidFall.Runtime
         private bool _nullCityBossSpawned;
         private bool _nullCityCleared;
         private int _nullCityBossSlot = -1;
+        private bool _nullCityMapRecorded;
         private float _nullCityElapsed;
         private float _nullCityBossElapsed;
         private float _nullCitySpawnClock;
@@ -65,8 +67,8 @@ namespace VoidFall.Runtime
         private static bool IsMotherload(string id) => id == NullCityContent.MotherloadId;
         private bool NullCityLockdown => NullCityRules.CycleAt(_nullCityElapsed, _nullCityBossActive) == NullCityCycle.Lockdown;
 
-        private Vector2 NullCityWorld(float x, float y) => _nullCityOrigin + new Vector2(x - 800f, 450f - y);
-        private Vector2 NullCityCanvas(Vector2 world) => new Vector2(world.x - _nullCityOrigin.x + 800f, 450f - world.y + _nullCityOrigin.y);
+        private Vector2 NullCityWorld(float x, float y) => _nullCityOrigin + new Vector2((float)NullCityRules.WorldX(x), (float)NullCityRules.WorldY(y));
+        private Vector2 NullCityCanvas(Vector2 world) => new Vector2((float)NullCityRules.CanvasX(world.x - _nullCityOrigin.x), (float)NullCityRules.CanvasY(world.y - _nullCityOrigin.y));
 
         private void ResetNullCityEncounterState()
         {
@@ -79,12 +81,14 @@ namespace VoidFall.Runtime
             _nullCityCleared = false;
             _nullCityBossSlot = -1;
             _nullCityElapsed = _nullCityBossElapsed = 0f;
+            _nullCityMapRecorded = false;
             _nullCitySpawnClock = 0.5f;
             _nullCityHeavyClock = 10f;
             _nullCityHeavySequence = 0;
             _nullCityPoliceWave = 0;
             _nullCityLastCyclePass = -1;
-            _nullCityBirthCount = _nullCityBlastCount = 0;
+            ClearNullCityBirthQueue();
+            _nullCityBlastCount = 0;
             _nullCityDashRemaining = _nullCityDashCooldown = 0f;
             _nullCityDashRequested = false;
             _nullCityWarnClock = _nullCityTractorClock = _nullCityVentClock = 0f;
@@ -138,7 +142,14 @@ namespace VoidFall.Runtime
         private bool SpawnNullCityUnit(int type, Vector2 position, bool newborn = false, bool fromHangar = false)
         {
             if (type < 0 || type >= NullCityContent.Enemies.Length || _nullCityCleared) return false;
-            if (!SpawnEnemy(NullCityContent.Enemies[type].Id, position, forcedRoster: EnemyRoster.One)) return false;
+            bool spawned;
+            if (_nullCityBossActive && !_spawnFromActor && _spawnRewardRoot == 0 && _nullCityBossSlot >= 0)
+            {
+                using (FactionBirthScope(BossRewardRoot(_gameSim.Bosses[_nullCityBossSlot].TelemetryInstanceId)))
+                    spawned = SpawnEnemy(NullCityContent.Enemies[type].Id, position, forcedRoster: EnemyRoster.One);
+            }
+            else spawned = SpawnEnemy(NullCityContent.Enemies[type].Id, position, forcedRoster: EnemyRoster.One);
+            if (!spawned) return false;
             var identity = _nextEnemyId - 1;
             for (var i = 0; i < _gameSim.Enemies.Length; i++)
             {
@@ -200,6 +211,13 @@ namespace VoidFall.Runtime
         private void StepNullCity(float dt)
         {
             if (!CurrentVoidIsNullCity || _nullCityCleared || dt <= 0f) return;
+            if (!_nullCityMapRecorded && _runExportActive)
+            {
+                RecordRunHistory("arena_map_policy", "null-city-original-4x-v1", reason: "entered",
+                    sourceId: "null-city", amount: NullCityRules.WorldScale,
+                    detail: "world=6400x3600;authoredBounds=180,220,1420,746;camera=player_follow;purgeDps=125");
+                _nullCityMapRecorded = true;
+            }
             _nullCityElapsed += dt;
             if (_nullCityBossActive) _nullCityBossElapsed += dt;
             var pass = _nullCityBossActive ? -2 : Mathf.FloorToInt(_nullCityElapsed / 46f);
@@ -260,14 +278,24 @@ namespace VoidFall.Runtime
             ClampNullCityPlayer();
         }
 
-        private static bool InsideNullCityPurge(Vector2 p, NullCityPurge h, float pad) =>
-            p.x > h.X - pad && p.x < h.X + h.Width + pad && p.y > h.Y - pad && p.y < h.Y + h.Height + pad;
+        private static bool InsideNullCityPurge(Vector2 p, NullCityPurge h, float worldPad)
+        {
+            var pad = worldPad / NullCityRules.WorldScale;
+            return p.x > h.X - pad && p.x < h.X + h.Width + pad && p.y > h.Y - pad && p.y < h.Y + h.Height + pad;
+        }
 
         private void QueueNullCityBrood(Vector2 position, int count, float radius)
         {
             for (var i = 0; i < count && _nullCityBirthCount < _nullCityBirthQueue.Length; i++)
             {
                 var angle = i * Mathf.PI * 2f / count;
+                var root = CaptureFactionBirthRoot();
+                if (root == 0 && !_spawnFromActor && _nullCityBossActive && _nullCityBossSlot >= 0)
+                {
+                    using (FactionBirthScope(BossRewardRoot(_gameSim.Bosses[_nullCityBossSlot].TelemetryInstanceId)))
+                        root = CaptureFactionBirthRoot();
+                }
+                _nullCityBirthRoots[_nullCityBirthCount] = root;
                 _nullCityBirthQueue[_nullCityBirthCount++] = position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
             }
         }
@@ -278,9 +306,25 @@ namespace VoidFall.Runtime
             for (var i = 0; i < _nullCityBirthCount; i++)
             {
                 var p = _nullCityBirthQueue[i];
-                if (!SpawnNullCityUnit(3, p, newborn: true)) _nullCityBirthQueue[remaining++] = p;
+                var root = _nullCityBirthRoots[i];
+                _nullCityBirthRoots[i] = 0;
+                bool spawned;
+                using (FactionBirthScope(root)) spawned = SpawnNullCityUnit(3, p, newborn: true);
+                if (spawned) ReleaseFactionBirthRoot(root);
+                else
+                {
+                    _nullCityBirthRoots[remaining] = root;
+                    _nullCityBirthQueue[remaining++] = p;
+                }
             }
             _nullCityBirthCount = remaining;
+        }
+
+        private void ClearNullCityBirthQueue()
+        {
+            for (var i = 0; i < _nullCityBirthCount; i++)
+            { ReleaseFactionBirthRoot(_nullCityBirthRoots[i]); _nullCityBirthRoots[i] = 0; }
+            _nullCityBirthCount = 0;
         }
 
         private void OnNullCityEnemyDeath(EnemyState enemy)
@@ -383,7 +427,7 @@ namespace VoidFall.Runtime
                 var approach = distance > 290f ? 1f : distance < 205f ? -.85f : .05f;
                 var side = new Vector2(-direction.y, direction.x) * Mathf.Sin(e.Seed) * .8f;
                 e.Velocity = (direction * approach + side) * e.Speed * (powered ? 1f : .7f);
-                if (powered && e.AttackCooldown <= 0f) { state.Shots = 3; state.ShotClock = 0f; e.AttackCooldown = 4.4f; }
+                if (powered && e.AttackCooldown <= 0f && CanCommitDirectorAttack(e)) { state.Shots = 3; state.ShotClock = 0f; e.AttackCooldown = 4.4f; }
             }
             if ((type == 2 && distance < 320f) || (type == 5 && distance < 385f) ||
                 (type == 8 && distance < 300f) || (type == 7 && distance < 220f) || (type == 11 && distance < 260f))
@@ -451,7 +495,7 @@ namespace VoidFall.Runtime
             {
                 var attack = (type == 4 && distance < 100f) || (type == 9 && distance < 340f) || type == 11 ||
                     powered && (type == 1 || type == 2 || type == 5 || type == 8 || type == 6 && distance < 153f);
-                if (attack)
+                if (attack && CanCommitDirectorAttack(e))
                 {
                     e.State = 1;
                     e.StateTimer = type == 4 ? 1.5f : type == 6 ? 1.55f : 1.35f;
@@ -466,15 +510,16 @@ namespace VoidFall.Runtime
         {
             if (!IsNullCityEnemy(e.Id) || _nullCityUnits[e.View].Emergence > 0f) return;
             var p = NullCityCanvas(e.Position);
-            e.Position = NullCityWorld(Mathf.Clamp(p.x, 180f + e.Radius * .3f, 1420f - e.Radius * .3f),
-                Mathf.Clamp(p.y, 220f + e.Radius * .3f, 746f - e.Radius * .3f));
+            e.Position = NullCityWorld(Mathf.Clamp(p.x, 180f + e.Radius * .3f / NullCityRules.WorldScale, 1420f - e.Radius * .3f / NullCityRules.WorldScale),
+                Mathf.Clamp(p.y, 220f + e.Radius * .3f / NullCityRules.WorldScale, 746f - e.Radius * .3f / NullCityRules.WorldScale));
         }
 
         private void BeginNullCityBossEncounter()
         {
             if (_nullCityBossSpawned) return;
             ClearHydraBossArena();
-            _nullCityBirthCount = _nullCityBlastCount = 0;
+            ClearNullCityBirthQueue();
+            _nullCityBlastCount = 0;
             SpawnBoss(NullCityContent.MotherloadId, 1.0, 1.0, 0);
             for (var i = 0; i < _gameSim.Bosses.Length; i++)
             {
@@ -557,7 +602,7 @@ namespace VoidFall.Runtime
                     {
                         for (var i = 0; i < 3; i++)
                         {
-                            var canvas = NullCityCanvas(_gameSim.Player.Position) + (i == 0 ? Vector2.zero : i == 1 ? new Vector2(-125f, 65f) : new Vector2(125f, -65f));
+                            var canvas = NullCityCanvas(_gameSim.Player.Position) + (i == 0 ? Vector2.zero : i == 1 ? new Vector2(-125f, 65f) / NullCityRules.WorldScale : new Vector2(125f, -65f) / NullCityRules.WorldScale);
                             _nullCityBombs[i] = new NullCityBomb { Active = true, Remaining = 1.6f,
                                 Position = NullCityWorld(Mathf.Clamp(canvas.x, 300f, 1280f), Mathf.Clamp(canvas.y, 250f, 710f)) };
                         }
@@ -583,7 +628,8 @@ namespace VoidFall.Runtime
         {
             _nullCityCleared = true;
             _nullCityBossActive = false;
-            _nullCityBirthCount = _nullCityBlastCount = 0;
+            ClearNullCityBirthQueue();
+            _nullCityBlastCount = 0;
             _nullCityTractorClock = _nullCityWarnClock = 0f;
             _nullCityCannonCount = 0;
             Array.Clear(_nullCityBombs, 0, _nullCityBombs.Length);
@@ -596,6 +642,7 @@ namespace VoidFall.Runtime
             // Preserve the defeated boss and its native dissolution/relic-emergence timer.
             for (var i = 0; i < _gameSim.Enemies.Length && (_voidRoute == null || _stressScenario != null); i++)
             {
+                if (_gameSim.Enemies[i].Active) RecordEnemyRemoval(i, "null_city_cleanup");
                 _gameSim.Enemies[i] = default;
                 Hide(_enemyViews[i]);
                 Hide(_enemyHealthArcViews[i]); Hide(_enemyShieldArcViews[i]);

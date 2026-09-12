@@ -76,6 +76,8 @@ namespace VoidFall.Runtime
 
         private void ClearCombatForJourney()
         {
+            CancelEncounterDirector();
+            StopMajorIncident();
             if (_journeyStage == JourneyStage.Rewards)
             {
                 BeginEscapeEnemyRetirement();
@@ -98,6 +100,8 @@ namespace VoidFall.Runtime
             // Loot left after the collection/countdown window belongs to the outgoing arena.
             for (var index = 0; index < _gameSim.Pickups.Length; index++)
             {
+                var pickup = _gameSim.Pickups[index];
+                if (pickup.Active) RecordPickupHistory("drop_discarded", index, pickup);
                 _gameSim.Pickups[index] = default;
                 Hide(_pickupViews[index]);
             }
@@ -148,7 +152,7 @@ namespace VoidFall.Runtime
                 // The run-result screen owns defeats until the player picks
                 // Play again or Main menu. Only victories retire straight
                 // home (interim finale while the true ending is future work).
-                if (_runVictory && _runSaved) ReturnToMenuAfterResult();
+                if (_runVictory && _runSaved && !DirectorResultNeedsAcknowledgement) ReturnToMenuAfterResult();
                 return;
             }
             if (_journeyStage == JourneyStage.Combat) return;
@@ -370,7 +374,7 @@ namespace VoidFall.Runtime
 
         private void ReturnToMenuAfterResult()
         {
-            if (!_runSaved) return;
+            if (!_runSaved || DirectorResultNeedsAcknowledgement) return;
             var notice = _runVictory ? "ESCAPED — " + _completedVoids + " Voids cleared. Progress saved." : "Run ended. Progress saved.";
             Debug.Log($"VOIDFLOW run-end victory={_runVictory} voids={_completedVoids} t={_time:F1} saved={_runSaved}");
             EnterMainMenu();

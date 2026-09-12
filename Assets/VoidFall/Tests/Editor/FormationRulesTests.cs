@@ -11,6 +11,20 @@ namespace VoidFall.Tests.Editor
     /// </summary>
     public sealed class FormationRulesTests
     {
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public void Phalanx_never_exceeds_tiny_headroom(int cap)
+        {
+            Assert.That(Compose(FormationKind.Phalanx, 400, 9u, cap).Length, Is.LessThanOrEqualTo(cap));
+        }
+
+        [Test]
+        public void Wedge_apex_has_only_one_offscreen_offset()
+        {
+            var spawns = Compose(FormationKind.VeeWedge, 300, 4u);
+            Assert.That(spawns[0].X, Is.EqualTo(-HalfWidth - FormationRules.OffscreenMargin).Within(.001));
+        }
         private const double HalfWidth = 512;
         private const double HalfHeight = 288;
 

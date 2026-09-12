@@ -93,7 +93,7 @@ namespace VoidFall.Tests.PlayMode
         public void Mine_freeze_expires_and_cannot_transfer_to_reused_slots()
         {
             Equip(6, 6, true); Enemy(0, new Vector2(10, 0)); Step(.7f);
-            Assert.That(((float[])Get("_arsenalFreeze"))[0], Is.GreaterThan(2));
+            Assert.That(((float[])Get("_arsenalFreeze"))[0], Is.InRange(1.19f, 1.21f));
             var old = Enemies.GetValue(0);
             var replacement = Enemies.GetValue(0); FieldSet(replacement, "SpawnId", (int)Field(old, "SpawnId") + 1000);
             Assert.That((bool)Call("AdvanceArsenalFrozenEnemy", 0, replacement, .1f), Is.False);
@@ -175,7 +175,7 @@ namespace VoidFall.Tests.PlayMode
             bosses.SetValue(boss, 0); ((int[])Field(_sim, "BossOrder"))[0] = 0; FieldSet(_sim, "BossOrderCount", 1);
             Step(.05f); Assert.That((float)Field(bosses.GetValue(0), "Health"), Is.LessThan(1000));
             Call("RenderArsenalWeapons");
-            Assert.That(((SpriteRenderer)Get("_arsenalClockFace")).color.a, Is.EqualTo(.35f));
+            Assert.That(((SpriteRenderer)Get("_arsenalClockFace")).color.a, Is.EqualTo(.18f));
             var hands = (SpriteRenderer[])Get("_arsenalClockHands");
             Assert.That(hands[0].enabled && hands[1].enabled, Is.True);
             Assert.That(hands[0].color.a, Is.EqualTo(.5f));
@@ -194,6 +194,41 @@ namespace VoidFall.Tests.PlayMode
             Set("_upgradeProgress", progress); Set("_rouletteRng", new Rng(7));
             Call("GrantNewCardRank");
             Assert.That(Array.FindAll(progress.WeaponRanks, rank => rank > 0).Length, Is.EqualTo(limit));
+        }
+
+        [Test]
+        public void Rank_three_seconds_hand_hits_only_within_its_short_reach_and_resets()
+        {
+            Equip(8, 2);
+            Call("RenderArsenalWeapons");
+            var hands = (SpriteRenderer[])Get("_arsenalClockHands");
+            Assert.That(hands.Length, Is.EqualTo(3));
+            Assert.That(hands[2] == null || !hands[2].enabled, Is.True);
+            Equip(8, 3);
+            Set("_arsenalClockAngle", Mathf.PI / 2);
+            Enemy(0, new Vector2(-45, 0)); Enemy(1, new Vector2(-100, 0));
+            Step(.01f);
+            Assert.That(Health(0), Is.EqualTo(984).Within(.01), "Small hand deals half of rank-III damage.");
+            Assert.That(Health(1), Is.EqualTo(1000), "Small hand must not hit at main-hand reach.");
+            Step(.05f);
+            Assert.That(Health(0), Is.EqualTo(984).Within(.01), "Independent repeat-hit gate.");
+            Call("RenderArsenalWeapons");
+            Assert.That(hands[0].transform.localScale.x, Is.EqualTo(300));
+            Assert.That(hands[0].color.a, Is.EqualTo(.5f));
+            Assert.That(hands[2].enabled, Is.True);
+            Assert.That(hands[2].transform.localScale.x, Is.EqualTo(150));
+            Call("ClearTransitionProjectiles");
+            foreach (var hand in hands) if (hand != null) Assert.That(hand.enabled, Is.False);
+        }
+
+        [Test]
+        public void Boomerang_visual_and_contact_radius_are_halved()
+        {
+            Equip(9); Enemy(0, new Vector2(300, 0)); Step(.01f);
+            Call("RenderArsenalWeapons");
+            var views = (SpriteRenderer[])Get("_arsenalBoomerangViews");
+            Assert.That(views[0].transform.localScale.x, Is.EqualTo(24));
+            Assert.That(ContentCatalog.Weapons[9].Ranks[0].Stats.ProjectileRadius, Is.EqualTo(4.5));
         }
 
         [Test]

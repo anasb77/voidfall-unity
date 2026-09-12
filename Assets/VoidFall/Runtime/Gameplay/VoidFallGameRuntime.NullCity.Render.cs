@@ -66,6 +66,7 @@ namespace VoidFall.Runtime
             if (_nullCityPurgeBeam != null) _nullCityPurgeBeam.enabled = false;
             if (_nullCityTractorFill != null) _nullCityTractorFill.enabled = false;
             HideNullCityViews(_nullCityPurgeStripes);
+            if (_nullCityRoadSurface != null) _nullCityRoadSurface.enabled = false;
             HideNullCityViews(_nullCityEnemyWarnings);
             HideNullCityViews(_nullCityBombWarnings);
             HideNullCityViews(_nullCityTractorEdges);
@@ -85,6 +86,7 @@ namespace VoidFall.Runtime
             _nullCityDarkness = 0f;
             for (var i = 0; i < _deathGhosts.Length; i++)
                 if (IsNullCityEnemy(_deathGhosts[i].Id)) ClearNullCityProp(_deathGhostViews[i]);
+            if (_nullCitySignCanvas != null) _nullCitySignCanvas.gameObject.SetActive(false);
             _nullCityPresentationVisible = false;
         }
 
@@ -97,6 +99,7 @@ namespace VoidFall.Runtime
                 DetachNullCitySprites(_bossViews, visuals);
                 DetachNullCitySprites(_deathGhostViews, visuals);
             }
+            ReleaseNullCityRoadSprites();
             var index = (int)ArenaId.NullCity;
             if (_backdropView != null && _backdropView.sprite == _arenaPlateSprites[index]) _backdropView.sprite = null;
             if (_arenaBakedDetailView != null && _arenaBakedDetailView.sprite == _arenaPlateDetailSprites[index]) _arenaBakedDetailView.sprite = null;
@@ -163,7 +166,7 @@ namespace VoidFall.Runtime
             view.sprite = sprite;
             view.transform.position = position;
             view.transform.rotation = Quaternion.identity;
-            view.transform.localScale = Vector3.one;
+            view.transform.localScale = Vector3.one * NullCityRules.WorldScale;
             view.color = color;
             view.enabled = sprite != null;
         }
@@ -188,7 +191,7 @@ namespace VoidFall.Runtime
             if (_backdropView.sprite != null)
             {
                 var size = _backdropView.sprite.bounds.size;
-                _backdropView.transform.localScale = new Vector3(1600f / size.x, 900f / size.y, 1f);
+                _backdropView.transform.localScale = new Vector3(NullCityRules.WorldWidth / size.x, NullCityRules.WorldHeight / size.y, 1f);
             }
             if (_arenaBakedDetailView != null)
             {
@@ -200,7 +203,7 @@ namespace VoidFall.Runtime
                 if (_arenaBakedDetailView.sprite != null)
                 {
                     var size = _arenaBakedDetailView.sprite.bounds.size;
-                    _arenaBakedDetailView.transform.localScale = new Vector3(1600f / size.x, 900f / size.y, 1f);
+                    _arenaBakedDetailView.transform.localScale = new Vector3(NullCityRules.WorldWidth / size.x, NullCityRules.WorldHeight / size.y, 1f);
                 }
             }
             var visuals = NullCityVisuals;
@@ -224,16 +227,17 @@ namespace VoidFall.Runtime
                         NullCityWorld(x, y), new Color(1f, 1f, 1f, lockdown ? .55f : .8f), -85);
                 }
             }
+            RenderNullCitySign(lockdown);
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
             for (var i = 0; i < _nullCitySearchlights.Length; i++)
             {
                 if (lockdown) { if (_nullCitySearchlights[i] != null) _nullCitySearchlights[i].enabled = false; continue; }
                 var source = NullCityWorld(i == 0 ? 421f : 1288f, 180f);
                 var angle = -(i == 0 ? 1f : 2.1f) - (reducedMotion ? 0f : Mathf.Sin(clock * .23f + i) * .45f);
-                var end = source + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 510f;
+                var end = source + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (510f * NullCityRules.WorldScale);
                 NullCityLine(ref _nullCitySearchlights[i], "Null City Searchlight", source, end, 1f, new Color(.65f, .92f, .94f, .07f), -94);
                 _nullCitySearchlights[i].startWidth = 1f;
-                _nullCitySearchlights[i].endWidth = 154f;
+                _nullCitySearchlights[i].endWidth = 154f * NullCityRules.WorldScale;
                 _nullCitySearchlights[i].endColor = new Color(.4f, .75f, .85f, .018f);
             }
             for (var i = 0; i < _nullCityRain.Length; i++)
@@ -256,7 +260,8 @@ namespace VoidFall.Runtime
                 _camera.orthographicSize = half.y;
                 _camera.aspect = half.x / half.y;
                 var shake = CameraShakeOffset();
-                _camera.transform.position = new Vector3(_nullCityOrigin.x + shake.x, _nullCityOrigin.y + shake.y, -10f);
+                var center = _mainMenuBrowsing ? _nullCityOrigin : _gameSim.Player.Position;
+                _camera.transform.position = new Vector3(center.x + shake.x, center.y + shake.y, -10f);
             }
             UpdateTransitionOverlay();
         }
@@ -264,7 +269,9 @@ namespace VoidFall.Runtime
         private Vector2 NullCityViewportHalfExtent()
         {
             var aspect = Screen.height > 0 ? Mathf.Max(.5f, (float)Screen.width / Screen.height) : 16f / 9f;
-            var halfHeight = Mathf.Max(450f, 800f / aspect) * _spatialZoomScale;
+            var halfHeight = _mainMenuBrowsing
+                ? Mathf.Max(NullCityRules.WorldHeight * .5f, NullCityRules.WorldWidth * .5f / aspect)
+                : Mathf.Max(309.375f, 550f / aspect) * NullCityRules.FollowViewMultiplier * _spatialZoomScale;
             return new Vector2(halfHeight * aspect, halfHeight);
         }
 
@@ -272,9 +279,13 @@ namespace VoidFall.Runtime
         {
             if (!h.Visible) return;
             var x = (float)h.X; var y = (float)h.Y; var w = (float)h.Width; var height = (float)h.Height;
+            var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
+            var jitter = (float)NullCityRules.RoadShake(_nullCityElapsed, h.Active, reducedMotion);
+            var offset = h.Lane < 2 ? new Vector2(0f, jitter) : new Vector2(jitter, 0f);
+            RenderNullCityRoadSurface(h, offset);
             var a = NullCityWorld(x, y + height * .5f);
             var b = NullCityWorld(x + w, y + height * .5f);
-            NullCityLine(ref _nullCityPurgeFill, "Null City Purge Fill", a, b, height,
+            NullCityLine(ref _nullCityPurgeFill, "Null City Purge Fill", a, b, height * NullCityRules.WorldScale,
                 new Color(1f, .58f, .3f, h.Active ? .22f : .075f), -74);
             if (_nullCityPurgeBorder == null) _nullCityPurgeBorder = CreateLineView("Null City Purge Border", -72);
             _nullCityPurgeBorder.positionCount = 5;
@@ -299,7 +310,7 @@ namespace VoidFall.Runtime
             if (h.Active)
             {
                 if (h.Lane >= 2) { a = NullCityWorld(x + w * .5f, y); b = NullCityWorld(x + w * .5f, y + height); }
-                NullCityLine(ref _nullCityPurgeBeam, "Null City Purge Discharge", a, b, 4f, new Color(1f, .94f, .77f, .95f), -71);
+                NullCityLine(ref _nullCityPurgeBeam, "Null City Purge Discharge", a + offset, b + offset, Mathf.Min(w, height) * NullCityRules.WorldScale * .09f, new Color(1f, .94f, .77f, .95f), -71);
             }
         }
 

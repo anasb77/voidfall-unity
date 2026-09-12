@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Text;
 using UnityEditor;
-using UnityEditor.Build.Reporting;
 using UnityEngine;
 using UnityEngine.UI;
 using VoidFall.UI;
@@ -27,18 +26,7 @@ namespace VoidFall.EditorTools
 
         public static void BuildPlayer()
         {
-            var output = Path.GetFullPath("../Builds/MusicRemix/VoidFall.exe");
-            Directory.CreateDirectory(Path.GetDirectoryName(output));
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
-            {
-                scenes = new[] { "Assets/Scenes/SampleScene.unity" },
-                locationPathName = output,
-                target = BuildTarget.StandaloneWindows64,
-                options = BuildOptions.None,
-            });
-            var success = report.summary.result == BuildResult.Succeeded;
-            Debug.Log("MUSIC REMIX BUILD " + report.summary.result + " errors=" + report.summary.totalErrors + " path=" + output);
-            EditorApplication.Exit(success ? 0 : 1);
+            VoidFall.EditorTools.BuildScript.BuildWindows();
         }
 
         public static void CapturePerimeter()

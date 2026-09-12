@@ -148,22 +148,25 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(_music.CurrentMixTargets.PlaybackRate, Is.InRange(1f, 1.28f));
             Assert.That(_music.CurrentMixTargets.BassBoost, Is.GreaterThan(.3f).And.LessThanOrEqualTo(.45f));
             var source = (AudioSource)Field(_music, "_source");
-            Assert.That(source.time, Is.GreaterThan(5f));
+            var hasCuratedEntry = MusicTrackEntries.Pick(_music.CurrentTrackName, new System.Random(0)) > 0f;
+            Assert.That(source.time, hasCuratedEntry ? Is.GreaterThan(5f) : Is.LessThan(1f));
             Assert.That(source.clip.name, Is.EqualTo(_music.CurrentTrackName));
         }
 
         [Test]
-        public void Natural_gameplay_completion_after_a_hitch_advances_from_zero_and_retains_remix()
+        public void Stopped_gameplay_after_a_hitch_restarts_same_track_from_zero_and_retains_remix()
         {
             ConfigureGameplaySequence();
             ChargeMagnet();
             var charge = _music.MagnetIntensity;
-            var previous = _music.CurrentTrackName;
+            var source = (AudioSource)Field(_music, "_source");
+            var previous = source.clip;
 
             SimulateCompletedPlayback();
 
-            var source = (AudioSource)Field(_music, "_source");
-            Assert.That(_music.CurrentTrackName, Is.Not.EqualTo(previous));
+            Assert.That(source.clip, Is.SameAs(previous));
+            Assert.That(source.loop, Is.True);
+            Assert.That(source.isPlaying, Is.True);
             Assert.That(source.time, Is.LessThan(.01f));
             Assert.That(_music.MagnetIntensity, Is.GreaterThan(charge * .99f));
         }
@@ -198,15 +201,25 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
-        public void Manual_track_loop_keeps_the_active_bomb_duck_and_mix_gain()
+        public void Unexpected_gameplay_stop_restarts_same_track_from_zero_and_keeps_active_mix()
         {
             var source = (AudioSource)Field(_music, "_source");
+            var previous = source.clip;
             typeof(MusicDirector).GetField("_fadeVolume", Flags).SetValue(_music, .1f);
             typeof(MusicDirector).GetField("_duckElapsed", Flags).SetValue(_music, .08f);
             typeof(MusicDirector).GetField("_mixGain", Flags).SetValue(_music, .95f);
+            typeof(MusicDirector).GetField("_startOffset", Flags).SetValue(_music, 10f);
+            typeof(MusicDirector).GetField("_playbackObserved", Flags).SetValue(_music, true);
+            typeof(MusicDirector).GetField("_notPlayingElapsed", Flags).SetValue(_music, 1f);
             source.volume = .0114f;
-            typeof(MusicDirector).GetMethod("RestartCurrent", Flags).Invoke(_music, null);
-            Assert.That(source.volume, Is.EqualTo(.0114f).Within(.0001f), "A loop must not unduck the song for one frame.");
+            source.Stop();
+
+            CallMusic("HandlePlaybackCompletion", 1f);
+
+            Assert.That(source.clip, Is.SameAs(previous));
+            Assert.That(source.time, Is.LessThan(.01f));
+            Assert.That(source.isPlaying, Is.True);
+            Assert.That(source.volume, Is.EqualTo(.0114f).Within(.0001f), "Recovery must not unduck the song for one frame.");
         }
 
         [Test]
@@ -221,6 +234,65 @@ namespace VoidFall.Tests.PlayMode
             SetHealth(.19f);
             Call("UpdateMusicCriticalHealth", true);
             Assert.That(Call("UpdateMusicCriticalHealth", false), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator Real_streamed_soundtrack_loops_same_track_after_natural_end()
+        {
+            _previousGameplayClips = (AudioClip[])Field(_music, "_gameplayClips");
+            var bag = (List<int>)Field(_music, "_gameplayBag");
+            _previousGameplayBag = new List<int>(bag);
+            _previousLastGameplayIndex = (int)Field(_music, "_lastGameplayIndex");
+            bag.Clear();
+            for (var index = 0; index < _previousGameplayClips.Length; index++) bag.Add(index);
+            CallMusic("BeginChannel", MusicDirector.Channel.Gameplay);
+            var source = (AudioSource)Field(_music, "_source");
+            var visited = new HashSet<string>();
+            for (var index = 0; index < _previousGameplayClips.Length; index++)
+            {
+                // Exercise real streaming completion at normal, overclock and critical rates.
+                _music.SetReactiveState(State(index % 3 == 0 ? 2 : 0, index % 3 == 2));
+                var readyUntil = Time.realtimeSinceStartup + 5f;
+                while ((!source.isPlaying || (bool)Field(_music, "_switching")) && Time.realtimeSinceStartup < readyUntil)
+                    yield return null;
+                Assert.That(source.isPlaying, Is.True, "The actual imported soundtrack must start: " + _music.CurrentTrackName);
+                var finished = source.clip;
+                visited.Add(finished.name);
+                Assert.That(finished.loadType, Is.EqualTo(AudioClipLoadType.Streaming));
+                Assert.That(source.loop, Is.True);
+                source.time = finished.length - .6f;
+                yield return new WaitForSecondsRealtime(1.3f);
+                Assert.That(source.clip, Is.SameAs(finished), "Gameplay must keep the same song until Track Shift: " + finished.name);
+                Assert.That(source.isPlaying, Is.True, "The looped stream must still be playing: " + finished.name);
+                Assert.That(source.time, Is.LessThan(3f), "A Track Shift entry offset must loop back to the full track start: " + finished.name);
+                Debug.Log("REAL STREAMED TRACK LOOP PASSED " + finished.name);
+
+                if (index >= _previousGameplayClips.Length - 1) continue;
+                _music.ShiftToNextCombatTrack();
+                var shiftUntil = Time.realtimeSinceStartup + 5f;
+                while ((source.clip == finished || (bool)Field(_music, "_switching")) && Time.realtimeSinceStartup < shiftUntil)
+                    yield return null;
+                Assert.That(source.clip, Is.Not.SameAs(finished), "Track Shift must select a different song: " + finished.name);
+            }
+            Assert.That(visited.Count, Is.EqualTo(_previousGameplayClips.Length));
+        }
+
+        [UnityTest]
+        public IEnumerator Real_streamed_menu_theme_restarts_after_natural_end()
+        {
+            _music.PlayMainMenu();
+            var source = (AudioSource)Field(_music, "_source");
+            var until = Time.realtimeSinceStartup + 5f;
+            while ((_music.CurrentChannel != MusicDirector.Channel.MainMenu || !source.isPlaying) && Time.realtimeSinceStartup < until)
+                yield return null;
+            Assert.That(_music.CurrentChannel, Is.EqualTo(MusicDirector.Channel.MainMenu));
+            Assert.That(source.isPlaying, Is.True);
+            var clip = source.clip;
+            source.time = clip.length - .4f;
+            yield return new WaitForSecondsRealtime(1.3f);
+            Assert.That(source.clip, Is.SameAs(clip));
+            Assert.That(source.isPlaying, Is.True);
+            Assert.That(source.time, Is.LessThan(clip.length - 2f));
         }
 
         private static MusicReactiveState State(int tier = 0, bool critical = false) =>

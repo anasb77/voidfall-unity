@@ -27,6 +27,8 @@ namespace VoidFall.Persistence
                 {
                     version = GetInt(root, "version", 0),
                     parts = GetInt(root, "parts", 0),
+                    directorId = GetInt(root, "directorId", 0),
+                    directorOnboardingSeen = GetBool(root, "directorOnboardingSeen", false),
                     settings = ReadSettings(GetObject(root, "settings")),
                     workshop = ReadEntries(GetObject(root, "workshop")),
                     stats = ReadStats(GetObject(root, "stats")),
@@ -94,6 +96,7 @@ namespace VoidFall.Persistence
                 totalDamageTaken = GetLong(source, "totalDamageTaken", 0),
                 totalPartsEarned = GetInt(source, "totalPartsEarned", 0),
                 bestScore = GetInt(source, "bestScore", 0),
+                bestFinalScore = GetLong(source, "bestFinalScore", 0),
                 bestTime = GetInt(source, "bestTime", 0),
                 bestKills = GetInt(source, "bestKills", 0),
                 highestLevel = GetInt(source, "highestLevel", 1),
@@ -124,6 +127,12 @@ namespace VoidFall.Persistence
                 var record = new RunRecordEntry
                 {
                     score = GetInt(source, "score", 0),
+                baseScore = GetLong(source, "baseScore", 0),
+                pressureHundredths = GetInt(source, "pressureHundredths", 0),
+                multiplierHundredths = GetInt(source, "multiplierHundredths", 0),
+                finalScore = GetLong(source, "finalScore", 0),
+                scoringVersion = GetInt(source, "scoringVersion", 0),
+                directorId = GetInt(source, "directorId", 0),
                     kills = GetInt(source, "kills", 0),
                     time = GetInt(source, "time", 0),
                     level = GetInt(source, "level", 1),
@@ -149,6 +158,12 @@ namespace VoidFall.Persistence
             return new HighScoreEntry
             {
                 score = GetInt(source, "score", 0),
+                baseScore = GetLong(source, "baseScore", 0),
+                pressureHundredths = GetInt(source, "pressureHundredths", 0),
+                multiplierHundredths = GetInt(source, "multiplierHundredths", 0),
+                finalScore = GetLong(source, "finalScore", 0),
+                scoringVersion = GetInt(source, "scoringVersion", 0),
+                directorId = GetInt(source, "directorId", 0),
                 kills = GetInt(source, "kills", 0),
                 time = GetInt(source, "time", 0),
                 level = GetInt(source, "level", 1),
@@ -241,6 +256,7 @@ namespace VoidFall.Persistence
 
         private static long GetLong(object value, long fallback)
         {
+            if (value is long integer) return integer;
             if (!TryGetDouble(value, out var number) || double.IsNaN(number) || double.IsInfinity(number))
                 return fallback;
             if (number <= long.MinValue) return long.MinValue;

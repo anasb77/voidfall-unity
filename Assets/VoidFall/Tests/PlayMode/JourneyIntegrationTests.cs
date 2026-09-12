@@ -41,6 +41,7 @@ namespace VoidFall.Tests.PlayMode
             var profile = SaveStore.CreateDefault();
             profile.parts = 120;
             profile.stats.totalRuns = 7;
+            profile.directorOnboardingSeen = true;
             _testStore.Save(profile);
             Set(_runtime, "_saveStore", _testStore);
             Set(_runtime, "_saveData", profile);
@@ -126,6 +127,8 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.Roulette));
             RouletteRules.Spin((RouletteSession)Get(_runtime, "_rouletteSession"), new Rng(200));
             Invoke(_runtime, "OnRouletteComplete", Get(_runtime, "_rouletteSession"));
+            Assert.That(Get(_runtime, "_paused"), Is.True, "Claim presentation retains pause ownership.");
+            RouletteClaimTestActions.ClaimAll(_runtime);
             Assert.That(Get(_runtime, "_prizeRevealActive"), Is.False);
             Assert.That(Get(_runtime, "_paused"), Is.False);
             Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.None));
@@ -152,7 +155,7 @@ namespace VoidFall.Tests.PlayMode
         [UnityTest]
         public IEnumerator Reward_phase_finishes_defeated_boss_visuals_before_relic_pickup()
         {
-            Invoke(_runtime, "StepObjectiveTracker", 300d);
+            Invoke(_runtime, "StepObjectiveTracker", VoidProgressionRules.SurvivalSeconds);
             Invoke(_runtime, "StepObjectiveTracker", 0d);
             Assert.That(_runtime.ActiveBossesCount, Is.EqualTo(2));
             Invoke(_runtime, "KillBoss", 1);
@@ -180,6 +183,9 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(Get(_runtime, "_partsEarned"), Is.EqualTo(180), "An unspun session cannot claim a prize.");
             RouletteRules.Spin(session, rng);
             Invoke(_runtime, "OnRouletteComplete", session);
+            Invoke(_runtime, "OnRouletteComplete", session);
+            Assert.That(Get(_runtime, "_partsEarned"), Is.EqualTo(180), "Landing does not grant unclaimed Parts.");
+            RouletteClaimTestActions.ClaimAll(_runtime);
             Invoke(_runtime, "OnRouletteComplete", session);
             Assert.That(Get(_runtime, "_partsEarned"), Is.EqualTo(270));
             Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.None));
@@ -363,8 +369,12 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(Get(_runtime, "_kills"), Is.EqualTo(4));
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Complete"));
 
+            var frozenScore = _runtime.TerminalRunScore;
+            Set(_runtime, "_score", 5000);
             Set(_runtime, "_saveStore", _testStore);
-            Invoke(_runtime, "StartRun");
+            Invoke(_runtime, "AcknowledgeDirectorResult");
+            Assert.That(_testStore.Load().recentRuns[0].finalScore, Is.EqualTo(frozenScore.FinalScore));
+            Assert.That(_testStore.Load().recentRuns[0].baseScore, Is.EqualTo(frozenScore.BaseScore));
 
             Assert.That(Get(_runtime, "_mainMenuBrowsing"), Is.True,
                 "A successful retry should resolve the preserved result before starting another run.");
@@ -400,6 +410,10 @@ namespace VoidFall.Tests.PlayMode
             yield return null;
             _runtime.enabled = false;
 
+            Assert.That(Get(_runtime, "_mainMenuBrowsing"), Is.False);
+            Assert.That(_runtime.DirectorResultNeedsAcknowledgement, Is.True);
+            Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.GameOver));
+            Invoke(_runtime, "AcknowledgeDirectorResult");
             Assert.That(Get(_runtime, "_mainMenuBrowsing"), Is.True);
             Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.Home));
             Invoke(_runtime, "UpdateJourneyFlow", 0.1f);

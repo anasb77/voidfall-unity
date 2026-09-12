@@ -9,7 +9,7 @@ namespace VoidFall.Runtime
         private readonly LineRenderer[] _arsenalMineRanges = new LineRenderer[ArsenalMineCapacity];
         private readonly SpriteRenderer[] _arsenalSummonViews = new SpriteRenderer[ArsenalSummonCapacity];
         private readonly SpriteRenderer[] _arsenalBoomerangViews = new SpriteRenderer[ArsenalBoomerangCapacity];
-        private readonly SpriteRenderer[] _arsenalClockHands = new SpriteRenderer[2];
+        private readonly SpriteRenderer[] _arsenalClockHands = new SpriteRenderer[ArsenalContent.ClockHandCapacity];
         private SpriteRenderer _arsenalClockFace;
 
         private void WarmArsenalVisuals()
@@ -76,7 +76,7 @@ namespace VoidFall.Runtime
             {
                 var shot = _arsenalBoomerangs[i];
                 if (!shot.Active) { Hide(_arsenalBoomerangViews[i]); continue; }
-                ArsenalView(ref _arsenalBoomerangViews[i], "boomerang", shot.Rank, shot.Evolved, shot.Position, shot.Age * 19, 48 * size, shot.Returning ? .5f : 1);
+                ArsenalView(ref _arsenalBoomerangViews[i], "boomerang", shot.Rank, shot.Evolved, shot.Position, shot.Age * 19, 48 * size * (float)ArsenalContent.BoomerangSizeScale, shot.Returning ? .5f : 1);
             }
             var clockRank = ArsenalRank(8);
             if (clockRank > 0)
@@ -86,13 +86,13 @@ namespace VoidFall.Runtime
                 _arsenalClockFace.transform.localScale = Vector3.one * (300 * _areaMultiplier);
                 _arsenalClockFace.color = new Color(1, 1, 1, (float)ArsenalContent.ClockFaceOpacity);
                 _arsenalClockFace.enabled = true;
-                var hands = ArsenalEvolved(8) ? 2 : 1;
                 for (var i = 0; i < _arsenalClockHands.Length; i++)
                 {
-                    if (i >= hands) { Hide(_arsenalClockHands[i]); continue; }
-                    var angle = i == 0 ? _arsenalClockAngle : -_arsenalClockAngle + Mathf.PI;
-                    var view = ArsenalView(ref _arsenalClockHands[i], "clock", clockRank, i > 0, _gameSim.Player.Position, angle, 300 * _areaMultiplier, (float)ArsenalContent.ClockOpacity);
-                    view.transform.localScale = new Vector3(300 * _areaMultiplier, 300 * size, 1);
+                    if (!ArsenalContent.ClockHandActive(i, clockRank, ArsenalEvolved(8))) { Hide(_arsenalClockHands[i]); continue; }
+                    var angle = ArsenalClockHandAngle(i, _arsenalClockAngle);
+                    var scale = (float)ArsenalContent.ClockHandScale(i);
+                    var view = ArsenalView(ref _arsenalClockHands[i], "clock", clockRank, i == 1, _gameSim.Player.Position, angle, 300 * _areaMultiplier * scale, (float)ArsenalContent.ClockOpacity);
+                    view.transform.localScale = new Vector3(300 * _areaMultiplier * scale, 300 * size * scale, 1);
                 }
             }
             else { Hide(_arsenalClockFace); foreach (var hand in _arsenalClockHands) Hide(hand); }

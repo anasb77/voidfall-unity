@@ -286,6 +286,7 @@ namespace VoidFall.Runtime
 
         private void Render()
         {
+            ApplyApprovedMapVideoEffects();
             // Publish any sprite baked since the last frame so a lazily baked
             // sprite still appears.
             //
@@ -336,6 +337,7 @@ namespace VoidFall.Runtime
             // Workshop frame cosmetics track the player the same way (and share
             // the exact sprites with the Workshop preview).
             UpdatePlayerCosmetics(playerVisible);
+            ApplyApprovedMapPlayerPresentation();
 
             // The browser draws its compact enemy array forward. Pooled Unity
             // slots are not that array after swap-removal, so keep the visual
@@ -345,15 +347,18 @@ namespace VoidFall.Runtime
             {
                 Hide(_enemyHarvesterFullViews[i]);
                 Hide(_enemyExploderWarningViews[i]);
-                if (!_gameSim.Enemies[i].Active) Hide(_enemyViews[i]);
+                if (!_gameSim.Enemies[i].Active) { Hide(_enemyViews[i]); HideHydraPopulationExtras(i); }
             }
             for (var order = 0; order < _gameSim.EnemyOrderCount; order++)
             {
                 var i = _gameSim.EnemyOrder[order];
                 if (i < 0 || i >= _gameSim.Enemies.Length || !_gameSim.Enemies[i].Active || _enemyViews[i] == null) continue;
                 var enemy = _gameSim.Enemies[i];
+                if (TryRenderDestroyer(i, enemy)) continue;
                 _enemyViews[i].rendererPriority = order;
                 SetEnemyPresentationPriority(i, order);
+                if (TryRenderCourtSentinel(i, enemy)) continue;
+                if (TryRenderHydraPopulation(i, enemy)) continue;
                 var progressedSprite = ProgressedEnemySprite(enemy);
                 var rosterTwoVisual = enemy.Roster == EnemyRoster.Two && !enemy.Elite &&
                     (enemy.Id == "chaser" || enemy.Id == "gunner" || enemy.Id == "guard" || enemy.Id == "exploder");
@@ -379,6 +384,7 @@ namespace VoidFall.Runtime
                     0,
                     0,
                     enemy.Rotation * Mathf.Rad2Deg + (progressedSprite != null ? -90f : 0));
+                if (IsCourtSentinel(enemy)) _enemyViews[i].transform.rotation = Quaternion.identity;
                 // Finish appearance even for enemies born on the boss-clear tick;
                 // their AI age deliberately stops with combat during escape.
                 var presentationAge = enemy.Age + (JourneyStopsCombat && _journeyStage == JourneyStage.Rewards ? EscapeElapsed : 0f);
@@ -4129,9 +4135,9 @@ namespace VoidFall.Runtime
                         new Color(96f / 255f, 165f / 255f, 250f / 255f, 0.85f));
                 }
 
-                var heavy = enemy.Elite || enemy.Id == "brute" || enemy.Id == "bulwark" ||
+                var heavy = IsCourtSentinel(enemy) || enemy.Elite || enemy.Id == "brute" || enemy.Id == "bulwark" ||
                     enemy.Id == "carrier" || enemy.Id == "harvester";
-                if (!heavy || enemy.Health >= enemy.MaxHealth) continue;
+                if (!heavy || (!IsCourtSentinel(enemy) && enemy.Health >= enemy.MaxHealth)) continue;
 
                 var width = Mathf.Max(18f, enemy.Radius * 2.2f);
                 var height = 4f;
@@ -4822,6 +4828,8 @@ namespace VoidFall.Runtime
         {
             ApplyArenaColorGrade();
             if (_backdropView == null) return;
+            if (RenderApprovedMapSurface()) return;
+            _backdropView.enabled = true;
             if (_arenaId == ArenaId.EonSea || _arenaId == ArenaId.Crascendo)
             {
                 if (_nullCityPresentationVisible) HideNullCityPresentation();

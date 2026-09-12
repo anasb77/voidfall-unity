@@ -46,8 +46,8 @@ namespace VoidFall.Core
                 case RoulettePrizeKind.NewRandomCard: return "A random unowned weapon or support, rank 1";
                 case RoulettePrizeKind.WeaponUpgradeQuality: return "+2 ranks to a random owned weapon";
                 case RoulettePrizeKind.SupportUpgradeQuality: return "+2 ranks to a random owned support";
-                case RoulettePrizeKind.PowerUp: return "A rare power-up drops at your feet";
-                case RoulettePrizeKind.RareBoon: return "Restore all integrity and gain 500 score";
+                case RoulettePrizeKind.PowerUp: return "A random power-up drops at your feet for pickup";
+                case RoulettePrizeKind.RareBoon: return "+" + RouletteRules.BonusPartsReward + " Parts for the Workshop";
                 case RoulettePrizeKind.WildCard: return "Gain one random, unowned Wild Card";
                 default: return wedge.Description;
             }
@@ -63,8 +63,24 @@ namespace VoidFall.Core
                 case RoulettePrizeKind.WeaponUpgradeQuality:
                 case RoulettePrizeKind.SupportUpgradeQuality: return "+2 RANKS";
                 case RoulettePrizeKind.PowerUp: return "POWER-UP";
-                case RoulettePrizeKind.RareBoon: return "RESTORE";
+                case RoulettePrizeKind.RareBoon: return "+" + RouletteRules.BonusPartsReward + " PARTS";
                 default: return "WILD";
+            }
+        }
+
+        public static string WheelLabel(RouletteWedgeDefinition wedge)
+        {
+            switch (wedge.Kind)
+            {
+                case RoulettePrizeKind.Parts: return RouletteRules.PartsReward(wedge.Tier) + "\nParts";
+                case RoulettePrizeKind.UpgradeRandomOwned: return "Random\nCard\nUpgrade\n+1 Rank";
+                case RoulettePrizeKind.NewRandomCard: return "Random\nNew Card";
+                case RoulettePrizeKind.WeaponUpgradeQuality: return "Random\nWeapon\nUpgrade\n+2 Ranks";
+                case RoulettePrizeKind.SupportUpgradeQuality: return "Random\nSupport\nUpgrade\n+2 Ranks";
+                case RoulettePrizeKind.PowerUp: return "Random\nPower-Up\nDrop";
+                case RoulettePrizeKind.RareBoon: return RouletteRules.BonusPartsReward + "\nParts";
+                case RoulettePrizeKind.WildCard: return "Wild\nCard";
+                default: return wedge.Name;
             }
         }
 

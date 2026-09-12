@@ -11,7 +11,7 @@ public static class SimulationRules
     public const int MaxParticles = 280;
     public const int MaxFloaters = 42;
     public const int MaxDeathGhosts = 80;
-    public const int MaxActiveEnemies = 192;
+    public const int MaxActiveEnemies = 750;
 }
 
 public sealed class FixedStepClock

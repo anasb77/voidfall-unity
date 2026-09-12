@@ -237,7 +237,7 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
-        public void Escape_part_drop_with_full_pool_uses_normal_grant_effects_once()
+        public void Escape_part_drop_with_full_pool_remains_collectable_and_grants_once()
         {
             var spawnSpecial = Array.Find(_runtime.GetType().GetMethods(Flags), item => item.Name == "SpawnSpecialPickup");
             var part = Enum.Parse(spawnSpecial.GetParameters()[2].ParameterType, "Part");
@@ -255,6 +255,21 @@ namespace VoidFall.Tests.PlayMode
             Call("StepEscapeEnemyRetirement");
             Call("StepEscapeEnemyRetirement");
 
+            Assert.That((int)Get("_partsEarned"), Is.Zero, "Available space keeps the Part as a physical reward.");
+            var nearestPosition = Vector2.zero;
+            var nearestDistance = float.PositiveInfinity;
+            foreach (var pickup in pickups)
+            {
+                var type = pickup.GetType();
+                if (!(bool)type.GetField("Active", Flags).GetValue(pickup) || type.GetField("Kind", Flags).GetValue(pickup).ToString() != "Part") continue;
+                var position = (Vector2)type.GetField("Position", Flags).GetValue(pickup);
+                var distance = Vector2.Distance(position, PlayerPosition());
+                if (distance >= nearestDistance) continue;
+                nearestDistance = distance; nearestPosition = position;
+            }
+            SetPlayerPosition(nearestPosition);
+            Call("UpdatePickups", .016f);
+            Call("UpdatePickups", .016f);
             Assert.That((int)Get("_partsEarned"), Is.EqualTo(1));
             Assert.That(OrderCount("_floaterOrder"), Is.EqualTo(floatersBefore + 1));
             var pickupRecord = TelemetryPickup("part");
@@ -287,13 +302,15 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
-        public void Roulette_completion_grants_once_and_resumes_without_an_extra_popup()
+        public void Roulette_claims_grant_once_and_resume_without_an_extra_popup()
         {
             Call("OnVoidObjectiveCompleted");
             Call("OpenBossRoulette");
             var session = (RouletteSession)Get("_rouletteSession");
             RouletteRules.Spin(session, (Rng)Get("_rouletteRng"));
             Call("OnRouletteComplete", session);
+            Assert.That((bool)Get("_paused"), Is.True);
+            RouletteClaimTestActions.ClaimAll(_runtime);
             Assert.That((bool)Get("_prizeRevealActive"), Is.False);
             Assert.That((bool)Get("_paused"), Is.False);
             var count = (int)Get("_rouletteCeremoniesSeen");

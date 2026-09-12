@@ -179,6 +179,8 @@ namespace VoidFall.Core
         /// <summary>Base Scraps cost; each additional use of the same purchase doubles it.</summary>
         public const int ImproveOddsBaseCost = 25;
         public const int RaiseStakesBaseCost = 40;
+        // RareBoon retains its serialized prize ID; its reward is now this Parts payout.
+        public const int BonusPartsReward = 500;
 
         public static readonly string[] RefundLines =
         {
@@ -201,17 +203,17 @@ namespace VoidFall.Core
                 new RouletteWedgeDefinition(RoulettePrizeKind.Parts, RouletteTier.Mediocre,
                     16, "SCRAPS CACHE", "A modest pile of Scraps.", "#7f8ea8"),
                 new RouletteWedgeDefinition(RoulettePrizeKind.UpgradeRandomOwned, RouletteTier.Standard,
-                    20, "RANDOM UPGRADE", "A random owned card gains a rank.", "#4fc3f7"),
+                    20, "Random Card Upgrade +1 Rank", "A random owned card gains one rank, up to its cap.", "#4fc3f7"),
                 new RouletteWedgeDefinition(RoulettePrizeKind.NewRandomCard, RouletteTier.Standard,
-                    14, "NEW CARD", "Gain one random card you do not own.", "#4fc3f7"),
+                    14, "Random New Card", "Gain one random unowned weapon or support at rank 1.", "#4fc3f7"),
                 new RouletteWedgeDefinition(RoulettePrizeKind.WeaponUpgradeQuality, RouletteTier.Premium,
-                    12, "WEAPON FORGE", "One weapon gains two ranks.", "#ffd54f"),
+                    12, "Random Weapon Upgrade +2 Ranks", "A random owned weapon gains two ranks, up to its cap.", "#ffd54f"),
                 new RouletteWedgeDefinition(RoulettePrizeKind.SupportUpgradeQuality, RouletteTier.Premium,
-                    10, "SYSTEMS TUNE", "One support gains two ranks.", "#ffd54f"),
+                    10, "Random Support Upgrade +2 Ranks", "A random owned support gains two ranks, up to its cap.", "#ffd54f"),
                 new RouletteWedgeDefinition(RoulettePrizeKind.PowerUp, RouletteTier.Standard,
-                    14, "VOID GIFT", "A pickable power-up appears.", "#81c784"),
+                    14, "Random Power-Up Drop", "A random power-up drops at your feet for pickup.", "#81c784"),
                 new RouletteWedgeDefinition(RoulettePrizeKind.RareBoon, RouletteTier.Legendary,
-                    6, "RARE BOON", "A powerful run-only boon.", "#ce93d8"),
+                    6, "500 Parts", "Gain 500 Parts for the Workshop.", "#ce93d8"),
                 new RouletteWedgeDefinition(RoulettePrizeKind.WildCard, RouletteTier.Legendary,
                     4, "WILD CARD", "A rule-breaking card.", "#ff7043"),
             };

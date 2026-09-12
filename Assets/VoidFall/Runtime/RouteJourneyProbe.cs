@@ -104,7 +104,7 @@ namespace VoidFall.Runtime
 
             if (_mode == "roulette")
             {
-                Call("StepObjectiveTracker", 300d);
+                Call("StepObjectiveTracker", VoidProgressionRules.SurvivalSeconds);
                 Call("StepObjectiveTracker", 0d);
                 var simulation = Get("_gameSim");
                 var bossStates = (Array)simulation.GetType().GetField("Bosses", Flags).GetValue(simulation);
@@ -135,8 +135,15 @@ namespace VoidFall.Runtime
                 yield return new WaitForSecondsRealtime(0.4f);
                 typeof(VoidFall.UI.RouletteView).GetMethod("OnSpinPressed", Flags).Invoke(ui.Roulette, null);
                 yield return new WaitForSecondsRealtime(9f);
+                for (var card = 1; card <= 3 && (bool)Get("_prizeRevealActive"); card++)
+                {
+                    yield return new WaitForSecondsRealtime(.65f);
+                    yield return new WaitForEndOfFrame();
+                    ScreenCapture.CaptureScreenshot(_output + "-claim-" + card + ".png");
+                    ClaimPresentedRouletteReward();
+                }
                 if ((bool)Get("_prizeRevealActive") || (bool)Get("_rouletteActive"))
-                    throw new InvalidOperationException("Spin did not release the escape without an extra popup.");
+                    throw new InvalidOperationException("Claiming every roulette card did not release the escape.");
                 yield return new WaitForEndOfFrame();
                 ScreenCapture.CaptureScreenshot(_output + "-resumed.png");
                 yield return new WaitForSecondsRealtime(0.4f);
@@ -163,8 +170,8 @@ namespace VoidFall.Runtime
             {
                 var source = _runtime.CurrentVoidId;
                 _visited.Add(source);
-                Set("_time", (float)_runtime.ElapsedSeconds + 300f);
-                Call("StepObjectiveTracker", 300d);
+                Set("_time", (float)_runtime.ElapsedSeconds + (float)VoidProgressionRules.SurvivalSeconds);
+                Call("StepObjectiveTracker", VoidProgressionRules.SurvivalSeconds);
                 Call("StepObjectiveTracker", 0d);
                 var sim = Get("_gameSim");
                 var captureIndex = 0;
@@ -237,7 +244,7 @@ namespace VoidFall.Runtime
                     }
                     if ((bool)Get("_prizeRevealActive"))
                     {
-                        Call("ClosePrizeReveal");
+                        ClaimPresentedRouletteReward();
                     }
                     if ((bool)Get("_levelUpActive"))
                     {
@@ -315,6 +322,18 @@ namespace VoidFall.Runtime
                     throw new TimeoutException("Journey stalled after " + source + " at " + _runtime.JourneyStatus);
             }
             throw new InvalidOperationException("Route failed to terminate.");
+        }
+
+        private void ClaimPresentedRouletteReward()
+        {
+            var ui = (VoidFall.UI.UIManager)Get("_ui");
+            var view = ui.LevelUp;
+            var take = view.transform.Find("Content/RewardActions/Take");
+            var button = take != null && take.gameObject.activeInHierarchy ? take.GetComponent<UnityEngine.UI.Button>() : null;
+            if (button == null)
+                foreach (var candidate in view.GetComponentsInChildren<UnityEngine.UI.Button>())
+                    if (candidate.name == "Card0") { button = candidate; break; }
+            if (button != null && button.interactable) button.onClick.Invoke();
         }
 
         private object Get(string name) => _runtime.GetType().GetField(name, Flags).GetValue(_runtime);

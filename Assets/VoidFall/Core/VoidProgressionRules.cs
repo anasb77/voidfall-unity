@@ -5,7 +5,9 @@ namespace VoidFall.Core
     /// <summary>Deterministic rules for objective-driven Void progression.</summary>
     public static class VoidProgressionRules
     {
-        public const double SurvivalSeconds = 300.0;
+        public const double SurvivalSeconds = 360.0;
+        // Boss stat curves keep their five-minute reference when survival is extended.
+        public const double BossDifficultyReferenceSurvivalSeconds = 300.0;
         public const int MinimumPostBossDelaySeconds = 14;
         public const int MaximumPostBossDelaySeconds = 22;
         public const double BaseDoubleBossChance = 0.25;

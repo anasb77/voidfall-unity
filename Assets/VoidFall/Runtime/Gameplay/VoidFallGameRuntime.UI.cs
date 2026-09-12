@@ -114,10 +114,12 @@ namespace VoidFall.Runtime
         {
             if (_ui?.MainMenu == null) return;
             var form = PlayerForms.Form(PlayerForms.NormaliseId(_saveData?.form));
+            _ui.MainMenu.SetDirectorChoice(_saveData?.directorOnboardingSeen == true,
+                DirectorProfiles.For((DirectorProfileId)(_saveData?.directorId ?? 0)).Name);
             _ui.MainMenu.UpdateProfile(new UIProfileState
             {
                 Parts = _saveData?.parts ?? 0,
-                BestScore = CurrentBestScore(),
+                BestScore = Math.Max(CurrentBestScore(), _saveData?.stats?.bestFinalScore ?? 0),
                 TotalRuns = _saveData?.stats?.totalRuns ?? 0,
                 ArenaName = ArenaName(_arenaId),
                 FormName = form.Name,
@@ -148,7 +150,8 @@ namespace VoidFall.Runtime
             if (_ui == null) return;
 
             UIScreen screen;
-            if (_menuPage == MenuPage.Home) screen = UIScreen.Home;
+            if (_directorSelectionOpen) screen = UIScreen.DirectorSelection;
+            else if (_menuPage == MenuPage.Home) screen = UIScreen.Home;
             else if (_menuPage == MenuPage.Workshop) screen = UIScreen.Workshop;
             else if (_menuPage == MenuPage.Records) screen = UIScreen.Records;
             else if (_menuPage == MenuPage.Settings) screen = UIScreen.Settings;
@@ -156,7 +159,7 @@ namespace VoidFall.Runtime
             // browser build. Its figures now ride along on the pause overlay.
             else if (_menuPage == MenuPage.Main) screen = UIScreen.Pause;
             else if (_rouletteActive) screen = UIScreen.Roulette;
-            else if (_prizeRevealActive) screen = UIScreen.PrizeReveal;
+            else if (_prizeRevealActive) screen = _rouletteClaims.Count > 0 ? UIScreen.LevelUp : UIScreen.PrizeReveal;
             else if (_levelUpActive) screen = UIScreen.LevelUp;
             else if (_revivePending) screen = UIScreen.Revive;
             else if (_gameOver) screen = UIScreen.GameOver;
@@ -267,6 +270,8 @@ namespace VoidFall.Runtime
             _revivePending = false;
             _gameSim.Player.DyingTimer = 0;
             _gameSim.Player.Health = Mathf.Ceil(_gameSim.Player.MaxHealth * 0.5f);
+            RecordRunHistory("revive_accepted", amount: _revivesRemaining,
+                hp: _gameSim.Player.Health, maxHp: _gameSim.Player.MaxHealth);
             _gameSim.Player.Iframes = 2.5f;
             _gameSim.Player.Velocity = Vector2.zero;
             _cyanFlash = 0.9f;
@@ -314,6 +319,7 @@ namespace VoidFall.Runtime
         private void DeclineRevive()
         {
             if (!_revivePending) return;
+            RecordRunHistory("revive_declined", amount: _revivesRemaining);
             _roulettePendingAfterRevive = false;
             EndRun();
         }
@@ -492,6 +498,26 @@ namespace VoidFall.Runtime
 
         private void RecordTelemetrySample(float frameDt)
         {
+            ObserveRunExportState();
+            var viewport = GameplayViewportHalfExtent();
+            var nearest = float.PositiveInfinity;
+            var onScreen = 0;
+            var xpPickups = 0; var specialPickups = 0; var distantLoot = 0;
+            var lootDistance = Mathf.Max(viewport.x, viewport.y) * 2;
+            for (var i = 0; i < _gameSim.Pickups.Length; i++)
+            {
+                var pickup = _gameSim.Pickups[i]; if (!pickup.Active) continue;
+                if (pickup.Kind == PickupKind.Xp) xpPickups++; else specialPickups++;
+                if ((pickup.Position - _gameSim.Player.Position).sqrMagnitude > lootDistance * lootDistance) distantLoot++;
+            }
+            for (var i = 0; i < _gameSim.Enemies.Length; i++)
+            {
+                var enemy = _gameSim.Enemies[i];
+                if (!enemy.Active) continue;
+                var delta = enemy.Position - _gameSim.Player.Position;
+                nearest = Mathf.Min(nearest, delta.magnitude);
+                if (Mathf.Abs(delta.x) <= viewport.x && Mathf.Abs(delta.y) <= viewport.y) onScreen++;
+            }
             _telemetry.RecordSample(new UnityTelemetrySample
             {
                 timeSeconds = (float)_time,
@@ -510,11 +536,37 @@ namespace VoidFall.Runtime
                 hpMultiplier = EnemyHealthScaleAt((float)_time, _bossCycle, 1f),
                 speedMultiplier = EnemySpeedScaleAt((float)_time, _bossCycle),
                 damageMultiplier = EnemyDamageScaleAt((float)_time, _bossCycle),
-                directorEvent = _nextDirectorEvent.Id,
+                directorEvent = UsesSustainedDirector ? (_encounter.Phase == CombatEncounterPhase.Flow ? "sustained" : _encounter.Kind.ToString()) : _nextDirectorEvent.Id,
                 arenaId = ArenaIdName(_arenaId),
                 arenaPhase = _arenaTransitionState.Phase.ToString(),
                 activeEliteVariants = ActiveEliteVariantTotal(),
                 meteors = ActiveMeteors(),
+                pressureHundredths = PressureHundredths,
+                challengeSeconds = DirectorChallengeSeconds,
+                directorId = (int)_runDirectorProfile,
+                encounterPhase = CurrentEncounterPhase,
+                encounterKind = _encounter.Kind.ToString(),
+                spawnReason = _lastSpawnBlockReason,
+                playerX = _gameSim.Player.Position.x,
+                playerY = _gameSim.Player.Position.y,
+                viewportWidth = viewport.x * 2,
+                viewportHeight = viewport.y * 2,
+                // These arenas scroll; viewport size is not a finite map boundary.
+                arenaWidth = ApprovedMapSizeWorld().x,
+                arenaHeight = ApprovedMapSizeWorld().y,
+                xp = Mathf.FloorToInt(_xp),
+                baseScore = CurrentEarnedBaseScore(),
+                nearestEnemyDistance = float.IsPositiveInfinity(nearest) ? -1 : nearest,
+                onScreenEnemies = onScreen,
+                specialAttackLimit = UsesSustainedDirector ? SustainedAttackLimit() : 0,
+                committedSpecialAttacks = UsesSustainedDirector ? ActiveDirectorReservations() : 0,
+                hostileProjectiles = ActiveHostileShots(),
+                xpPickupCount = xpPickups,
+                specialPickupCount = specialPickups,
+                distantLootCount = distantLoot,
+                localSurvivalSeconds = LocalDirectorSurvivalSeconds,
+                survivalRemainingSeconds = DirectorSurvivalSecondsRemaining,
+                bossDifficultySeconds = DurationAdjustedDifficultySeconds,
             });
         }
 

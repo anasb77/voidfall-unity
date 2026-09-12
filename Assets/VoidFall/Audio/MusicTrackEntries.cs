@@ -23,7 +23,15 @@ namespace VoidFall.Runtime
                 { "Neon Street", new[] { 49.25f, 102.25f } },
                 { "Rooftop Chase", new[] { 18f, 25f } },
                 { "Synth Syndicate", new[] { 67.5f, 80.75f } },
+                { "8 Bit atmosphere - 002 - Beyond the Pixelated Horizon", new[] { 20.5f, 124.25f } },
+                { "Beyond the Pixelated Horizon", new[] { 20.5f, 124.25f } },
+                { "8 Bit atmosphere - 003 - The Gentle Descent into the Cosmic Ruin", new[] { 11f, 95f } },
+                { "The Gentle Descent into the Cosmic Ruin", new[] { 11f, 95f } },
+                { "8 Bit atmosphere - 007 - The Surveyor's Quiet, Amiga Reverie", new[] { 7.75f, 138.25f } },
+                { "The Surveyor's Quiet, Amiga Reverie", new[] { 7.75f, 138.25f } },
+                { "Cyberpunk Theme 1", new[] { 5.75f, 56.5f } },
             };
+
 
         public static float Pick(string clipName, System.Random rng)
         {

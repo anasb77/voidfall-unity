@@ -66,6 +66,10 @@ namespace VoidFall.Runtime
         /// </summary>
         private Color CachedEnemySpriteAccent(EnemyState enemy)
         {
+            // Court's prepared sprite keys use opposite black/white contour colors.
+            // Faction is mutable after spawn, so it must not use the base-ID accent cache.
+            if (IsCourtEnemy(enemy.Id) && !enemy.Elite)
+                return CourtFactionOf(enemy) == CourtFaction.White ? Color.black : Color.white;
             var key = new AccentCacheKey(
                 enemy.Id,
                 enemy.EliteKind.HasValue ? (int)enemy.EliteKind.Value : -1,

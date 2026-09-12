@@ -100,7 +100,7 @@ namespace VoidFall.Tests.PlayMode
                 _legacyMeteorSchema = true;
                 var legacy = HashRuntimeState(runtime);
                 Debug.Log("METEOR SCHEMA CHECK legacy=" + legacy + " full=" + hash);
-                Assert.That(legacy, Is.EqualTo(14088908808337278323UL), "The approved 25-minute roster baseline must remain stable under the legacy meteor schema.");
+                Assert.That(legacy, Is.EqualTo(5768066926572862399UL), "The approved loot-v2/six-minute baseline must remain stable under the legacy meteor schema.");
             }
             finally { _legacyMeteorSchema = false; }
             Assert.That(
@@ -136,7 +136,29 @@ namespace VoidFall.Tests.PlayMode
         // counters are kept outside EnemyState, so this is behavioral, not a
         // new reflected-enemy-field artifact. Legacy meteor hash is updated
         // alongside the full hash for the same intentional encounter change.
-        internal const ulong GoldenMasterHash = 14161069325177094174;
+        // September 7 baseline audit: acf5103 already added swept orbital-shot
+        // interception and combined support behavior after the previous pin.
+        // Before this redesign touched combat, full-suite and isolated runs
+        // both produced legacy16175583525682867059 / full2219481193901741817;
+        // the existing 32-seed repeatability sweep passed. Re-establish that
+        // measured existing gameplay baseline before subsequent intentional changes.
+        // September 7 Director Redesign: bounded boss reinforcement windows,
+        // deterministic body separation without RNG draws, encounter movement,
+        // and native faction combat tracking intentionally update the fixed-step
+        // simulation state. Verified bit-exact across the 32-seed repeatability sweep.
+        // September 8 Director I capacity: enemy pool 192 -> 750, with the
+        // productionMax EnemyFill=1 fixture now initially filling all 750 slots.
+        // Hash includes pool length plus new actors/RNG/effects. Sustained I is
+        // bypassed in this stress fixture, so this re-pin is specifically the
+        // intentional capacity/workload change. Before re-pin, 32-seed sweep
+        // passed; measured legacy8416978558111970584 / full1951251204707846202.
+        // September 8 loot-v2 / six-minute follow-up: reserved pickup capacity,
+        // value-preserving overflow, spatial recovery and generation-safe pickup
+        // iteration intentionally change pickup/collection and combat RNG state.
+        // Raw diagnostic progression now models 360s survival +60s boss credit.
+        // Measured legacy5768066926572862399 / full8219498908681263610; the
+        // 32-seed repeatability sweep passed BEFORE this intentional re-pin.
+        internal const ulong GoldenMasterHash = 8219498908681263610;
 
         internal static ulong HashRuntimeState(object runtime)
         {

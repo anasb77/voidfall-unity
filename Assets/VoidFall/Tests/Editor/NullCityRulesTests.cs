@@ -7,6 +7,27 @@ namespace VoidFall.Tests.Editor
 {
     public sealed class NullCityRulesTests
     {
+        [Test]
+        public void Authored_floor_expands_fourfold_and_coordinates_round_trip()
+        {
+            Assert.That(NullCityRules.WorldWidth, Is.EqualTo(6400));
+            Assert.That(NullCityRules.WorldHeight, Is.EqualTo(3600));
+            Assert.That(NullCityRules.WorldX(NullCityRules.ArenaRight) - NullCityRules.WorldX(NullCityRules.ArenaLeft), Is.EqualTo(4960));
+            Assert.That(NullCityRules.WorldY(NullCityRules.ArenaTop) - NullCityRules.WorldY(NullCityRules.ArenaBottom), Is.EqualTo(2104));
+            Assert.That(NullCityRules.CanvasX(NullCityRules.WorldX(1172.5)), Is.EqualTo(1172.5));
+            Assert.That(NullCityRules.CanvasY(NullCityRules.WorldY(107.5)), Is.EqualTo(107.5));
+        }
+
+        [Test]
+        public void Laser_shake_is_local_cosmetic_and_respects_reduced_motion()
+        {
+            Assert.That(NullCityRules.RoadShake(.01, true, false), Is.InRange(-14, 14).And.Not.EqualTo(0));
+            Assert.That(NullCityRules.RoadShake(.01, false, false), Is.Zero);
+            Assert.That(NullCityRules.RoadShake(.01, true, true), Is.Zero);
+            Assert.That(NullCityRules.SignText(false), Is.EqualTo("WELCOME TO NULL CITY"));
+            Assert.That(NullCityRules.SignText(true), Is.EqualTo("INTRUDER DETECTED"));
+        }
+
         [TestCase(0, NullCityCycle.Surveillance, 0)]
         [TestCase(11, NullCityCycle.Surveillance, 0.5)]
         [TestCase(21.999, NullCityCycle.Surveillance, 21.999 / 22)]

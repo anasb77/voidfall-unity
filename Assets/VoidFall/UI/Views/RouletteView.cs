@@ -13,6 +13,15 @@ namespace VoidFall.UI
         private enum Stage { Idle, Choosing, Spinning, Landing, Complete }
         private const float SpinSeconds = 6.8f;
         private readonly List<RectTransform> _markers = new List<RectTransform>();
+        private sealed class OutsideLabel
+        {
+            public RectTransform Marker;
+            public RectTransform[] Lines;
+            public float Angle;
+            public Vector2 Direction;
+        }
+        private readonly List<OutsideLabel> _outsideLabels = new List<OutsideLabel>();
+        private readonly List<OutsideLabel> _sideLabels = new List<OutsideLabel>();
         private readonly List<Text> _effects = new List<Text>();
         private readonly List<Text> _odds = new List<Text>();
         private readonly List<Image> _rowAccents = new List<Image>();
@@ -36,6 +45,7 @@ namespace VoidFall.UI
         private static readonly Color Muted = new Color(0.68f, 0.73f, 0.8f);
 
         public event Action<RouletteSession> CeremonyComplete;
+        public event Action<RouletteSession> Spun;
         public event Action Tick;
         public event Action WagerChanged;
         public event Action Landed;
@@ -114,7 +124,7 @@ namespace VoidFall.UI
                 button.onClick.AddListener(UIBuilder.EmitUiClick);
                 AddDrawerCancel(button);
                 _rowAccents.Add(Surface(row, "Tier", -173, 0, 2, 41, RouletteWheelGraphic.Accent(table[index])));
-                Label(row, "Name", table[index].Name, -15, 10, 296, 18, 11, Color.white, TextAnchor.MiddleLeft);
+                Label(row, "Name", table[index].Name, -28, 10, 270, 18, 11, Color.white, TextAnchor.MiddleLeft);
                 _effects.Add(Label(row, "Effect", string.Empty, -2, -11, 321, 22, 10.5f, Muted, TextAnchor.MiddleLeft));
                 _odds.Add(Label(row, "Chance", string.Empty, 147, 10, 56, 18, 11, RouletteWheelGraphic.Gold, TextAnchor.MiddleRight));
             }
@@ -156,6 +166,13 @@ namespace VoidFall.UI
                 if (Application.isPlaying) Destroy(marker.gameObject); else DestroyImmediate(marker.gameObject);
             }
             _markers.Clear();
+            foreach (var outside in _outsideLabels)
+                foreach (var line in outside.Lines)
+                {
+                    line.gameObject.SetActive(false);
+                    if (Application.isPlaying) Destroy(line.gameObject); else DestroyImmediate(line.gameObject);
+                }
+            _outsideLabels.Clear();
             _wheel.localRotation = Quaternion.identity;
             if (_session == null) return;
             _wheelGraphic.Configure(_session.Wedges, _spinContext);
@@ -164,13 +181,19 @@ namespace VoidFall.UI
                 var wedge = _session.Wedges[index];
                 var chance = RoulettePresentationRules.Probability(_session.Wedges, index, _spinContext);
                 var angle = (90f - (float)RoulettePresentationRules.CentreDegrees(_session.Wedges, index, _spinContext)) * Mathf.Deg2Rad;
-                var marker = Place(_wheel, "Wedge " + index, Mathf.Cos(angle) * 170, Mathf.Sin(angle) * 170, 100, 46);
+                var marker = Place(_wheel, "Wedge " + index, 0, 0, 100, 46);
                 var accent = RouletteWheelGraphic.Accent(wedge);
-                // Tiny protected segments use the readable reward list for their text.
-                if (chance >= 0.035)
+                BuildMarkerText(marker, RoulettePresentationRules.WheelLabel(wedge), accent);
+                if (!FitMarker(marker, angle, (float)chance * 360))
                 {
-                    Label(marker, "Category", Category(wedge.Kind), 0, 9, 100, 22, 10, accent);
-                    Label(marker, "Reward", RoulettePresentationRules.ShortEffect(wedge), 0, -13, 100, 21, 12, Color.white);
+                    // Keep thin and protected outcomes legible without changing
+                    // their odds: full text moves into the free space at either side.
+                    marker.SetParent(_wheelHolder, false);
+                    var outside = new OutsideLabel { Marker = marker, Angle = angle, Lines = new RectTransform[3] };
+                    for (var line = 0; line < outside.Lines.Length; line++)
+                        outside.Lines[line] = Surface(_wheelHolder, "Wedge " + index + " connector " + line,
+                            0, 0, 1, 1, new Color(accent.r, accent.g, accent.b, .8f)).rectTransform;
+                    _outsideLabels.Add(outside);
                 }
                 _markers.Add(marker);
                 if (index >= _effects.Count) continue;
@@ -178,6 +201,100 @@ namespace VoidFall.UI
                 _odds[index].text = (chance * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%";
                 _rowAccents[index].color = accent;
             }
+            LayoutOutsideLabels();
+        }
+
+        private static void BuildMarkerText(RectTransform marker, string text, Color accent)
+        {
+            var random = text.StartsWith("Random\n", StringComparison.Ordinal);
+            Text heading = null;
+            if (random)
+            {
+                heading = Label(marker, "Random", "Random", 0, 0, 100, 24, 15, accent);
+                heading.fontSize = 15;
+                heading.fontStyle = FontStyle.Bold;
+                text = text.Substring("Random\n".Length);
+            }
+            var body = Label(marker, "Reward", text, 0, 0, 100, 80, 12, accent);
+            body.fontSize = 12;
+            body.fontStyle = FontStyle.Normal;
+            body.rectTransform.sizeDelta = new Vector2(Mathf.Ceil(body.preferredWidth) + 1, Mathf.Ceil(body.preferredHeight) + 1);
+            var size = body.rectTransform.sizeDelta;
+            if (heading != null)
+            {
+                heading.rectTransform.sizeDelta = new Vector2(Mathf.Ceil(heading.preferredWidth) + 1, Mathf.Ceil(heading.preferredHeight) + 1);
+                size.x = Mathf.Max(size.x, heading.rectTransform.sizeDelta.x);
+                size.y += heading.rectTransform.sizeDelta.y + 1;
+                heading.rectTransform.anchoredPosition = new Vector2(0, (size.y - heading.rectTransform.sizeDelta.y) * .5f);
+                body.rectTransform.anchoredPosition = new Vector2(0, -(heading.rectTransform.sizeDelta.y + 1) * .5f);
+            }
+            marker.sizeDelta = size;
+        }
+
+        private static bool FitMarker(RectTransform marker, float angle, float arc)
+        {
+            var size = marker.sizeDelta;
+            // A circle around the text bounds stays inside the annular slice
+            // even while its upright label counter-rotates through a full spin.
+            var boundsRadius = size.magnitude * .5f;
+            var gap = Mathf.Min(1.2f, arc * .1f);
+            var halfAngle = Mathf.Min(90, arc * .5f - gap) * Mathf.Deg2Rad;
+            if (halfAngle <= 0) return false;
+            var radius = Mathf.Max(170, (boundsRadius + .5f) / Mathf.Sin(halfAngle));
+            if (radius + boundsRadius > 221 || radius - boundsRadius < 84) return false;
+            marker.anchoredPosition = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+            return true;
+        }
+
+        private void LayoutOutsideLabels()
+        {
+            foreach (var outside in _outsideLabels)
+            {
+                var angle = outside.Angle + _currentRotation * Mathf.Deg2Rad;
+                outside.Direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+            }
+            for (var side = -1; side <= 1; side += 2)
+            {
+                _sideLabels.Clear();
+                foreach (var outside in _outsideLabels)
+                    if ((outside.Direction.x < 0 ? -1 : 1) == side) _sideLabels.Add(outside);
+                _sideLabels.Sort((a, b) => a.Direction.y.CompareTo(b.Direction.y));
+                var bottom = -200f;
+                foreach (var outside in _sideLabels)
+                {
+                    var halfHeight = outside.Marker.sizeDelta.y * .5f;
+                    var y = Mathf.Max(bottom + halfHeight, Mathf.Clamp(outside.Direction.y * 260, -200 + halfHeight, 200 - halfHeight));
+                    outside.Marker.anchoredPosition = new Vector2(side * (300 + outside.Marker.sizeDelta.x * .5f), y);
+                    bottom = y + halfHeight + 10;
+                }
+                // Backward pass keeps clustered labels within the side column.
+                var top = 200f;
+                for (var i = _sideLabels.Count - 1; i >= 0; i--)
+                {
+                    var outside = _sideLabels[i];
+                    var halfHeight = outside.Marker.sizeDelta.y * .5f;
+                    var position = outside.Marker.anchoredPosition;
+                    position.y = Mathf.Min(position.y, top - halfHeight);
+                    outside.Marker.anchoredPosition = position;
+                    outside.Marker.localRotation = Quaternion.identity;
+                    top = position.y - halfHeight - 10;
+                    var start = outside.Direction * 226;
+                    var rim = outside.Direction * 270;
+                    var elbow = new Vector2(side * 286, rim.y);
+                    var end = new Vector2(side * 296, position.y);
+                    SetConnector(outside.Lines[0], start, rim);
+                    SetConnector(outside.Lines[1], rim, elbow);
+                    SetConnector(outside.Lines[2], elbow, end);
+                }
+            }
+        }
+
+        private static void SetConnector(RectTransform line, Vector2 from, Vector2 to)
+        {
+            var delta = to - from;
+            line.anchoredPosition = (from + to) * .5f;
+            line.sizeDelta = new Vector2(delta.magnitude, .9f);
+            line.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
         }
 
         private void DescribePrize(int index)
@@ -258,6 +375,7 @@ namespace VoidFall.UI
         {
             if (_stage != Stage.Choosing || _session == null || _rewardsOpen) return;
             RouletteRules.Spin(_session, _rng, _spinContext);
+            Spun?.Invoke(_session);
             _targetRotation = 5 * 360f + (float)RoulettePresentationRules.CentreDegrees(_session.Wedges, _session.ResultIndex, _spinContext);
             _spinElapsed = 0;
             _stage = Stage.Spinning;
@@ -298,7 +416,9 @@ namespace VoidFall.UI
             // Accumulated rotation preserves full revolutions; LerpAngle would discard them.
             _currentRotation = Mathf.Lerp(0, _targetRotation, progress);
             _wheel.localRotation = Quaternion.Euler(0, 0, _currentRotation);
-            foreach (var marker in _markers) marker.localRotation = Quaternion.Euler(0, 0, -_currentRotation);
+            foreach (var marker in _markers)
+                if (marker.parent == _wheel) marker.localRotation = Quaternion.Euler(0, 0, -_currentRotation);
+            LayoutOutsideLabels();
             var atPointer = Mathf.Repeat(_currentRotation, 360);
             var cursor = 0f;
             for (var i = 0; i < _session.Wedges.Length; i++)

@@ -156,7 +156,7 @@ namespace VoidFall.Tests.PlayMode
         [Test]
         public void Completed_objective_refresh_cannot_replace_the_escape_status()
         {
-            Call("StepObjectiveTracker", 300d);
+            Call("StepObjectiveTracker", VoidProgressionRules.SurvivalSeconds);
             Call("StepObjectiveTracker", 0d);
             Call("KillBoss", 1);
             Call("KillBoss", 0);
@@ -228,7 +228,7 @@ namespace VoidFall.Tests.PlayMode
             var session = (RouletteSession)Get("_rouletteSession");
             RouletteRules.Spin(session, (Rng)Get("_rouletteRng"));
             Call("OnRouletteComplete", session);
-            Call("ClosePrizeReveal");
+            RouletteClaimTestActions.ClaimAll(_runtime);
         }
         private Vector2 PlayerPosition()
         {

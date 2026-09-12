@@ -1,0 +1,48 @@
+{
+  "sourceHash": "958d29affbcdb003ed1e19233377389b4c25aac60a27baab38053b70f01af73a",
+  "pixelsPerUnit": 1,
+  "nominalBodyRadius": 64,
+  "tileSize": 256,
+  "frames": [
+    "idle0",
+    "idle1",
+    "idle2",
+    "idle3",
+    "windup",
+    "attack",
+    "recover",
+    "hit"
+  ],
+  "creatures": [
+    {
+      "id": "destroyer-maw",
+      "name": "Maw",
+      "role": "Rusher",
+      "resourcePath": "VoidFall/Destroyers/maw"
+    },
+    {
+      "id": "destroyer-razor",
+      "name": "Razor",
+      "role": "Rusher",
+      "resourcePath": "VoidFall/Destroyers/razor"
+    },
+    {
+      "id": "destroyer-husk",
+      "name": "Husk",
+      "role": "Brute",
+      "resourcePath": "VoidFall/Destroyers/husk"
+    },
+    {
+      "id": "destroyer-grasp",
+      "name": "Grasp",
+      "role": "Brute",
+      "resourcePath": "VoidFall/Destroyers/grasp"
+    },
+    {
+      "id": "destroyer-spite",
+      "name": "Spite",
+      "role": "Ranged",
+      "resourcePath": "VoidFall/Destroyers/spite"
+    }
+  ]
+}

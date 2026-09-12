@@ -1077,7 +1077,8 @@ namespace VoidFall.Runtime
             SetupAudio();
             SetupFx();
             SetupHydraPresentation();
-            _saveStore = new SaveStore(ArsenalValidationProbe.ProfilePath ?? OverclockHudProbe.ProfilePath ?? VisualDeliveryProbe.ProfilePath ?? VisualCaptureProfilePath());
+            WarmHydraPopulationVisuals();
+            _saveStore = new SaveStore(StressBenchmarkProbe.ProfilePath ?? ArsenalValidationProbe.ProfilePath ?? OverclockHudProbe.ProfilePath ?? VisualDeliveryProbe.ProfilePath ?? DiagnosticProfilePath());
             _saveData = _saveStore.Load();
             _gameBridge = new RuntimeGameBridge(this);
             _settingsController = new SettingsController(_gameBridge);
@@ -1093,6 +1094,8 @@ namespace VoidFall.Runtime
             {
                 StartRun = StartRun,
                 RestartRun = StartRun,
+                OpenDirectorSelection = OpenDirectorSelectionFromHome,
+                AcknowledgeDirectorResult = AcknowledgeDirectorResult,
                 ResumeRun = ResumeRunFromUi,
                 AbortToMenu = EnterMainMenu,
 
@@ -1188,8 +1191,12 @@ namespace VoidFall.Runtime
 
         private void OnApplicationQuit()
         {
-            CommitSettings();
-            SaveRun();
+            try
+            {
+                CommitSettings();
+                SaveRun();
+            }
+            finally { FinishRunExport(_gameOver ? (_runVictory ? "escaped" : "gameover") : "quit"); }
         }
 
         /// <summary>
@@ -1224,6 +1231,10 @@ namespace VoidFall.Runtime
 
         private void OnDestroy()
         {
+            FinishRunExport(_gameOver ? (_runVictory ? "escaped" : "gameover") : "interrupted");
+            _telemetry.CloseHistory();
+            _incidentPresentation?.Dispose();
+            DestroyDestroyerPresentation();
             DestroyMonochromePresentation();
             DestroyNebulaArt();
             // A duplicate runtime is destroyed by Awake before it owns any
@@ -1233,6 +1244,7 @@ namespace VoidFall.Runtime
             _ownsGlobalResources = false;
             ResetArsenalWeapons();
             ProceduralSpriteFactory.DestroyArsenalSprites();
+            ProceduralSpriteFactory.DestroyHydraPopulationSprites();
             ResetRouletteLuck();
             DestroyRouletteRelic();
             DestroyJourneyVisuals();
@@ -1317,21 +1329,34 @@ namespace VoidFall.Runtime
             if (!active)
             {
                 if (_applicationInactive) return;
+                var focusStarted = Time.realtimeSinceStartupAsDouble;
                 _applicationInactive = true;
+                RecordRunHistory("application_focus", reason: "lost", detail: ApplicationDisplayContext());
+                _telemetry.FlushHistory();
                 _input?.ResetTouch();
                 _audio?.Suspend();
                 _music?.SetApplicationActive(false);
                 if (!_paused && !_gameOver && !_revivePending && !_levelUpActive && _menuPage == MenuPage.None)
                     _paused = true;
+                RecordRunHistory("application_focus_completed", reason: "lost",
+                    durationSeconds: (float)(Time.realtimeSinceStartupAsDouble - focusStarted), detail: ApplicationDisplayContext());
                 return;
             }
 
             if (!_applicationInactive) return;
+            var resumeStarted = Time.realtimeSinceStartupAsDouble;
             _applicationInactive = false;
+            RecordRunHistory("application_focus", reason: "resumed", detail: ApplicationDisplayContext());
             RestartQualitySession();
             _audio?.Resume();
             _music?.SetApplicationActive(true);
+            RecordRunHistory("application_focus_completed", reason: "resumed",
+                durationSeconds: (float)(Time.realtimeSinceStartupAsDouble - resumeStarted), detail: ApplicationDisplayContext());
         }
+
+        private static string ApplicationDisplayContext()
+            => "graphicsApi=" + SystemInfo.graphicsDeviceType + ";fullscreenMode=" + Screen.fullScreenMode +
+               ";width=" + Screen.width + ";height=" + Screen.height + ";background=" + Application.runInBackground;
 
         // Combat simulation state lives in GameSim (see class comment).
         private readonly GameSim _gameSim = new GameSim(
@@ -1526,10 +1551,13 @@ namespace VoidFall.Runtime
             }
 
             var startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
+            RestoreIncidentEnvironment();
             UpdateArenaDecor(frameDt, reducedMotion);
             LogSlowStartupPhase("arena-decor", startupPhaseStarted);
             startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
             Render();
+            RenderEncounterWarnings();
+            RenderMajorIncidents();
             RenderJunction();
             LogSlowStartupPhase("render", startupPhaseStarted);
             startupPhaseStarted = Time.realtimeSinceStartupAsDouble;
@@ -1559,12 +1587,14 @@ namespace VoidFall.Runtime
             }
             LogSlowStartupPhase("ui-reconcile", startupPhaseStarted);
             ObserveTelemetryFrame(frameDt);
-            if (!_paused && !_gameOver)
+            UpdateRunExport(frameDt);
+            if (!_mainMenuBrowsing && !_paused && !_gameOver)
             {
                 _telemetrySampleTimer -= frameDt;
                 if (_telemetrySampleTimer <= 0)
                 {
-                    do { _telemetrySampleTimer += 10f; } while (_telemetrySampleTimer <= 0);
+                    do { _telemetrySampleTimer += 1f; } while (_telemetrySampleTimer <= 0);
+                    FlushCombatTelemetry();
                     RecordTelemetrySample(frameDt);
                 }
             }
@@ -1718,13 +1748,20 @@ namespace VoidFall.Runtime
 
         private bool _visualCaptureLegacyNebula;
 
-        private static string VisualCaptureProfilePath()
+        private static string DiagnosticProfilePath(string[] arguments = null)
         {
-            // Resolve diagnostics before the first load so captures cannot migrate or save the player's profile.
-            var args = Environment.GetCommandLineArgs();
+            // Profile-only diagnostics retain ordinary focus/background behavior.
+            // Resolve before the first load so no diagnostic can migrate the real profile.
+            var args = arguments ?? Environment.GetCommandLineArgs();
             for (var i = 0; i < args.Length; i++)
             {
                 string path = null;
+                if (args[i].StartsWith("-vfprofile=", StringComparison.OrdinalIgnoreCase))
+                {
+                    path = args[i].Substring("-vfprofile=".Length).Trim('"');
+                    if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("-vfprofile requires a diagnostic profile path.");
+                    return System.IO.Path.GetFullPath(path);
+                }
                 if (args[i].StartsWith("-vfcapture=", StringComparison.OrdinalIgnoreCase))
                 {
                     path = args[i].Substring("-vfcapture=".Length).Trim('"');
@@ -1891,17 +1928,19 @@ namespace VoidFall.Runtime
 
         private void StartRun()
         {
-            if (_gameOver && !_runSaved)
+            if (_gameOver)
             {
-                SaveRun();
-                if (_runSaved) ReturnToMenuAfterResult();
+                AcknowledgeDirectorResult();
                 return;
             }
+            if (TryOpenDirectorSelection()) return;
             StartRunInternal(true);
         }
 
         private void StartRunInternal(bool playStartCue, bool ensureSpritesWarmed = true)
         {
+            FinishRunExport(playStartCue ? "restarted" : "abandoned");
+            ResetDirectorRunDiagnostics();
             // Anything the menu-time warm has not reached yet is finished here,
             // so a run never rasterizes a sprite on first sighting.
             if (ensureSpritesWarmed) DrainSpriteWarm();
@@ -2101,6 +2140,7 @@ namespace VoidFall.Runtime
             _targetTimeScale = 1f;
             _freezeTimer = 0;
             _time = 0;
+            ResetDiagnosticCounters();
             _spawnTimer = 0.9f;
             _bladeAngle = 0;
             _nextBossTime = DirectorRules.BossIntervalSeconds(_runSeed, 0);
@@ -2230,13 +2270,17 @@ namespace VoidFall.Runtime
             _arenaId = playStartCue ? ArenaId.Void : ArenaIdFromName(_saveData?.arena);
             SelectRecipeForCurrentArena();
             EnsureVoidRouteForRun();
+            ResetPressureForRun();
+            ResetMajorIncidentRun();
+            ResetFactionRunDiagnostics();
             _nextBossTime = float.PositiveInfinity;
             BeginObjectiveForCurrentArena();
             PrepareArenaNeighborhood();
             _arenaTransitionState = ArenaRules.CreateTransitionState(_runSeed);
+            BeginRunExport(playStartCue || ensureSpritesWarmed, !playStartCue);
             _telemetry.RecordLevel(0, _level, _xpNeed, 0);
 
-            for (var i = 0; i < 6; i++) SpawnEnemy("chaser");
+            // The timer starts in an empty arena; first deployment follows the opening.
             RebuildEnemyGrid();
             // Browser reset() records the initial six-enemy snapshot before the
             // first presented frame; keep that sample in the Unity report too.
@@ -2264,8 +2308,11 @@ namespace VoidFall.Runtime
             _diagnosticRunSeedOverride = seed == 0 ? FixtureRunSeed : seed;
             StartRunInternal(false);
             _stressScenario = scenario;
+            foreach (var argument in Environment.GetCommandLineArgs())
+                if (argument.Equals("-vfhold750", StringComparison.OrdinalIgnoreCase)) _directorHold750 = true;
             _stressTopUpTimer = 0;
             _time = Mathf.Max(_time, (float)scenario.TimeSeconds);
+            SeedDiagnosticDirectorProgress(_time);
             _bossCycle = Mathf.Max(_bossCycle, Mathf.FloorToInt(_time / (4f * 180f)));
 
             ApplyStressRanks(scenario);
@@ -2353,6 +2400,9 @@ namespace VoidFall.Runtime
         /// <summary>Stop the diagnostic top-up loop and release its invulnerability.</summary>
         public void ClearStressScenario()
         {
+            _directorHold750 = false;
+            _directorPlaytestActive = false;
+            _benchmarkDriving = false;
             _stressScenario = null;
             _stressTopUpTimer = 0;
             if (float.IsInfinity(_gameSim.Player.Iframes)) _gameSim.Player.Iframes = 0;
@@ -2385,7 +2435,7 @@ namespace VoidFall.Runtime
                 var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                 var radius = 120f + (float)_gameSim.Rng.Next() * 560f;
                 var position = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-                if (ActivePickups() % 8 == 7) SpawnRarePickup(position);
+                if (ActivePickups() % 8 == 7 || FindXpPickupSlot() < 0) SpawnRarePickup(position);
                 else SpawnPickup(position, 1 + Mathf.FloorToInt((float)(_gameSim.Rng.Next() * 10)));
             }
 
@@ -2455,12 +2505,15 @@ namespace VoidFall.Runtime
 
         private void Simulate(double fixedDt)
         {
-            if (_mainMenuBrowsing || JourneyStopsCombat) return;
+            if (_mainMenuBrowsing || JourneyStopsCombat || _gameOver || (_paused && _stressScenario == null)) return;
             var realDt = (float)fixedDt;
             var frozen = _freezeTimer > 0;
             if (frozen) _freezeTimer = Mathf.Max(0, _freezeTimer - realDt);
             var dt = frozen ? 0 : realDt * _timeScale;
             _time += dt;
+            if (UsesSustainedDirector) _pressureReliefTimer = Mathf.Max(0, _pressureReliefTimer - dt);
+            var diagnosticStepStarted = BeginDiagnosticStep(dt);
+            StepMajorIncidents(dt);
             if (_gameSim.Player.Health > 0)
             {
                 _gameSim.Player.Health = Mathf.Min(
@@ -2473,6 +2526,7 @@ namespace VoidFall.Runtime
             _orbitalStartPlayerPosition = _gameSim.Player.Position;
             MovePlayer(dt);
             ApplyHydraRibCageCollision();
+            ClampCourtPlayer();
             // The browser applies current-step movement/iframes/boost effects
             // first, then expires their timers before the remaining systems run.
             _gameSim.Player.Iframes = Mathf.Max(0, _gameSim.Player.Iframes - dt);
@@ -2537,6 +2591,7 @@ namespace VoidFall.Runtime
                     2.5f,
                     ToastKind.Info,
                     arena?.Modifier);
+                ObserveRunExportState();
                 _telemetry.RecordArenaSwap(arenaStep.State.Index, (float)_time);
             }
             else if (arenaStep.Event == ArenaTransitionEvent.Complete)
@@ -2588,6 +2643,7 @@ namespace VoidFall.Runtime
             UpdateRingWaves(dt);
             UpdateFloaters(dt);
             CheckMilestones();
+            AdvanceCombatObjectiveProgress(dt);
             AdvanceRunLevelUps(realDt);
 
             // The browser resolves the defeat/revive transition after the
@@ -2602,6 +2658,7 @@ namespace VoidFall.Runtime
                     if (_revivesRemaining > 0)
                     {
                         _revivePending = true;
+                        RecordRunHistory("revive_offered", amount: _revivesRemaining);
                         _paused = true;
                         _ui?.Revive?.Show(_revivesRemaining);
                     }
@@ -2618,7 +2675,9 @@ namespace VoidFall.Runtime
             _timeScale += (_targetTimeScale - _timeScale) *
                 (1 - Mathf.Exp(-9f * realDt));
 
-            StepObjectiveTracker(dt);
+            FinishCombatObjectiveProgress(dt);
+            StepDirectorCapacityProbe();
+            EndDiagnosticStep(diagnosticStepStarted);
         }
 
         private static readonly Color DotCyan = ParseColor("#22d3ee", Color.white);
@@ -3224,6 +3283,7 @@ namespace VoidFall.Runtime
         private void EndRun()
         {
             if (_gameOver) return;
+            StopMajorIncident();
             _revivePending = false;
             _gameSim.Player.DyingTimer = 0;
             _gameOver = true;
@@ -3234,10 +3294,12 @@ namespace VoidFall.Runtime
             _magnetIntensity = 0f;
             _music?.ResetReactiveState();
             _audio?.StopPad();
+            FreezePressureAndScore();
             // Browser endRun() records the terminal state before exporting the
             // game-over report, including the final frame sample.
             RecordTelemetrySample(Mathf.Max(0.0001f, _debugFrameEmaMs / 1000f));
             SaveRun();
+            FinishRunExport(_runVictory ? "escaped" : "gameover");
             _returnToMenuAfterRun = true;
             if (_ui != null)
             {
@@ -3271,6 +3333,7 @@ namespace VoidFall.Runtime
                     killedByColor: killerColor,
                     formName: PlayerForms.Form(_formId).Name,
                     starterName: UpgradeRules.WeaponDisplayName(PlayerForms.StartingWeapon(_formId)));
+                ApplyDirectorResultSummary(ref summary);
                 _ui.GameOver?.Show(summary);
             }
         }
@@ -3283,7 +3346,7 @@ namespace VoidFall.Runtime
 
         private int CurrentScore()
         {
-            return Mathf.FloorToInt(_score + _time * 5f + (_level - 1) * 35f + 0.5f);
+            return (int)Math.Min(int.MaxValue, CurrentEarnedBaseScore());
         }
 
         private static WorkshopEntry[] BuildRankEntries(string[] ids, int[] ranks)
@@ -3308,6 +3371,7 @@ namespace VoidFall.Runtime
             }
             return new UnityTelemetryProgress
             {
+                weaponSlotLimit = ProgressionRules.WeaponSlotLimit(_upgradeProgress?.WeaponRanks),
                 weapons = BuildTelemetryRanks(WeaponIds(), _upgradeProgress?.WeaponRanks),
                 supports = BuildTelemetryRanks(SupportIds(), _upgradeProgress?.SupportRanks),
                 late = BuildTelemetryRanks(LateIds(), _upgradeProgress?.LateRanks),
@@ -3401,6 +3465,7 @@ namespace VoidFall.Runtime
 
         private void SelectLevelOption(int index)
         {
+            if (_rouletteClaims.Count > 0) return;
             if (!_levelUpActive || _levelOptions == null || index < 0 || index >= _levelOptions.Length) return;
             var option = _levelOptions[index];
             var previousMaxHealth = _gameSim.Player.MaxHealth;
@@ -3452,6 +3517,8 @@ namespace VoidFall.Runtime
             _levelUpPromptOpenedAt = -1f;
             _paused = false;
             _targetTimeScale = 1;
+            RecordRunHistory("upgrade_applied", option.TargetId, option.Kind.ToString(),
+                hp: _gameSim.Player.Health, maxHp: _gameSim.Player.MaxHealth, progress: BuildTelemetryProgress());
             // Browser applyUpgrade() plays the pickup cue for every
             // non-evolution choice after the upgrade is committed.
             if (option.Kind != UpgradeOptionKind.Evolution)
@@ -3477,6 +3544,7 @@ namespace VoidFall.Runtime
 
         private void RerollLevelOptions()
         {
+            if (_rouletteClaims.Count > 0) return;
             if (!_levelUpActive || _rerollsRemaining <= 0 || _upgradeProgress == null) return;
             var previous = _levelOptions == null
                 ? string.Empty
@@ -3490,6 +3558,7 @@ namespace VoidFall.Runtime
                 next = RollLevelOptions();
             }
             _levelOptions = next;
+            RecordUpgradeOffers("reroll");
             // The screen remains on UIScreen.LevelUp during a reroll, so the
             // normal screen reconciliation does not rebuild its cards. Push the
             // newly rolled options directly to the visible view instead.
@@ -3711,7 +3780,7 @@ namespace VoidFall.Runtime
 
         private void ObserveTelemetryFrame(float frameDt)
         {
-            if (_paused || _gameOver) return;
+            if (_mainMenuBrowsing || _paused || _gameOver) return;
             _telemetry.ObserveFrame(
                 ArenaIdName(_arenaId),
                 TelemetryFpsForFrame(frameDt),
@@ -5117,6 +5186,14 @@ namespace VoidFall.Runtime
         private Vector2 GameplayViewportHalfExtent()
         {
             if (_arenaId == ArenaId.NullCity) return NullCityViewportHalfExtent();
+            if (_arenaId == ArenaId.MonochromeCourt && !_mainMenuBrowsing)
+            {
+                var aspect = Mathf.Max(.5f, Screen.width / Mathf.Max(1f, Screen.height));
+                var halfHeight = Mathf.Max(1100f, 1300f / aspect) * _spatialZoomScale;
+                return new Vector2(halfHeight * aspect, halfHeight);
+            }
+            if (HydraSurvivalPresentationActive && !_mainMenuBrowsing)
+                return GameplayViewportHalfExtent(Screen.width, Screen.height) / .7f;
             if (Screen.width > 0 && Screen.height > 0)
                 return GameplayViewportHalfExtent(Screen.width, Screen.height);
             if (_camera != null && _camera.orthographic)

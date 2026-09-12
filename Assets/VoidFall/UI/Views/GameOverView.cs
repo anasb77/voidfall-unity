@@ -27,6 +27,13 @@ namespace VoidFall.UI
     {
         public bool Victory;
         public int Score;
+        public bool HasDirectorScore;
+        public string DirectorName;
+        public long BaseScore;
+        public int PressureHundredths;
+        public int MultiplierHundredths;
+        public long FinalScore;
+        public int ScoringVersion;
         public float ElapsedSeconds;
         public int Kills;
         public int EliteKills;
@@ -89,6 +96,8 @@ namespace VoidFall.UI
         private Text _parts;
         private Text _level;
         private Text _bosses;
+        private Text _scoreBreakdown;
+        private Text _continueLabel;
 
         protected override void Build()
         {
@@ -139,6 +148,9 @@ namespace VoidFall.UI
 
             BuildKiller(_content);
             BuildMetricGrid(_content);
+            _scoreBreakdown = UIBuilder.CreateText(_content, "PressureBreakdown", "", 13f,
+                UITheme.TextChip, TextAnchor.MiddleCenter, false);
+            UIBuilder.SetHeight(_scoreBreakdown.rectTransform, 82f);
             BuildRecap(_content);
             BuildDamage(_content);
             BuildActions(inner);
@@ -155,7 +167,8 @@ namespace VoidFall.UI
             UIBuilder.AddGrid(_metricGrid, new Vector2(cellWidth, 66f), new Vector2(8f, 8f), columns);
             UIBuilder.SetHeight(_metricGrid, 140f);
 
-            _score = UIBuilder.CreateMetricTile(_metricGrid, "Score", "Score", "0");
+            _score = UIBuilder.CreateMetricTile(_metricGrid, "Score", "FinalScore", "0");
+            UIBuilder.FitText(_score, 7f, 17f);
             _time = UIBuilder.CreateMetricTile(_metricGrid, "Time", "Time", "0:00");
             _kills = UIBuilder.CreateMetricTile(_metricGrid, "Kills", "Kills", "0");
             _parts = UIBuilder.CreateMetricTile(_metricGrid, "Parts", "Scraps", "+0");
@@ -346,13 +359,10 @@ namespace VoidFall.UI
             stack.sizeDelta = new Vector2(0f, 104f);
             UIBuilder.AddVerticalLayout(stack, 8f);
 
-            var again = UIBuilder.CreatePrimaryAction(
-                stack, "PlayAgain", "Play again", null, () => Callbacks?.RestartRun?.Invoke(), 50f);
-            UIBuilder.SetHeight(again.GetComponent<RectTransform>(), 50f);
-
-            var menu = UIBuilder.CreateSecondaryAction(
-                stack, "MainMenu", "Main menu", null, () => Callbacks?.AbortToMenu?.Invoke(), 44f);
-            UIBuilder.SetHeight(menu.GetComponent<RectTransform>(), 44f);
+            var action = UIBuilder.CreatePrimaryAction(stack, "Continue", "Continue to Home", null,
+                () => Callbacks?.AcknowledgeDirectorResult?.Invoke(), 50f);
+            UIBuilder.SetHeight(action.GetComponent<RectTransform>(), 50f);
+            _continueLabel = action.GetComponentInChildren<Text>();
         }
 
         /// <summary>Populates and opens the result screen.</summary>
@@ -363,11 +373,22 @@ namespace VoidFall.UI
             UIBuilder.SetText(_kicker, (summary.Victory ? "RUN COMPLETE" : "RUN ENDED") + formSuffix);
             if (_title != null)
             {
-                _title.text = summary.Victory ? "Abyss held" : "Try another build";
+                _title.text = summary.Victory ? "Escaped the Void" : "Try another build";
                 _title.color = summary.Victory ? UITheme.CyanPale : UITheme.TextHeading;
             }
 
-            if (_score != null) _score.text = FormatNumber(summary.Score);
+            if (_score != null) _score.text = FormatNumber(summary.HasDirectorScore ? summary.FinalScore : summary.Score);
+            if (_scoreBreakdown != null)
+            {
+                _scoreBreakdown.gameObject.SetActive(summary.HasDirectorScore);
+                _scoreBreakdown.text = summary.DirectorName + " · Score rules v" + summary.ScoringVersion +
+                    "\nBase " + FormatNumber(summary.BaseScore) + " · Pressure " +
+                    (summary.PressureHundredths / 100.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "×" +
+                    "\nMultiplier " + (summary.MultiplierHundredths / 100.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture) +
+                    "×" + (summary.PressureHundredths < 100 ? " (1.00× minimum)" : "") +
+                    "\nFinal " + FormatNumber(summary.FinalScore);
+            }
+            if (_continueLabel != null) _continueLabel.text = summary.Saved ? "Continue to Home" : "Retry save and continue";
             if (_time != null) _time.text = FormatTime(summary.ElapsedSeconds);
             if (_kills != null) _kills.text = FormatNumber(summary.Kills);
             if (_parts != null) _parts.text = "+" + FormatNumber(summary.PartsEarned);

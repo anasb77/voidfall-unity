@@ -7,6 +7,14 @@ namespace VoidFall.Runtime
     {
         public const int MaxQueenPromotions = 2;
 
+        public static Vector2 ClampToBoard(Vector2 position, Vector2 origin, Vector2 size, float radius)
+        {
+            var insetX = Mathf.Clamp(radius, 0f, size.x * .5f);
+            var insetY = Mathf.Clamp(radius, 0f, size.y * .5f);
+            return new Vector2(Mathf.Clamp(position.x, origin.x + insetX, origin.x + size.x - insetX),
+                Mathf.Clamp(position.y, origin.y + insetY, origin.y + size.y - insetY));
+        }
+
         public static bool IsSplitCycle(string cycleId) => cycleId == "black-rule" || cycleId == "white-rule";
 
         public static float SplitSpawnX(CourtFaction faction, float centreX, float halfWidth) =>

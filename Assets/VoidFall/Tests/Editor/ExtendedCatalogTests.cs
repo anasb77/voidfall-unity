@@ -11,6 +11,44 @@ namespace VoidFall.Tests.Editor
     /// </summary>
     public sealed class ExtendedCatalogTests
     {
+        [TestCase(3, 0, true)]
+        [TestCase(4, 0, false)]
+        [TestCase(4, 1, false)]
+        [TestCase(4, 2, true)]
+        [TestCase(5, 2, false)]
+        public void New_weapon_offers_respect_four_slots_and_the_two_maxed_unlock(
+            int owned, int maxed, bool canAcquire)
+        {
+            var progress = new UpgradeProgress();
+            for (var i = 0; i < owned; i++) progress.WeaponRanks[i] = i < maxed ? 6 : 1;
+            var options = UpgradeRules.RollProgressionOptions(progress, new Rng(7), 100);
+            var acquisitionCount = 0;
+            foreach (var option in options)
+                if (option.Kind == UpgradeOptionKind.Weapon && option.CurrentRank == 0) acquisitionCount++;
+            Assert.That(acquisitionCount > 0, Is.EqualTo(canAcquire));
+            Assert.That(UpgradeRules.WeaponSlotLimit(progress), Is.EqualTo(maxed >= 2 ? 5 : 4));
+            Assert.That(ProgressionRules.WeaponSlotLimit(progress.WeaponRanks), Is.EqualTo(maxed >= 2 ? 5 : 4));
+        }
+
+        [TestCase(4, false)]
+        [TestCase(5, true)]
+        public void Late_progression_waits_for_the_fifth_completed_weapon(int owned, bool complete)
+        {
+            var progress = new UpgradeProgress();
+            for (var i = 0; i < owned; i++)
+            {
+                progress.WeaponRanks[i] = 6;
+                progress.Evolved[i] = true;
+            }
+            var supports = ExtendedCatalog.AllSupports();
+            for (var i = 0; i < supports.Length; i++) progress.SupportRanks[i] = supports[i].MaxRank;
+            Assert.That(UpgradeRules.CoreProgressionComplete(progress), Is.EqualTo(complete));
+            var hasLate = false;
+            foreach (var option in UpgradeRules.RollProgressionOptions(progress, new Rng(7), 100))
+                if (option.Kind == UpgradeOptionKind.Late) hasLate = true;
+            Assert.That(hasLate, Is.EqualTo(complete));
+        }
+
         [Test]
         public void Parity_supports_keep_their_indices_and_extras_append()
         {

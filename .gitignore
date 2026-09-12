@@ -80,3 +80,6 @@ TestResults/
 
 # Kiro local tool config
 .kiro/
+
+# Local run exports are playtest data, never source assets.
+RunExports/

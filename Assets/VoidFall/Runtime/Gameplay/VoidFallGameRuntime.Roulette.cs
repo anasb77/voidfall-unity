@@ -28,9 +28,93 @@ namespace VoidFall.Runtime
         private RoulettePrizeKind _rouletteLastKind;
         private RouletteTier _rouletteLastTier;
         private bool _rouletteHasLast;
+        private int _rouletteTelemetryPartsSpent;
+        private int _rouletteTelemetryPartsRefunded;
+        private int _rouletteTelemetryImproveUses;
+
+        [Serializable]
+        private sealed class RouletteTelemetryWedge
+        {
+            public int index;
+            public string kind, tier, name;
+            public double weight, probability;
+        }
+
+        [Serializable]
+        private sealed class RouletteTelemetryDetail
+        {
+            public uint seed;
+            public int bossIndex, ceremonyIndex, ceremoniesSeen, resultIndex;
+            public bool protectionsEnabled, hasPrevious;
+            public string previousKind, previousTier, resultKind, resultTier;
+            public int partsSpent, partsRefunded, improveOddsUses, raiseStakesUses, availableParts;
+            public RouletteTelemetryWedge[] wedges;
+            public string[] log;
+            public UnityTelemetryProgress buildBefore, buildAfter;
+            public int partsBefore, partsAfter, scoreBefore, scoreAfter, revivesBefore, revivesAfter;
+            public float healthBefore, healthAfter, maxHealthBefore, maxHealthAfter;
+            public string[] wildCardsBefore, wildCardsAfter;
+            public string grantedTitle, grantedDetail, grantedTier;
+        }
+
+        private RouletteTelemetryDetail BuildRouletteTelemetryDetail(RouletteSession session)
+        {
+            var context = new RouletteSpinContext
+            {
+                CeremoniesSeen = _rouletteCeremoniesSeen,
+                ProtectionsEnabled = true,
+                HasPrevious = _rouletteHasLast,
+                PreviousKind = _rouletteLastKind,
+                PreviousTier = _rouletteLastTier,
+            };
+            var wedges = new RouletteTelemetryWedge[session.Wedges.Length];
+            for (var i = 0; i < wedges.Length; i++)
+            {
+                var wedge = session.Wedges[i];
+                wedges[i] = new RouletteTelemetryWedge
+                {
+                    index = i, kind = wedge.Kind.ToString(), tier = wedge.Tier.ToString(),
+                    name = wedge.Name, weight = wedge.Weight,
+                    probability = RoulettePresentationRules.Probability(session.Wedges, i, context),
+                };
+            }
+            var log = new string[session.Log.Count];
+            for (var i = 0; i < log.Length; i++) log[i] = session.Log[i];
+            return new RouletteTelemetryDetail
+            {
+                seed = session.Seed, bossIndex = session.BossIndex,
+                ceremonyIndex = _rouletteCeremoniesSeen + 1, ceremoniesSeen = _rouletteCeremoniesSeen,
+                protectionsEnabled = true, hasPrevious = _rouletteHasLast,
+                previousKind = _rouletteHasLast ? _rouletteLastKind.ToString() : null,
+                previousTier = _rouletteHasLast ? _rouletteLastTier.ToString() : null,
+                resultIndex = session.ResultIndex, resultKind = session.Result?.Kind.ToString(),
+                resultTier = session.Result?.Tier.ToString(), partsSpent = session.PartsSpent,
+                partsRefunded = session.PartsRefunded, improveOddsUses = session.ImproveOddsUses,
+                raiseStakesUses = session.RaiseStakesUses,
+                availableParts = Math.Max(0, _partsEarned - session.PartsSpent + session.PartsRefunded),
+                wedges = wedges, log = log,
+            };
+        }
+
+        private string[] RouletteTelemetryWildCards()
+        {
+            var cards = new string[_activeWildCards.Count];
+            var index = 0;
+            foreach (var card in _activeWildCards) cards[index++] = card.ToString();
+            Array.Sort(cards, StringComparer.Ordinal);
+            return cards;
+        }
+
+        private void RecordRouletteSpin(RouletteSession session)
+        {
+            if (!_rouletteActive || session != _rouletteSession || session == null || !session.Spun) return;
+            RecordRunHistory("roulette_rolled", session.Result?.Kind.ToString(), sourceId: "roulette",
+                instanceId: _rouletteCeremoniesSeen + 1, detail: JsonUtility.ToJson(BuildRouletteTelemetryDetail(session)));
+        }
 
         private void ResetRouletteLuck()
         {
+            ResetRouletteClaims();
             if (_ui?.Roulette != null) _ui.Roulette.CeremonyComplete -= OnRouletteComplete;
             UnbindRouletteAudio();
             _rouletteActive = false;
@@ -40,11 +124,14 @@ namespace VoidFall.Runtime
             _rouletteCeremoniesSeen = 0;
             _rouletteHasLast = false;
             _roulettePendingAfterRevive = false;
+            _rouletteTelemetryPartsSpent = 0;
+            _rouletteTelemetryPartsRefunded = 0;
+            _rouletteTelemetryImproveUses = 0;
         }
 
         private void OpenBossRoulette()
         {
-            if (_ui == null || _gameOver || _revivePending || _rouletteActive) return;
+            if (_ui == null || _gameOver || _revivePending || _rouletteActive || _prizeRevealActive) return;
             if (_gameSim.Player.Health <= 0)
             {
                 // The boss fell as the player fell. Defer the ceremony
@@ -66,6 +153,10 @@ namespace VoidFall.Runtime
             _ui.Roulette.Tick += PlayRouletteTick;
             _ui.Roulette.WagerChanged += PlayRouletteWager;
             _ui.Roulette.Landed += PlayRouletteLanding;
+            _ui.Roulette.Spun += RecordRouletteSpin;
+            _rouletteTelemetryPartsSpent = 0;
+            _rouletteTelemetryPartsRefunded = 0;
+            _rouletteTelemetryImproveUses = 0;
             _ui.SetScreen(UIScreen.Roulette);
             _ui.Roulette.Present(
                 _rouletteSession,
@@ -79,6 +170,8 @@ namespace VoidFall.Runtime
                     PreviousKind = _rouletteLastKind,
                     PreviousTier = _rouletteLastTier,
                 });
+            RecordRunHistory("roulette_opened", sourceId: "roulette", instanceId: _rouletteCeremoniesSeen + 1,
+                detail: JsonUtility.ToJson(BuildRouletteTelemetryDetail(_rouletteSession)));
         }
 
         private void OnRouletteComplete(RouletteSession session)
@@ -86,13 +179,28 @@ namespace VoidFall.Runtime
             if (!_rouletteActive || session != _rouletteSession || session == null || !session.Spun) return;
             if (_ui != null) _ui.Roulette.CeremonyComplete -= OnRouletteComplete;
             UnbindRouletteAudio();
-            if (session != null)
+            BeginRouletteClaims(session);
+        }
+
+        private void FinalizeRouletteClaims(RouletteSession session, RoulettePrizeReveal granted, RouletteTelemetryDetail detail, bool rewardTaken = true)
+        {
+            if (session != _rouletteSession || session == null) return;
             {
-                ApplyRoulettePrize(session);
-                // Refunded wagers were returned by the Void while keeping the
-                // effect, so only the net spend leaves the run economy.
-                var netSpend = session.PartsSpent - session.PartsRefunded;
-                _partsEarned = Math.Max(0, _partsEarned - netSpend);
+                // Net wager spend was settled at landing; claims only add rewards.
+                detail.buildAfter = BuildTelemetryProgress();
+                detail.partsAfter = _partsEarned;
+                detail.scoreAfter = _score;
+                detail.healthAfter = _gameSim.Player.Health;
+                detail.maxHealthAfter = _gameSim.Player.MaxHealth;
+                detail.revivesAfter = _revivesRemaining;
+                detail.wildCardsAfter = RouletteTelemetryWildCards();
+                detail.grantedTitle = granted.Title;
+                detail.grantedDetail = granted.Detail;
+                detail.grantedTier = granted.Tier.ToString();
+                RecordRunHistory(rewardTaken ? "roulette_granted" : "roulette_completed", session.Result?.Kind.ToString(), sourceId: "roulette",
+                    instanceId: _rouletteCeremoniesSeen + 1, amount: _partsEarned - detail.partsBefore,
+                    hp: _gameSim.Player.Health, maxHp: _gameSim.Player.MaxHealth,
+                    detail: JsonUtility.ToJson(detail), progress: detail.buildAfter);
                 if (session.Result != null)
                 {
                     _rouletteLastKind = session.Result.Kind;
@@ -106,14 +214,18 @@ namespace VoidFall.Runtime
             _rouletteActive = false;
             _prizeRevealActive = false;
             _openRouteAfterRoulette = false;
-            _paused = _applicationInactive;
-            // The wheel already announced the result. Continue the same escape window
+            _paused = _applicationInactive || _levelUpActive;
+            ResetRouletteClaims();
+            if (_levelUpActive && _levelOptions != null)
+                _ui?.LevelUp?.ShowUpgrades(BuildUpgradeCards(_levelOptions), _rerollsRemaining, SelectLevelOption);
+            // Every card was claimed. Continue the same escape window
             // without a second confirmation or resetting its remaining active time.
             SyncUiScreen();
         }
 
         private void ClosePrizeReveal()
         {
+            if (_rouletteClaims.Count > 0) return; // Only the displayed Claim action can grant a pending reward.
             if (!_prizeRevealActive) return;
             _prizeRevealActive = false;
             _paused = false;
@@ -191,10 +303,9 @@ namespace VoidFall.Runtime
                     return OwnedRankReveal(prize, applied, name);
                 }
                 case RoulettePrizeKind.RareBoon:
-                    _gameSim.Player.Health = _gameSim.Player.MaxHealth;
-                    _score += 500;
+                    _partsEarned += RouletteRules.BonusPartsReward;
                     return new RoulettePrizeReveal(
-                        "RARE BOON", "Integrity fully restored, +500 score.", prize.Tier);
+                        "500 Parts", "+500 Parts earned for the Workshop.", prize.Tier);
                 case RoulettePrizeKind.WildCard:
                 {
                     if (TryGrantRandomWildCard(session, out var granted, announce: false))
@@ -343,9 +454,26 @@ namespace VoidFall.Runtime
         }
 
         private void PlayRouletteTick() => _audio?.Play(ProceduralAudio.Cue.Ui, 0.3f);
-        private void PlayRouletteWager() => _audio?.Play(ProceduralAudio.Cue.Currency, 0.65f);
+        private void PlayRouletteWager()
+        {
+            _audio?.Play(ProceduralAudio.Cue.Currency, 0.65f);
+            if (!_rouletteActive || _rouletteSession == null) return;
+            var session = _rouletteSession;
+            var purchase = session.ImproveOddsUses > _rouletteTelemetryImproveUses ? "improve_odds" : "raise_stakes";
+            var cost = session.PartsSpent - _rouletteTelemetryPartsSpent;
+            var refund = session.PartsRefunded - _rouletteTelemetryPartsRefunded;
+            RecordRunHistory("roulette_purchase", purchase, reason: refund > 0 ? "refunded" : "paid",
+                sourceId: "roulette", instanceId: _rouletteCeremoniesSeen + 1, amount: cost - refund,
+                detail: JsonUtility.ToJson(BuildRouletteTelemetryDetail(session)));
+            _rouletteTelemetryPartsSpent = session.PartsSpent;
+            _rouletteTelemetryPartsRefunded = session.PartsRefunded;
+            _rouletteTelemetryImproveUses = session.ImproveOddsUses;
+        }
+
         private void PlayRouletteLanding()
         {
+            if (_rouletteActive && _rouletteSession != null)
+                RecordRunHistory("roulette_landed", _rouletteSession.Result?.Kind.ToString(), sourceId: "roulette", instanceId: _rouletteCeremoniesSeen + 1);
             var result = _rouletteSession?.Result;
             if (result == null)
             {
@@ -371,6 +499,7 @@ namespace VoidFall.Runtime
             _ui.Roulette.Tick -= PlayRouletteTick;
             _ui.Roulette.WagerChanged -= PlayRouletteWager;
             _ui.Roulette.Landed -= PlayRouletteLanding;
+            _ui.Roulette.Spun -= RecordRouletteSpin;
         }
     }
 }

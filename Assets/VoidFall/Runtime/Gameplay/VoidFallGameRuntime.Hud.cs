@@ -35,6 +35,7 @@ namespace VoidFall.Runtime
             if (_canvas != null)
                 _canvas.enabled = hudVisible || _hudGroup == null || _hudGroup.alpha > 0.001f;
             UpdateHudResponsiveLayout();
+            UpdatePressureHud();
             UpdateDamageOverlays();
             UpdateArenaBanner();
             var hpFraction = _gameSim.Player.MaxHealth > 0
@@ -331,7 +332,7 @@ namespace VoidFall.Runtime
             if (_clockPanel != null)
             {
                 var clockWidth = narrow ? 78f : 116f;
-                _clockPanel.rectTransform.sizeDelta = new Vector2(clockWidth, 52f);
+                _clockPanel.rectTransform.sizeDelta = new Vector2(clockWidth, 71f);
                 SetTopHudAnchor(_clockPanel.rectTransform, narrow, clockWidth, -13f);
                 if (_timeText != null)
                 {
@@ -341,7 +342,7 @@ namespace VoidFall.Runtime
                 if (_levelText != null)
                 {
                     _levelText.rectTransform.sizeDelta = new Vector2(clockWidth, 16f);
-                    SetTopHudAnchor(_levelText.rectTransform, narrow, clockWidth, -49f);
+                    SetTopHudAnchor(_levelText.rectTransform, narrow, clockWidth, -67f);
                 }
             }
 
@@ -862,10 +863,10 @@ namespace VoidFall.Runtime
             _timeText = CreateText(canvasObject.transform, new Vector2(-10, -19), new Vector2(0.5f, 1), 23, new Color(0.945f, 0.961f, 0.976f));
             _timeText.alignment = TextAnchor.UpperCenter;
             _timeText.rectTransform.sizeDelta = new Vector2(94, 30);
-            _levelText = CreateText(canvasObject.transform, new Vector2(-10, -49), new Vector2(0.5f, 1), 10, new Color(0.49f, 0.827f, 0.988f));
+            _levelText = CreateText(canvasObject.transform, new Vector2(-10, -67), new Vector2(0.5f, 1), 10, new Color(0.49f, 0.827f, 0.988f));
             _levelText.alignment = TextAnchor.UpperCenter;
             _levelText.rectTransform.sizeDelta = new Vector2(94, 16);
-            _objectiveText = CreateText(canvasObject.transform, new Vector2(-10, -68), new Vector2(0.5f, 1), 10, new Color(0.663f, 0.733f, 0.812f));
+            _objectiveText = CreateText(canvasObject.transform, new Vector2(-10, -86), new Vector2(0.5f, 1), 10, new Color(0.663f, 0.733f, 0.812f));
             _objectiveText.alignment = TextAnchor.UpperCenter;
             _objectiveText.rectTransform.sizeDelta = new Vector2(420, 16);
             _objectiveText.enabled = false;

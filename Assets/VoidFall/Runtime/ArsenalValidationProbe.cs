@@ -42,6 +42,9 @@ namespace VoidFall.Runtime
             {
                 var rank = int.TryParse(Argument("-vfarsenal-rank="), out var value) ? Mathf.Clamp(value, 1, 6) : 1;
                 runtime.BeginArsenalValidation(Argument("-vfarsenal="), rank, Argument("-vfarsenal-evolved=") == "1");
+                var incident = Argument("-vfincident=");
+                if (!string.IsNullOrEmpty(incident) && !runtime.ForceMajorIncidentForDiagnostics(incident))
+                    Debug.LogError("ARSENAL incident unavailable: use black-hole, raid or eclipse for -vfincident.");
             }
         }
     }

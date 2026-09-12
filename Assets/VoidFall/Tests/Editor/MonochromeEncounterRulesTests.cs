@@ -74,30 +74,30 @@ namespace VoidFall.Tests.Editor
                 MonochromeEncounterRules.HazardAt(0, false),
                 Is.EqualTo(new CourtHazardState(CourtFaction.White, CourtHazardStage.Warning)));
             Assert.That(
-                MonochromeEncounterRules.HazardAt(0.9, false),
+                MonochromeEncounterRules.HazardAt(3.4, false),
                 Is.EqualTo(new CourtHazardState(CourtFaction.White, CourtHazardStage.Burning)));
             Assert.That(
-                MonochromeEncounterRules.HazardAt(3.1, false),
+                MonochromeEncounterRules.HazardAt(3.85, false),
                 Is.EqualTo(new CourtHazardState(CourtFaction.White, CourtHazardStage.Recovery)));
             Assert.That(
-                MonochromeEncounterRules.HazardAt(3.6, false),
+                MonochromeEncounterRules.HazardAt(5.0, false),
                 Is.EqualTo(new CourtHazardState(CourtFaction.Black, CourtHazardStage.Warning)));
             Assert.That(
-                MonochromeEncounterRules.HazardAt(4.5, false),
+                MonochromeEncounterRules.HazardAt(8.4, false),
                 Is.EqualTo(new CourtHazardState(CourtFaction.Black, CourtHazardStage.Burning)));
             Assert.That(
-                MonochromeEncounterRules.HazardAt(7.2, false),
+                MonochromeEncounterRules.HazardAt(10.0, false),
                 Is.EqualTo(new CourtHazardState(CourtFaction.White, CourtHazardStage.Warning)));
         }
 
         [Test]
-        public void Phase_two_shortens_warning_without_removing_recovery()
+        public void Phase_two_preserves_approved_local_warning_timing()
         {
-            Assert.That(MonochromeEncounterRules.HazardAt(0.69, true).Stage,
+            Assert.That(MonochromeEncounterRules.HazardAt(3.39, true).Stage,
                 Is.EqualTo(CourtHazardStage.Warning));
-            Assert.That(MonochromeEncounterRules.HazardAt(0.7, true).Stage,
+            Assert.That(MonochromeEncounterRules.HazardAt(3.4, true).Stage,
                 Is.EqualTo(CourtHazardStage.Burning));
-            Assert.That(MonochromeEncounterRules.HazardAt(3.1, true).Stage,
+            Assert.That(MonochromeEncounterRules.HazardAt(3.85, true).Stage,
                 Is.EqualTo(CourtHazardStage.Recovery));
         }
 

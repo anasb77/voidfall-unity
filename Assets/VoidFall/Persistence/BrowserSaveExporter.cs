@@ -22,6 +22,8 @@ namespace VoidFall.Persistence
             json.Append('{');
             Property(json, "version");
             json.Append(save.version);
+            json.Append(','); Property(json, "directorId"); json.Append(save.directorId);
+            json.Append(','); Property(json, "directorOnboardingSeen"); json.Append(save.directorOnboardingSeen ? "true" : "false");
             json.Append(',');
             Property(json, "parts");
             json.Append(save.parts);
@@ -121,6 +123,7 @@ namespace VoidFall.Persistence
             json.Append(',');
             Property(json, "bestScore");
             json.Append(value.bestScore);
+            json.Append(','); Property(json, "bestFinalScore"); json.Append(value.bestFinalScore);
             json.Append(',');
             Property(json, "bestTime");
             json.Append(value.bestTime);
@@ -197,6 +200,12 @@ namespace VoidFall.Persistence
         {
             Property(json, "score");
             json.Append(entry.score);
+            json.Append(','); Property(json, "baseScore"); json.Append(entry.baseScore);
+            json.Append(','); Property(json, "pressureHundredths"); json.Append(entry.pressureHundredths);
+            json.Append(','); Property(json, "multiplierHundredths"); json.Append(entry.multiplierHundredths);
+            json.Append(','); Property(json, "finalScore"); json.Append(entry.finalScore);
+            json.Append(','); Property(json, "scoringVersion"); json.Append(entry.scoringVersion);
+            json.Append(','); Property(json, "directorId"); json.Append(entry.directorId);
             json.Append(',');
             Property(json, "kills");
             json.Append(entry.kills);

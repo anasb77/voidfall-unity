@@ -72,11 +72,22 @@ namespace VoidFall.Core
     /// </summary>
     public static class MonochromeEncounterRules
     {
-        public const double HazardWarningSeconds = 0.9;
-        public const double HazardBurningSeconds = 2.2;
-        public const double HazardRecoverySeconds = 0.5;
-        public const double PhaseTwoHazardWarningSeconds = 0.7;
-        public const double PhaseTwoHazardBurningSeconds = 2.4;
+        public const double TileSize = 129.6;
+        public const double HazardArmingSeconds = 2;
+        public const double HazardWarningSeconds = 3.4;
+        public const double HazardBurningSeconds = 0.45;
+        public const double HazardRecoverySeconds = 1.15;
+        public const double HazardCycleSeconds = 5;
+        public const double PhaseTwoHazardWarningSeconds = HazardWarningSeconds;
+        public const double PhaseTwoHazardBurningSeconds = HazardBurningSeconds;
+        public const double RookMinimumSpacing = 630;
+
+        public static bool InLocalScope(int dx, int dy) => dx * dx + dy * dy <= 10;
+
+        public static int ArmedCellCount(double age, int count) =>
+            count <= 0 || double.IsNaN(age) ? 0 : (int)Math.Floor(Math.Max(0, Math.Min(1, age / HazardArmingSeconds)) * count);
+
+        public static int RookHealth(double roll) => 100000 + (int)Math.Floor(Math.Max(0, Math.Min(1, double.IsNaN(roll) ? 0 : roll)) * 50000);
 
         public static MonochromePoint KnightCorner(
             double startX,

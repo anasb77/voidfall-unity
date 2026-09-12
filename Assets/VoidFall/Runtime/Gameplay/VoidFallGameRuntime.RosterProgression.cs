@@ -73,7 +73,7 @@ namespace VoidFall.Runtime
                 {
                     var slot = _gameSim.EnemyOrder[order];
                     var other = _gameSim.Enemies[slot];
-                    if (!other.Active || other.SpawnId == enemy.SpawnId || other.Health >= other.MaxHealth ||
+                    if (!other.Active || FactionOf(other) != FactionOf(enemy) || other.SpawnId == enemy.SpawnId || other.Health >= other.MaxHealth ||
                         (other.Position - enemy.Position).sqrMagnitude > radius * radius) continue;
                     if (healer) { other.Health = Mathf.Min(other.MaxHealth, other.Health + traits.HealAmount); _gameSim.Enemies[slot] = other; }
                     else enemy.Health = Mathf.Min(enemy.MaxHealth, enemy.Health + traits.HarvestAmount);
@@ -119,7 +119,7 @@ namespace VoidFall.Runtime
                     enemy.AttackCooldown = RosterAttackCooldown(enemy);
                 }
             }
-            else if (enemy.AttackCooldown <= 0 && distance < 520)
+            else if (enemy.AttackCooldown <= 0 && distance < 520 && (_gameSim.EnemyCanCommitAttack?.Invoke(enemy) ?? true))
             {
                 enemy.State = 1; enemy.StateTimer = traits.DashWindup;
                 enemy.DashDirection = direction; rosterState.DashRemaining = (int)traits.DashCount;
@@ -161,7 +161,7 @@ namespace VoidFall.Runtime
                 }
                 enemy.State = 0; enemy.AttackCooldown = RosterAttackCooldown(enemy);
             }
-            else if (enemy.AttackCooldown <= 0 && distance < 700)
+            else if (enemy.AttackCooldown <= 0 && distance < 700 && (_gameSim.EnemyCanCommitAttack?.Invoke(enemy) ?? true))
             {
                 enemy.State = 1; enemy.StateTimer = traits.AimWindup > 0 ? traits.AimWindup : .65f; enemy.DashDirection = direction;
             }
@@ -196,8 +196,7 @@ namespace VoidFall.Runtime
                 for (var impact = first; impact < last; impact++)
                 {
                     var position = RosterBlastPosition(enemy, traits, impact);
-                    if (Vector2.Distance(_gameSim.Player.Position, position) < traits.BlastRadius + PlayerRadius)
-                        DamagePlayer(enemy.Damage, _gameSim.Player.Position - position, enemy.Id, enemy.Elite || enemy.EliteKind.HasValue);
+                    EnemyControllerBlast(position, traits.BlastRadius, enemy.Damage);
                     SpawnBlastWave(position, traits.BlastRadius, .5f, false);
                     SpawnImpactMark(position, traits.BlastRadius, 0);
                 }
@@ -212,10 +211,10 @@ namespace VoidFall.Runtime
                 return;
             }
             var trigger = mortar ? 760 : enemy.Id == "brute" ? traits.BlastRadius + 45 : traits.ProximityRadius;
-            if (enemy.AttackCooldown <= 0 && distance < trigger)
+            if (enemy.AttackCooldown <= 0 && distance < trigger && (_gameSim.EnemyCanCommitAttack?.Invoke(enemy) ?? true))
             {
                 enemy.State = 1; enemy.StateTimer = traits.BlastDelay;
-                enemy.AimPosition = mortar ? _gameSim.Player.Position + _gameSim.Player.Velocity * .24f : enemy.Position;
+                enemy.AimPosition = mortar ? EnemyControllerTargetPosition + EnemyControllerTargetVelocity * .24f : enemy.Position;
                 enemy.DashDirection = enemy.AimPosition; rosterState.AttackAxis = direction; rosterState.BlastIndex = 0;
                 _audio?.Play(ProceduralAudio.Cue.Warning, .8f);
             }

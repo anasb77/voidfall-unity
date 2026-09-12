@@ -51,6 +51,20 @@ namespace VoidFall.Core
 
     public static class NullCityRules
     {
+        // Map geometry is authored in canvas pixels; combat distances remain world units.
+        public const float WorldScale = 4f;
+        public const float WorldWidth = 1600f * WorldScale;
+        public const float WorldHeight = 900f * WorldScale;
+        public const float FollowViewMultiplier = 1.5f * 1.15f * 1.26f;
+        public const float PlayerRenderMultiplier = 1.3f * 1.15f * 1.26f;
+        public static double WorldX(double canvasX) => (canvasX - 800) * WorldScale;
+        public static double WorldY(double canvasY) => (450 - canvasY) * WorldScale;
+        public static double CanvasX(double worldX) => worldX / WorldScale + 800;
+        public static double CanvasY(double worldY) => 450 - worldY / WorldScale;
+        public static string SignText(bool lockdown) => lockdown ? "INTRUDER DETECTED" : "WELCOME TO NULL CITY";
+        public static double RoadShake(double elapsed, bool active, bool reducedMotion) =>
+            active && !reducedMotion && IsFinite(elapsed) ? Math.Sin(elapsed * 75) * 14 : 0;
+
         public const double SurveillanceSeconds = 22;
         public const double LockdownSeconds = 24;
         public const double CycleSeconds = SurveillanceSeconds + LockdownSeconds;

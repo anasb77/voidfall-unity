@@ -68,13 +68,7 @@ namespace VoidFall.Core
 
         public static int WeaponSlotLimit(UpgradeProgress progress)
         {
-            var maxed = 0;
-            for (var index = 0; index < progress.WeaponRanks.Length; index++)
-            {
-                if (progress.WeaponRanks[index] >= ProgressionRules.MaxWeaponRank) maxed++;
-            }
-
-            return maxed >= MaxedWeaponsForExtraSlot ? ExpandedWeaponSlots : BaseWeaponSlots;
+            return ProgressionRules.WeaponSlotLimit(progress.WeaponRanks);
         }
 
         public static bool CoreProgressionComplete(UpgradeProgress progress)

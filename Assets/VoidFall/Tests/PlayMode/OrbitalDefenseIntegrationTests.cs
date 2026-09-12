@@ -110,6 +110,19 @@ namespace VoidFall.Tests.PlayMode
             Call("UpdateHostileShots", .1f);
             Assert.That(ShotActive(), Is.True);
         }
+
+        [Test]
+        public void Rank_three_seconds_hand_intercepts_only_inside_its_short_reach()
+        {
+            var progress = Equip(8); progress.WeaponRanks[8] = 3;
+            Put(_runtime, "_orbitalClockStartAngle", Mathf.PI / 2);
+            Put(_runtime, "_arsenalClockAngle", Mathf.PI / 2);
+            Spawn(true, new Vector2(-45, -20), Vector2.up, 400);
+            Assert.That((bool)Call("TryInterceptHostileShot", 0, new Vector2(-45, -20), new Vector2(-45, 20), 5f), Is.True);
+            Assert.That((bool)Call("TryInterceptHostileShot", 0, new Vector2(-100, -20), new Vector2(-100, 20), 5f), Is.False);
+            progress.WeaponRanks[8] = 2;
+            Assert.That((bool)Call("TryInterceptHostileShot", 0, new Vector2(-45, -20), new Vector2(-45, 20), 5f), Is.False);
+        }
         [Test]
         public void Blades_do_not_create_a_solid_shield_inside_the_orbit()
         {

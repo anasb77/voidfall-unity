@@ -22,6 +22,17 @@ namespace VoidFall.UI
         private Text _recordsDetail;
         private Text _arenaName;
         private Text _formValue;
+        private Button _directorButton;
+        private RectTransform _homeContent;
+        private Vector2 _expandedContentSize, _expandedNavPosition;
+
+        public void SetDirectorChoice(bool visible, string name)
+        {
+            if (_directorButton == null) return;
+            _directorButton.transform.parent.gameObject.SetActive(visible);
+            var label = _directorButton.GetComponentInChildren<Text>();
+            if (label != null) label.text = name + " · Change";
+        }
 
         protected override void Build()
         {
@@ -50,6 +61,14 @@ namespace VoidFall.UI
             content.sizeDelta = new Vector2(ContentWidth, cursor + 40f);
 
             BuildQuitButton();
+            var directorSlot = Place(content, "DirectorChoice", cursor + 45f, 36f, 270f);
+            _directorButton = UIBuilder.CreateSecondaryAction(directorSlot, "Director", "Director I", null,
+                () => Callbacks?.OpenDirectorSelection?.Invoke(), 36f);
+            UIBuilder.Stretch(_directorButton.GetComponent<RectTransform>());
+            directorSlot.gameObject.SetActive(false);
+            _homeContent = content;
+            _expandedContentSize = content.sizeDelta;
+            _expandedNavPosition = ((RectTransform)content.Find("NavGrid")).anchoredPosition;
         }
 
         /// <summary>
@@ -366,7 +385,7 @@ namespace VoidFall.UI
         }
 
         /// <summary>Retained signature used by the runtime's arena cycling.</summary>
-        public void UpdateProfile(int parts, int bestScore, string arenaName)
+        public void UpdateProfile(int parts, long bestScore, string arenaName)
         {
             // Use the common setter for every live label. Besides keeping the
             // text update path consistent, this preserves any tracking/fallback
@@ -393,6 +412,28 @@ namespace VoidFall.UI
                 _formValue.color = locked ? UITheme.TextInactive : UITheme.CyanLabel;
             }
             UIBuilder.SetText(_recordsDetail, FormatNumber(profile.TotalRuns) + " runs");
+            SetFreshPlayerLayout(profile.TotalRuns <= 0);
+        }
+
+        private void SetFreshPlayerLayout(bool fresh)
+        {
+            if (_homeContent == null) return;
+            var status = _homeContent.Find("StatusStrip") as RectTransform;
+            var nav = _homeContent.Find("NavGrid") as RectTransform;
+            var records = nav?.Find("Records");
+            var arena = _homeContent.Find("ArenaSelector");
+            if (status != null) status.gameObject.SetActive(!fresh);
+            if (records != null) records.gameObject.SetActive(!fresh);
+            if (arena != null) arena.gameObject.SetActive(!fresh);
+            if (nav == null || status == null) return;
+            nav.anchoredPosition = _expandedNavPosition + (fresh ? Vector2.up * (status.sizeDelta.y + 11) : Vector2.zero);
+            var grid = nav.GetComponent<GridLayoutGroup>();
+            if (grid != null)
+            {
+                grid.constraintCount = fresh ? 2 : 3;
+                grid.cellSize = new Vector2((ContentWidth - (fresh ? 10 : 20)) / (fresh ? 2 : 3), 67);
+            }
+            _homeContent.sizeDelta = _expandedContentSize - (fresh ? new Vector2(0, status.sizeDelta.y + 57) : Vector2.zero);
         }
     }
 }

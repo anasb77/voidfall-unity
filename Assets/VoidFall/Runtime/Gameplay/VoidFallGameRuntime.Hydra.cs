@@ -120,6 +120,8 @@ namespace VoidFall.Runtime
 
         private void ResetHydraEncounterState()
         {
+            ResetHydraPopulation();
+            _hydraPhaseTransition = false;
             _hydraBossEncounterActive = false;
             _hydraBossSpawnedForVoid = false;
             _hydraBossSlot = -1;
@@ -135,7 +137,7 @@ namespace VoidFall.Runtime
             if (!(_objectives.Objective is MultiPhaseObjective phases) || phases.PhaseIndex < 1) return;
             if (_hydraBossSpawnedForVoid) return;
 
-            BeginHydraBossEncounter();
+            BeginHydraPhaseTransition();
         }
 
         private void BeginHydraBossEncounter()
@@ -196,6 +198,7 @@ namespace VoidFall.Runtime
         {
             for (var index = 0; index < _gameSim.Enemies.Length; index++)
             {
+                if (_gameSim.Enemies[index].Active) RecordEnemyRemoval(index, "hydra_cleanup");
                 _gameSim.Enemies[index] = default;
                 Hide(_enemyViews[index]);
                 Hide(_enemyHarvesterFullViews[index]);
