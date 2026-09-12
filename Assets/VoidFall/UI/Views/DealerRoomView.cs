@@ -87,7 +87,7 @@ namespace VoidFall.UI
             Portrait.rectTransform.localScale=Vector3.one*(bottom?.94f:1f);
             Portrait.rectTransform.anchoredPosition=new Vector2(0,380-(bottom?388:8)+(reduced?0:Mathf.Sin(time*1.2f*DealerPortraitView.AnimationSpeed)*5));
             Portrait.SetPose(Mathf.Clamp((player.x-dealer.x)/400,-.65f,.65f),smiling,reduced,variation);
-            _prompt.rectTransform.anchoredPosition=new Vector2(0,380-(bottom?650:350));
+            _prompt.rectTransform.anchoredPosition=new Vector2(0,380-(bottom?700:290));
             _prompt.gameObject.SetActive(canBrowse);
             _wallet.text=wallet+" <size=11><color=#9d9780>Scraps</color></size>";
             _rings.localRotation=Quaternion.Euler(0,0,-(reduced?0:time*.055f*Mathf.Rad2Deg));

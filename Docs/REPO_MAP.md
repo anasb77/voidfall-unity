@@ -320,6 +320,11 @@ camera's zoom or post effects. Its native interaction coordinates map preview
 pixels through `(x-600, 380-y)`. Existing destination sprites and Zack's current
 Workshop artwork are presented over the shared floor; the route graph still
 owns actual destination names and colors.
+The room omits the heading and movement-help copy. A separate platform frame
+leaves space beyond the selected upper/lower edge for the hovering face, with
+an interaction anchor reachable from the legal walking area. The portrait has
+no platform shadow. `DealerPortraitView.AnimationSpeed` scales head/gaze,
+breathing, hair and room hover cycles by 1.3; reduced-motion settings still apply.
 
 `Resources/VoidFall/Dealer/` is exported by `Tools/Dealer/export-art.mjs` and
 `Tools/Dealer/export-room.mjs` from approved references. The importer preserves
