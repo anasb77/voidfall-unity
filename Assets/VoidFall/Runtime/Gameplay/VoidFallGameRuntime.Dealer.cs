@@ -41,7 +41,7 @@ namespace VoidFall.Runtime
             var seed = _runSeed ^ (uint)(_completedVoids + 1) * 0x9e3779b9u;
             seed ^= seed >> 16; seed *= 0x85ebca6bu; seed ^= seed >> 13; seed *= 0xc2b2ae35u; seed ^= seed >> 16;
             var bottom = (seed & 1) != 0;
-            _dealerPosition = new Vector2(0, bottom ? -260 : 10);
+            _dealerPosition = new Vector2(0, bottom ? -300 : 70);
             _gameSim.Player.Position = bottom ? new Vector2(-180, -140) : new Vector2(0, -210);
             _gameSim.Player.Velocity = Vector2.zero;
             _dealerVariation = (int)((seed >> 5) % 4);
@@ -164,7 +164,7 @@ namespace VoidFall.Runtime
             }
             _dealerRoom.Draw(_gameSim.Player.Position, _dealerPosition, _dealerVariation,
                 Time.unscaledTime < _dealerSmileUntil, reduced, CanOpenDealer && !_dealerOpen, _dealerOpen,
-                _partsEarned, _voidRoute.Node(CurrentVoidId).DisplayName, names, colors, frames, _dealerRoomClock);
+                _partsEarned, names, colors, frames, _dealerRoomClock);
             _dealerRoom.PresentPlayer(_playerAuraView); _dealerRoom.PresentPlayer(_playerRingView);
             if (_playerTrailViews != null) foreach (var view in _playerTrailViews) _dealerRoom.PresentPlayer(view);
             if (_playerCosmeticViews != null) foreach (var view in _playerCosmeticViews) _dealerRoom.PresentPlayer(view);

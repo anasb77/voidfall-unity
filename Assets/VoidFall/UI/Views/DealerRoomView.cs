@@ -9,15 +9,14 @@ namespace VoidFall.UI
     {
         public RectTransform Stage { get; private set; }
         public DealerPortraitView Portrait { get; private set; }
-        private RectTransform _canvas, _rings, _shadow;
+        private RectTransform _canvas, _rings, _ground;
         private DealerRoomDust _dust;
-        private Text _wallet, _prompt, _from;
+        private Text _wallet, _prompt;
         private readonly RawImage[] _portals = new RawImage[2], _pads = new RawImage[2];
         private readonly Text[] _names = new Text[2], _next = new Text[2];
         private readonly Dictionary<SpriteRenderer, RawImage> _player = new Dictionary<SpriteRenderer, RawImage>();
         private RectTransform _playerLayer;
         private Vector2 _playerPosition;
-        private Text _title, _help;
         private static Font _displayFont, _bodyFont;
 
         public static DealerRoomView Create(Canvas canvas)
@@ -36,35 +35,26 @@ namespace VoidFall.UI
             _rings = Art(Stage,"Mist Orbits","room-rings",new Vector2(1400,1400),new Vector2(0,20)).rectTransform;
             _dust = UIBuilder.CreateRect(Stage,"Orbital Stars and Floating Edges").gameObject.AddComponent<DealerRoomDust>();
             _dust.rectTransform.sizeDelta = new Vector2(1200,760); _dust.raycastTarget = false;
-            Art(Stage,"Authored Crossing Floor","room-floor",new Vector2(1200,760),Vector2.zero);
-            _shadow = Art(Stage,"Dealer Shadow","room-shadow",new Vector2(240,100),Vector2.zero).rectTransform;
+            _ground = UIBuilder.CreateRect(Stage,"Platform Frame");
+            _ground.sizeDelta = new Vector2(1200,760);
+            _ground.localScale = Vector3.one * .82f;
+            Art(_ground,"Authored Crossing Floor","room-floor",new Vector2(1200,760),Vector2.zero);
             for(var i=0;i<2;i++)
             {
                 var position = new Vector2(i == 0 ? -310 : 310,-25);
-                _pads[i] = Art(Stage,"Portal Pad "+i,"room-portal-pad",new Vector2(300,300),position);
-                _portals[i] = Art(Stage,"Portal Animation "+i,null,new Vector2(167,167),position);
-                _names[i] = Label(Stage,"Destination "+i,"",20,Color.white,new Vector2(position.x,-145),new Vector2(240,30));
-                _next[i] = Label(Stage,"Destination Hint "+i,"N E X T   V O I D",10,UITheme.Hex("#83919f"),new Vector2(position.x,-174),new Vector2(240,20),false);
+                _pads[i] = Art(_ground,"Portal Pad "+i,"room-portal-pad",new Vector2(300,300),position);
+                _portals[i] = Art(_ground,"Portal Animation "+i,null,new Vector2(167,167),position);
+                _names[i] = Label(_ground,"Destination "+i,"",20,Color.white,new Vector2(position.x,-145),new Vector2(240,30));
+                _next[i] = Label(_ground,"Destination Hint "+i,"N E X T   V O I D",10,UITheme.Hex("#83919f"),new Vector2(position.x,-174),new Vector2(240,20),false);
             }
             Portrait = DealerPortraitView.Create(Stage,"Hovering Dealer",9.96f,new Vector2(422.4f,390));
             Portrait.rectTransform.pivot = new Vector2(.5f,1);
-            _playerLayer = UIBuilder.CreateRect(Stage,"Zack Above Dealer"); _playerLayer.sizeDelta = new Vector2(1200,760);
-            _prompt = Label(Stage,"Browse Prompt","<b>[ E ]</b>   Browse",13,UITheme.Hex("#dbeef4"),Vector2.zero,new Vector2(300,30),false);
-            _from = Label(transform,"Cleared Void","",10,UITheme.Hex("#6b8293"),Vector2.zero,new Vector2(400,20));
-            TopLeft(_from.rectTransform,36,30);
-            var title=Label(transform,"Crossing Title","BETWEEN VOIDS",25,UITheme.TextBody,Vector2.zero,new Vector2(430,36));
-            _title=title;
-            TopLeft(title.rectTransform,36,48);
+            _playerLayer = UIBuilder.CreateRect(_ground,"Zack Above Dealer"); _playerLayer.sizeDelta = new Vector2(1200,760);
+            _prompt = Label(_ground,"Browse Prompt","<b>[ E ]</b>   Browse",13,UITheme.Hex("#dbeef4"),Vector2.zero,new Vector2(300,30),false);
             _wallet=Label(transform,"Run Scraps","",23,UITheme.GoldLight,Vector2.zero,new Vector2(250,40));
             _wallet.alignment=TextAnchor.UpperRight; _wallet.rectTransform.anchorMin=_wallet.rectTransform.anchorMax=Vector2.one;
             _wallet.rectTransform.pivot=Vector2.one; _wallet.rectTransform.anchoredPosition=new Vector2(-36,-30);
-            var help=Label(transform,"Crossing Controls","<b>WASD / arrows</b> to move  ·  <b>E</b> to browse\nWalk into a portal to choose your next Void.",12,UITheme.Hex("#8293a2"),Vector2.zero,new Vector2(500,50),false);
-            _help=help;
-            help.alignment=TextAnchor.LowerLeft; help.rectTransform.anchorMin=help.rectTransform.anchorMax=Vector2.zero;
-            help.rectTransform.pivot=Vector2.zero; help.rectTransform.anchoredPosition=new Vector2(36,26);
         }
-        private static void TopLeft(RectTransform r,float x,float y)
-        { r.anchorMin=r.anchorMax=new Vector2(0,1);r.pivot=new Vector2(0,1);r.anchoredPosition=new Vector2(x,-y); r.GetComponent<Text>().alignment=TextAnchor.UpperLeft; }
         private static Text Label(Transform parent,string name,string value,int size,Color color,Vector2 position,Vector2 dimensions,bool display=true)
         {
             _displayFont ??= Font.CreateDynamicFontFromOSFont("Bahnschrift",24);
@@ -86,23 +76,22 @@ namespace VoidFall.UI
             if(sprite==null){image.enabled=false;return;} var rect=sprite.textureRect;var texture=sprite.texture;
             image.texture=texture;image.uvRect=new Rect(rect.x/texture.width,rect.y/texture.height,rect.width/texture.width,rect.height/texture.height);image.enabled=true;
         }
-        public void Draw(Vector2 player,Vector2 dealer,int variation,bool smiling,bool reduced,bool canBrowse,bool shopOpen,int wallet,string from,string[] names,Color[] colors,Sprite[] portals,float time)
+        public void Draw(Vector2 player,Vector2 dealer,int variation,bool smiling,bool reduced,bool canBrowse,bool shopOpen,int wallet,string[] names,Color[] colors,Sprite[] portals,float time)
         {
             Stage.localScale=Vector3.one*Mathf.Min(_canvas.rect.width/1200,_canvas.rect.height/760);
-            Portrait.gameObject.SetActive(!shopOpen); _shadow.gameObject.SetActive(!shopOpen);
-            _from.gameObject.SetActive(!shopOpen); _title.gameObject.SetActive(!shopOpen);
-            _help.gameObject.SetActive(!shopOpen); _wallet.gameObject.SetActive(!shopOpen);
+            Portrait.gameObject.SetActive(!shopOpen);
+            _wallet.gameObject.SetActive(!shopOpen);
             _playerPosition=player; _playerLayer.anchoredPosition=player; _playerLayer.gameObject.SetActive(!shopOpen);
             var bottom=dealer.y<0;
-            Portrait.rectTransform.anchoredPosition=new Vector2(0,380-(bottom?330:8)+(reduced?0:Mathf.Sin(time*1.2f)*5));
+            _ground.anchoredPosition=new Vector2(0,bottom?270:-94);
+            Portrait.rectTransform.localScale=Vector3.one*(bottom?.94f:1f);
+            Portrait.rectTransform.anchoredPosition=new Vector2(0,380-(bottom?388:8)+(reduced?0:Mathf.Sin(time*1.2f*DealerPortraitView.AnimationSpeed)*5));
             Portrait.SetPose(Mathf.Clamp((player.x-dealer.x)/400,-.65f,.65f),smiling,reduced,variation);
-            _shadow.anchoredPosition=new Vector2(0,380-(bottom?715:370));
-            _prompt.rectTransform.anchoredPosition=new Vector2(0,380-(bottom?740:434));
+            _prompt.rectTransform.anchoredPosition=new Vector2(0,380-(bottom?650:350));
             _prompt.gameObject.SetActive(canBrowse);
             _wallet.text=wallet+" <size=11><color=#9d9780>Scraps</color></size>";
-            _from.text=from.ToUpperInvariant()+" CLEARED / TRAVEL";
             _rings.localRotation=Quaternion.Euler(0,0,-(reduced?0:time*.055f*Mathf.Rad2Deg));
-            _dust.TimeValue=reduced?0:time; _dust.SetVerticesDirty();
+            _dust.TimeValue=reduced?0:time; _dust.GroundOffset=_ground.anchoredPosition.y; _dust.SetVerticesDirty();
             for(var i=0;i<2;i++)
             {
                 var visible=i<names.Length;
@@ -134,6 +123,7 @@ namespace VoidFall.UI
     public sealed class DealerRoomDust : MaskableGraphic
     {
         public float TimeValue;
+        public float GroundOffset;
         protected override void OnPopulateMesh(VertexHelper mesh)
         {
             mesh.Clear();
@@ -149,7 +139,8 @@ namespace VoidFall.UI
             for(var i=0;i<9;i++)
             {
                 var side=i%2==1?-1:1;var p=new Vector2(side*(410+i*7),380-(570+i*12+Mathf.Sin(TimeValue*.6f+i)*4));
-                Quad(p,p+new Vector2(side*20,-4),p+new Vector2(side*29,-19),p+new Vector2(side*8,-15),new Color32(24,42,55,255));
+                var offset=Vector2.up*GroundOffset;
+                Quad(p*.82f+offset,(p+new Vector2(side*20,-4))*.82f+offset,(p+new Vector2(side*29,-19))*.82f+offset,(p+new Vector2(side*8,-15))*.82f+offset,new Color32(24,42,55,255));
             }
         }
     }

@@ -9,6 +9,7 @@ namespace VoidFall.UI
     // Explicit CSS-sized glyph quads: the shared UI text scale/line metrics must not reshape the portrait.
     public sealed class DealerPortraitView : MaskableGraphic
     {
+        public const float AnimationSpeed = 1.3f;
         [Serializable] private sealed class PortraitData { public string[] rows; }
         private struct Run { public int Row, Column, Layer; public string Text; }
         private static readonly float[] Depth = { 1, 1.65f, 1.8f, 1.55f, 2.5f, 2.1f, 1.2f, .45f };
@@ -52,12 +53,12 @@ namespace VoidFall.UI
         private void Update()
         {
             if (_font == null || _rows == null) return;
-            var dt = Time.unscaledDeltaTime;
+            var dt = Time.unscaledDeltaTime * AnimationSpeed;
             _yaw = _reduced ? _target : Mathf.Lerp(_yaw, _target, Mathf.Min(1, dt * 4));
             _gaze = _reduced ? _target : Mathf.Lerp(_gaze, _target, Mathf.Min(1, dt * 10));
             if (Time.unscaledTime < _nextFrame) return;
             _nextFrame = Time.unscaledTime + 1f / 30;
-            _phase = Time.unscaledTime * Mathf.PI * 2 / 4.4f;
+            _phase = Time.unscaledTime * AnimationSpeed * Mathf.PI * 2 / 4.4f;
             Render(_yaw, _gaze, _smile, _variation); SetVerticesDirty();
         }
         protected override void OnPopulateMesh(VertexHelper mesh)

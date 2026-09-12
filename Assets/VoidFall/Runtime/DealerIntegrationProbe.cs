@@ -85,11 +85,13 @@ namespace VoidFall.Runtime
             Call("StartRunInternal", true, true); Set("_paused", true);
             _runtime.ApplySettings();
             Call("OnVoidObjectiveCompleted"); Call("BeginPortalJunction"); Set("_paused", true);
-            Set("_dealerPosition", new Vector2(0, 10)); SetPlayer("Position", new Vector2(0, -210)); Set("_dealerVariation", 0);
+            Set("_dealerPosition", new Vector2(0, 70)); SetPlayer("Position", new Vector2(0, -210)); Set("_dealerVariation", 0);
             yield return Capture("room-top");
-            Set("_dealerPosition", new Vector2(0, -260)); SetPlayer("Position", new Vector2(-180, -140)); Set("_dealerVariation", 3);
+            Set("_dealerPosition", new Vector2(0, -300)); SetPlayer("Position", new Vector2(-180, -140)); Set("_dealerVariation", 3);
             yield return Capture("room-bottom");
-            SetPlayer("Position", (Vector2)Get("_dealerPosition")); Set("_partsEarned", 100); Set("_paused", false); Call("OpenDealer");
+            // Browse from the legal platform edge, rather than teleporting outside it to the dealer anchor.
+            SetPlayer("Position", new Vector2(0, -270)); yield return Capture("room-browse");
+            Set("_partsEarned", 100); Set("_paused", false); Call("OpenDealer");
             if (!(bool)Get("_dealerOpen")) throw new InvalidOperationException("Dealer did not open.");
             yield return Capture("shop");
             var session = (DealerSession)Get("_dealerSession"); var index = Array.FindIndex(session.Offers, o => o.Kind == DealerOfferKind.Fragment);
