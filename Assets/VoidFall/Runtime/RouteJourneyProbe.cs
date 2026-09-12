@@ -90,6 +90,18 @@ namespace VoidFall.Runtime
             Call("SetApplicationActive", true);
             Call("StartRun");
 
+            if (_mode == "mesh-audit")
+            {
+                yield return ArenaMeshAuditProbe.Run(_runtime, _output);
+                yield break;
+            }
+
+            if (_mode == "perf")
+            {
+                yield return CourtPerformanceProbe.Run(_runtime, _output);
+                yield break;
+            }
+
             if (_mode == "collection" || _mode == "countdown")
             {
                 // Exercise a real far-from-origin drop, not just the initial camera bounds.

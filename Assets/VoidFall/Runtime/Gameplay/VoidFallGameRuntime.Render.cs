@@ -782,14 +782,18 @@ namespace VoidFall.Runtime
                     -10);
             }
 
+            var courtPerfArenaStart = Time.realtimeSinceStartupAsDouble;
             RenderArena();
+            CourtPerformanceProbe.Observe("arena-render", (Time.realtimeSinceStartupAsDouble - courtPerfArenaStart) * 1000.0);
             // Custom arena renderers return early from RenderArena. The fullscreen
             // fold still needs its Idle state on arrival, independently of that path.
             UpdateTransitionOverlay();
             SyncEonSeaPresentation();
             SyncCrascendoPresentation();
             RenderHydraPresentation();
+            var courtPerfCourtStart = Time.realtimeSinceStartupAsDouble;
             RenderMonochromePresentation();
+            CourtPerformanceProbe.Observe("court-render", (Time.realtimeSinceStartupAsDouble - courtPerfCourtStart) * 1000.0);
             RenderDeathGhosts();
             RenderDamageIndicators();
             RenderFloaters();
