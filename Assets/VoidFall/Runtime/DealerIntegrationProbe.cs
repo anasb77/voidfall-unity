@@ -75,7 +75,7 @@ namespace VoidFall.Runtime
             var store = new SaveStore(ProfilePath); store.Save(profile); Set("_saveData", profile); Set("_saveStore", store);
             Set("_diagnosticRunSeedOverride", 2848592627u); Set("_applicationInactive", false);
             Call("StartRunInternal", true, true); Set("_paused", true);
-            Call("ApplySavedSettings");
+            _runtime.ApplySettings();
             Call("OnVoidObjectiveCompleted"); Call("BeginPortalJunction"); Set("_paused", true);
             Set("_dealerPosition", new Vector2(0, 105)); SetPlayer("Position", new Vector2(0, -175)); Set("_dealerVariation", 0);
             yield return Capture("room-top");
