@@ -1477,6 +1477,7 @@ namespace VoidFall.Runtime
                 }
             }
 
+            var courtPerfSimStart = Time.realtimeSinceStartupAsDouble;
             UpdateJourneyFlow(Time.unscaledDeltaTime);
             if (!_paused && !_gameOver && !JourneyStopsCombat)
             {
@@ -1485,6 +1486,7 @@ namespace VoidFall.Runtime
                 _clock.Consume(Time.unscaledDeltaTime, Simulate);
             }
             ApplyFxSimulationSpeed();
+            CourtPerformanceProbe.Observe("simulation", (Time.realtimeSinceStartupAsDouble - courtPerfSimStart) * 1000.0);
 
             var frameDt = Time.unscaledDeltaTime;
             if ((_paused || _gameOver || JourneyStopsCombat) && !_mainMenuBrowsing)
@@ -1615,6 +1617,7 @@ namespace VoidFall.Runtime
 
         private void LogSlowStartupPhase(string phase, double started)
         {
+            CourtPerformanceProbe.Observe(phase, (Time.realtimeSinceStartupAsDouble - started) * 1000.0);
             if (_startupMenuReportLogged || _startupMenuReadyRealtime <= 0) return;
             var milliseconds = (Time.realtimeSinceStartupAsDouble - started) * 1000.0;
             if (milliseconds < 20.0) return;
