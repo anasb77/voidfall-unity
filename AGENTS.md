@@ -88,7 +88,75 @@ Content deliberately uses the `VoidFall.Core` namespace.
   not tint the player/HUD; keep authored Hydra art rather than replacing it
   with procedural approximations.
 
-## Verification
+## Music and reward presentation
+
+Owner direction: a gameplay song loops in full until a Track Shift pickup changes
+it; do not automatically select another song at its end. Roulette rewards must
+use the existing `LevelUpView` upgrade menu and its card renderer, not a separate
+reward-screen theme. Click ordinary reward cards to take them. Rule-changing
+Wild Cards require explicit Take and Leave actions with their effects visible.
+On the wheel, "Random" is bold; the stacked text beneath it is 20% smaller.
+Keep thin-slice rewards readable using clearly connected callouts when needed.
+
+## Run data is part of a gameplay feature
+
+The owner uses automatic run exports to iterate on the director and balance.
+When adding or changing observable gameplay, spawning, enemy behavior/stats,
+arena rules/dimensions, progression, drops, upgrades, roulette or rewards,
+**extend the existing exporter in the same change**. Read `Docs/RunExports.md`
+and the telemetry section in `Docs/REPO_MAP.md` for schemas and hook ownership.
+Record meaningful decisions/offers and the actual committed outcome, including
+rejection/despawn reasons where relevant; provide stable IDs, run/simulation
+time, arena/visit and source links. Do not consume RNG to discover an outcome.
+
+Use `RunTelemetryRecorder` and the runtime `.Telemetry.cs` helpers rather than
+creating another logger/exporter. Update schema documentation and add a focused
+test proving new data appears in exported JSON/JSONL. Prefer aggregated damage
+and sampled continuous state to per-frame event spam. No player notifications,
+network uploads, per-hit file writes or unbounded queues. Keep exports outside
+Assets, in `RunExports` beside the player; isolate automated tests. If capture
+is incomplete, report counters/errors explicitly rather than hiding losses.
+
+Director I version 2 is implemented with a 750-actor ceiling; owner difficulty
+tuning remains a playtest decision. Its live path is `.DirectorI.cs`, not the
+legacy 64/128/192 profile bands. See the sustained-combat design and validation
+documents in `Docs/Design/`. Next owner priorities are map-size correction,
+then adapted enemy health. Keep these separate from exporter maintenance.
+
+Owner-approved follow-up: survival is **360 seconds per void**. Loot policy v2
+reserves special-drop capacity, preserves currency/charges when consolidating,
+and returns distant earned loot into reach without directly granting it.
+That earlier loot pass did not include physical arena changes. The owner-approved
+September12 map integration now owns those changes separately.
+Read `Docs/Design/2026-09-08-LootReachability-SixMinutes.md` before changing
+pickup allocation/iteration or time-dependent arena/director rules. Pickup
+generation snapshots must prevent same-tick collection of newborn rewards.
+
+## Approved map integration (September12)
+
+Preserve the existing Null City artwork. Its authored coordinates convert to
+world space at4× scale; scale geometry/props/hazard radii consistently rather
+than changing enemy combat speeds or general health balance. Player size
+adjustments are rendering-only. The city follows Zack and its existing sign
+switches WELCOME TO NULL CITY / INTRUDER DETECTED. Active laser roads shake,
+not the camera; reduced motion disables that shake.
+
+Court is a single fixed neutral board, with129.6-unit tiles, local snapshotted
+hazards sequentially armed over2s, one3.4s burst, and native mortar reticles.
+Keep the existing chess roster and Grandmaster designs. Living sentinel rooks
+are stationary/contact-only,100k–150kHP,targetable; fallen rooks have X eyes.
+Show bars without numeric HP. Kill notification is exactly “Sacificed the RoooK !”
+and5–6 roster-one children are queued idempotently. Preserve world boundaries
+and viewport-aware recycling; do not restore scrolling split-field wallpaper.
+
+Hydra I is360s survival without gene nodes/bone detail, with fast downward
+original glyph animation. Its ten spawn-identity-keyed hybrids/Viruses are in
+HydraPopulationRules and runtime HydraPopulation. Hydra I uses the existing
+collapse/swap/settle flow to the boss in the SAME route visit. **Hydra II keeps
+the old Unity map, authored art, boss behavior and health rules unchanged.**
+Never copy the browser's experimental HydraII camera or replacement lair.
+
+## Verification commands
 
 Choose checks for the change: EditMode for rules/storage, PlayMode for runtime
 flow, a Windows build for player/asset integration, captures for visuals.
@@ -102,7 +170,14 @@ $unityEditor = 'C:/Program Files/Unity/Hub/Editor/6000.5.7f1/Editor/Unity.exe'
 ```
 
 Use the installed Editor path on other machines. Test commands must **not**
-include `-quit`. The current integrated player is `../Builds/VoidFall.exe`.
+include `-quit`. The canonical integrated player is `../Builds/VoidFall.exe`.
+`VoidFall.EditorTools.BuildScript.BuildWindows` owns the Windows build pipeline;
+legacy validation/preview/baseline helpers delegate to it. Keep new player build
+entry points on that path rather than adding separate output directories.
+Windows builds explicitly prefer DX11; DX12 is retained for opt-in diagnostics.
+This mitigates the owner's fullscreen/focus freeze risk; the original forced-kill
+hang had no captured stack and must not be described as conclusively fixed.
+Preserve focus/graphics export evidence when investigating recurrence.
 Keep temporary validation builds/backups only until the replacement is verified;
 do not accumulate full player copies inside `Logs/` or `Builds/`. Preserve any
 explicitly designated release archive. `Library/` is a regenerable Unity cache;

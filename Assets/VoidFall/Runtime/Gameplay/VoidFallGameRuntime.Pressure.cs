@@ -58,7 +58,9 @@ namespace VoidFall.Runtime
             if (phases == null) return;
             var survival = phases.PhaseIndex > 0 || phases.IsComplete ? 1.0 : phases.CurrentPhase.Progress01;
             if (_pressureStageIndex == 0 && phases.PhaseIndex == 0)
-                survival = Math.Max(0, (survival * 300.0 - RunOpeningSeconds) / (300.0 - RunOpeningSeconds));
+                survival = Math.Max(0, (survival * VoidProgressionRules.SurvivalSeconds - RunOpeningSeconds) /
+                    (VoidProgressionRules.SurvivalSeconds - RunOpeningSeconds));
+            // RunPressureState deliberately retains 80/20 weighting and canonical 300+60 scoring units per visit.
             var boss = 0.0;
             if (phases.PhaseIndex > 0 || phases.IsComplete)
             {

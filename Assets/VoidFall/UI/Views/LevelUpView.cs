@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace VoidFall.UI
@@ -37,11 +38,25 @@ namespace VoidFall.UI
         private const float ContentWidth = 930f;
         private const float CardHeight = 268f;
         private const float CardGap = 16f;
+        private const float RewardGuardSeconds = 0.45f;
 
         private RectTransform _grid;
+        private RectTransform _rerollRow;
+        private RectTransform _rewardActions;
+        private Text _headerKicker;
+        private Text _headerTitle;
         private Button _reroll;
         private Text _rerollLabel;
         private Action<int> _onSelect;
+        private Button _rewardCard;
+        private Button _takeReward;
+        private Button _leaveReward;
+        private Action _onTake;
+        private Action _onLeave;
+        private bool _rewardMode;
+        private bool _rewardResolved;
+        private float _rewardElapsed;
+        private int _presentationVersion;
 
         protected override void Build()
         {
@@ -69,6 +84,7 @@ namespace VoidFall.UI
             layout.childForceExpandHeight = true;
 
             BuildRerollRow(content);
+            BuildRewardActions(content);
         }
 
         private static float LevelUpContentWidth()
@@ -102,6 +118,7 @@ namespace VoidFall.UI
                 true,
                 FontStyle.Bold,
                 0.5f);
+            _headerKicker = kicker;
             kicker.rectTransform.anchorMin = new Vector2(0f, 1f);
             kicker.rectTransform.anchorMax = new Vector2(1f, 1f);
             kicker.rectTransform.pivot = new Vector2(0.5f, 1f);
@@ -123,6 +140,7 @@ namespace VoidFall.UI
                 true,
                 FontStyle.Bold,
                 0.18f);
+            _headerTitle = title;
             title.rectTransform.anchorMin = new Vector2(0f, 0f);
             title.rectTransform.anchorMax = new Vector2(1f, 1f);
             title.rectTransform.offsetMin = new Vector2(0f, 0f);
@@ -144,6 +162,7 @@ namespace VoidFall.UI
         private void BuildRerollRow(RectTransform parent)
         {
             var row = UIBuilder.CreateRect(parent, "RerollRow");
+            _rerollRow = row;
             row.anchorMin = new Vector2(0.5f, 0f);
             row.anchorMax = new Vector2(0.5f, 0f);
             row.pivot = new Vector2(0.5f, 0f);
@@ -161,6 +180,95 @@ namespace VoidFall.UI
             _rerollLabel = _reroll.transform.Find("Label")?.GetComponent<Text>();
         }
 
+        private void BuildRewardActions(RectTransform parent)
+        {
+            _rewardActions = UIBuilder.CreateRect(parent, "RewardActions");
+            _rewardActions.anchorMin = new Vector2(0.5f, 0f);
+            _rewardActions.anchorMax = new Vector2(0.5f, 0f);
+            _rewardActions.pivot = new Vector2(0.5f, 0f);
+            _rewardActions.sizeDelta = new Vector2(300f, 46f);
+            UIBuilder.AddHorizontalLayout(_rewardActions, 12f, null, TextAnchor.MiddleCenter);
+            _takeReward = UIBuilder.CreatePrimaryAction(_rewardActions, "Take", "TAKE", null,
+                () => ResolveReward(true, _presentationVersion), 46f);
+            _leaveReward = UIBuilder.CreateSecondaryAction(_rewardActions, "Leave", "LEAVE", null,
+                () => ResolveReward(false, _presentationVersion), 46f);
+            _rewardActions.gameObject.SetActive(false);
+        }
+
+        /// <summary>Shows a roulette offer using the same card as a normal level-up.</summary>
+        public void ShowReward(UpgradeCardData card, Action onTake, Action onLeave = null,
+            int claimIndex = 1, int claimCount = 1)
+        {
+            _presentationVersion++;
+            _rewardMode = true;
+            _rewardResolved = false;
+            _rewardElapsed = 0f;
+            _onSelect = null;
+            _onTake = onTake;
+            _onLeave = onLeave;
+            _headerKicker.text = "REWARD " + Mathf.Clamp(claimIndex, 1, Mathf.Max(1, claimCount))
+                + " OF " + Mathf.Max(1, claimCount);
+            _headerTitle.text = onLeave == null ? "CLAIM YOUR REWARD" : "TAKE OR LEAVE";
+            _rerollRow.gameObject.SetActive(false);
+            _reroll.interactable = false;
+            _rewardActions.gameObject.SetActive(onLeave != null);
+
+            // Retain the original desktop card width instead of stretching one
+            // reward across the entire three-offer row.
+            _grid.anchorMin = new Vector2(0.5f, 1f);
+            _grid.anchorMax = new Vector2(0.5f, 1f);
+            _grid.sizeDelta = new Vector2(Mathf.Min(LevelUpContentWidth(),
+                (ContentWidth - CardGap * 2f) / 3f), CardHeight);
+            ClearCards();
+            BuildCard(card, 0);
+            UpdateRewardActions();
+            SetVisible(true);
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(onLeave == null ? _rewardCard.gameObject : _takeReward.gameObject);
+        }
+
+        private void Update()
+        {
+            if (!_rewardMode || _rewardResolved) return;
+            _rewardElapsed += Time.unscaledDeltaTime;
+            UpdateRewardActions();
+        }
+
+        private void ClearCards()
+        {
+            // Editor reward captures also rebuild the view outside play mode.
+            if (Application.isPlaying)
+            {
+                ClearChildren(_grid);
+                return;
+            }
+            for (var index = _grid.childCount - 1; index >= 0; index--)
+                DestroyImmediate(_grid.GetChild(index).gameObject);
+        }
+
+        private void UpdateRewardActions()
+        {
+            var ready = _rewardMode && !_rewardResolved && _rewardElapsed >= RewardGuardSeconds;
+            if (_rewardCard != null) _rewardCard.interactable = ready && _onLeave == null;
+            _takeReward.interactable = ready;
+            _leaveReward.interactable = ready && _onLeave != null;
+        }
+
+        private void ResolveReward(bool take, int presentationVersion)
+        {
+            if (!_rewardMode || _rewardResolved || !IsVisible || presentationVersion != _presentationVersion
+                || _rewardElapsed < RewardGuardSeconds || (!take && _onLeave == null)) return;
+            _rewardResolved = true;
+            var callback = take ? _onTake : _onLeave;
+            // Detach before hiding or invoking: the callback can synchronously
+            // replace this reward with the next card and restart its guard.
+            _onTake = null;
+            _onLeave = null;
+            UpdateRewardActions();
+            SetVisible(false);
+            callback?.Invoke();
+        }
+
         /// <summary>Retained signature used by the runtime.</summary>
         public void ShowUpgrades(IReadOnlyList<UpgradeCardData> cards, Action<int> onSelect)
         {
@@ -173,8 +281,24 @@ namespace VoidFall.UI
         /// </summary>
         public void ShowUpgrades(IReadOnlyList<UpgradeCardData> cards, int rerollsRemaining, Action<int> onSelect)
         {
+            var returningFromReward = _rewardMode;
+            _presentationVersion++;
+            _rewardMode = false;
+            _rewardResolved = false;
+            _rewardElapsed = 0f;
+            _onTake = null;
+            _onLeave = null;
+            UpdateRewardActions();
+            _rewardCard = null;
+            _rewardActions.gameObject.SetActive(false);
+            _rerollRow.gameObject.SetActive(true);
+            _headerKicker.text = "LEVEL UP";
+            _headerTitle.text = "CHOOSE AN UPGRADE";
+            _grid.anchorMin = new Vector2(0f, 1f);
+            _grid.anchorMax = new Vector2(1f, 1f);
+            _grid.sizeDelta = new Vector2(0f, CardHeight);
             _onSelect = onSelect;
-            ClearChildren(_grid);
+            ClearCards();
 
             var count = cards?.Count ?? 0;
             for (var index = 0; index < count; index++)
@@ -194,6 +318,8 @@ namespace VoidFall.UI
             if (_reroll != null) _reroll.interactable = rerollsRemaining != 0;
 
             SetVisible(true);
+            if (returningFromReward && EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(count > 0 ? _grid.GetChild(0).gameObject : null);
         }
 
         private void BuildCard(UpgradeCardData data, int index)
@@ -245,8 +371,17 @@ namespace VoidFall.UI
             button.spriteState = spriteState;
 
             var captured = index;
+            var presentationVersion = _presentationVersion;
+            var reward = _rewardMode;
+            if (reward) _rewardCard = button;
             button.onClick.AddListener(() =>
             {
+                if (presentationVersion != _presentationVersion) return;
+                if (reward)
+                {
+                    if (_onLeave == null) ResolveReward(true, presentationVersion);
+                    return;
+                }
                 // Hide first: the runtime clears its level-up state synchronously,
                 // and leaving the card visible for a frame reads as a stuck click.
                 SetVisible(false);

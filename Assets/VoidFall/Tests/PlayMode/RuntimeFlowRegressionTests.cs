@@ -19,36 +19,25 @@ namespace VoidFall.Tests.PlayMode
         private bool _previousApplicationInactive;
 
         [Test]
-        public void Court_split_and_boss_hazards_switch_without_leaking_views()
+        public void Court_fixed_board_does_not_scroll_or_leak_into_other_arenas()
         {
             var runtime = _isolatedRuntime;
             Invoke(runtime, "StartRun");
             SetField(runtime, "_arenaId", ArenaId.MonochromeCourt);
-            SetField(runtime, "_time", 20f);
+            Invoke(runtime, "EnsureCourtField");
             Invoke(runtime, "RenderMonochromePresentation");
-            var split = (SpriteRenderer[])GetField(runtime, "_courtSplitViews");
-            Assert.That(split[0].enabled && split[1].enabled, Is.True);
-            Assert.That(split[0].color.grayscale, Is.LessThan(split[1].color.grayscale));
-
-            SetField(runtime, "_monochromeBossEncounterActive", true);
-            SetField(runtime, "_monochromeBoardTileSize", new Vector2(100, 100));
-            SetField(runtime, "_monochromeHazard", new CourtHazardState(CourtFaction.White, CourtHazardStage.Warning));
-            Invoke(runtime, "RenderMonochromePresentation");
-            Assert.That(split[0].enabled || split[1].enabled, Is.False);
             var tiles = (SpriteRenderer[])GetField(runtime, "_courtBoardTiles");
-            var material = (Material)GetField(runtime, "_courtTileMaterial");
+            var position = tiles[0].transform.position;
             Assert.That(tiles[0].enabled, Is.True);
-            Assert.That(material.GetFloat("_HazardStage"), Is.EqualTo(1));
-            Assert.That(material.GetFloat("_WhiteActive"), Is.EqualTo(1));
-            SetField(runtime, "_monochromeHazard", new CourtHazardState(CourtFaction.Black, CourtHazardStage.Burning));
+            var sim = GetField(runtime, "_gameSim");
+            var player = GetField(sim, "Player");
+            SetField(player, "Position", new Vector2(1000, 900));
+            SetField(sim, "Player", player);
             Invoke(runtime, "RenderMonochromePresentation");
-            Assert.That(material.GetFloat("_HazardStage"), Is.EqualTo(2));
-            Assert.That(material.GetFloat("_WhiteActive"), Is.Zero);
-            SetField(runtime, "_monochromeBossEncounterActive", false);
+            Assert.That(tiles[0].transform.position, Is.EqualTo(position));
             SetField(runtime, "_arenaId", ArenaId.Hydra);
             Invoke(runtime, "RenderMonochromePresentation");
             foreach (var view in tiles) Assert.That(view.enabled, Is.False);
-            foreach (var view in split) Assert.That(view.enabled, Is.False);
         }
 
         [UnitySetUp]
@@ -285,7 +274,7 @@ namespace VoidFall.Tests.PlayMode
             var session = GetField(runtime, "_rouletteSession");
             RouletteRules.Spin((RouletteSession)session, new Rng(200));
             Invoke(runtime, "OnRouletteComplete", session);
-            Invoke(runtime, "ClosePrizeReveal");
+            RouletteClaimTestActions.ClaimAll(runtime);
 
             Assert.That(GetField(runtime, "_openRouteAfterRoulette"), Is.False);
             Assert.That(GetField(runtime, "_paused"), Is.False);
@@ -335,7 +324,7 @@ namespace VoidFall.Tests.PlayMode
             yield return null;
             SetField(runtime, "_diagnosticRunSeedOverride", 2848592627u);
             Invoke(runtime, "StartRun");
-            Invoke(runtime, "StepObjectiveTracker", 300d);
+            Invoke(runtime, "StepObjectiveTracker", VoidProgressionRules.SurvivalSeconds);
             Invoke(runtime, "StepObjectiveTracker", 0d);
             Assert.That(runtime.ActiveBossesCount, Is.EqualTo(2));
             Invoke(runtime, "KillBoss", 1);
@@ -350,6 +339,9 @@ namespace VoidFall.Tests.PlayMode
             RouletteRules.Spin((RouletteSession)GetField(runtime, "_rouletteSession"), new Rng(200));
             Invoke(runtime, "OnRouletteComplete", GetField(runtime, "_rouletteSession"));
             Invoke(runtime, "SyncUiScreen");
+            Assert.That(GetField(runtime, "_prizeRevealActive"), Is.True);
+            Assert.That(GetField(runtime, "_paused"), Is.True);
+            RouletteClaimTestActions.ClaimAll(runtime);
             Assert.That(GetField(runtime, "_prizeRevealActive"), Is.False);
             Assert.That(GetField(runtime, "_paused"), Is.False);
             Assert.That(runtime.JourneyStatus, Is.EqualTo("Rewards"));

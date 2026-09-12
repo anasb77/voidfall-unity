@@ -44,22 +44,24 @@ Shader "VoidFall/CourtTile"
                 color=lerp(color,base*.53,edge*.75);
                 float lip=smoothstep(.018-aa,.018+aa,d)*(1-smoothstep(.026-aa,.026+aa,d));
                 color+=lip*.045;
-                bool active=_HazardStage>.5 && abs(white-_WhiteActive)<.5;
-                if(active)
+                if (_HazardStage > .5)
                 {
-                    // No red fill or inversion: limited brightness pulses plus persistent danger markings.
-                    color=lerp(color,half3(.83,.87,.89),_Pulse*.045);
-                    half3 signal=lerp(half3(.72,.8,.86),half3(.07,.11,.15),white);
-                    float border=smoothstep(.042-aa,.042+aa,d)*(1-smoothstep(.061-aa,.061+aa,d));
-                    color=lerp(color,signal,border*.85);
-                    float pulseBorder=smoothstep(.075-aa,.075+aa,d)*(1-smoothstep(.091-aa,.091+aa,d));
-                    color=lerp(color,signal,pulseBorder*(.2+.65*_Pulse));
-                    if(_HazardStage>1.5)
-                    {
-                        float pattern=frac((uv.x-uv.y)*5);
-                        float hatch=(1-smoothstep(.04,.08,pattern))*step(.37,uv.y)*step(uv.y,.6)*step(.15,uv.x)*step(uv.x,.85);
-                        color=lerp(color,signal,hatch*.55);
-                    }
+                    // Per-cell property blocks authorize this fill; there is no global color toggle.
+                    float warning = _HazardStage < 1.5 ? 1 : 0;
+                    float fill = warning > .5 ? .15 + .17 * _Pulse : .58;
+                    color = lerp(color, half3(.91,.18,.16), fill);
+                    float2 centre = uv - .5;
+                    float radius = length(centre);
+                    float angle = atan2(centre.y,centre.x) + 3.14159265;
+                    float segment = frac(angle * (6.0 / 6.2831853));
+                    float radialAA = max(fwidth(radius), .002);
+                    float ring = (1-smoothstep(.009,.009+radialAA,abs(radius-.34))) * step(.095,segment) * step(segment,.76);
+                    float cross = max((1-step(.055,abs(centre.x)))*(1-step(.011,abs(centre.y))),
+                                      (1-step(.011,abs(centre.x)))*(1-step(.055,abs(centre.y))));
+                    half3 marker = lerp(half3(.984,.573,.235),half3(1,.969,.929),step(.8,_Pulse));
+                    color = lerp(color,marker,saturate(ring+cross)*warning*.95);
+                    float burst = (1-smoothstep(.025,.045,abs(radius-.34)))* (1-warning);
+                    color = lerp(color,half3(1,.78,.51),burst*.85);
                 }
                 return half4(color,i.color.a);
             }

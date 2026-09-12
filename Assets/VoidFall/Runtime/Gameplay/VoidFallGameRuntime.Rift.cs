@@ -163,7 +163,7 @@ namespace VoidFall.Runtime
             var voidId = _voidRoute?.CurrentArenaId ?? ArenaCatalogRules.StableId(_arenaId);
             if (voidId == "hydra")
             {
-                BeginHydraBossEncounter();
+                BeginHydraPhaseTransition();
                 return;
             }
             if (voidId == "monochrome-court")
@@ -364,7 +364,12 @@ namespace VoidFall.Runtime
                 ArenaPhase.Idle,
                 0,
                 null);
-            _telemetry.RecordArenaComplete(Mathf.Max(0, _completedVoids - 1), (float)_time);
+            if (_hydraPhaseTransition)
+            {
+                _hydraPhaseTransition = false;
+                RecordRunHistory("hydra_phase", "hydra-ii", reason: "teleport_settled", sourceId: "hydra-i");
+            }
+            else _telemetry.RecordArenaComplete(Mathf.Max(0, _completedVoids - 1), (float)_time);
         }
 
         private void CommitRiftTransitionSwap()
@@ -372,6 +377,11 @@ namespace VoidFall.Runtime
             if (_riftTransitionSwapped || string.IsNullOrEmpty(_riftTransitionVoidId)) return;
             Debug.Log($"VOIDFLOW swap to={_riftTransitionVoidId} t={_time:F1}");
             _riftTransitionSwapped = true;
+            if (_hydraPhaseTransition)
+            {
+                CommitHydraPhaseTransitionSwap();
+                return;
+            }
             DestroyEnemiesForVoidTransition();
             ClearTransitionProjectiles();
             ClearMeteors();
@@ -383,6 +393,7 @@ namespace VoidFall.Runtime
             _meteorTarget = MeteorRules.MinOrdinaryMeteors;
             ResetDirectorAfterVoidTransition();
             BeginObjectiveForCurrentArena();
+            ObserveRunExportState();
 
             _arenaFlash = Mathf.Max(_arenaFlash, 0.85f);
             _cyanFlash = Mathf.Max(_cyanFlash, 0.72f);
@@ -407,6 +418,7 @@ namespace VoidFall.Runtime
                 var enemy = _gameSim.Enemies[index];
                 if (enemy.Active)
                 {
+                    RecordEnemyRemoval(index, "arena_transition");
                     SpawnDeathGhost(enemy, index);
                     BurstFx(enemy.Position, SourceDotColor("cyan"), enemy.Elite ? 5 : 2, 150f, 0.3f, 0.62f);
                 }

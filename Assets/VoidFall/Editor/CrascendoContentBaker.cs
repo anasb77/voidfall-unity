@@ -73,10 +73,7 @@ namespace VoidFall.Editor
 
         public static void BuildValidationPlayer()
         {
-            var path = Path.GetFullPath(Path.Combine(Application.dataPath, "../../Builds/CrascendoValidation/VoidFall.exe")); Directory.CreateDirectory(Path.GetDirectoryName(path));
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { "Assets/Scenes/SampleScene.unity" }, locationPathName = path, target = BuildTarget.StandaloneWindows64, options = BuildOptions.None });
-            Debug.Log("Crascendo build: " + report.summary.result + " / " + report.summary.totalErrors + " errors / " + path);
-            EditorApplication.Exit(report.summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded && report.summary.totalErrors == 0 ? 0 : 1);
+            VoidFall.EditorTools.BuildScript.BuildWindows();
         }
     }
 }

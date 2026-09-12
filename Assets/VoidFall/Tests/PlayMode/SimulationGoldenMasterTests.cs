@@ -100,7 +100,7 @@ namespace VoidFall.Tests.PlayMode
                 _legacyMeteorSchema = true;
                 var legacy = HashRuntimeState(runtime);
                 Debug.Log("METEOR SCHEMA CHECK legacy=" + legacy + " full=" + hash);
-                Assert.That(legacy, Is.EqualTo(584744233380640504UL), "The approved 25-minute roster baseline must remain stable under the legacy meteor schema.");
+                Assert.That(legacy, Is.EqualTo(5768066926572862399UL), "The approved loot-v2/six-minute baseline must remain stable under the legacy meteor schema.");
             }
             finally { _legacyMeteorSchema = false; }
             Assert.That(
@@ -146,7 +146,19 @@ namespace VoidFall.Tests.PlayMode
         // deterministic body separation without RNG draws, encounter movement,
         // and native faction combat tracking intentionally update the fixed-step
         // simulation state. Verified bit-exact across the 32-seed repeatability sweep.
-        internal const ulong GoldenMasterHash = 2158461941832927523;
+        // September 8 Director I capacity: enemy pool 192 -> 750, with the
+        // productionMax EnemyFill=1 fixture now initially filling all 750 slots.
+        // Hash includes pool length plus new actors/RNG/effects. Sustained I is
+        // bypassed in this stress fixture, so this re-pin is specifically the
+        // intentional capacity/workload change. Before re-pin, 32-seed sweep
+        // passed; measured legacy8416978558111970584 / full1951251204707846202.
+        // September 8 loot-v2 / six-minute follow-up: reserved pickup capacity,
+        // value-preserving overflow, spatial recovery and generation-safe pickup
+        // iteration intentionally change pickup/collection and combat RNG state.
+        // Raw diagnostic progression now models 360s survival +60s boss credit.
+        // Measured legacy5768066926572862399 / full8219498908681263610; the
+        // 32-seed repeatability sweep passed BEFORE this intentional re-pin.
+        internal const ulong GoldenMasterHash = 8219498908681263610;
 
         internal static ulong HashRuntimeState(object runtime)
         {

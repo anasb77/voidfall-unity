@@ -96,6 +96,8 @@ namespace VoidFall.Runtime
             // Loot left after the collection/countdown window belongs to the outgoing arena.
             for (var index = 0; index < _gameSim.Pickups.Length; index++)
             {
+                var pickup = _gameSim.Pickups[index];
+                if (pickup.Active) RecordPickupHistory("drop_discarded", index, pickup);
                 _gameSim.Pickups[index] = default;
                 Hide(_pickupViews[index]);
             }

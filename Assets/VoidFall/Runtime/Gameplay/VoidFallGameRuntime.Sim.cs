@@ -77,6 +77,7 @@ namespace VoidFall.Runtime
         private void MovePlayer(float dt)
         {
             var input = _input.ReadMoveAxis(_saveData?.settings?.touchSize ?? 1f);
+            if (_directorPlaytestActive) input = DirectorPlaytestInput();
             var mobility = SupportRank("mobility");
             var adrenal = SupportRank("adrenal");
             var speed = (float)ContentCatalog.Operative.MoveSpeed *
@@ -689,6 +690,8 @@ namespace VoidFall.Runtime
 
         private void UpdateEnemies(float dt)
         {
+            UpdateHydraPopulationBirths();
+            PrepareDirectorAttackBudget();
             var globalHarvesterXp = XpHeldByHarvesters();
             // Enemy behaviour presentation hooks (see GameSim contract notes).
             _gameSim.EnemyBurstFxHook = EnemyBurstFxForSim;
@@ -720,6 +723,8 @@ namespace VoidFall.Runtime
             _gameSim.EnemyGameOverQuery = EnemyGameOverForSim;
             _gameSim.EnemyRevivePendingQuery = EnemyRevivePendingForSim;
             _gameSim.EnemyHidePickupViewHook = EnemyHidePickupViewForSim;
+            _pickupAbsorbedTelemetryHook ??= RecordPickupAbsorbed;
+            _gameSim.PickupAbsorbedTelemetryHook = _pickupAbsorbedTelemetryHook;
             _gameSim.EnemyTelemetryHook = EnemyTelemetryForSim;
             _gameSim.EnemyShakeHook = EnemyShakeForSim;
             // Browser updateEnemies walks its compact array backwards. The
@@ -783,6 +788,10 @@ namespace VoidFall.Runtime
                 else if (enemy.Elite && !enemy.EliteKind.HasValue)
                 {
                     UpdateStandardElite(ref enemy, dt, distance, direction);
+                }
+                else if (TryUpdateHydraPopulation(ref enemy, dt, distance, direction, ref globalHarvesterXp))
+                {
+                    // Identity-keyed Hydra specimens own their inherited behavior.
                 }
                 else if (UsesRosterProgression(enemy))
                 {
@@ -854,18 +863,19 @@ namespace VoidFall.Runtime
                     enemy.Velocity = rotated * enemy.Speed;
                 }
 
-                if (!bodyguardOrbiting)
+                if (!bodyguardOrbiting && !IsCourtSentinel(enemy))
                 {
                     enemy.Knockback *= Mathf.Exp(-8f * dt);
                     enemy.Position += (enemy.Velocity + enemy.Knockback) * dt;
                     ConstrainNullCityEnemy(ref enemy);
+                    ConstrainCourtEnemy(ref enemy);
                 }
-                ApplyMajorIncidentEnemyDisplacement(ref enemy, dt);
+                if (!IsCourtSentinel(enemy)) ApplyMajorIncidentEnemyDisplacement(ref enemy, dt);
                 ResolveEonSeaEnemyMovement(i, ref enemy, eonOldPosition);
                 ResolveDestroyerSweep(enemy, eonOldPosition);
                 FactionContact(ref enemy);
-                if (DestroyerContent.Find(enemy.Id) == null && (!enemy.Elite || enemy.EliteKind.HasValue) && distance > 1750f &&
-                    _encounterMembers[i].Movement == EncounterMovement.None)
+                if (!IsCourtSentinel(enemy) && DestroyerContent.Find(enemy.Id) == null && (!enemy.Elite || enemy.EliteKind.HasValue) && distance > ApprovedMapEnemyRecycleDistance() &&
+                    (_encounterMembers[i].Movement == EncounterMovement.None || _encounterMembers[i].Movement == EncounterMovement.Natural))
                 {
                     var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                     var viewportHalf = GameplayViewportHalfExtent();
@@ -873,7 +883,10 @@ namespace VoidFall.Runtime
                         Mathf.Pow(viewportHalf.x * 2f, 2) +
                         Mathf.Pow(viewportHalf.y * 2f, 2)) * 0.5f + 90f;
                     enemy.Position = _gameSim.Player.Position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                    ConstrainNullCityEnemy(ref enemy);
+                    ConstrainCourtEnemy(ref enemy);
                     enemy.Age = 0;
+                    if (_runExportActive) _telemetry.RecordHistory(EnemyHistory("enemy_repositioned", enemy));
                     ResolveEonSeaEnemyMovement(i, ref enemy, enemy.Position);
                 }
 
@@ -1004,7 +1017,12 @@ namespace VoidFall.Runtime
         private bool EnemyGameOverForSim() => _gameOver;
 
 
-        private void EnemyHidePickupViewForSim(int slot) => Hide(_pickupViews[slot]);
+        private void EnemyHidePickupViewForSim(int slot)
+        {
+            Hide(_pickupViews[slot]);
+        }
+        private void RecordPickupAbsorbed(int slot, float amount) =>
+            RecordPickupHistory("drop_absorbed", slot, _gameSim.Pickups[slot], amount);
 
         private void EnemyTelemetryForSim(float absorbed) => _telemetry.RecordXpAbsorbedByHarvester(absorbed);
 
@@ -1354,8 +1372,8 @@ namespace VoidFall.Runtime
                     boss.Position = _monochromeArenaCentre + new Vector2(
                         boss.Id == CourtBlackBossId ? -240f : 240f,
                         135f);
-                    boss.TargetPosition = boss.Position;
                     boss.Speed = 0f;
+                    UpdateCourtGrandmasterAttack(ref boss, definition, dt);
                     _gameSim.Bosses[i] = boss;
                     continue;
                 }
@@ -1779,8 +1797,16 @@ namespace VoidFall.Runtime
         }
 
         private void ResetEnemyOrder() => _gameSim.ResetEnemyOrder();
-        private void AppendEnemyOrder(int slot) => _gameSim.AppendEnemyOrder(slot);
-        private void RemoveEnemyOrder(int slot) => _gameSim.RemoveEnemyOrder(slot);
+        private void AppendEnemyOrder(int slot)
+        {
+            _gameSim.AppendEnemyOrder(slot);
+            RecordEnemySpawn(slot);
+        }
+        private void RemoveEnemyOrder(int slot)
+        {
+            RecordEnemyRemoval(slot, "removed");
+            _gameSim.RemoveEnemyOrder(slot);
+        }
 
         private void ResetBossOrder() => _gameSim.ResetBossOrder();
         private void AppendBossOrder(int slot) => _gameSim.AppendBossOrder(slot);
@@ -1797,10 +1823,15 @@ namespace VoidFall.Runtime
 
         private void ResetPickupOrder()
         {
+            _lootRecoveryTimer = .25f;
             _gameSim.ResetPickupOrder();
             ResetMusicMagnetCollection();
         }
-        private void AppendPickupOrder(int slot) => _gameSim.AppendPickupOrder(slot);
+        private void AppendPickupOrder(int slot)
+        {
+            _gameSim.AppendPickupOrder(slot);
+            RecordPickupHistory("drop_spawn", slot, _gameSim.Pickups[slot]);
+        }
         private void RemovePickupOrder(int slot) => _gameSim.RemovePickupOrder(slot);
         private void RemovePickupOrderAt(int position) => _gameSim.RemovePickupOrderAt(position);
         private void ResetDamageIndicatorOrder() => _damageIndicatorOrder.Reset();
@@ -2134,6 +2165,10 @@ namespace VoidFall.Runtime
                 _pickupCollectedHook = (slot, order, collectedFromPull) =>
                 {
                     var pickup = _gameSim.Pickups[slot];
+                    var parentPickupId = _telemetryPickupIds[slot];
+                    var remainder = IsPowerupPickup(pickup.Kind) ? Mathf.Max(0, Mathf.FloorToInt(pickup.Value) - 1) : 0;
+                    if (IsPowerupPickup(pickup.Kind)) pickup.Value = 1;
+                    RecordPickupHistory("drop_collected", slot, pickup);
                     var musicMagnetGem = _musicMagnetSlots[slot];
                     _musicMagnetSlots[slot] = false;
                     Hide(_pickupViews[slot]);
@@ -2147,6 +2182,9 @@ namespace VoidFall.Runtime
                         _xp += pickup.Value * GreedXpMultiplier() *
                         (float)SupportEffectRules.ScholarXpMultiplier(SupportRank("scholar"));
                         _telemetry.RecordXpCollected(pickup.Value);
+                        RecordRunHistory("xp_received", amount: pickup.Value * GreedXpMultiplier() *
+                            (float)SupportEffectRules.ScholarXpMultiplier(SupportRank("scholar")),
+                            relatedInstanceId: _telemetryPickupIds[slot]);
                         _pickupStep = _pickupStepTimer > 0 ? _pickupStep + 1 : 0;
                         _pickupStepTimer = 0.9f;
                         // A magnet pull can collect most of the 280-entry pool
@@ -2230,10 +2268,21 @@ namespace VoidFall.Runtime
                     }
                     if (pickup.Kind != PickupKind.Part)
                         _telemetry.RecordPickup(PickupKindName(pickup.Kind), pickup.Value);
+                    RestorePickupStack(pickup, remainder, parentPickupId);
                 };
             }
             _gameSim.PickupCollectedHook = _pickupCollectedHook;
             var greedActive = HasWildCard(WildCardId.Greed);
+            if (greedActive)
+            {
+                for (var i = 0; i < _gameSim.Pickups.Length; i++)
+                {
+                    var pickup = _gameSim.Pickups[i];
+                    if (!pickup.Active || !pickup.Pull) continue;
+                    pickup.Pull = false; pickup.Speed = 0; pickup.Velocity = Vector2.zero;
+                    _gameSim.Pickups[i] = pickup; _musicMagnetSlots[i] = false;
+                }
+            }
 
             _gameSim.AdvancePickups(
                 dt,
@@ -2243,6 +2292,7 @@ namespace VoidFall.Runtime
                 out var pulledXpCount,
                 out var pulledXpValue);
             CountPendingMusicGems();
+            UpdateLootReachability(dt);
             _pickupStepTimer = Mathf.Max(0, _pickupStepTimer - dt);
             if (_pickupStepTimer <= 0) _pickupStep = 0;
         }
@@ -3138,9 +3188,20 @@ namespace VoidFall.Runtime
             int matriarchBodyguardSlot = -1,
             Vector2? initialKnockback = null)
         {
-            if (id == "harvester" && ActiveEnemyTypeCount(id) >= 3) return false;
+            var hydraPopulationKind = SelectHydraPopulation(ref id,
+                eliteKind.HasValue || id == ContentCatalog.Elite.Id,
+                carrierDrone || splitterFragment || summonedByBossTelemetryId != 0 || forcedRoster.HasValue);
+            if (id == "harvester" && ActiveEnemyTypeCount(id) >= 3)
+            {
+                RecordRunHistory("spawn_rejected", id, "harvester_limit");
+                return false;
+            }
             var slot = FindInactive(_gameSim.Enemies);
-            if (slot < 0) return false;
+            if (slot < 0)
+            {
+                RecordRunHistory("spawn_rejected", id, "pool_full");
+                return false;
+            }
             var standardElite = id == ContentCatalog.Elite.Id;
             var definition = standardElite ? null : FindEnemy(id);
             if (!standardElite && definition == null) return false;
@@ -3201,7 +3262,7 @@ namespace VoidFall.Runtime
             var baseXp = splitterFragment || carrierDrone
                 ? 1
                 : standardElite ? ContentCatalog.Elite.Xp : definition.Xp;
-            var mutationGene = HydraRuntimeRules.RollMutation(
+            var mutationGene = hydraPopulationKind >= 0 ? MutationGene.None : HydraRuntimeRules.RollMutation(
                 _gameSim.Rng,
                 _arenaId,
                 _hydraBossEncounterActive,
@@ -3265,6 +3326,7 @@ namespace VoidFall.Runtime
             if (eliteKind.HasValue && eliteKind.Value == EliteVariantId.Exploder)
                 enemy.Spin = _gameSim.Rng.Next() < 0.5 ? -0.42f : 0.42f;
             enemy.Health = enemy.MaxHealth;
+            InitHydraPopulation(slot, ref enemy, hydraPopulationKind);
             _gameSim.Enemies[slot] = enemy;
             RegisterDirectorActor(slot, enemy);
             RegisterFactionActor(slot, enemy);
@@ -3284,7 +3346,7 @@ namespace VoidFall.Runtime
                     ? ParseColor(ContentCatalog.Elite.Color, Color.yellow)
                 : ParseColor(definition.Color, Color.magenta);
             view.sprite = IsNullCityEnemy(id) ? NullCityUnitSprite(id, 0f) : ProceduralSpriteFactory.Enemy(
-                SourceEnemySpriteId(id, elite, variantDefinition?.BaseId),
+                SourceEnemySpriteId(enemy),
                 CachedEnemySpriteAccent(enemy),
                 false);
             view.color = Color.white;
@@ -3323,7 +3385,7 @@ namespace VoidFall.Runtime
                 Active = true,
                 Id = id,
                 Position = position,
-                MaxHealth = (float)(definition.Health * healthScale * DirectorRules.BossHealthScaleAt(_time, id)),
+                MaxHealth = (float)(definition.Health * healthScale * DirectorRules.BossHealthScaleAt(DurationAdjustedDifficultySeconds, id)),
                 Radius = (float)definition.Radius,
                 Speed = (float)definition.Speed,
                 Damage = (float)(definition.ContactDamage * damageScale),
@@ -3335,7 +3397,7 @@ namespace VoidFall.Runtime
                 AttackIndex = 0,
                 Reinforced = false,
                 TierPressureTriggered = false,
-                PressureTier = DirectorRules.BossPressureTierAt(_time),
+                PressureTier = DirectorRules.BossPressureTierAt(DurationAdjustedDifficultySeconds),
                 EncounterIndex = Mathf.Max(0, _bossSequence - 1),
                 TargetPosition = position,
                 TelemetryInstanceId = _nextBossTelemetryId++,
@@ -3463,6 +3525,7 @@ namespace VoidFall.Runtime
 
         private void SpawnPickup(Vector2 position, float value)
         {
+            position = ConstrainLootPosition(position);
             var drops = PickupRules.XpDropValues(
                 Mathf.Max(0, Mathf.FloorToInt(value)),
                 () => _gameSim.Rng.Next());
@@ -3471,26 +3534,29 @@ namespace VoidFall.Runtime
             {
                 var drop = drops[index];
                 released += drop;
-                var slot = FindInactive(_gameSim.Pickups);
+                var slot = FindXpPickupSlot();
                 if (slot < 0)
                 {
                     var target = FindXpOverflowTarget(position);
                     if (target >= 0)
                     {
+                        var nearbyMerge = (_gameSim.Pickups[target].Position - position).sqrMagnitude < XpMergeDistance * XpMergeDistance;
+                        if (!nearbyMerge)
+                            RelocateLoot(target, position, "xp_overflow");
                         var existing = _gameSim.Pickups[target];
                         existing.Value += drop;
-                        if ((existing.Position - position).sqrMagnitude < 180f * 180f)
+                        if (!existing.Pull && nearbyMerge)
                         {
                             var mergeAngle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
                             var mergeSpeed = 40f + (float)_gameSim.Rng.Next() * 60f;
                             existing.Velocity = new Vector2(Mathf.Cos(mergeAngle), Mathf.Sin(mergeAngle)) * mergeSpeed;
                         }
                         existing.Age = 0;
-                        existing.Pull = false;
-                        existing.Speed = 0;
                         _gameSim.Pickups[target] = existing;
+                        RecordPickupHistory("drop_merged", target, existing, drop);
                         RefreshPickupView(target);
                     }
+                    else RecordRunHistory("drop_rejected", "xp", "pool_full", amount: drop);
                     // The extra pickup slot preserves one XP gem when a full
                     // set consists entirely of special drops. If that slot is
                     // also occupied, the browser has no reclaimable target.
@@ -3518,19 +3584,27 @@ namespace VoidFall.Runtime
         }
 
         private bool SpawnSpecialPickup(Vector2 position, float value, PickupKind kind)
+            => PlaceSpecialPickup(position, value, kind, true);
+
+        private bool PlaceSpecialPickup(Vector2 position, float value, PickupKind kind, bool scatter)
         {
+            position = ConstrainLootPosition(position);
             // MaxPickupSlots includes one overflow slot reserved for XP. Rare
             // and other special drops must never consume that slot, otherwise a
             // full special-pickup set silently prevents later XP from spawning.
-            var slot = FindInactive(_gameSim.Pickups, MaxPickups);
-            if (slot < 0) return false;
+            var slot = FindSpecialPickupSlot();
+            if (slot < 0)
+            {
+                RecordRunHistory("drop_rejected", PickupKindName(kind), "pool_full", amount: value);
+                return false;
+            }
             _gameSim.Pickups[slot] = new PickupState
             {
                 Active = true,
                 Position = position,
-                Velocity = new Vector2(
+                Velocity = scatter ? new Vector2(
                     ((float)_gameSim.Rng.Next() - 0.5f) * 90f,
-                    ((float)_gameSim.Rng.Next() - 0.5f) * 90f),
+                    ((float)_gameSim.Rng.Next() - 0.5f) * 90f) : Vector2.zero,
                 Value = value,
                 Age = 0,
                 Speed = 0,
@@ -3684,6 +3758,9 @@ namespace VoidFall.Runtime
             // health, pressure timer, and invulnerability window immediately.
             _damageTaken += appliedDamage;
             _gameSim.Player.Health -= appliedDamage;
+            RecordRunHistory("player_damage", sourceId: _factionControllerIdentity > 0 ? "enemy_controller" : "unattributed",
+                relatedInstanceId: _factionControllerIdentity, amount: appliedDamage,
+                hp: Mathf.Max(0, _gameSim.Player.Health), maxHp: _gameSim.Player.MaxHealth);
             _music?.NotifyPlayerDamage(
                 _gameSim.Player.MaxHealth > 0f ? appliedDamage / _gameSim.Player.MaxHealth : 1f,
                 _gameSim.Player.Health <= 0f);
@@ -3746,6 +3823,7 @@ namespace VoidFall.Runtime
             if (_damageFaction == CombatFaction.Player) damage *= PlayerDamageMultiplier();
             else critical = false;
             var appliedDamage = Mathf.Max(0, damage);
+            appliedDamage *= HydraPopulationIncomingDamageMultiplier(enemy, direction);
             if (enemy.Id == "null-marshal" && enemy.Age % 6f < 3f && direction.sqrMagnitude > .001f &&
                 Vector2.Dot(enemy.Facing, -direction.normalized) > .25f) appliedDamage *= .3f;
             if (UsesRosterProgression(enemy) && direction.sqrMagnitude > .001f)
@@ -3794,6 +3872,7 @@ namespace VoidFall.Runtime
 
             var appliedHealth = Mathf.Min(Mathf.Max(0, remaining), enemy.Health);
             enemy.Health -= remaining;
+            RecordEnemyDamage(index, enemy, appliedHealth + Mathf.Max(0, shieldBefore - enemy.Shield));
             GrowCrascendoEnemy(index, ref enemy, appliedHealth + Mathf.Max(0, shieldBefore - enemy.Shield));
             if (_factionActors[index].Identity == enemy.SpawnId) _factionActors[index].Contribution.RecordDamage(appliedHealth, _damageFaction == CombatFaction.Player);
             enemy.HitTimer = 0.09f;
@@ -3889,6 +3968,9 @@ namespace VoidFall.Runtime
                 return;
             }
             var appliedDamage = Mathf.Min(Mathf.Max(0, damage), boss.Health);
+            RecordRunHistory("boss_damage", boss.Id, sourceId: _damageFaction.ToString(),
+                instanceId: boss.TelemetryInstanceId, amount: appliedDamage,
+                hp: boss.Health - appliedDamage, maxHp: boss.MaxHealth);
             if (_damageFaction == CombatFaction.Player) { _damageDealt += appliedDamage; TrackWeaponDamage(weaponIndex, appliedDamage); }
             boss.Health -= appliedDamage;
             GrowCrascendoBoss(index, ref boss, appliedDamage);
@@ -4107,12 +4189,27 @@ namespace VoidFall.Runtime
         {
             var enemy = _gameSim.Enemies[index];
             if (!enemy.Active) return;
+            RecordEnemyRemoval(index, selfDetonated ? "self_detonated" : "killed");
             var rewardActor = _factionActors[index];
+            var previousRewardSource = _telemetryRewardSource;
+            var previousRewardParent = _telemetryRewardParent;
+            _telemetryRewardSource = "enemy";
+            _telemetryRewardParent = enemy.SpawnId;
             using (EnemyDeathScope(enemy))
             {
+                if (!(JourneyStopsCombat && _journeyStage == JourneyStage.Rewards))
+                {
+                    OnCourtSentinelKilled(enemy);
+                    OnHydraPopulationDeath(enemy);
+                }
                 _factionActors[index].Root = 0;
                 try { ResolveFactionEnemyDeath(index, selfDetonated, rewardActor); }
-                finally { _rewardRoots.Release(rewardActor.Root); }
+                finally
+                {
+                    _rewardRoots.Release(rewardActor.Root);
+                    _telemetryRewardSource = previousRewardSource;
+                    _telemetryRewardParent = previousRewardParent;
+                }
             }
         }
 
@@ -4389,8 +4486,22 @@ namespace VoidFall.Runtime
             {
                 _partsEarned += (int)definition.RewardParts;
             }
-            SpawnPickup(boss.Position, 70f + boss.EncounterIndex * 5f);
-            SpawnRarePickup(boss.Position);
+            var previousRewardSource = _telemetryRewardSource;
+            var previousRewardParent = _telemetryRewardParent;
+            _telemetryRewardSource = "boss";
+            _telemetryRewardParent = boss.TelemetryInstanceId;
+            try
+            {
+                SpawnPickup(boss.Position, 70f + boss.EncounterIndex * 5f);
+                SpawnRarePickup(boss.Position);
+                RecordRunHistory("boss_reward", boss.Id, sourceId: "boss", instanceId: boss.TelemetryInstanceId,
+                    amount: definition == null ? 0 : (float)definition.RewardParts, detail: "score=1000;amount=parts");
+            }
+            finally
+            {
+                _telemetryRewardSource = previousRewardSource;
+                _telemetryRewardParent = previousRewardParent;
+            }
             // Browser killBoss() emits the death cue after its reward drops,
             // then shows the named clear toast with the Parts detail.
             _audio?.Play(ProceduralAudio.Cue.BossDeath, 0.9f);
@@ -5232,7 +5343,7 @@ namespace VoidFall.Runtime
         private void UpdateGameplayCameraViewport()
         {
             if (_camera == null || Screen.width <= 0 || Screen.height <= 0) return;
-            var viewportHalf = GameplayViewportHalfExtent(Screen.width, Screen.height);
+            var viewportHalf = GameplayViewportHalfExtent();
             _camera.orthographicSize = viewportHalf.y;
             _camera.aspect = viewportHalf.x / Mathf.Max(0.5f, viewportHalf.y);
         }

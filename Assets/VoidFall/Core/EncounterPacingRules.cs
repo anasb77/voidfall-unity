@@ -2,7 +2,7 @@ using System;
 
 namespace VoidFall.Core
 {
-    public enum CombatEncounterKind { Crossing, Volley }
+    public enum CombatEncounterKind { Crossing, Volley, Pursuit, Flank, Hunt, Breakthrough }
     public enum CombatEncounterPhase { Flow, Warning, Deployment, ActiveThreat, Resolution, Recovery }
 
     public sealed class CombatEncounterClock
@@ -14,6 +14,13 @@ namespace VoidFall.Core
         public int Admitted { get; private set; }
         public double PhaseSeconds { get; private set; }
         private double _recoverySeconds;
+        private bool _sustained;
+
+        public void BeginSustained(CombatEncounterKind kind)
+        {
+            Begin(kind, 5);
+            _sustained = true;
+        }
 
         public void Begin(CombatEncounterKind kind, double recoverySeconds)
         {
@@ -34,10 +41,17 @@ namespace VoidFall.Core
         {
             if (dt <= 0 || double.IsNaN(dt) || double.IsInfinity(dt) || Phase == CombatEncounterPhase.Flow) return;
             PhaseSeconds += dt;
+            if (_sustained && Phase == CombatEncounterPhase.ActiveThreat)
+            {
+                // A change of pressure, not an order to delete surviving actors.
+                if (PhaseSeconds >= 14 || (PhaseSeconds >= 3 && liveMembers == 0 && !incomingThreat))
+                    Enter(CombatEncounterPhase.Recovery);
+                return;
+            }
             switch (Phase)
             {
                 case CombatEncounterPhase.Warning:
-                    if (PhaseSeconds + 1e-9 >= 2.5) Enter(CombatEncounterPhase.Deployment);
+                    if (PhaseSeconds + 1e-9 >= (_sustained ? .75 : 2.5)) Enter(CombatEncounterPhase.Deployment);
                     break;
                 case CombatEncounterPhase.ActiveThreat:
                     if (liveMembers <= 0 && !incomingThreat) Enter(CombatEncounterPhase.Resolution);
@@ -68,6 +82,7 @@ namespace VoidFall.Core
             PhaseSeconds = 0;
             NeedsWithdrawal = TimedOut = false;
             Admitted = 0;
+            _sustained = false;
         }
 
         private void Enter(CombatEncounterPhase phase)

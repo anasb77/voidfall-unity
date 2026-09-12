@@ -1,0 +1,225 @@
+# Run exports — schema 4
+
+Normal runs export automatically and silently to `RunExports` beside
+`VoidFall.exe`. In Editor the directory is at the Unity project root. There is
+no upload service. The existing manual Export Run action uses the same writer
+and does not show a notification. Files are excluded from source control.
+
+Each real run has a GUID, independent of seed and elapsed time:
+
+- `voidfall-run-<runId>.json`: current/final summary, atomically replaced.
+- `voidfall-run-<runId>.jsonl`: append-only chronological history (one JSON
+  object per line; actual basename is also in summary `history.file`).
+
+## Reading a run
+
+Check `schemaVersion`, `context.captureKind` and `summary.status` first. The
+context identifies build GUID/version, Unity, seed (top level), director,
+starting ranks/Workshop and CPU/GPU/RAM. `play` is an ordinary owner run;
+`diagnostic` and `test` are not representative balance samples.
+`-vfprofile=<absolute file>` isolates a normal startup for focus/platform
+testing without changing background-play policy; its runs are tagged diagnostic.
+
+Context also includes `graphicsApi`, `graphicsDeviceVersion`, actual
+`fullscreenMode`, `windowWidth`, `windowHeight` and `runInBackground` at run
+start. Focus events carry the current display state because it can change
+after startup. `application_focus` marks entry; `application_focus_completed`
+marks successful completion of the pause/audio handler, with elapsed seconds.
+Missing completion narrows investigation but is not proof of an audio fault;
+an unflushed journal tail may be missing. Neither event proves the renderer is
+responsive after the handler returns.
+
+The current `arsenalBalanceVersion` is `2026-09-08-mine-control-v2` and
+`incidentBalanceVersion` is 2. Older exports omit these added fields or carry
+the earlier version. Do not compare balance samples without identifying policy.
+
+Mine lifecycle records use `sourceId=mines`, with a per-run mine instance ID:
+`mine_placement` records successful/rejected attempts, `mine_detonated` records
+new freezes in `amount`, already-frozen/recovering targets in `blockedAttempts`,
+and `mine_expired` records lifetime removal. These do not replace weapon damage
+windows. `incident_phase` records phase commitments; `black_hole_pull` records
+actual displacement accumulated over `durationSeconds` (about one record per
+second plus final remainder). Detail identifies radius, center and peak pull.
+`destroyer_attack` links enemy identity to incident sequence, marks first/repeat,
+and records attack age/health; `destroyer_raid_resolved` records duration and
+survivors with defeated/release/cancelled reason. Compare attack opportunities
+and exposure alongside damage, not just final kill counts.
+
+The journal's `sequence` is strictly increasing within a run. `timeSeconds`
+is game simulation time; `wallTimeSeconds` is elapsed real time where recorded.
+Sequence distinguishes decisions made while simulation time is paused. Never
+compare an instance ID across runs. Enemy and boss IDs occupy different domains.
+`visitIndex` is the current one-based route visit; arena transition indexes and
+boss encounter indexes are separate concepts. All spatial values use the game's
+world units. Pressure is hundredths; challenge seconds are the existing
+director's derived progression clock, not elapsed wall time.
+
+The JSON summary preserves the previous progression, boss, XP, pickup, arena,
+damage and sample sections. The summary's sample/event arrays remain bounded;
+use JSONL for complete chronological history and inspect loss counters.
+`summary.scoreIsFinal` distinguishes a frozen terminal score from a current
+score estimate on a live/abandoned run. Exporting a preview never freezes or
+changes the gameplay score/pressure state.
+
+## Event families
+
+| Events | Meaning and joins |
+|---|---|
+| `run_metadata`, `run_start`, `run_end` | Initial context and explicit final reason. `quit`, `abandoned`, `restarted`, `interrupted` are not scored defeats. Normal terminal statuses remain `gameover` and `escaped`. |
+| `sample`, `flow_state`, `spawn_gate` | One-second combat samples plus changed journey/encounter/incident/pause/focus state. Population, pressure, player health/position, XP, viewport and nearest enemy/on-screen population support pacing analysis. |
+| `director_choice`, `spawn_substituted`, `spawn_rejected`, `encounter_selected`, `incident_selected`, `incident_stopped` | Actual choices, composition substitution and admission failures. Gate transitions describe periods with no spawn attempts. |
+| `enemy_spawn`, `enemy_first_hit`, `enemy_damage_window`, `enemy_death`, `enemy_despawn` | Join on enemy `instanceId`. Spawn records effective HP/speed/damage, XP value, tier, elite/mutation/shield and source. Damage windows total actual health/shield damage since previous flush, split Player/NonPlayer. Death duration is first-hit-to-removal, or -1 if never hit; spawn-to-death is timestamp subtraction. Despawns are not kills. |
+| `weapon_damage_window`, `player_damage`, `boss_spawn`, `boss_damage`, `boss_defeat` | Weapon deltas and player/boss outcomes. Boss IDs use telemetry instance IDs. Player-damage attribution is explicitly `unattributed` where the current source path provides no reliable actor identity; never infer a shooter from proximity. |
+| `drop_spawn`, `drop_merged`, `drop_rejected`, `drop_collected`, `drop_absorbed`, `drop_discarded`, `xp_received`, `boss_reward` | Drop IDs survive pool-slot reuse. Spawn/merge `sourceId` and `relatedInstanceId` identify enemy, boss or roulette origin where known. `amount` on merge is added value; absorption is the amount taken, including partial absorption. Collected XP face value and credited XP after modifiers are separate. A gift drop is not a collected benefit. |
+| `level`, `upgrade_offered`, `upgrade`, `upgrade_applied`, `upgrade_fallback`, `wild_card`, `overclock` | Presented offers (including final reroll), selection and resulting build. Existing `upgrade` summary event and richer `upgrade_applied` describe the SAME selection; do not count twice. Empty offers have a separate fallback. |
+| `roulette_opened`, `roulette_purchase`, `roulette_rolled`, `roulette_landed`, `roulette_claimed`, `roulette_granted` | Join by ceremony `instanceId`. `detail` is JSON containing actual weights/protected probabilities, purchase/refund counters, rolled wedge, and before/after grant snapshots including fallback outcome. Rolled/landed are not awards. For the claim flow, count individual `roulette_claimed` transactions; `roulette_granted` summarizes the completed ceremony and must not be counted again. An interrupted ceremony can have valid partial claims. Physical gifts take effect on later collection. |
+| `arena_warning`, `arena_swap`, `arena_complete` | Separate `transitionIndex` from route `visitIndex`. Warning `id` is destination and `sourceId` is departure; `arenaId` remains the current arena. |
+| `revive_offered`, `revive_accepted`, `revive_declined` | Revive charges (`amount`) and restored health. A revive is not a new run. |
+
+`roulette_claim_presented` is a preview, not a grant. Claim event `detail` includes
+`cardIndex` (one-based), `cardCount`, `rewardId`, `title`, `fromRank`, `toRank`,
+`partsBefore` and `partsAfter` (Parts fields are populated on the committed event).
+`roulette_claimed.progress` is the resulting build; its `amount` is one for a
+rank, or the Parts delta for monetary rewards. A physical power-up is linked
+through its `drop_spawn` event and later collection. All claims share the
+ceremony `instanceId`; `roulette_granted` summarizes those same transactions.
+Net wager cost settles at landing, even if later claims are interrupted. The
+legacy `RareBoon` rolled kind now awards 500 Parts, visible in committed deltas.
+
+Rule-changing Wild Cards can be left. `roulette_declined` records that decision
+with the offered `rewardId`, card index and unchanged progress/Parts. Claim detail
+has `decision` = `offered`, `take` or `leave`. A declined ceremony ends with
+`roulette_completed`, not `roulette_granted`; it produces no replacement reward
+and does not refund committed wagers. Never count a decline as an award.
+The legacy prize-reveal pending flag now identifies roulette rewards rendered
+inside the shared LevelUp menu; it is distinct from a normal XP level-up.
+
+`detail` is event-specific text except roulette's documented JSON. Zero arena
+width/height means no asserted finite boundary, NOT a zero-size arena; the
+viewport fields are actual gameplay extents. Legacy sample health/speed/damage
+multipliers describe reference formulas, not every native unit's effective
+stats. Use `enemy_spawn` for role/arena health comparisons.
+
+## Persistence and performance
+
+Every build snapshot (`startingProgress`, event `progress`, summary `progress`)
+includes `weaponSlotLimit`, including before/after the second rank-VI weapon.
+Context records `baseWeaponSlots=4`, `expandedWeaponSlots=5` and
+`maxedWeaponsForExtraSlot=2`; capacity does not grant weapons or force offers.
+`context.arsenalBalanceVersion="2026-09-08-seconds-hand-v1"` identifies the
+half-size Boomerang, Clock's rank-III smaller attacking hand (twice the speed,
+half the reach and damage), and 18% clock-face opacity. Existing ranks identify
+when the additional hand is active.
+
+The recorder uses the existing pools/rules without new combat random draws.
+History entries are serialized immutable snapshots, queued with explicit count
+and byte-size limits, and written by one worker. It flushes approximately once
+per second. Summary checkpoints occur every 30 real seconds, including pauses;
+completion/quit/menu/restart drains history and writes a final summary. Full
+history is not accumulated in memory. Finalization can wait up to five seconds
+for I/O. Storage failure must never become a gameplay failure.
+
+Check `history.dropped`, `pending`, `errorCount`, `lastError`, `drainTimedOut`
+and the legacy `droppedRecords` before accepting a dataset. A crash/forced kill
+can lose the last buffered records; a summary still marked active with no
+run_end indicates an unfinished run, not a victory or zero-death run. A final
+partial JSONL line after a hard interruption may be ignored; earlier complete
+lines remain readable. Do not silently treat such a run as complete.
+
+Performance samples use actual unscaled combat frame durations, excluding
+paused/menu time. Summary mean and p50/p95/p99 frame durations use a fixed
+0.25ms histogram (upper bucket bounds; >1000ms uses observed maximum). Slow-frame
+counts use 16.67/33.33/50ms thresholds. These are observed player frame times,
+not CPU/GPU profiler timings and not proof of GTX 1060 performance.
+
+## Extending collection (required for future agents)
+
+### Director I version 2 observations
+
+`context.directorVersion` identifies the sustained implementation. I samples
+include `specialAttackLimit` and `committedSpecialAttacks`. Their limit can drop
+below existing commitments during relief; already warned attacks are honored.
+`director_attack_admitted`/`director_attack_released` join by enemy instance ID;
+`director_attack_budget` aggregates denied attempts once per second rather than
+logging every waiting controller tick. Typed `budgetLimit`, `budgetUsed` and
+`blockedAttempts` describe admission. Boss attacks have their own controllers;
+these counts cover unit/elite special attacks, not the boss or arena hazards.
+Samples also expose `hostileProjectiles`. `director_arrival_budget` gives batch size and authored target/reason.
+`director_beat_deployed` gives accepted beat membership; phase events and
+`encounter_selected` show seeded choices excluding the last two situations.
+`enemy_repositioned` records the existing far-offscreen re-entry rule, including
+natural beat members. It preserves instanceId and gives the new position;
+do not count it as a fresh spawn or a death.
+
+`director_capacity_probe` is a synthetic fixed-step refill diagnostic, not a
+player-facing refill rule. `director_playtest` marks scripted input with normal
+health and real first-offered upgrades. Both must be filtered out of owner-run
+difficulty statistics. A 750 technical capacity does not imply750 on screen.
+
+### Loot policy v2 / six-minute run metadata
+
+`context.lootPolicyVersion=2`, `survivalSeconds=360`, `pickupCapacity=281`,
+`reservedSpecialPickupSlots=24` identify the new rules. Samples include
+`xpPickupCount`, `specialPickupCount`, `distantLootCount`, `localSurvivalSeconds`,
+`survivalRemainingSeconds`, and `bossDifficultySeconds`. Boss-difficulty time is
+an adapted stat clock, not the elapsed run clock. Existing scoring weights and
+score versions remain unchanged.
+
+`drop_relocated` preserves pickup instanceId/value and gives the new position;
+reason is `xp_overflow` or `distance_recovery`. It is not newly earned XP.
+`drop_consolidated` identifies the receiving pickup in instanceId and retired
+pickup in relatedInstanceId, with sourceId `pickup` and amount equal to the
+transferred units/charges. Do not count the transfer as a new drop or collection.
+For power-up stacks, each `drop_collected` consumes one charge. New `drop_spawn`
+records with sourceId `stack_remainder` are derived from the collected pickup
+in relatedInstanceId; their remaining charges are not new rewards. Currency
+collections retain their entire face value. Consolidation gives aggregate
+provenance, not an ordering of which original donor's power-up charge was used.
+
+### Feature instrumentation checklist
+
+1. Find the authoritative decision and committed outcome. Instrument both when
+   their difference matters: offered vs selected, rolled vs granted, spawned vs
+   collected, killed vs retired. Never execute RNG or reward code again to log it.
+2. Reuse runtime `RecordRunHistory` or the existing recorder. Supply stable IDs,
+   source/parent, reason and documented units; add typed DTO fields if generic
+   fields would make interpretation ambiguous. Use snapshot DTOs, not live objects.
+3. Keep gameplay independent of I/O success. Sample continuous state and aggregate
+   rapid damage. Preserve pool iteration, RNG streams, hashes and existing saves.
+4. Extend this schema guide and relevant map ownership. Bump schema for breaking
+   changes; additive fields must preserve old report sections.
+5. Add a focused export test exercising the actual feature path and read the
+   produced JSON/JSONL. A method existing in source is not collection proof.
+
+## Verification and isolated diagnostics
+
+`RunExportStorageTests` exercises bounded writer, atomic summaries, same-seed
+unique IDs, failure handling, history ordering, context and frame histograms.
+`RunExportIntegrationTests` exercises lifecycle, enemies, drops, upgrades,
+director decisions and silent automatic export. Normal `-runTests` execution
+does not create player exports unless a test supplies its temporary-directory
+override. A diagnostic player can set `-vfrunexports=<absolute-directory>`.
+Always identify diagnostic captures before using them for balance conclusions.
+
+Gameplay priorities remain deferred: Director I (750-enemy maximum to test),
+map size, then adapted enemy health. This pipeline changes none of those rules.
+
+## Map integration events (September12)
+Existing schema4 history fields remain compatible; these are additional kinds.
+`RecordRunHistory` accepts optional world position, mapped to existing x/y.
+- `arena_map_policy`: Null City4× geometry, viewport and purge policy once/visit.
+- `court_board_created`, `court_rook_layout`, `court_rook_spawn`: board origin,
+  actual generated placement, stable SpawnIds and HP. `court_rook_sacrificed`,
+  `court_rook_child_spawn`, `court_rook_release`, `_pending`, `_cancelled` record
+  requested and actual child counts, parent IDs, positions and cancellation.
+- `court_floor_scope`: phaseID, origin and ordered column,row options;
+  `court_floor_arming` and `court_floor_burst`: armed count and actual hit totals.
+  `court_boundary_contact` logs the start of a blocked movement stretch.
+  `court_boss_attack_warning` / `_fired` link attack, bossID and target/origin.
+- `hydra_phase`: hydra-i/survival_complete, hydra-ii/teleport_swap and
+  teleport_settled, all in the same visit with retained progression.
+- `hybrid` / `virus`: stable specimen ID, parents/baseID, SpawnId, HP and
+  actual spawn/offspring position. `hydra_population_ability`: warning, fan,
+  lunge, blast, regeneration, repair drones and splits; queued/released/cancelled
+  births retain parent/child identity and actual count. This observes outcomes
+  without consuming additional combat RNG.

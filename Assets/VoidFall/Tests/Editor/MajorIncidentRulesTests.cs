@@ -10,16 +10,16 @@ namespace VoidFall.Tests.Editor
         {
             var state = new MajorIncidentState();
             state.Begin(MajorIncidentKind.BlackHole);
-            state.Step(13);
+            state.Step(11.5);
             state.Step(1 - 1e-16);
             Assert.That(state.Phase, Is.EqualTo(MajorIncidentPhase.None));
             Assert.That(state.Kind, Is.EqualTo(MajorIncidentKind.None));
         }
-        [TestCase(MajorIncidentKind.BlackHole, 10, 1.5, 14)]
-        [TestCase(MajorIncidentKind.DestroyerRaid, 32, 3, 37.5)]
-        [TestCase(MajorIncidentKind.Eclipse, 19.5, 2, 24)]
+        [TestCase(MajorIncidentKind.BlackHole, 1, .5, 10, 1.5, 12.5)]
+        [TestCase(MajorIncidentKind.DestroyerRaid, 2.5, 1.5, 32, 3, 37.5)]
+        [TestCase(MajorIncidentKind.Eclipse, 2.5, 1.5, 19.5, 2, 24)]
         public void Lifecycle_preserves_warning_active_release_and_cleans_up(
-            MajorIncidentKind kind, double active, double release, double total)
+            MajorIncidentKind kind, double warning, double activation, double active, double release, double total)
         {
             var state = new MajorIncidentState();
             state.Begin(kind);
@@ -27,14 +27,14 @@ namespace VoidFall.Tests.Editor
             Assert.That(state.Phase, Is.EqualTo(MajorIncidentPhase.Warning));
             Assert.That(state.Remaining, Is.EqualTo(total));
             Assert.That(state.Strength, Is.Zero);
-            state.Step(2.5);
+            state.Step(warning);
             Assert.That(state.Phase, Is.EqualTo(MajorIncidentPhase.Active));
             Assert.That(state.Strength, Is.Zero);
-            state.Step(0.75);
+            state.Step(activation / 2);
             Assert.That(state.Strength, Is.EqualTo(0.5).Within(1e-10));
-            state.Step(0.75);
+            state.Step(activation / 2);
             Assert.That(state.Strength, Is.EqualTo(1));
-            state.Step(active - 1.5);
+            state.Step(active - activation);
             Assert.That(state.Phase, Is.EqualTo(MajorIncidentPhase.Release));
             Assert.That(state.Strength, Is.EqualTo(1));
             state.Step(release / 2);
@@ -43,7 +43,7 @@ namespace VoidFall.Tests.Editor
             AssertReset(state);
         }
 
-        [TestCase(MajorIncidentKind.BlackHole, 13.25)]
+        [TestCase(MajorIncidentKind.BlackHole, 11.75)]
         [TestCase(MajorIncidentKind.DestroyerRaid, 36)]
         [TestCase(MajorIncidentKind.Eclipse, 23)]
         public void Large_step_crosses_multiple_phases_with_same_result_as_partitioned_steps(
@@ -74,10 +74,10 @@ namespace VoidFall.Tests.Editor
         {
             var state = new MajorIncidentState();
             state.Begin(MajorIncidentKind.BlackHole);
-            state.Step(3.25);
+            state.Step(1.25);
             state.Step(dt);
-            Assert.That(state.Elapsed, Is.EqualTo(3.25));
-            Assert.That(state.Remaining, Is.EqualTo(10.75));
+            Assert.That(state.Elapsed, Is.EqualTo(1.25));
+            Assert.That(state.Remaining, Is.EqualTo(11.25));
             Assert.That(state.Phase, Is.EqualTo(MajorIncidentPhase.Active));
             Assert.That(state.Strength, Is.EqualTo(0.5));
         }
@@ -119,7 +119,7 @@ namespace VoidFall.Tests.Editor
             Assert.That(MajorIncidentRules.IsArenaEligible(arenaId), Is.EqualTo(eligible));
         }
 
-        [TestCase(MajorIncidentKind.BlackHole, 29)]
+        [TestCase(MajorIncidentKind.BlackHole, 27.5)]
         [TestCase(MajorIncidentKind.DestroyerRaid, 52.5)]
         [TestCase(MajorIncidentKind.Eclipse, 39)]
         public void Admission_reserves_complete_incident_and_boss_lead_time(MajorIncidentKind kind, double required)
@@ -135,9 +135,9 @@ namespace VoidFall.Tests.Editor
         }
 
         [TestCase(0, 10, 1, 0)]
-        [TestCase(2.5, 10, 1, 0.75)]
+        [TestCase(2.5, 10, 1, 1)]
         [TestCase(5, 10, 1, 1)]
-        [TestCase(7.5, 10, 1, 0.75)]
+        [TestCase(7.5, 10, 1, 1)]
         [TestCase(10, 10, 1, 0)]
         [TestCase(20, 10, 1, 0)]
         [TestCase(5, 10, 0.5, 0.5)]
@@ -157,6 +157,25 @@ namespace VoidFall.Tests.Editor
         {
             Assert.That(MajorIncidentRules.BlackHolePullScale(distance, radius, strength),
                 Is.EqualTo(expected).Within(1e-10));
+        }
+
+        [Test]
+        public void Pull_softens_only_near_core_and_rim_and_player_can_outswim_peak_force()
+        {
+            Assert.That(MajorIncidentRules.BlackHolePullScale(1, 230, 1), Is.InRange(0.001, .02));
+            Assert.That(MajorIncidentRules.BlackHolePullScale(165, 230, 1), Is.EqualTo(1).Within(1e-10));
+            Assert.That(MajorIncidentRules.BlackHolePullScale(229, 230, 1), Is.LessThan(.01));
+            Assert.That(MajorIncidentRules.BlackHolePlayerPullFraction, Is.InRange(.6f, .7f));
+        }
+
+        [Test]
+        public void Raid_health_preserves_roles_and_caps_late_bonus_without_early_late_build_budget()
+        {
+            Assert.That(DestroyerContent.RaidHealthMultiplier(85), Is.LessThan(1.15f));
+            Assert.That(DestroyerContent.RaidHealthMultiplier(1296), Is.EqualTo(2.5f));
+            Assert.That(DestroyerContent.RaidHealthMultiplier(10000), Is.EqualTo(2.5f));
+            Assert.That(DestroyerContent.Find("destroyer-husk").Health, Is.GreaterThan(DestroyerContent.Find("destroyer-razor").Health * 2));
+            foreach (var enemy in DestroyerContent.Enemies) Assert.That(enemy.TelegraphSeconds, Is.GreaterThanOrEqualTo(.85));
         }
 
         private static void AssertReset(MajorIncidentState state)

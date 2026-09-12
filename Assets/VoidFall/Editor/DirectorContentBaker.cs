@@ -42,22 +42,8 @@ namespace VoidFall.EditorTools
             catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
         }
 
-        public static void BuildBaselinePlayer() => Build("DirectorBaseline-acf5103");
-        public static void BuildValidationPlayer() => Build("DirectorRedesign");
+        public static void BuildBaselinePlayer() => BuildScript.BuildWindows();
 
-        private static void Build(string directory)
-        {
-            var output = Path.GetFullPath(Path.Combine(Application.dataPath, "../../Builds", directory, "VoidFall.exe"));
-            Directory.CreateDirectory(Path.GetDirectoryName(output));
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
-            {
-                scenes = new[] { "Assets/Scenes/SampleScene.unity" },
-                locationPathName = output,
-                target = BuildTarget.StandaloneWindows64,
-                options = BuildOptions.None
-            });
-            Debug.Log("Director player build: " + report.summary.result + " / " + report.summary.totalErrors + " errors / " + output);
-            EditorApplication.Exit(report.summary.result == BuildResult.Succeeded && report.summary.totalErrors == 0 ? 0 : 1);
-        }
+        public static void BuildValidationPlayer() => BuildScript.BuildWindows();
     }
 }

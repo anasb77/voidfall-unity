@@ -7,6 +7,17 @@ namespace VoidFall.Tests.Editor
 {
     public sealed class MonochromeRuntimeRulesTests
     {
+        [Test]
+        public void Court_board_clamp_preserves_collision_radius_at_all_four_edges()
+        {
+            var origin = new Vector2(-100f,-200f); var size = new Vector2(3600f,3600f);
+            Assert.That(MonochromeRuntimeRules.ClampToBoard(new Vector2(-9999f,-9999f),origin,size,14f),
+                Is.EqualTo(new Vector2(-86f,-186f)));
+            Assert.That(MonochromeRuntimeRules.ClampToBoard(new Vector2(9999f,9999f),origin,size,14f),
+                Is.EqualTo(new Vector2(3486f,3386f)));
+            Assert.That(MonochromeRuntimeRules.ClampToBoard(Vector2.zero,origin,size,14f),Is.EqualTo(Vector2.zero));
+        }
+
         [TestCase(CourtFaction.White, -500f)]
         [TestCase(CourtFaction.Black, 700f)]
         public void Split_field_armies_enter_from_the_opposite_color(CourtFaction faction, float expected)

@@ -20,7 +20,7 @@ namespace VoidFall.Core
         /// ("abyss", "red-nebula", ...). Voids without a built objective
         /// return null and the run keeps its endless behavior there.
         ///
-        /// Every built Void now shares one cadence: survive five minutes, then
+        /// Every built Void now shares one cadence: survive six minutes, then
         /// clear its complete boss encounter. Standard Voids choose bosses at
         /// runtime; special Voids retain their authored encounters.
         /// </summary>

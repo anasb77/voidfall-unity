@@ -119,7 +119,7 @@ namespace VoidFall.Runtime
                     enemy.AttackCooldown = RosterAttackCooldown(enemy);
                 }
             }
-            else if (enemy.AttackCooldown <= 0 && distance < 520)
+            else if (enemy.AttackCooldown <= 0 && distance < 520 && (_gameSim.EnemyCanCommitAttack?.Invoke(enemy) ?? true))
             {
                 enemy.State = 1; enemy.StateTimer = traits.DashWindup;
                 enemy.DashDirection = direction; rosterState.DashRemaining = (int)traits.DashCount;
@@ -161,7 +161,7 @@ namespace VoidFall.Runtime
                 }
                 enemy.State = 0; enemy.AttackCooldown = RosterAttackCooldown(enemy);
             }
-            else if (enemy.AttackCooldown <= 0 && distance < 700)
+            else if (enemy.AttackCooldown <= 0 && distance < 700 && (_gameSim.EnemyCanCommitAttack?.Invoke(enemy) ?? true))
             {
                 enemy.State = 1; enemy.StateTimer = traits.AimWindup > 0 ? traits.AimWindup : .65f; enemy.DashDirection = direction;
             }
@@ -211,7 +211,7 @@ namespace VoidFall.Runtime
                 return;
             }
             var trigger = mortar ? 760 : enemy.Id == "brute" ? traits.BlastRadius + 45 : traits.ProximityRadius;
-            if (enemy.AttackCooldown <= 0 && distance < trigger)
+            if (enemy.AttackCooldown <= 0 && distance < trigger && (_gameSim.EnemyCanCommitAttack?.Invoke(enemy) ?? true))
             {
                 enemy.State = 1; enemy.StateTimer = traits.BlastDelay;
                 enemy.AimPosition = mortar ? EnemyControllerTargetPosition + EnemyControllerTargetVelocity * .24f : enemy.Position;

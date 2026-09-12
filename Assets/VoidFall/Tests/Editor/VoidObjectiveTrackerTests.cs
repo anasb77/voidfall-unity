@@ -89,15 +89,18 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
-        public void Every_built_void_survives_five_minutes_before_its_boss_encounter()
+        public void Every_built_void_survives_six_minutes_before_its_boss_encounter()
         {
-            foreach (var voidId in new[] { "abyss", "red-nebula", "white-sakura", "hydra", "monochrome-court" })
+            foreach (var voidId in new[] { "abyss", "red-nebula", "white-sakura", "hydra", "monochrome-court", "null-city", "eon-sea", "crascendo" })
             {
                 var objective = (MultiPhaseObjective)VoidObjectives.ForArena(voidId);
                 objective.BeginObjective();
-                objective.TickObjective(299.75, new VoidObjectiveFeed());
+                Assert.That(objective.GetObjectiveText(), Does.Contain("00:00 / 06:00"), voidId);
+                objective.TickObjective(300, new VoidObjectiveFeed());
                 Assert.That(objective.PhaseIndex, Is.EqualTo(0), voidId);
-                Assert.That(objective.GetObjectiveText(), Does.Contain("04:59"), voidId);
+                objective.TickObjective(59.75, new VoidObjectiveFeed());
+                Assert.That(objective.PhaseIndex, Is.EqualTo(0), voidId);
+                Assert.That(objective.GetObjectiveText(), Does.Contain("05:59 / 06:00"), voidId);
 
                 objective.TickObjective(0.25, new VoidObjectiveFeed());
                 Assert.That(objective.PhaseIndex, Is.EqualTo(1), voidId);
@@ -109,7 +112,7 @@ namespace VoidFall.Tests.Editor
         {
             var tracker = new VoidObjectiveTracker();
             tracker.Begin(VoidObjectives.ForArena("abyss"));
-            tracker.Step(300);
+            tracker.Step(VoidProgressionRules.SurvivalSeconds);
 
             tracker.NotifyNamedSpawned("warden");
             tracker.NotifyNamedSpawned("matriarch");

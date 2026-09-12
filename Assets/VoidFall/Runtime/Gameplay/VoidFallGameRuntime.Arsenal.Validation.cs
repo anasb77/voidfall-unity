@@ -35,9 +35,9 @@ namespace VoidFall.Runtime
             var captures = 0;
             foreach (var weapon in new[] { "mines", "summons", "clock", "boomerang" })
             {
-                for (var variant = 0; variant < 3; variant++)
+                for (var variant = 0; variant < (weapon == "clock" ? 4 : 3); variant++)
                 {
-                    BeginArsenalValidation(weapon, variant == 0 ? 1 : 6, variant == 2);
+                    BeginArsenalValidation(weapon, variant == 0 ? 1 : variant == 3 ? 3 : 6, variant == 2);
                     enabled = false;
                     DestroyEnemiesForVoidTransition();
                     ClearMeteors(); ClearNebulaStrikes();
@@ -69,7 +69,7 @@ namespace VoidFall.Runtime
                     }
                     // Keep a waiting squad visible as a separate, explicit behavioral capture.
                     yield return new WaitForEndOfFrame();
-                    var name = weapon + (variant == 0 ? "-rank1" : variant == 1 ? "-rank6" : "-evolved") + ".png";
+                    var name = weapon + (variant == 0 ? "-rank1" : variant == 1 ? "-rank6" : variant == 2 ? "-evolved" : "-rank3") + ".png";
                     ScreenCapture.CaptureScreenshot(Path.Combine(output, name)); captures++;
                     yield return new WaitForSecondsRealtime(.2f);
                     if (weapon == "summons" && variant == 0)

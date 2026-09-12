@@ -7,14 +7,13 @@ namespace VoidFall.Runtime
     {
         private const string CourtBlackBossId = "court-grandmaster-black";
         private const string CourtWhiteBossId = "court-grandmaster-white";
-        private const int CourtBoardColumns = 14;
-        private const int CourtBoardRows = 9;
+        private const int CourtBoardColumns = 28;
+        private const int CourtBoardRows = 28;
 
         private readonly SpriteRenderer[] _courtBoardTiles =
             new SpriteRenderer[CourtBoardColumns * CourtBoardRows];
         private Sprite _courtBoardTileSprite;
         private Material _courtTileMaterial;
-        private readonly SpriteRenderer[] _courtSplitViews = new SpriteRenderer[2];
         private bool _courtPresentationReady;
         private bool _monochromeBossEncounterActive;
         private bool _monochromeBossSpawnedForVoid;
@@ -53,6 +52,7 @@ namespace VoidFall.Runtime
         private void SetupMonochromePresentation()
         {
             if (_courtPresentationReady) return;
+            _courtTileProperties = new MaterialPropertyBlock();
             _courtBoardTileSprite = ArenaPlateFactory.SpriteFromPixels(
                 new[] { new Color32(255, 255, 255, 255) },
                 1,
@@ -72,13 +72,12 @@ namespace VoidFall.Runtime
                 tile.sharedMaterial = _courtTileMaterial;
                 _courtBoardTiles[index] = tile;
             }
-            for (var i = 0; i < _courtSplitViews.Length; i++)
-                _courtSplitViews[i] = CreateView("Monochrome Split Field " + i, _courtBoardTileSprite, -80);
             _courtPresentationReady = true;
         }
 
         private void ResetMonochromeEncounterState()
         {
+            ResetCourtField();
             _monochromeBossEncounterActive = false;
             _monochromeBossSpawnedForVoid = false;
             _courtBlackBossSlot = -1;
@@ -113,15 +112,14 @@ namespace VoidFall.Runtime
             _monochromeBossSpawnedForVoid = true;
             _monochromeBossEncounterActive = true;
             SetupMonochromePresentation();
+            EnsureCourtField();
             _monochromeArenaCentre = _gameSim.Player.Position;
-            _monochromeBoardTileSize = CalculateMonochromeBoardTileSize();
-            _monochromeBoardOrigin = _monochromeArenaCentre - _monochromeBoardTileSize * 0.5f;
             _monochromeBossElapsed = -1.6f;
             _monochromeHazard = new CourtHazardState(CourtFaction.White, CourtHazardStage.Warning);
             _monochromePreviousHazard = _monochromeHazard;
             _monochromeHazardInitialized = false;
             _monochromeFloorDamageCooldown = 0f;
-            ClearHydraBossArena();
+            ClearCourtBossArena();
             SpawnBoss(CourtBlackBossId, 1.0, 1.0, 0);
             SpawnBoss(CourtWhiteBossId, 1.0, 1.0, 0);
             for (var index = 0; index < _gameSim.Bosses.Length; index++)
@@ -182,8 +180,10 @@ namespace VoidFall.Runtime
 
         private void StepMonochromeSurvival(float dt)
         {
-            if (CurrentVoidIsMonochrome && !_monochromeBossEncounterActive)
-                _monochromeSurvivalElapsed += Mathf.Max(0f, dt);
+            if (!CurrentVoidIsMonochrome) return;
+            EnsureCourtField();
+            DrainCourtSacrifices();
+            if (!_monochromeBossEncounterActive) _monochromeSurvivalElapsed += Mathf.Max(0f, dt);
         }
 
         private void UpdateMonochromeSpawns(float dt)
@@ -203,7 +203,7 @@ namespace VoidFall.Runtime
                 : MonochromeRuntimeRules.SpawnX(faction, _gameSim.Player.Position.x, viewport.x + 110f);
             var y = _gameSim.Player.Position.y +
                     ((float)_gameSim.Rng.Next() - 0.5f) * viewport.y * 1.6f;
-            if (!SpawnEnemy(id, new Vector2(x, y), forcedRoster: EnemyRoster.One)) return;
+            if (!SpawnEnemy(id, CourtSpawnPosition(new Vector2(x, y)), forcedRoster: EnemyRoster.One)) return;
 
             var spawnId = _nextEnemyId - 1;
             for (var index = 0; index < _gameSim.Enemies.Length; index++)
@@ -226,6 +226,7 @@ namespace VoidFall.Runtime
             float distance,
             Vector2 direction)
         {
+            if (IsCourtSentinel(enemy)) { enemy.Velocity = Vector2.zero; enemy.Knockback = Vector2.zero; enemy.Rotation = 0f; return; }
             switch (enemy.Id)
             {
                 case "court-rook": UpdateCourtRook(ref enemy, dt, distance, direction); break;
@@ -249,7 +250,7 @@ namespace VoidFall.Runtime
             if (enemy.State == 0)
             {
                 enemy.Velocity = direction * enemy.Speed;
-                if (enemy.AttackCooldown <= 0f && distance < 460f && enemy.Age > 0.7f)
+                if (enemy.AttackCooldown <= 0f && distance < 460f && enemy.Age > 0.7f && CanCommitDirectorAttack(enemy))
                 {
                     enemy.State = 1;
                     enemy.StateTimer = (float)(definition.TelegraphSeconds ?? 0.8);
@@ -290,7 +291,7 @@ namespace VoidFall.Runtime
                 enemy.Velocity = distance > preferred + 45f
                     ? direction * enemy.Speed
                     : distance < preferred - 70f ? -direction * enemy.Speed * 0.72f : Vector2.zero;
-                if (enemy.AttackCooldown <= 0f)
+                if (enemy.AttackCooldown <= 0f && CanCommitDirectorAttack(enemy))
                 {
                     enemy.State = 1;
                     enemy.StateTimer = (float)(definition.TelegraphSeconds ?? 1.15);
@@ -320,7 +321,7 @@ namespace VoidFall.Runtime
             if (enemy.State == 0)
             {
                 enemy.Velocity = direction * enemy.Speed;
-                if (enemy.AttackCooldown <= 0f && distance < 430f)
+                if (enemy.AttackCooldown <= 0f && distance < 430f && CanCommitDirectorAttack(enemy))
                 {
                     enemy.State = 1;
                     enemy.StateTimer = (float)(definition.TelegraphSeconds ?? 0.7);
@@ -377,7 +378,7 @@ namespace VoidFall.Runtime
                 enemy.Velocity = distance > preferred + 55f
                     ? direction * enemy.Speed
                     : distance < preferred - 65f ? -direction * enemy.Speed * 0.6f : Vector2.zero;
-                if (enemy.AttackCooldown <= 0f)
+                if (enemy.AttackCooldown <= 0f && CanCommitDirectorAttack(enemy))
                 {
                     enemy.State = 1;
                     enemy.StateTimer = (float)(definition.TelegraphSeconds ?? 1f);
@@ -444,17 +445,7 @@ namespace VoidFall.Runtime
 
         private void ApplyMonochromeFloorHazard(bool phaseTwo)
         {
-            var tileFaction = MonochromeRuntimeRules.FactionAtWorldPosition(
-                _gameSim.Player.Position,
-                _monochromeBoardOrigin,
-                _monochromeBoardTileSize);
-            if (!MonochromeRuntimeRules.ShouldApplyFloorDamage(
-                    _monochromeHazard,
-                    tileFaction,
-                    _monochromeFloorDamageCooldown)) return;
-
-            DamagePlayer(phaseTwo ? 20f : 16f, Vector2.zero);
-            _monochromeFloorDamageCooldown = 0.65f;
+            StepCourtLocalFloor();
         }
 
         private void AnnounceMonochromeFloorHazard()
@@ -485,8 +476,10 @@ namespace VoidFall.Runtime
             var applied = Mathf.Min(Mathf.Max(0f, damage), _monochromeSharedHealth);
             if (applied <= 0f) return;
             _monochromeSharedHealth = MonochromeRuntimeRules.ApplySharedDamage(_monochromeSharedHealth, applied);
-            _damageDealt += applied;
-            TrackWeaponDamage(weaponIndex, applied);
+            RecordRunHistory("boss_damage", boss.Id, sourceId: _damageFaction.ToString(),
+                instanceId: boss.TelemetryInstanceId, amount: applied, hp: _monochromeSharedHealth,
+                maxHp: _monochromeSharedMaxHealth, detail: "sharedPool=monochromeCourt");
+            if (_damageFaction == CombatFaction.Player) { _damageDealt += applied; TrackWeaponDamage(weaponIndex, applied); }
             var ratio = _monochromeSharedMaxHealth > 0f
                 ? _monochromeSharedHealth / _monochromeSharedMaxHealth
                 : 0f;
@@ -513,59 +506,29 @@ namespace VoidFall.Runtime
 
         private void RenderMonochromePresentation()
         {
-            foreach (var split in _courtSplitViews) Hide(split);
-            if (!_monochromeBossEncounterActive)
-            {
-                HideMonochromeBoard();
-                if (_arenaId == ArenaId.MonochromeCourt && CourtSplitCycleActive()) RenderMonochromeSplitField();
-                return;
-            }
+            if (_arenaId != ArenaId.MonochromeCourt) { HideMonochromeBoard(); HideCourtFieldDetails(); return; }
+            SetupMonochromePresentation();
+            if (!_courtFieldReady) return;
+            RenderCourtFieldDetails();
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
-            _courtTileMaterial.SetFloat("_HazardStage", _monochromeHazard.Stage == CourtHazardStage.Warning ? 1 :
-                _monochromeHazard.Stage == CourtHazardStage.Burning ? 2 : 0);
-            _courtTileMaterial.SetFloat("_WhiteActive", _monochromeHazard.Faction == CourtFaction.White ? 1 : 0);
-            _courtTileMaterial.SetFloat("_Pulse", MonochromeRuntimeRules.HazardPulse(_monochromeBossElapsed, reducedMotion));
-            var player = _gameSim.Player.Position;
-            var centreColumn = Mathf.FloorToInt(
-                (player.x - _monochromeBoardOrigin.x) / _monochromeBoardTileSize.x);
-            var centreRow = Mathf.FloorToInt(
-                (player.y - _monochromeBoardOrigin.y) / _monochromeBoardTileSize.y);
-            var firstColumn = centreColumn - CourtBoardColumns / 2;
-            var firstRow = centreRow - CourtBoardRows / 2;
             for (var row = 0; row < CourtBoardRows; row++)
+            for (var column = 0; column < CourtBoardColumns; column++)
             {
-                for (var column = 0; column < CourtBoardColumns; column++)
-                {
-                    var index = row * CourtBoardColumns + column;
-                    var tile = _courtBoardTiles[index];
-                    var globalColumn = firstColumn + column;
-                    var globalRow = firstRow + row;
-                    tile.transform.position = _monochromeBoardOrigin + new Vector2(
-                        (globalColumn + 0.5f) * _monochromeBoardTileSize.x,
-                        (globalRow + 0.5f) * _monochromeBoardTileSize.y);
-                    tile.transform.localScale = new Vector3(
-                        _monochromeBoardTileSize.x,
-                        _monochromeBoardTileSize.y,
-                        1f);
-                    var faction = ((globalRow + globalColumn) & 1) == 0
-                        ? CourtFaction.White
-                        : CourtFaction.Black;
-                    var color = faction == CourtFaction.White
-                        ? new Color(.667f, .69f, .674f, 1f)
-                        : new Color(.063f, .094f, .133f, 1f);
-                    tile.color = color;
-                    tile.enabled = true;
-                }
+                var index = row * CourtBoardColumns + column;
+                var tile = _courtBoardTiles[index];
+                tile.transform.position = CourtCellCentre(column, row);
+                tile.transform.localScale = new Vector3(_monochromeBoardTileSize.x, _monochromeBoardTileSize.y, 1f);
+                tile.color = ((row + column) & 1) == 0 ? new Color(165f/255f, 165f/255f, 165f/255f, 1f) : new Color(32f/255f, 32f/255f, 32f/255f, 1f);
+                _courtTileProperties.Clear();
+                var armed = CourtCellIsArmed(column, row);
+                _courtTileProperties.SetFloat("_HazardStage", armed ? (_monochromeHazard.Stage == CourtHazardStage.Burning ? 2f : 1f) : 0f);
+                _courtTileProperties.SetFloat("_Pulse", reducedMotion ? .55f : .5f + .5f * Mathf.Sin(_monochromeBossElapsed * 8f));
+                tile.SetPropertyBlock(_courtTileProperties);
+                tile.enabled = true;
             }
         }
 
-        private Vector2 CalculateMonochromeBoardTileSize()
-        {
-            var viewport = GameplayViewportHalfExtent();
-            return new Vector2(
-                viewport.x * 2.4f / (CourtBoardColumns - 2),
-                viewport.y * 2.4f / (CourtBoardRows - 1));
-        }
+        private Vector2 CalculateMonochromeBoardTileSize() => Vector2.one * (float)MonochromeEncounterRules.TileSize;
 
         private bool CourtSplitCycleActive()
         {
@@ -573,24 +536,9 @@ namespace VoidFall.Runtime
             return MonochromeRuntimeRules.IsSplitCycle(cycle.CycleId);
         }
 
-        private void RenderMonochromeSplitField()
-        {
-            SetupMonochromePresentation();
-            var centre = RenderCameraCentre();
-            var half = RenderViewportHalfExtent();
-            // Like the arena backdrop, the division is screen-relative. Entrances use the same left/right colors.
-            for (var i = 0; i < 2; i++)
-            {
-                var view = _courtSplitViews[i];
-                view.transform.position = centre + new Vector2((i == 0 ? -.5f : .5f) * half.x, 0);
-                view.transform.localScale = new Vector3(half.x, half.y * 2f, 1f);
-                view.color = i == 0 ? new Color(.035f, .055f, .086f, 1f) : new Color(.706f, .725f, .71f, 1f);
-                view.enabled = true;
-            }
-        }
-
         private void DestroyMonochromePresentation()
         {
+            DestroyCourtFieldSprites();
             if (_courtBoardTileSprite == null) return;
             var texture = _courtBoardTileSprite.texture;
             Destroy(_courtBoardTileSprite);

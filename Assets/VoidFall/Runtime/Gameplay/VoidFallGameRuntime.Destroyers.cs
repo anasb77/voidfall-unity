@@ -10,7 +10,7 @@ namespace VoidFall.Runtime
         {
             public int Identity, AttackSerial;
             public Vector2 Origin, Aim;
-            public bool SweepThisStep, Withdrawing;
+            public bool SweepThisStep, Withdrawing, HasAttacked;
         }
         private readonly DestroyerActor[] _destroyers = new DestroyerActor[MaxEnemies];
         private readonly int[] _destroyerHitIdentities = new int[MaxEnemies * 5];
@@ -22,6 +22,8 @@ namespace VoidFall.Runtime
         private bool _destroyerSpritesLoaded, _destroyerRaidActive, _destroyerWithdrawing;
         private Vector2 _destroyerRaidCenter;
         private int _destroyerAttackSequence;
+        private float _destroyerRaidElapsed;
+        private bool _destroyerRaidResolved;
         private Material _destroyerLineMaterial;
         private static readonly string[] DestroyerPoseNames = { "idle0", "idle1", "idle2", "idle3", "windup", "attack", "recover", "hit" };
         private static int DestroyerType(string id)
@@ -33,13 +35,15 @@ namespace VoidFall.Runtime
         {
             EndDestroyerRaid();
             _destroyerRaidActive = true; _destroyerRaidCenter = center; _destroyerWithdrawing = false;
+            _destroyerRaidElapsed = 0; _destroyerRaidResolved = false;
+            var healthMultiplier = DestroyerContent.RaidHealthMultiplier(_encounterInitialized ? DirectorChallengeSeconds : _time);
             for (var type = 0; type < DestroyerContent.Enemies.Length; type++)
             {
                 var angle = (type - 2) * .36f;
-                var position = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 460f;
+                var position = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * DestroyerContent.RaidEntryDistance(type);
                 // A raid is an independent finite source, even when initiated during another callback.
                 using (new FactionScope(this, -1, 0, CombatFaction.Destroyer, 0))
-                    if (!SpawnEnemy(DestroyerContent.Enemies[type].Id, position, forcedRoster: EnemyRoster.One))
+                    if (!SpawnEnemy(DestroyerContent.Enemies[type].Id, position, healthMultiplier: healthMultiplier, forcedRoster: EnemyRoster.One))
                     {
                         EndDestroyerRaid(); return;
                     }
@@ -48,11 +52,19 @@ namespace VoidFall.Runtime
         private void StepDestroyerRaid(float dt, bool withdrawing)
         {
             if (!_destroyerRaidActive || dt <= 0) return;
+            _destroyerRaidElapsed += dt;
             _destroyerWithdrawing = withdrawing;
             if (withdrawing) CancelDestroyerShots();
+            if (!_destroyerRaidResolved)
+            {
+                var alive = ActiveDestroyerRaidBodies();
+                if (alive == 0 || withdrawing) RecordDestroyerRaidResolved(alive == 0 ? "defeated" : "release", alive);
+            }
         }
         private void EndDestroyerRaid()
         {
+            if (_destroyerRaidActive && !_destroyerRaidResolved && _gameSim != null)
+                RecordDestroyerRaidResolved("cancelled", ActiveDestroyerRaidBodies());
             _destroyerRaidActive = false; _destroyerWithdrawing = false;
             if (_gameSim == null) return;
             CancelDestroyerShots();
@@ -67,6 +79,22 @@ namespace VoidFall.Runtime
                 _rewardRoots.Release(_factionActors[i].Root); _factionActors[i] = default;
             }
             Array.Clear(_destroyers, 0, _destroyers.Length);
+        }
+        private int ActiveDestroyerRaidBodies()
+        {
+            var count = 0;
+            for (var n = 0; n < _gameSim.EnemyOrderCount; n++)
+            {
+                var enemy = _gameSim.Enemies[_gameSim.EnemyOrder[n]];
+                if (enemy.Active && DestroyerType(enemy.Id) >= 0) count++;
+            }
+            return count;
+        }
+        private void RecordDestroyerRaidResolved(string reason, int survivors)
+        {
+            _destroyerRaidResolved = true;
+            RecordRunHistory("destroyer_raid_resolved", MajorIncidentKind.DestroyerRaid.ToString(), reason,
+                instanceId: _incidentSequence, amount: survivors, durationSeconds: _destroyerRaidElapsed);
         }
         private void CancelDestroyerShots()
         {
@@ -100,7 +128,10 @@ namespace VoidFall.Runtime
                 enemy.Facing = direction;
                 enemy.Velocity = direction * enemy.Speed;
                 if (type == 4 && distance < 350) enemy.Velocity *= -.5f;
-                if (distance <= (float)definition.PreferredDistance && enemy.AttackCooldown <= 0 && enemy.Age > .4f &&
+                // Maw establishes its full warning before the simultaneous ranged/fast arrivals
+                // compete for attention. The attack telegraph itself is never shortened.
+                var arrivalSeconds = type == 0 ? .2f : .4f;
+                if (distance <= (float)definition.PreferredDistance && enemy.AttackCooldown <= 0 && enemy.Age > arrivalSeconds &&
                     DestroyerAttackAttentionAvailable())
                 {
                     enemy.State = 1; enemy.StateTimer = (float)definition.TelegraphSeconds;
@@ -116,6 +147,10 @@ namespace VoidFall.Runtime
                 enemy.Velocity = Vector2.zero; enemy.StateTimer -= dt;
                 if (enemy.StateTimer > 0) return true;
                 enemy.State = 2; enemy.StateTimer = type == 0 ? .47f : type == 1 ? .45f : .2f;
+                RecordRunHistory("destroyer_attack", enemy.Id, actor.HasAttacked ? "repeat" : "first",
+                    instanceId: enemy.SpawnId, relatedInstanceId: _incidentSequence, amount: actor.AttackSerial,
+                    hp: enemy.Health, maxHp: enemy.MaxHealth, durationSeconds: enemy.Age);
+                actor.HasAttacked = true;
                 if (type == 2 || type == 3)
                     FactionBlast(actor.Origin, type == 2 ? 145 : 165, enemy.Damage, actor.Aim, type == 2 ? Mathf.Cos(1.05f) : -1);
                 if (type == 4)

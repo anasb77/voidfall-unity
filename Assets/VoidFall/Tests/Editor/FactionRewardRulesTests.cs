@@ -50,7 +50,7 @@ namespace VoidFall.Tests.Editor
             Assert.That(DestroyerContent.Enemies.Length, Is.EqualTo(5));
             Assert.That(DestroyerContent.Find("destroyer-maw").TelegraphSeconds, Is.EqualTo(.95));
             Assert.That(DestroyerContent.Find("destroyer-razor").RecoverySeconds, Is.EqualTo(2.05));
-            Assert.That(DestroyerContent.Find("destroyer-husk").Health, Is.EqualTo(510));
+            Assert.That(DestroyerContent.Find("destroyer-husk").Health, Is.EqualTo(760));
             Assert.That(DestroyerContent.Find("destroyer-grasp").BlastRadius, Is.EqualTo(165));
             Assert.That(DestroyerContent.Find("destroyer-spite").ProjectileSpeed, Is.EqualTo(215));
             Assert.That(DestroyerContent.Find("court-white-pawn"), Is.Null);

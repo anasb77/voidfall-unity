@@ -28,6 +28,7 @@ namespace VoidFall.Runtime
         private void ActivateWildCard(WildCardId id, bool announce = true)
         {
             if (id == WildCardId.None || !_activeWildCards.Add(id)) return;
+            RecordRunHistory("wild_card", id.ToString(), sourceId: _telemetryRewardSource);
             switch (id)
             {
                 case WildCardId.Standstill:

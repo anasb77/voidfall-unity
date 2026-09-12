@@ -15,11 +15,15 @@ namespace VoidFall.Runtime
 
         private void SeedDiagnosticDirectorProgress(float seconds)
         {
+            // Probe inputs are raw time: six-minute survival plus an assumed minute of boss combat.
+            // ObserveStage still converts these fractions to the canonical 300+60 scoring units.
+            var survivalSeconds = (float)VoidProgressionRules.SurvivalSeconds;
+            const float diagnosticBossSeconds = 60f;
             for (var stage = 0; stage < 6; stage++)
             {
-                var local = seconds - stage * 360f;
-                _runPressure.ObserveStage(stage, System.Math.Max(0, System.Math.Min(1, local / 300)),
-                    System.Math.Max(0, System.Math.Min(1, (local - 300) / 60)));
+                var local = seconds - stage * (survivalSeconds + diagnosticBossSeconds);
+                _runPressure.ObserveStage(stage, System.Math.Max(0, System.Math.Min(1, local / survivalSeconds)),
+                    System.Math.Max(0, System.Math.Min(1, (local - survivalSeconds) / diagnosticBossSeconds)));
             }
         }
     }

@@ -127,6 +127,8 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.Roulette));
             RouletteRules.Spin((RouletteSession)Get(_runtime, "_rouletteSession"), new Rng(200));
             Invoke(_runtime, "OnRouletteComplete", Get(_runtime, "_rouletteSession"));
+            Assert.That(Get(_runtime, "_paused"), Is.True, "Claim presentation retains pause ownership.");
+            RouletteClaimTestActions.ClaimAll(_runtime);
             Assert.That(Get(_runtime, "_prizeRevealActive"), Is.False);
             Assert.That(Get(_runtime, "_paused"), Is.False);
             Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.None));
@@ -153,7 +155,7 @@ namespace VoidFall.Tests.PlayMode
         [UnityTest]
         public IEnumerator Reward_phase_finishes_defeated_boss_visuals_before_relic_pickup()
         {
-            Invoke(_runtime, "StepObjectiveTracker", 300d);
+            Invoke(_runtime, "StepObjectiveTracker", VoidProgressionRules.SurvivalSeconds);
             Invoke(_runtime, "StepObjectiveTracker", 0d);
             Assert.That(_runtime.ActiveBossesCount, Is.EqualTo(2));
             Invoke(_runtime, "KillBoss", 1);
@@ -181,6 +183,9 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(Get(_runtime, "_partsEarned"), Is.EqualTo(180), "An unspun session cannot claim a prize.");
             RouletteRules.Spin(session, rng);
             Invoke(_runtime, "OnRouletteComplete", session);
+            Invoke(_runtime, "OnRouletteComplete", session);
+            Assert.That(Get(_runtime, "_partsEarned"), Is.EqualTo(180), "Landing does not grant unclaimed Parts.");
+            RouletteClaimTestActions.ClaimAll(_runtime);
             Invoke(_runtime, "OnRouletteComplete", session);
             Assert.That(Get(_runtime, "_partsEarned"), Is.EqualTo(270));
             Assert.That(Ui.CurrentScreen, Is.EqualTo(UIScreen.None));

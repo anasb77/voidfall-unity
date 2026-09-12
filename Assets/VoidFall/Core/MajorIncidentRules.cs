@@ -38,7 +38,7 @@ namespace VoidFall.Core
                 Reset();
                 return;
             }
-            var activeElapsed = Elapsed - MajorIncidentRules.WarningSeconds;
+            var activeElapsed = Elapsed - MajorIncidentRules.WarningDuration(Kind);
             if (activeElapsed < 0)
             {
                 Phase = MajorIncidentPhase.Warning;
@@ -47,7 +47,7 @@ namespace VoidFall.Core
             else if (activeElapsed < MajorIncidentRules.ActiveDuration(Kind))
             {
                 Phase = MajorIncidentPhase.Active;
-                Strength = MajorIncidentRules.Smooth01(activeElapsed / MajorIncidentRules.ActivationSeconds);
+                Strength = MajorIncidentRules.Smooth01(activeElapsed / MajorIncidentRules.ActivationDuration(Kind));
             }
             else
             {
@@ -69,7 +69,18 @@ namespace VoidFall.Core
     {
         public const double WarningSeconds = 2.5;
         public const double ActivationSeconds = 1.5;
+        public const double BlackHoleWarningSeconds = 1;
+        public const double BlackHoleActivationSeconds = .5;
         public const double BossLeadSeconds = 15;
+        public const float BlackHoleRadius = 230f;
+        public const float BlackHoleCenterOffset = 165f;
+        public const float BlackHolePlayerPullFraction = .65f;
+
+        public static double WarningDuration(MajorIncidentKind kind)
+            => kind == MajorIncidentKind.BlackHole ? BlackHoleWarningSeconds : WarningSeconds;
+
+        public static double ActivationDuration(MajorIncidentKind kind)
+            => kind == MajorIncidentKind.BlackHole ? BlackHoleActivationSeconds : ActivationSeconds;
 
         public static bool IsArenaEligible(string arenaId)
         {
@@ -110,7 +121,7 @@ namespace VoidFall.Core
         public static double TotalDuration(MajorIncidentKind kind)
         {
             var active = ActiveDuration(kind);
-            return active <= 0 ? 0 : WarningSeconds + active + ReleaseDuration(kind);
+            return active <= 0 ? 0 : WarningDuration(kind) + active + ReleaseDuration(kind);
         }
 
         public static double BlackHolePullScale(double distance, double radius, double strength)
@@ -118,7 +129,9 @@ namespace VoidFall.Core
             if (!IsFinite(distance) || !IsFinite(radius) || !IsFinite(strength) ||
                 radius <= 0 || distance <= 0 || distance >= radius) return 0;
             var u = distance / radius;
-            return 4 * u * (1 - u) * Math.Max(0, Math.Min(1, strength));
+            // A broad, perceptible pull; soften only the small core and outer rim.
+            // Direction is undefined exactly at center, so the core still tends smoothly to zero.
+            return Smooth01(u / .08) * Smooth01((1 - u) / .2) * Math.Max(0, Math.Min(1, strength));
         }
 
         internal static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);

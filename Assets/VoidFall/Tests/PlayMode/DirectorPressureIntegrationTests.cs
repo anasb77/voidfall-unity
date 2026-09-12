@@ -65,7 +65,7 @@ namespace VoidFall.Tests.PlayMode
         [Test]
         public void Boss_completion_credit_survives_an_upgrade_prompt_in_the_same_tick()
         {
-            Tracker.Step(300);Set(_runtime,"_voidBossEncounterSpawned",true);
+            Tracker.Step(VoidProgressionRules.SurvivalSeconds);Set(_runtime,"_voidBossEncounterSpawned",true);
             SetBoss(0,"herald",100,100,101);Tracker.NotifyNamedSpawned("herald");Tracker.Step(0);
             Invoke(_runtime,"StepRunPressure");
             SetBoss(0,"herald",0,100,101,false);Tracker.NotifyNamedKilled("herald");
@@ -79,7 +79,7 @@ namespace VoidFall.Tests.PlayMode
         [Test]
         public void Terminal_tick_credits_boss_damage_before_freezing_the_result()
         {
-            Tracker.Step(300);Set(_runtime,"_voidBossEncounterSpawned",true);
+            Tracker.Step(VoidProgressionRules.SurvivalSeconds);Set(_runtime,"_voidBossEncounterSpawned",true);
             SetBoss(0,"herald",100,100,101);Invoke(_runtime,"StepRunPressure");
             SetBoss(0,"herald",40,100,101);
             var game=Get(_runtime,"_gameSim");var bosses=(Array)Get(game,"Bosses");var boss=bosses.GetValue(0);
@@ -101,7 +101,7 @@ namespace VoidFall.Tests.PlayMode
             Invoke(_runtime, "StepRunPressure");
             Assert.That(Pressure.PressureHundredths, Is.Zero);
             Assert.That(Invoke(_runtime, "CurrentEarnedBaseScore"), Is.EqualTo(score));
-            Tracker.Step(149.25);
+            Tracker.Step((VoidProgressionRules.SurvivalSeconds - 1.5) / 2);
             Invoke(_runtime, "StepRunPressure");
             Assert.That(Pressure.CreditedProgressSeconds, Is.EqualTo(150).Within(.0001));
             Assert.That(Pressure.PressureHundredths, Is.EqualTo(20));
@@ -128,7 +128,7 @@ namespace VoidFall.Tests.PlayMode
         [Test]
         public void TravelCarriesPressureAndOnlyTheCapturedVisitReceivesCredit()
         {
-            Tracker.Step(300);
+            Tracker.Step(VoidProgressionRules.SurvivalSeconds);
             Invoke(_runtime, "StepRunPressure");
             Assert.That(Pressure.PressureHundredths, Is.EqualTo(40));
             Set(_runtime, "_completedVoids", 1);
@@ -138,7 +138,7 @@ namespace VoidFall.Tests.PlayMode
             Set(_runtime, "_journeyStage", Enum.Parse(stage.GetType(), "Travel"));
             Invoke(_runtime, "BeginPressureArena");
             Tracker.Begin(VoidObjectives.ForArena("red-nebula"));
-            Tracker.Step(150);
+            Tracker.Step(VoidProgressionRules.SurvivalSeconds / 2);
             Invoke(_runtime, "StepRunPressure");
             Assert.That(Pressure.PressureHundredths, Is.EqualTo(40));
             Set(_runtime, "_journeyStage", stage);
@@ -149,7 +149,7 @@ namespace VoidFall.Tests.PlayMode
         [Test]
         public void CompleteBossRegistryRetainsDefeatedMembersAndRejectsHealingCredit()
         {
-            Tracker.Step(300);
+            Tracker.Step(VoidProgressionRules.SurvivalSeconds);
             SetBoss(0, "herald", 100, 100, 101);
             SetBoss(1, "warden", 100, 100, 102);
             Invoke(_runtime, "StepRunPressure");
@@ -170,7 +170,7 @@ namespace VoidFall.Tests.PlayMode
         [Test]
         public void CourtSharedHealthIsOneEncounterPool()
         {
-            Tracker.Step(300);
+            Tracker.Step(VoidProgressionRules.SurvivalSeconds);
             SetBoss(0, "court-grandmaster-black", 100, 100, 111);
             SetBoss(1, "court-grandmaster-white", 100, 100, 112);
             Set(_runtime, "_monochromeSharedMaxHealth", 200f);
@@ -191,7 +191,7 @@ namespace VoidFall.Tests.PlayMode
             Invoke(_runtime, "FreezePressureAndScore");
             Assert.That(_runtime.TerminalRunScore.BaseScore, Is.EqualTo(135));
             Set(_runtime, "_score", 10000f);
-            Tracker.Step(300);
+            Tracker.Step(VoidProgressionRules.SurvivalSeconds);
             Invoke(_runtime, "StepRunPressure");
             Invoke(_runtime, "FreezePressureAndScore");
             Assert.That(_runtime.TerminalRunScore.FinalScore, Is.EqualTo(135));

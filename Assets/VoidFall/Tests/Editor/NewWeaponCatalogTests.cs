@@ -20,7 +20,7 @@ namespace VoidFall.Tests.Editor
             }
         }
 
-        [TestCase("mines", 60, 140, 1.6, 1.0)]
+        [TestCase("mines", 60, 140, 2.4, 1.8)]
         [TestCase("summons", 40, 100, 3.0, 2.0)]
         [TestCase("clock", 20, 60, 5.5, 3.0)]
         [TestCase("boomerang", 24, 60, 1.8, 1.3)]

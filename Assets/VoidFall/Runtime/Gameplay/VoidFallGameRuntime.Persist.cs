@@ -162,18 +162,14 @@ namespace VoidFall.Runtime
                     previousLastRunRank);
                 Debug.LogError("VoidFall run save failed: " + exception.Message);
             }
-            ExportTelemetrySnapshot(_runVictory ? "escaped" : _gameOver ? "gameover" : "active");
             if (!_lastRunSaved) SetMenuNotice("Progress was not saved.");
         }
 
         private void ExportTelemetrySnapshot(string status)
         {
-            if (_time <= 0)
-            {
-                EnqueueToast("No run data yet", null, 2.2f, ToastKind.Info);
-                SetMenuNotice("No run data yet.");
-                return;
-            }
+            // The manual entry point shares the automatic writer and stays silent.
+            if (!_runExportActive && _runExportStatus == null) return;
+            status = _runExportStatus ?? status;
             _lastTelemetryPath = _telemetry.Export(
                 status,
                 (float)_time,
@@ -192,12 +188,14 @@ namespace VoidFall.Runtime
                 BuildTelemetryDamage(),
                 Mathf.FloorToInt(XpOnGround()),
                 XpHeldByHarvesters(),
-                _saveStore == null ? null : System.IO.Path.GetDirectoryName(_saveStore.PathOnDisk),
-                _hasFrozenRunScore ? (FrozenRunScore?)_frozenRunScore : null, (int)_runDirectorProfile);
-            if (!string.IsNullOrEmpty(_lastTelemetryPath))
+                null,
+                _hasFrozenRunScore ? _frozenRunScore : new FrozenRunScore(CurrentEarnedBaseScore(), PressureHundredths),
+                (int)_runDirectorProfile, _hasFrozenRunScore);
+            var error = _telemetry.LastExportError ?? _telemetry.HistoryInfo?.lastError;
+            if (!string.IsNullOrEmpty(error) && error != _runExportLastError)
             {
-                EnqueueToast("Run data exported", _lastTelemetryPath, 2.2f, ToastKind.Info);
-                SetMenuNotice("Run data exported.");
+                _runExportLastError = error;
+                Debug.LogWarning("VoidFall run export I/O error: " + error);
             }
         }
 

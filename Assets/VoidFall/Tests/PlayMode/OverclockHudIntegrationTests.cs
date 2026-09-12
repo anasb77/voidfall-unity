@@ -68,7 +68,7 @@ namespace VoidFall.Tests.PlayMode
         [UnityTest]
         public IEnumerator Counter_grows_ten_percent_per_stack_and_stays_below_the_boss_bar()
         {
-            Call("StepObjectiveTracker", 300d);
+            Call("StepObjectiveTracker", VoidProgressionRules.SurvivalSeconds);
             Call("StepObjectiveTracker", 0d);
             Assert.That(_runtime.ActiveBossesCount, Is.GreaterThan(0));
             var state = new OverclockState();

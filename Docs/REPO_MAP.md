@@ -71,12 +71,14 @@ Assembly definitions live at each subsystem root. `Core` and `Content` have
 
 | Task | First files to inspect |
 |---|---|
+| Automatic run history / balance data | `Runtime/Telemetry/RunTelemetry.cs`; `Runtime/Gameplay/VoidFallGameRuntime.Telemetry.cs`, `.Persist.cs`; schema and extension contract in `Docs/RunExports.md` |
+| Loot reachability / full pickup pools | `Runtime/Gameplay/VoidFallGameRuntime.Loot.cs`, `.Sim.cs`; generation-safe pickup iteration in `GameSim.cs`; `Tests/PlayMode/LootReachabilityTests.cs` |
 | Simulation ordering / state reset | `Runtime/Gameplay/VoidFallGameRuntime.cs`: `Simulate`, `StartRunInternal`; `GameSim.cs`, `FxSim.cs` in the same directory |
 | Movement / device polling | `Runtime/Input/InputReader.cs`; `Runtime/Gameplay/VoidFallGameRuntime.Sim.cs`: `MovePlayer` |
 | Weapons / targeting / damage / pickups | `Runtime/Gameplay/VoidFallGameRuntime.Sim.cs`: `UpdateWeapons`, `FireWeapon`, `UpdateBlades`, `UpdateBullets`, `UpdatePickups`; `Core/CombatRules.cs`, `PickupRules.cs`, `BalanceRules.cs` |
 | Enemies / spawn pressure / ordinary bosses | `Content/DirectorRules.cs`, `EnemyRosterRules.cs`, `EliteRules.cs`, `FormationRules.cs`; `Runtime/Gameplay/VoidFallGameRuntime.Sim.cs`: spawning, attacks and deaths |
 | Upgrades / evolutions / support effects | `Content/UpgradeRules.cs`, `EvolutionRules.cs`, `SupportEffectRules.cs`, `ExtendedCatalog.cs`; `Core/ProgressionRules.cs`; runtime `RecalculatePlayerStats`, `RollLevelOptions`, `SelectLevelOption` |
-| Roulette / reward ceremony | `Content/RouletteRules.cs`, `RoulettePresentationRules.cs`; `Runtime/Gameplay/VoidFallGameRuntime.Roulette.cs`, `.RouletteChest.cs`; `UI/Views/RouletteView.cs`, `RouletteWheelGraphic.cs`, `PrizeRevealView.cs` |
+| Roulette / reward ceremony | `Content/RouletteRules.cs`, `RoulettePresentationRules.cs`; `Runtime/Gameplay/VoidFallGameRuntime.Roulette.cs`, `.RouletteClaims.cs`, `.RouletteChest.cs`; `UI/Views/RouletteView.cs`, `RouletteWheelGraphic.cs`, `LevelUpView.cs` |
 | Wild Cards / overclock / mutations | `Content/WildCardRules.cs`, `Core/OverclockRules.cs`, `MutationRules.cs`; `Runtime/Gameplay/VoidFallGameRuntime.WildCards.cs` and `.Sim.cs` |
 | Meteors / arena hazards | `Core/MeteorRules.cs`, `HazardRules.cs`; `Runtime/Gameplay/GameSim.cs`, `VoidFallGameRuntime.NebulaStrikes.cs` |
 | Player cosmetics / Workshop preview | `Runtime/Rendering/PlayerCosmetics.cs`, `PlayerFramePreview.cs`; `Runtime/Gameplay/VoidFallGameRuntime.Cosmetics.cs`; `UI/Views/WorkshopView.cs` |
@@ -85,8 +87,21 @@ Roulette relics emerge at the last defeated boss, ignore magnets, and require
 physical pickup; the safe Rewards stage allows movement and waits for the relic.
 `RoulettePresentationRules` projects the final probabilities, including the single
 first/repeat protection re-sample, into segment sizes and readable reward facts.
-The 6.8-second spin uses accumulated rotation and automatically opens one actual
-prize card. Runtime grants the reward once and keeps pause ownership until Continue.
+The 6.8-second spin opens the mandatory reward-claim sequence. Runtime
+`.RouletteClaims.cs` resolves one target, presents one card per actual rank, and
+commits each reward only on Claim. Generation/index guards prevent duplicate
+grants. Pause and the escape countdown remain held until the final claim.
+`LevelUpView.ShowReward` uses the actual upgrade menu and its existing `BuildCard`
+renderer for reward names, benefits and ranks. Click ordinary cards to take them;
+Wild Cards show rule changes and explicit Take/Leave buttons. Leaving grants
+nothing and does not reroll. The pending flag retains pause ownership while
+`SyncUiScreen` routes it to `UIScreen.LevelUp`; normal pending upgrades are restored
+afterward. The legacy `RareBoon` ID now pays 500 Parts without healing or score.
+Rank caps and no-eligible-card fallbacks remain; a full pickup pool yields a
+claimable 40 Parts fallback instead of losing a power-up. Stakes settle once at
+landing; `roulette_claimed` records each committed outcome and `roulette_granted`
+is the final aggregate. Declines have a separate event and no grant. See
+`Docs/Design/2026-09-08-RewardMenuCorrection.md` for the current presentation contract.
 `RouletteView` centers the wheel with a 1.5x target capped to fit the viewport;
 the reduced spin button sits in its hub. Rewards/odds live in a dismissible drawer
 that blocks the underlying actions and supports controller cancel. Idle decoration
@@ -104,20 +119,28 @@ The four appended weapons (Mines, Summons, Clock, Boomerang) are authored in
 their evolutions after generated initialization, preserving the first six IDs.
 Runtime `.Arsenal.cs` owns fixed-capacity entity pools and spawn-identity-keyed
 freeze/clock hit timers. `.Arsenal.Render.cs` draws cached rank-specific art from
-`ProceduralSpriteFactory.Arsenal.cs`. Clock's face uses 35% opacity; its moving
-hands retain their previous 50% opacity and authored shape.
-mine range guides retain 70% of their original opacity. Idle summon creation
+`ProceduralSpriteFactory.Arsenal.cs`. Clock's face uses 18% opacity; its moving
+hands retain their previous 50% opacity and authored shape. Rank III adds a
+seconds attack hand with half the main hand's reach, width and damage, rotating
+twice as fast. Evolution retains its full-size counterclockwise hand.
+Boomerang visuals and hit radius use half their original size.
+Mine range guides retain 70% of their original opacity. Idle summon creation
 stops at squad size; existing returning summons persist within the active cap.
-Mine freeze pauses ordinary enemy behavior but keeps damage-reception timers
-advancing; bosses resist freeze. All state clears on new runs and travel.
+Mine placement uses rank delays 2.4–1.8s with a 0.9s minimum after recovery.
+Mine freeze lasts 1.2s with 1.2s mobile recovery before another freeze; it keeps
+damage-reception timers advancing and bosses resist freeze. Control state is
+spawn-identity keyed and clears on new runs and travel.
 Upgrade offers, roulette acquisition, HUD and records share the extended weapon
 order. Evolution support lookup must use `ExtendedCatalog.AllSupports()`.
+`Core/ProgressionRules` owns four initial weapon slots, expanding to five after
+two rank-VI weapons; `Content/UpgradeRules` reuses this authority. Runs still
+start with the Pistol. Exported build snapshots include the current slot limit.
 Their paired extended supports are also included in the build HUD. Artwork is
 warmed during stat recalculation/upgrade commit, with allocation-free cache keys.
 Use `Editor/BuildScript.BuildWindows` for the current `../Builds/VoidFall.exe`.
 The opt-in `-vfarsenal=all|mines|summons|clock|boomerang` starts a test loadout
 (`-vfarsenal-rank=1..6`, `-vfarsenal-evolved=1`); `-vfarsenal-check=<folder>`
-captures rank I, VI, evolved and idle-summon states. Both isolate the profile
+captures rank I, VI, evolved, rank-III Clock and idle-summon states. Both isolate the profile
 before the first load. `Tests/PlayMode/ArsenalIntegrationTests.cs` covers these
 combat and presentation boundaries.
 
@@ -166,8 +189,9 @@ The minimal Tab overview is `UI/Views/RouteMapView.cs`; clicks highlight
 `Runtime/Gameplay/VoidFallGameRuntime.Journey.cs` owns reward/junction/travel
 stages, map pause ownership, the safe portal room, load retry and terminal
 return to Home. `VoidFallGameRuntime.LevelUps.cs` advances upgrade prompts in
-both combat and safe reward phases. `.Roulette.cs` explicitly owns PrizeReveal
-until Continue; `SyncUiScreen` must preserve that ownership.
+both combat and safe reward phases. `.RouletteClaims.cs` owns pending rewards
+through the shared upgrade menu until taken (or a Wild Card is left).
+`SyncUiScreen` must preserve that ownership.
 
 Escape timing lives in Journey/Rift and `.Escape.cs`: fifteen active seconds
 with normal movement, staggered harmless enemy deaths, animated `Escaping...`
@@ -175,8 +199,8 @@ dots and three increasing shake patterns. At eleven seconds, remaining XP and
 Parts sweep toward the player; departure settles them through the normal grant
 path and drains queued level choices. Overclock time remains held until combat
 resumes. Modal UI pauses the window. The relic stays at the boss's actual death
-site and is delivered if unclaimed; roulette grants once and resumes without a
-second prize confirmation. See `Docs/Design/2026-09-06-JourneyPolish.md` and
+site and is delivered if unclaimed; roulette holds the window until all reward
+cards are resolved. See `Docs/Design/2026-09-06-JourneyPolish.md` and
 `EscapePolishTests.cs` / `EscapeWindowTests.cs`.
 
 The map uses small arena thumbnails from `Resources/VoidFall/RouteThumbnails/`;
@@ -204,27 +228,34 @@ Its horizons are tessellated as adjacent strips rather than a crossing fan.
   through confirmation too. `CommitRiftTransitionSwap` clears enemies, shots
   and meteors before initializing the next arena/objective.
 - Hydra: `Content/HydraContent.cs`, `Core/HydraEncounterRules.cs`,
-  `Runtime/Gameplay/HydraRuntimeRules.cs`, `VoidFallGameRuntime.Hydra.cs`.
-  Its route-owned boss suppresses ambient spawning; rib boundary collision
-  differs from the non-colliding central spine.
-  Authored bone surfaces remain in `Art/Hydra/HydraDetails.png`; installation
-  uses the sprite's actual bounds so source-resolution changes preserve layout.
-- Court: matching `MonochromeContent.cs`, `MonochromeEncounterRules.cs`,
-  `MonochromeRuntimeRules.cs`, `VoidFallGameRuntime.Monochrome.cs`. It owns a
-  five-enemy chess roster. Two simultaneous Grandmasters share health; floor
-  warning/burning phases alternate safe colors.
-  Black Rule/White Rule cycles show a screen-relative split field: white armies
-  enter the black left half and black armies the white right half. Other cycles
-  retain their existing presentation. `Resources/VoidFall/CourtTile.shader`
-  draws monochrome hazard borders and bounded brightness pulses; reduced motion
-  holds the pulse steady without changing danger state or timing.
-- Null City: `Content/NullCityContent.cs`, `Core/NullCityRules.cs`, runtime
-  `VoidFallGameRuntime.NullCity.cs` and `.NullCity.Render.cs`. Twelve robot types
-  share existing combat pools. The fixed city floor has Surveillance/Lockdown,
-  purge lanes and hangar police; Motherload owns a permanent-lockdown encounter.
-  Deferred birth/blast queues preserve slot reuse. Its death clears hostiles while
-  retaining native boss dissolution and reward/relic flow. Space or controller
-  left shoulder dashes only in this arena and resists the warned tractor cone.
+  `Runtime/Gameplay/HydraRuntimeRules.cs`, `.Hydra.cs` and `.HydraTravel.cs`.
+  HydraI360s survival is base-only with downward glyph drift; `.MapPresentation`
+  owns its rendering/POV. HydraTravel reuses Rift collapse/swap/settle inside
+  one route visit without resetting objectives/pressure. HydraII retains the
+  original bone surface, boss/art/geometry/health and solo-boss suppression.
+  `Core/HydraPopulationRules.cs`, runtime `.HydraPopulation.cs` and
+  `ProceduralSpriteFactory.HydraPopulation.cs` own five hybrids and five Viruses.
+  Spawn-ID sidecars hold behavior; bounded deferred offspring retain reward
+  roots and cancel on transition. Reclaimer uses real harvested XP; repairs,
+  shields, split, warnings and actual outcomes use the existing exporter.
+- Court: `MonochromeContent`, `MonochromeEncounterRules`, `MonochromeRuntimeRules`,
+  `.Monochrome.cs` and `.CourtField.cs`. One fixed28×28 board of129.6-unit tiles,
+  clamped playable bounds, seeded spaced sentinel/fallen rooks. Sentinels use
+  state90 on pooled court-rook,100k–150kHP,stationary contact damage, no shots.
+  Native player weapons target them; death queues5–6 roster-one chasers and
+  one requested notice. Existing Grandmasters share HP and each warns/fires
+  one volley. Local cell scope freezes per5s phase, arms over2s, bursts at3.4s,
+  alternates colors and damages all warned actors. `CourtTile.shader` owns
+  red warning/burst and six-segment reticle; per-tile property blocks are
+  initialized during setup, never in MonoBehaviour field constructors.
+- Null City: `NullCityContent`, `Core/NullCityRules`, `.NullCity.cs`,
+  `.NullCity.Render.cs` and `.NullCity.MapPresentation.cs`. Authored1600×900
+  coordinates map to6400×3600world; World/Canvas helpers are reciprocal. Its
+  original artwork/roster/nativeboss remain. Followcamera and rendering-only
+  Zack scale live in shared `.MapPresentation`; local energized-road shake
+  preserves collision and purge timing. The original LCD anchor has a cached
+  world-space text overlay for welcome/lockdown state. Native projectile,
+  tractor,bomb,purge and XP clamps convert world radii before authored tests.
 - Eon Sea: `Content/EonSeaContent.cs`, `Core/EonSeaTerrain.cs`, runtime
   `.EonSea.cs` / `.EonSea.Render.cs`. Streamed world-space glaciers provide
   cover, autonomous melting and explosion-accelerated stress. Collapse applies
@@ -235,7 +266,7 @@ Its horizons are tessellated as adjacent strips rather than a crossing fan.
   detach before arena-package release. `Tools/EonSea/export-eon.cjs` exports
   approved art; `Editor/EonSeaContentBaker.cs` imports/bakes/registers terrain
   and68shared/elite forms. `BakeBatch` scopes content work; `BuildValidationPlayer`
-  writes `../Builds/EonSeaValidation/`. Diagnostic `-vfeonsea=terrain|frost|late|elites|boss`
+  delegates to the canonical `../Builds/VoidFall.exe`. Diagnostic `-vfeonsea=terrain|frost|late|elites|boss`
   with `-vfcapture=<path>` uses an isolated adjacent profile.
 
 - Crascendo: `Content/CrascendoContent.cs`, `Core/CrascendoRules.cs`, runtime
@@ -250,7 +281,7 @@ Its horizons are tessellated as adjacent strips rather than a crossing fan.
   owns `CrascendoVisualAsset`; presentation detaches before package release.
   `Tools/Crascendo/export-crascendo.cjs` and `Editor/CrascendoContentBaker.cs`
   own authoring/import. Diagnostic `-vfcrascendo=early|mid|late|growth|boss`
-  uses an isolated adjacent profile and `Builds/CrascendoValidation/` player.
+  uses an isolated adjacent profile and the canonical `../Builds/VoidFall.exe` player.
 
 **Do not equate route nodes with prepared arenas.** The historical prototype graph had ten
 nodes but only five implemented objectives/packages: Abyss, Red Nebula, White
@@ -364,17 +395,21 @@ are different representations: use existing mapping helpers.
   Magnet keeps the filter open with gentler bass/stereo targets. Preserve
   audio-thread ownership and lock-free handoff. Track Shift retains event tails
   and uses measured `MusicTrackEntries.cs` offsets; new runs retain track intros.
-  Finished gameplay tracks advance through the bag from zero rather than looping
-  a shortened ending. Completion tolerates missed end frames and ignores startup
-  and explicit focus suspension. Menu loop behavior is retained.
+  Gameplay tracks loop natively in full. Only Track Shift changes the song during
+  a run; its curated entry is used on the first pass, then loops return to zero.
+  Unexpected stopped playback recovers the same song, preserving startup and
+  focus guards. New-run selection and menu behavior are retained.
+  Stopped-playback recovery follows observation and a grace, not `loadState`:
+  streamed clips become Unloaded at their natural end. The real-stream regression
+  covers all gameplay tracks looping; see `Docs/Design/2026-09-08-RewardMenuCorrection.md`.
   Tracks live in `Resources/VoidFall/Music/`; credits are in `Docs/AudioCredits.md`.
   Magnet green stays on `MusicPerimeterGraphic`/shader edges and fades with audio.
   See `Docs/Design/2026-09-06-MusicRemix.md`; focused tests are `MusicRemixTests`,
   `MusicDspRemixTests`, `MusicTrackEntryTests`, and `MusicRemixIntegrationTests`.
-  `Editor/MusicRemixValidation.BuildPlayer` writes `../Builds/MusicRemix/`;
+  `Editor/MusicRemixValidation.BuildPlayer` delegates to the canonical Windows build;
   `CapturePerimeter` renders synthetic component fixtures in `Logs/MusicRemix/Captures/`.
   The approved simplification is in `Docs/Design/2026-09-06-MusicRouletteRevision.md`;
-  `Editor/RoulettePreviewCapture.BuildRevision` writes `../Builds/MusicRouletteRevision/`.
+  `Editor/RoulettePreviewCapture.BuildRevision` delegates to the same build.
 - `Runtime/Gameplay/VoidFallGameRuntime.Render.cs`, `.Fx.cs`, `.Arena.cs`:
   view synchronization, effects and arena presentation. Shared render material
   ownership is in `Runtime/Rendering/VoidFallRenderMaterials.cs`.
@@ -415,7 +450,95 @@ are different representations: use existing mapping helpers.
   extend that data. Legacy enums/counts are not necessarily the full live
   catalogue; consumers such as support selection use `ExtendedCatalog.AllSupports()`.
 
-## Verification and deeper references
+## Director I sustained combat (version 2)
+
+Current duration is **360 seconds** for all eight voids (`Core/VoidProgressionRules`).
+`LocalDirectorSurvivalSeconds` reports actual seconds; beat cutoff330 and
+lead-in/incident cutoff345 follow remaining time. The arrival ramp still reaches
+full strength at300. `DurationAdjustedDifficultySeconds` preserves the old boss
+HP/tier clock by removing only added survival time; boss combat time still counts.
+Pressure retains canonical300+60 credits and80/20 weights. Diagnostics use the
+new360+60 raw stage model. `SixMinuteSurvivalIntegrationTests` and
+`VoidObjectiveTrackerTests` cover this split; do not reintroduce hardcoded
+five-minute completion calls. See the loot/six-minute design document.
+
+`Runtime/Gameplay/VoidFallGameRuntime.DirectorI.cs` owns I-only continuous
+arrivals, seeded Pursuit/Flank/Hunt/Breakthrough beats, temporary damage relief
+and committed-attack reservations. `Core/EncounterPacingRules.cs` reuses the
+existing clock via `BeginSustained`; survivors keep their native pursuit AI.
+`Core/SimulationRules.MaxActiveEnemies` is the 750-slot pool authority, aliased
+by `Content/DirectorRules`. The I runtime ceiling is750; its authored arrival
+target is a softer pacing control, not a mandatory population/refill order.
+Legacy profile64/128/192 bands, finite boss waves and old formation diagnostics
+remain for II/III; I does not use those old bands, overlays or age retirements.
+
+`GameSim.EnemyCanCommitAttack` is queried only at initial attack commitment;
+`.RosterProgression.cs`, `.NullCity.cs` and `.Monochrome.cs` share this I policy.
+Denied actors retain movement. Reservations use SpawnId plus unfinished states,
+queued city shots and live shot provenance; death, slot reuse and freezing must
+not erase an outstanding threat. Boss attacks retain their own controllers;
+ordinary special admissions reduce during bosses/recovery/incidents.
+`_pressureReliefTimer` advances once in I's simulation path, not its bypassed
+legacy director. Do not introduce permanent health-based recovery or DPS matching.
+
+`DirectorISustainedTests`, legacy `EncounterDirectorIntegrationTests` and
+`DirectorCapacityGridTests` cover these contracts. Existing `StressBenchmarkProbe`
+supports `-vfhold750` (checks every post-refill fixed-step boundary) and
+`-vfscenario=directorI` (normal pacing, fresh profile, scripted pickup/avoidance
+input, real health and real offered upgrades). These are diagnostic datasets.
+`-vfscreenshot=<path>` captures after warmup in a rendered player. Read actual
+occupancy, advancing combat, GC/frame data and exports; a configured ceiling
+alone is not capacity evidence. Map dimensions and health normalization are
+separate owner priorities. See `Docs/Design/2026-09-08-DirectorI-SustainedCombat.md`.
+
+## Run exports and instrumentation ownership
+
+Loot policy v2 (`.Loot.cs`) keeps the281-slot pool bounded:256 primary XP
+positions,24 special-reserve positions and one final XP-only overflow slot.
+Overflow XP merges locally or relocates the selected distant gem to the drop;
+it must not add new XP to a faraway stationary pile. Specials can reclaim a
+slot by conserving and consolidating XP/Parts, then duplicate power-up charges.
+Power-up `Value` is a charge count; collection uses one charge and restores its
+remainder deterministically. `GameSim` snapshots pickup generations so callback
+compaction cannot process newborn rewards in the current tick. Distant loot is
+returned into view on a bounded cadence, remains physically collectable, respects
+Greed and existing Null City bounds. Roulette preview checks reclaimable room
+without mutating the pool before Claim. No physical map resize was made.
+
+`Runtime/Telemetry/RunTelemetry.cs` owns the existing schema-4 JSON summary and
+bounded asynchronous JSONL journal. `Runtime/Gameplay/VoidFallGameRuntime.Telemetry.cs`
+owns run identity/context, event helpers, one-second combat/sample observations,
+thirty-second summary checkpoints, and finalization. `.Persist.cs` retains the
+silent manual export entry point; gameplay terminal export is independent of
+profile-save success. Main runtime startup distinguishes menu initialization
+from actual play, and finalizes before restart/menu resets and on quit/destruction.
+
+`RunExports` lives beside the built executable (project root in Editor).
+`Docs/RunExports.md` defines joins, units, loss reporting and verification.
+Every new feature worth balancing must add/update collection in the same change;
+keep this contract in sync with `AGENTS.md`. Hook committed outcomes rather than
+re-sampling rules. Spawn/removal/pickup/damage hooks live in `.Sim.cs`; encounter
+decisions in `.Encounters.cs`; offers in `.LevelUps.cs`; roulette uses `.Roulette.cs`
+and the view's post-spin notification. Storage/runtime tests are
+`Tests/PlayMode/RunExportStorageTests.cs` and `RunExportIntegrationTests.cs`.
+
+## Verification entry points
+
+For incident work, `.Incidents.cs` and `Core/MajorIncidentRules.cs` share a
+230-unit Black Hole radius, 165-unit center offset and 65%-base-speed peak
+player pull. `.Destroyers.cs` uses role entry distances and bounded raid HP
+scaling from `Content/DestroyerContent.cs`; no arrival invulnerability is used.
+`IncidentEngagementIntegrationTests` verifies actual movement escape, strong
+loadout attack exposure and weak-loadout release cleanup. The isolated
+`-vfarsenal=all -vfincident=black-hole|raid|eclipse` path enables player captures.
+Mine control/cadence and fixed-seed boss fixtures are in
+`MineBalanceIntegrationTests`. See both 2026-09-08 balance design notes.
+
+The canonical Windows builder prefers DX11, with DX12 available for explicit
+diagnostics. Focus-loss handling remains in the main runtime file; entry and
+completion events plus graphics/display context support hang investigation.
+The original hard hang remains unconfirmed; see
+`Docs/Design/2026-09-08-FocusFreeze-Mitigation.md` for evidence limits.
 
 Use the commands in `AGENTS.md`. `Tests/Editor/` has targeted rules, catalogue,
 asset, controller and save tests. `Tests/PlayMode/RuntimeFlowRegressionTests.cs`
@@ -423,7 +546,11 @@ covers integration boundaries; `SimulationGoldenMasterTests.cs` pins a state
 hash and `SimulationGoldenMasterSweepTests.cs` runs 32 seeds twice. Keep the
 authoritative hash and its change explanation in the test, not this map.
 
-`Editor/BuildScript.cs` builds Windows. `.github/workflows/ci.yml` runs Unity
+`VoidFall.EditorTools.BuildScript.BuildWindows` is the sole Windows player build
+implementation and writes `../Builds/VoidFall.exe`. Legacy validation, preview,
+delivery and baseline build methods delegate to it; they do not create separate
+players. Content baking, Addressables builds and capture entry points retain
+their own responsibilities. `.github/workflows/ci.yml` runs Unity
 tests only with `UNITY_TESTS_ENABLED` and credentials configured. Runtime
 `StressBenchmarkProbe.cs` is opt-in via `-vfbench`; verify simulated progress,
 not just wall time. `Runtime/Telemetry/RunTelemetry.cs` records run events and
@@ -431,9 +558,8 @@ exports diagnostics. Capture arguments are parsed by `ConfigureVisualCapture`
 in `VoidFallGameRuntime.cs`; `UpdateVisualCapture` in `.Sim.cs` writes images.
 Capture runs use a fixed seed and a profile adjacent to the output, resolved
 before the first save load. `-vfnebula-legacy` with `-vfcapture` renders the previous
-Red Nebula ribbons for comparison. `NebulaVisualValidation.BuildPlayer` writes
-to `../Builds/VisualRemaster/` without replacing the normal player.
-`NebulaVisualValidation.BuildDeliveryPlayer` writes `../Builds/VisualDelivery/`.
+Red Nebula ribbons for comparison. `NebulaVisualValidation.BuildPlayer` and
+`NebulaVisualValidation.BuildDeliveryPlayer` delegate to the canonical Windows build.
 `-vfvisual-check=<directory>` stages meteor, lane-wave, and boss/Overclock captures
 via `VisualDeliveryProbe`, with its own profile selected before initial loading.
 `Runtime/RouteJourneyProbe.cs` adds map/junction captures and accelerated whole-route
@@ -443,19 +569,19 @@ covers physical choices, map pause, junction safety, terminal saves and retry.
 `Tests/PlayMode/NullCityIntegrationTests.cs` covers reset, roster, deferred deaths,
 boss cleanup and dash bounds. `-vfnullcity=surveillance|lockdown|motherload|tractor`
 with `-vfcapture=<path>` selects diagnostic poses using an isolated adjacent profile.
-`NullCityContentBaker.BuildValidationPlayer` writes to `../Builds/NullCityValidation/`.
+`NullCityContentBaker.BuildValidationPlayer` delegates to the canonical Windows build.
 
 Roulette visual QA: `Editor/RoulettePreviewCapture.cs` renders the actual views
-to `Logs/RoulettePreview` via `Capture`; `BuildPlayer` writes a separate Windows
-player to `../Builds/RoulettePreview` without replacing the normal build.
+to `Logs/RoulettePreview` via `Capture`; `BuildPlayer` delegates to the canonical
+Windows build.
 `-vfjourney=roulette -vfoutput=<absolute-prefix>` exercises boss defeat, relic
 preservation, the spin and reveal, writing captures with an isolated profile.
 Use a rendering player (without `-batchmode`) for screenshots; headless runs can
 validate flow but produce black captures. Physical proximity is covered by the
 PlayMode tests; the diagnostic driver deliberately invokes the pickup callback.
 
-`Editor/OverclockHudValidation.BuildPlayer` creates a separate Windows build in
-`../Builds/HudOverclock`. Launch it with `-vfoverclock-check=<absolute-folder>`
+`Editor/OverclockHudValidation.BuildPlayer` delegates to the canonical Windows
+build. Launch it with `-vfoverclock-check=<absolute-folder>`
 to capture ×1, ×3, low-charge and ×12 states with bosses. The diagnostic profile
 is selected before the first save load; the probe checks live music analysis,
 2x playback targets, stack sizing, boss clearance and activation pattern lifetime.

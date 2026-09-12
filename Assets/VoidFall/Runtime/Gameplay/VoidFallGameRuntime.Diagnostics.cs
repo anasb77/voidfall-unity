@@ -19,13 +19,14 @@ namespace VoidFall.Runtime
 
         public void PrepareBenchmarkFrame()
         {
-            if (_stressScenario == null) return;
+            if (_stressScenario == null && !_directorPlaytestActive) return;
             _benchmarkDriving = true;
             _diagnosticSimulationCpuMilliseconds = 0;
             // A diagnostic run chooses an offered upgrade through the real grant path.
             // Normal runs never call this; unknown/manual pause ownership is not overridden.
             if (_levelUpActive && _levelOptions != null && _levelOptions.Length > 0)
                 SelectLevelOption(0);
+            if (_directorPlaytestActive && _revivePending) AcceptRevive();
         }
 
         private void ResetDiagnosticCounters()

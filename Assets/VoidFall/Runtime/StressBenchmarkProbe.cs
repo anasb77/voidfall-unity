@@ -36,6 +36,10 @@ namespace VoidFall.Runtime
             public float warmupSeconds, measureSeconds, combatSecondsAdvanced;
             public long simulationTicksAdvanced, gcBytes;
             public bool gcRecorderAvailable;
+            public bool hold750Requested;
+            public int directorCapacityTarget, directorCapacitySteps;
+            public int directorCapacityMinimum, directorCapacityMaximum;
+            public int directorCapacityMinimumBeforeRefill, directorCapacityFailures;
             public double medianFrameMs, p95FrameMs, p99FrameMs, maximumFrameMs;
             public double meanSimulationCpuMs, meanMainThreadMs, meanRenderThreadMs, meanGpuMs;
             public Sample[] samples;
@@ -56,6 +60,7 @@ namespace VoidFall.Runtime
         private double _measureStartDamage;
         private int _measureStartKills, _frameCount, _timingFrames;
         private bool _started, _measuring, _finished;
+        private bool _hold750Requested;
         private ProfilerRecorder _gcRecorder;
 
         // Resolve before the runtime loads any real progression. Benchmark output
@@ -86,6 +91,7 @@ namespace VoidFall.Runtime
         {
             Application.runInBackground = true;
             _scenarioId = GetArgumentValue("-vfscenario") ?? "productionMax";
+            _hold750Requested = HasArgument("-vfhold750");
             _seed = ParseUInt(GetArgumentValue("-vfseed"), 0x5f1dc0deu);
             _outputPath = GetArgumentValue("-vfoutput");
             _warmupSeconds = ParseFloat(GetArgumentValue("-vfwarmup"), -1f);
@@ -108,11 +114,11 @@ namespace VoidFall.Runtime
 
             if (!_started)
             {
-                var definition = FindScenario(_scenarioId);
+                var definition = FindScenario(_scenarioId == "directorI" ? "productionMax" : _scenarioId);
                 if (definition == null) { Finish("Unknown stress scenario: " + _scenarioId); return; }
                 _warmupSeconds = _warmupSeconds >= 0 ? _warmupSeconds : (float)definition.WarmupSeconds;
                 _measureSeconds = _measureSeconds > 0 ? _measureSeconds : (float)definition.MeasureSeconds;
-                if (!_runtime.ApplyStressScenario(_scenarioId, _seed))
+                if (!(_scenarioId == "directorI" ? _runtime.ApplyDirectorPlaytest(_seed) : _runtime.ApplyStressScenario(_scenarioId, _seed)))
                 { Finish("Stress scenario could not be applied."); return; }
                 _started = true;
                 _lastTicks = _runtime.DiagnosticSimulationTicks;
@@ -120,6 +126,7 @@ namespace VoidFall.Runtime
                 return;
             }
 
+            if (_scenarioId == "directorI" && _runtime.DiagnosticPauseReason == "game-over") { Finish(null); return; }
             if (_runtime.DiagnosticSimulationTicks == _lastTicks) _stalledSeconds += frameSeconds;
             else _stalledSeconds = 0;
             _lastTicks = _runtime.DiagnosticSimulationTicks;
@@ -153,6 +160,12 @@ namespace VoidFall.Runtime
                 _measureStartDamage = _runtime.DiagnosticDamageDealt;
                 _measureStartKills = _runtime.DiagnosticKills;
                 CaptureSample();
+                var screenshot = GetArgumentValue("-vfscreenshot");
+                if (!string.IsNullOrWhiteSpace(screenshot))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(screenshot)));
+                    ScreenCapture.CaptureScreenshot(screenshot);
+                }
                 return;
             }
             _sampleElapsed += frameSeconds;
@@ -199,6 +212,11 @@ namespace VoidFall.Runtime
             if (error == null && (combatAdvanced <= 0.1f || ticksAdvanced == 0 ||
                 (_runtime.DiagnosticDamageDealt <= _measureStartDamage && _runtime.DiagnosticKills <= _measureStartKills)))
                 error = "No advancing attacking combat was measured.";
+            if (error == null && _hold750Requested && (_runtime == null ||
+                _runtime.DirectorCapacityTarget != 750 || _runtime.DirectorCapacitySteps == 0 ||
+                _runtime.DirectorCapacityMinimum != 750 || _runtime.DirectorCapacityMaximum != 750 ||
+                _runtime.DirectorCapacityFailures > 0))
+                error = "The requested 750-enemy hold was not maintained at every recorded post-refill simulation boundary.";
             var sorted = new float[_frameCount];
             Array.Copy(_frameTimes, sorted, _frameCount);
             Array.Sort(sorted);
@@ -214,6 +232,13 @@ namespace VoidFall.Runtime
                 combatSecondsAdvanced = combatAdvanced, simulationTicksAdvanced = ticksAdvanced,
                 frameCount = _frameCount, timingFrames = _timingFrames,
                 gcBytes = _gcBytes, gcRecorderAvailable = _gcRecorder.Valid,
+                hold750Requested = _hold750Requested,
+                directorCapacityTarget = _runtime != null ? _runtime.DirectorCapacityTarget : 0,
+                directorCapacitySteps = _runtime != null ? _runtime.DirectorCapacitySteps : 0,
+                directorCapacityMinimum = _runtime != null ? _runtime.DirectorCapacityMinimum : 0,
+                directorCapacityMaximum = _runtime != null ? _runtime.DirectorCapacityMaximum : 0,
+                directorCapacityMinimumBeforeRefill = _runtime != null ? _runtime.DirectorCapacityMinimumBeforeRefill : 0,
+                directorCapacityFailures = _runtime != null ? _runtime.DirectorCapacityFailures : 0,
                 medianFrameMs = Percentile(sorted, .5), p95FrameMs = Percentile(sorted, .95),
                 p99FrameMs = Percentile(sorted, .99),
                 maximumFrameMs = sorted.Length > 0 ? sorted[sorted.Length - 1] : 0,

@@ -29,11 +29,14 @@ namespace VoidFall.Runtime
                 {
                     _levelUpTimer = -1;
                     _levelOptions = RollLevelOptions();
+                    RecordUpgradeOffers("level_up");
                     if (_levelOptions.Length == 0)
                     {
                         _partsEarned += 2;
                         _score += 150;
                         _gameSim.Player.Health = Mathf.Min(_gameSim.Player.MaxHealth, _gameSim.Player.Health + 12);
+                        RecordRunHistory("upgrade_fallback", "no_options", amount: 2,
+                            hp: _gameSim.Player.Health, detail: "parts=2;score=150;healCap=12");
                         _targetTimeScale = 1;
                         if (_xp >= _xpNeed)
                         {

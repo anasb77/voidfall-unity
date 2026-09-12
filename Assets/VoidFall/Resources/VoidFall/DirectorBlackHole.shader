@@ -99,8 +99,8 @@ Shader "VoidFall/DirectorBlackHole"
                 alpha = alpha + coreAlpha * (1 - alpha);
                 color = color * (1 - rimAlpha) + _RimColor.rgb * rimAlpha;
                 alpha = alpha + rimAlpha * (1 - alpha);
-                // Retain a faint radius boundary during pull, so the small visual core is not mistaken for its extent.
-                float boundary = (1 - smoothstep(.004, .004 + aa, abs(r - .91))) * .16 * _Strength;
+                // Keep the escape edge readable throughout attraction, including reduced effects.
+                float boundary = (1 - smoothstep(.006, .006 + aa, abs(r - .91))) * .42 * _Strength;
                 color = color * (1 - boundary) + _RimColor.rgb * boundary;
                 alpha = alpha + boundary * (1 - alpha);
                 return half4(color, alpha);

@@ -5,6 +5,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 using VoidFall.Runtime;
+using VoidFall.Core;
 
 namespace VoidFall.Tests.PlayMode
 {
@@ -41,8 +42,8 @@ namespace VoidFall.Tests.PlayMode
         public void Blocked_population_discards_timer_debt_and_does_not_refill_a_clear_next_tick()
         {
             Set(_runtime, "_time", 10f);
-            for (var i = 0; i < 100; i++) Invoke("SpawnEnemy", "chaser");
-            Assert.That(_runtime.ActiveEnemiesCount, Is.EqualTo(64));
+            for (var i = 0; i < 760; i++) Invoke("SpawnEnemy", "chaser");
+            Assert.That(_runtime.ActiveEnemiesCount, Is.EqualTo(750));
             Set(_runtime,"_spawnTimer",-30f);Invoke("UpdateSpawns",.5f);
             Assert.That((float)Get(_runtime,"_spawnTimer"),Is.GreaterThanOrEqualTo(0));
             RemoveEnemies(30);var count=_runtime.ActiveEnemiesCount;
@@ -53,6 +54,7 @@ namespace VoidFall.Tests.PlayMode
         [Test]
         public void Crossing_pack_keeps_its_warned_axis_after_player_moves()
         {
+            Set(_runtime, "_runDirectorProfile", DirectorProfileId.Veteran);
             Set(_runtime,"_time",10f);_runtime.ForceEncounterForDiagnostics("crossing");
             Invoke("UpdateSpawns",2.5f);Invoke("UpdateEnemies",.1f);
             var enemies=(Array)Get(Get(_runtime,"_gameSim"),"Enemies");
@@ -68,6 +70,7 @@ namespace VoidFall.Tests.PlayMode
         [Test]
         public void Ending_deployment_does_not_start_recovery_while_pack_is_alive()
         {
+            Set(_runtime, "_runDirectorProfile", DirectorProfileId.Veteran);
             Set(_runtime,"_time",10f);_runtime.ForceEncounterForDiagnostics("crossing");
             Invoke("UpdateSpawns",2.5f);Invoke("UpdateSpawns",.45f);
             Assert.That(_runtime.ActiveEnemiesCount,Is.GreaterThan(0));
@@ -75,14 +78,15 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
-        public void Ordinary_boss_has_two_finite_reinforcement_waves_then_stays_open()
+        public void Legacy_director_boss_has_two_finite_reinforcement_waves_then_stays_open()
         {
+            Set(_runtime, "_runDirectorProfile", DirectorProfileId.Veteran);
             Set(_runtime,"_time",300f);Invoke("SpawnBoss","herald",1d,1d,0);
             Invoke("UpdateSpawns",.1f);
             Set(_runtime,"_time",309f);Invoke("UpdateSpawns",.1f);
-            Assert.That(_runtime.ActiveEnemiesCount,Is.EqualTo(5));RemoveEnemies(1000);
+            Assert.That(_runtime.ActiveEnemiesCount,Is.EqualTo(8));RemoveEnemies(1000);
             Set(_runtime,"_time",329f);Invoke("UpdateSpawns",.1f);
-            Assert.That(_runtime.ActiveEnemiesCount,Is.EqualTo(5));RemoveEnemies(1000);
+            Assert.That(_runtime.ActiveEnemiesCount,Is.EqualTo(8));RemoveEnemies(1000);
             for(var i=0;i<5;i++){Set(_runtime,"_time",360f+i*30);Invoke("UpdateSpawns",.1f);}
             Assert.That(_runtime.ActiveEnemiesCount,Is.Zero);
         }

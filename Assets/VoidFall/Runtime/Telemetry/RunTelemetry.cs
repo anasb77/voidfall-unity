@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
+using System.Threading;
 using UnityEngine;
 using VoidFall.Core;
 
@@ -30,6 +32,128 @@ namespace VoidFall.Runtime
         public string arenaPhase;
         public int activeEliteVariants;
         public int meteors;
+        public int pressureHundredths;
+        public float challengeSeconds;
+        public int directorId;
+        public string encounterPhase;
+        public string encounterKind;
+        public string spawnReason;
+        public float playerX;
+        public float playerY;
+        public float viewportWidth;
+        public float viewportHeight;
+        public float arenaWidth;
+        public float arenaHeight;
+        public int xp;
+        public long baseScore;
+        public float nearestEnemyDistance;
+        public int onScreenEnemies;
+        public int specialAttackLimit;
+        public int committedSpecialAttacks;
+        public int hostileProjectiles;
+        public int xpPickupCount;
+        public int specialPickupCount;
+        public int distantLootCount;
+        public float localSurvivalSeconds;
+        public float survivalRemainingSeconds;
+        public float bossDifficultySeconds;
+    }
+
+    [Serializable]
+    public sealed class UnityTelemetryContext
+    {
+        public string buildVersion;
+        public string unityVersion;
+        public string buildGuid;
+        public string platform;
+        public string cpu;
+        public string gpu;
+        public string graphicsApi;
+        public string graphicsDeviceVersion;
+        public string fullscreenMode;
+        public int windowWidth;
+        public int windowHeight;
+        public bool runInBackground;
+        public int systemMemoryMb;
+        public int graphicsMemoryMb;
+        public int directorId;
+        public UnityTelemetryProgress startingProgress;
+        public int baseWeaponSlots;
+        public int expandedWeaponSlots;
+        public int maxedWeaponsForExtraSlot;
+        public string arsenalBalanceVersion;
+        public int incidentBalanceVersion;
+        public int enemyCapacity;
+        public int initialPopulationLimit;
+        public int directorVersion;
+        public int lootPolicyVersion;
+        public int pickupCapacity;
+        public int reservedSpecialPickupSlots;
+        public float survivalSeconds;
+        public UnityTelemetryNamedValue[] workshopRanks;
+        public string captureKind;
+    }
+
+    [Serializable]
+    public sealed class UnityTelemetryHistoryEvent
+    {
+        public long sequence;
+        public float timeSeconds;
+        public float wallTimeSeconds = -1;
+        public string kind;
+        public string id;
+        public string reason;
+        public string arenaId;
+        public int visitIndex = -1;
+        public int encounterIndex = -1;
+        public int transitionIndex = -1;
+        public int pressureHundredths = -1;
+        public int directorId = -1;
+        public int instanceId;
+        public int relatedInstanceId;
+        public string sourceId;
+        public float amount;
+        public float hp;
+        public float maxHp;
+        public float speed;
+        public float damage;
+        public float x;
+        public float y;
+        public int rosterTier;
+        public bool elite;
+        public int activeEnemies;
+        public float challengeSeconds = -1;
+        public UnityTelemetryProgress progress;
+        public string[] options;
+        public string detail;
+        public float durationSeconds;
+        public int budgetLimit = -1;
+        public int budgetUsed = -1;
+        public int blockedAttempts = -1;
+        public int level;
+        public int nextXp;
+        public int bufferedXp;
+        public UnityTelemetrySample sample;
+        public UnityTelemetryContext context;
+    }
+
+    [Serializable]
+    public sealed class UnityTelemetryHistoryInfo
+    {
+        public string file;
+        public string format = "jsonl";
+        public int schemaVersion = 4;
+        public long submitted;
+        public long written;
+        public long flushed;
+        public long dropped;
+        public int pending;
+        public int queueCapacity;
+        public int maximumQueuedCharacters;
+        public bool closed;
+        public bool drainTimedOut;
+        public int errorCount;
+        public string lastError;
     }
 
     [Serializable]
@@ -49,6 +173,7 @@ namespace VoidFall.Runtime
     [Serializable]
     public sealed class UnityTelemetryProgress
     {
+        public int weaponSlotLimit;
         public UnityTelemetryNamedValue[] weapons;
         public UnityTelemetryNamedValue[] supports;
         public UnityTelemetryNamedValue[] late;
@@ -77,12 +202,22 @@ namespace VoidFall.Runtime
         public int maximumEnemies;
         public int maximumProjectiles;
         public int maximumPickups;
+        public float meanFrameMs;
+        public float p50FrameMs;
+        public float p95FrameMs;
+        public float p99FrameMs;
+        public int framesOver16_67Ms;
+        public int framesOver33_33Ms;
+        public int framesOver50Ms;
+        public float histogramResolutionMs = 0.25f;
+        public float histogramMaximumMs = 1000f;
     }
 
     [Serializable]
     public sealed class UnityTelemetrySummary
     {
         public string status;
+        public bool scoreIsFinal;
         public float timeSeconds;
         public int score;
         public long baseScore;
@@ -199,6 +334,7 @@ namespace VoidFall.Runtime
         public int upgrades;
         public int bosses;
         public int arenaTransitions;
+        public int milestones;
     }
 
     [Serializable]
@@ -212,11 +348,14 @@ namespace VoidFall.Runtime
     [Serializable]
     public sealed class UnityTelemetryReport
     {
-        public int schemaVersion = 3;
+        public int schemaVersion = 4;
         public string game = "VoidFall";
         public uint seed;
         public string startedAt;
         public string exportedAt;
+        public string runId;
+        public UnityTelemetryContext context;
+        public UnityTelemetryHistoryInfo history;
         public UnityTelemetrySummary summary;
         public UnityTelemetryProgression progression;
         public UnityTelemetryExperience experience;
@@ -229,9 +368,9 @@ namespace VoidFall.Runtime
     }
 
     /// <summary>
-    /// Bounded offline recorder matching the browser's local run-report intent.
-    /// It never allocates in the simulation path except at the capped sample/event
-    /// boundaries and fails closed if the report cannot be written.
+    /// Bounded summary recorder with an optional append-only run journal.
+    /// Journal serialization snapshots DTOs on the caller thread; bounded queued
+    /// strings are written by one background worker without gameplay access.
     /// </summary>
     public sealed class RunTelemetryRecorder
     {
@@ -264,9 +403,89 @@ namespace VoidFall.Runtime
         private int _droppedUpgrades;
         private int _droppedBosses;
         private int _droppedArenaTransitions;
+        private int _droppedMilestones;
+        private HistoryWriter _history;
+        private UnityTelemetryContext _context;
+        private string _outputDirectory;
+        private long _historySequence;
+        private bool _hasHistoryContext;
+        private float _historyWallTimeSeconds, _historyChallengeSeconds;
+        private int _historyLevel, _historyVisitIndex, _historyPressureHundredths, _historyDirectorId;
+        private string _historyArenaId;
+        // Upper-bound histogram quantiles: 0.25 ms buckets, with a final overflow
+        // bucket represented by the observed maximum. No per-frame allocations.
+        private readonly int[] _frameHistogram = new int[4002];
+        private double _totalFrameMs;
+        private int _framesOver16_67Ms, _framesOver33_33Ms, _framesOver50Ms;
+        public string RunId { get; private set; }
+        public string LastExportError { get; private set; }
+        public bool HistoryCaptureEnabled => _history != null && _history.Accepting;
+        public UnityTelemetryHistoryInfo HistoryInfo => _history?.Snapshot();
+
+        public static string DefaultExportDirectory => Path.Combine(Path.GetDirectoryName(Application.dataPath), "RunExports");
+
+        public void SetHistoryContext(float wallTimeSeconds, int level, string arenaId, int visitIndex,
+            int pressureHundredths, int directorId, float challengeSeconds)
+        {
+            _hasHistoryContext = true;
+            _historyWallTimeSeconds = wallTimeSeconds;
+            _historyLevel = level;
+            _historyArenaId = arenaId;
+            _historyVisitIndex = visitIndex;
+            _historyPressureHundredths = pressureHundredths;
+            _historyDirectorId = directorId;
+            _historyChallengeSeconds = challengeSeconds;
+        }
+
+        public void ConfigureHistory(string outputDirectory, UnityTelemetryContext context)
+        {
+            CloseHistory();
+            if (string.IsNullOrEmpty(RunId)) RunId = Guid.NewGuid().ToString("N");
+            _outputDirectory = string.IsNullOrEmpty(outputDirectory) ? DefaultExportDirectory : outputDirectory;
+            _context = context;
+            _history = new HistoryWriter(Path.Combine(_outputDirectory, "voidfall-run-" + RunId + ".jsonl"));
+            RecordHistory(new UnityTelemetryHistoryEvent { kind = "run_metadata", id = RunId, context = context });
+        }
+
+        // All serialization runs on the caller (Unity) thread. The worker owns only
+        // immutable strings and filesystem handles, never Unity objects or live DTOs.
+        public void RecordHistory(UnityTelemetryHistoryEvent value)
+        {
+            if (_history == null || value == null) return;
+            if (_hasHistoryContext)
+            {
+                // Negative context fields mean unspecified; explicit zero remains
+                // meaningful. Historical simulation time is never overwritten.
+                if (value.wallTimeSeconds < 0) value.wallTimeSeconds = _historyWallTimeSeconds;
+                if (value.level <= 0) value.level = _historyLevel;
+                if (string.IsNullOrEmpty(value.arenaId)) value.arenaId = _historyArenaId;
+                if (value.visitIndex < 0) value.visitIndex = _historyVisitIndex;
+                if (value.pressureHundredths < 0) value.pressureHundredths = _historyPressureHundredths;
+                if (value.directorId < 0) value.directorId = _historyDirectorId;
+                if (value.challengeSeconds < 0) value.challengeSeconds = _historyChallengeSeconds;
+            }
+            value.sequence = ++_historySequence;
+            if (_history.RejectIfUnavailable()) return;
+            try { _history.Enqueue(JsonUtility.ToJson(value)); }
+            catch (Exception exception) { _history.RecordRejected(exception.Message); }
+        }
+
+        public void FlushHistory() => _history?.RequestFlush();
+        public void CloseHistory() => _history?.Close();
 
         public void Begin(uint seed)
         {
+            CloseHistory();
+            _history = null;
+            _context = null;
+            _outputDirectory = null;
+            _historySequence = 0;
+            _hasHistoryContext = false;
+            Array.Clear(_frameHistogram, 0, _frameHistogram.Length);
+            _totalFrameMs = 0;
+            _framesOver16_67Ms = _framesOver33_33Ms = _framesOver50Ms = 0;
+            LastExportError = null;
+            RunId = Guid.NewGuid().ToString("N");
             _seed = seed;
             _startedAt = DateTime.UtcNow.ToString("O");
             _sampleHead = 0;
@@ -283,6 +502,7 @@ namespace VoidFall.Runtime
             _droppedUpgrades = 0;
             _droppedBosses = 0;
             _droppedArenaTransitions = 0;
+            _droppedMilestones = 0;
             _deferredArenaTransitions = 0;
             _xpReleased = 0;
             _xpCollected = 0;
@@ -321,6 +541,8 @@ namespace VoidFall.Runtime
 
         public void RecordBossSpawn(string id, int instanceId, int encounterIndex, float timeSeconds, float maxHp, int activeBosses)
         {
+            RecordHistory(new UnityTelemetryHistoryEvent { kind = "boss_spawn", id = id, instanceId = instanceId,
+                encounterIndex = encounterIndex, timeSeconds = timeSeconds, maxHp = maxHp, amount = activeBosses });
             if (_bosses.Count >= 512)
             {
                 _droppedBosses++;
@@ -339,6 +561,7 @@ namespace VoidFall.Runtime
 
         public void RecordBossDefeat(int instanceId, float timeSeconds)
         {
+            RecordHistory(new UnityTelemetryHistoryEvent { kind = "boss_defeat", instanceId = instanceId, timeSeconds = timeSeconds });
             for (var index = _bosses.Count - 1; index >= 0; index--)
             {
                 var boss = _bosses[index];
@@ -352,6 +575,8 @@ namespace VoidFall.Runtime
 
         public void RecordArenaWarning(int index, string from, string to, float timeSeconds)
         {
+            RecordHistory(new UnityTelemetryHistoryEvent { kind = "arena_warning", transitionIndex = index,
+                sourceId = from, id = to, timeSeconds = timeSeconds });
             if (_arenaTransitions.Count >= 64)
             {
                 _droppedArenaTransitions++;
@@ -368,6 +593,7 @@ namespace VoidFall.Runtime
 
         public void RecordArenaSwap(int index, float timeSeconds)
         {
+            RecordHistory(new UnityTelemetryHistoryEvent { kind = "arena_swap", transitionIndex = index, timeSeconds = timeSeconds });
             for (var cursor = _arenaTransitions.Count - 1; cursor >= 0; cursor--)
             {
                 var transition = _arenaTransitions[cursor];
@@ -380,6 +606,7 @@ namespace VoidFall.Runtime
 
         public void RecordArenaComplete(int index, float timeSeconds)
         {
+            RecordHistory(new UnityTelemetryHistoryEvent { kind = "arena_complete", transitionIndex = index, timeSeconds = timeSeconds });
             for (var cursor = _arenaTransitions.Count - 1; cursor >= 0; cursor--)
             {
                 var transition = _arenaTransitions[cursor];
@@ -462,6 +689,12 @@ namespace VoidFall.Runtime
         {
             if (!IsFinite(fps) || !IsFinite(frameMs)) return;
             _framesObserved++;
+            var duration = Mathf.Max(0, frameMs);
+            _totalFrameMs += duration;
+            _frameHistogram[duration >= 1000f ? 4001 : Mathf.CeilToInt(duration * 4f)]++;
+            if (duration > 16.67f) _framesOver16_67Ms++;
+            if (duration > 33.33f) _framesOver33_33Ms++;
+            if (duration > 50f) _framesOver50Ms++;
             _minimumFps = Mathf.Min(_minimumFps, Mathf.Max(0, fps));
             _maximumFrameMs = Mathf.Max(_maximumFrameMs, Mathf.Max(0, frameMs));
         }
@@ -475,6 +708,9 @@ namespace VoidFall.Runtime
             int pickups)
         {
             ObserveFrame(fps, frameMs);
+            _maximumEnemies = Mathf.Max(_maximumEnemies, enemies);
+            _maximumProjectiles = Mathf.Max(_maximumProjectiles, projectiles);
+            _maximumPickups = Mathf.Max(_maximumPickups, pickups);
             var arena = GetArenaSummary(arenaId);
             if (arena == null) return;
             arena.framesObserved++;
@@ -488,6 +724,10 @@ namespace VoidFall.Runtime
         public void RecordSample(UnityTelemetrySample sample)
         {
             if (sample == null) return;
+            var normalized = NormalizeSample(sample);
+            RecordHistory(new UnityTelemetryHistoryEvent { kind = "sample", timeSeconds = normalized.timeSeconds,
+                arenaId = normalized.arenaId, pressureHundredths = normalized.pressureHundredths,
+                challengeSeconds = normalized.challengeSeconds, directorId = normalized.directorId, sample = normalized });
             _maximumEnemies = Mathf.Max(_maximumEnemies, sample.enemies);
             _maximumProjectiles = Mathf.Max(_maximumProjectiles, sample.projectiles);
             _maximumPickups = Mathf.Max(_maximumPickups, sample.pickups);
@@ -495,14 +735,14 @@ namespace VoidFall.Runtime
             {
                 // Browser RunTelemetry.shift() drops the oldest sample so the
                 // exported window always contains the newest observations.
-                _samples[_sampleHead] = NormalizeSample(sample);
+                _samples[_sampleHead] = normalized;
                 _sampleHead = (_sampleHead + 1) % MaxSamples;
                 _droppedRecords++;
                 _droppedSamples++;
             }
             else
             {
-                _samples[(_sampleHead + _sampleCount) % MaxSamples] = NormalizeSample(sample);
+                _samples[(_sampleHead + _sampleCount) % MaxSamples] = normalized;
                 _sampleCount++;
             }
         }
@@ -552,6 +792,9 @@ namespace VoidFall.Runtime
             });
         }
 
+        // With an active history worker this returns the queued checkpoint path.
+        // CloseHistory before a terminal Export to synchronously commit the final
+        // summary with the drained journal counters. Legacy callers remain synchronous.
         public string Export(
             string status,
             float timeSeconds,
@@ -571,7 +814,7 @@ namespace VoidFall.Runtime
             int xpOnGround = 0,
             float xpHeldByHarvesters = 0,
             string outputDirectory = null,
-            FrozenRunScore? frozenScore = null, int directorId = 0)
+            FrozenRunScore? frozenScore = null, int directorId = 0, bool? scoreIsFinal = null)
         {
             var safeWeaponDamage = weaponDamage ?? Array.Empty<UnityTelemetryDamageValue>();
             long attributedDamage = 0;
@@ -580,12 +823,16 @@ namespace VoidFall.Runtime
 
             var report = new UnityTelemetryReport
             {
+                runId = RunId,
+                context = _context,
+                history = HistoryInfo,
                 seed = _seed,
                 startedAt = _startedAt ?? DateTime.UtcNow.ToString("O"),
                 exportedAt = DateTime.UtcNow.ToString("O"),
                 summary = new UnityTelemetrySummary
                 {
                     status = status ?? "active",
+                    scoreIsFinal = scoreIsFinal ?? frozenScore.HasValue,
                     timeSeconds = BrowserRounded(timeSeconds),
                     score = Mathf.Max(0, score),
                     baseScore = frozenScore?.BaseScore ?? Math.Max(0, score),
@@ -647,6 +894,13 @@ namespace VoidFall.Runtime
                     maximumEnemies = _maximumEnemies,
                     maximumProjectiles = _maximumProjectiles,
                     maximumPickups = _maximumPickups,
+                    meanFrameMs = _framesObserved == 0 ? 0 : BrowserRounded((float)(_totalFrameMs / _framesObserved)),
+                    p50FrameMs = FramePercentile(50),
+                    p95FrameMs = FramePercentile(95),
+                    p99FrameMs = FramePercentile(99),
+                    framesOver16_67Ms = _framesOver16_67Ms,
+                    framesOver33_33Ms = _framesOver33_33Ms,
+                    framesOver50Ms = _framesOver50Ms,
                 },
                 samples = GetSamplesArray(),
                 droppedRecords = new UnityTelemetryDroppedRecords
@@ -655,21 +909,31 @@ namespace VoidFall.Runtime
                     upgrades = _droppedUpgrades,
                     bosses = _droppedBosses,
                     arenaTransitions = _droppedArenaTransitions,
+                    milestones = _droppedMilestones,
                 },
             };
 
             try
             {
-                var directory = string.IsNullOrEmpty(outputDirectory) ? Application.persistentDataPath : outputDirectory;
-                Directory.CreateDirectory(directory);
-                var filename = $"voidfall-run-{_seed}-{Mathf.Max(0, Mathf.FloorToInt(timeSeconds))}s.json";
+                var directory = string.IsNullOrEmpty(outputDirectory) ? (_outputDirectory ?? DefaultExportDirectory) : outputDirectory;
+                if (string.IsNullOrEmpty(RunId)) RunId = Guid.NewGuid().ToString("N");
+                report.runId = RunId;
+                var filename = "voidfall-run-" + RunId + ".json";
                 var path = Path.Combine(directory, filename);
-                File.WriteAllText(path, JsonUtility.ToJson(report, true));
+                var json = JsonUtility.ToJson(report, true);
+                if (_history == null || !_history.TryQueueSummary(path, json))
+                {
+                    var history = HistoryInfo;
+                    if (history != null && history.drainTimedOut && !history.closed)
+                        throw new IOException("History is still draining; final summary deferred to avoid overwriting a newer checkpoint.");
+                    WriteSummaryAtomically(path, json);
+                }
+                LastExportError = null;
                 return path;
             }
             catch (Exception exception)
             {
-                Debug.LogWarning("VoidFall telemetry export skipped: " + exception.Message);
+                LastExportError = exception.Message;
                 return null;
             }
         }
@@ -686,11 +950,15 @@ namespace VoidFall.Runtime
 
         private void AddEvent(List<UnityTelemetryEvent> destination, UnityTelemetryEvent value)
         {
+            RecordHistory(new UnityTelemetryHistoryEvent { kind = ReferenceEquals(destination, _upgrades) ? "upgrade" : value.kind,
+                id = value.id, reason = value.kind, timeSeconds = value.timeSeconds, level = value.level,
+                amount = value.value, nextXp = value.nextXp, bufferedXp = value.bufferedXp, progress = value.progress });
             if (destination.Count >= MaxEvents)
             {
                 _droppedRecords++;
                 if (ReferenceEquals(destination, _levels)) _droppedUpgrades++;
                 else if (ReferenceEquals(destination, _upgrades)) _droppedUpgrades++;
+                else if (ReferenceEquals(destination, _milestones)) _droppedMilestones++;
                 return;
             }
             destination.Add(value);
@@ -721,6 +989,31 @@ namespace VoidFall.Runtime
                 arenaPhase = sample.arenaPhase,
                 activeEliteVariants = sample.activeEliteVariants,
                 meteors = sample.meteors,
+                pressureHundredths = sample.pressureHundredths,
+                challengeSeconds = BrowserRounded(sample.challengeSeconds),
+                directorId = sample.directorId,
+                encounterPhase = sample.encounterPhase,
+                encounterKind = sample.encounterKind,
+                spawnReason = sample.spawnReason,
+                playerX = BrowserRounded(sample.playerX),
+                playerY = BrowserRounded(sample.playerY),
+                viewportWidth = BrowserRounded(sample.viewportWidth),
+                viewportHeight = BrowserRounded(sample.viewportHeight),
+                arenaWidth = BrowserRounded(sample.arenaWidth),
+                arenaHeight = BrowserRounded(sample.arenaHeight),
+                xp = sample.xp,
+                baseScore = sample.baseScore,
+                nearestEnemyDistance = BrowserRounded(sample.nearestEnemyDistance),
+                onScreenEnemies = sample.onScreenEnemies,
+                specialAttackLimit = sample.specialAttackLimit,
+                committedSpecialAttacks = sample.committedSpecialAttacks,
+                hostileProjectiles = sample.hostileProjectiles,
+                xpPickupCount = sample.xpPickupCount,
+                specialPickupCount = sample.specialPickupCount,
+                distantLootCount = sample.distantLootCount,
+                localSurvivalSeconds = sample.localSurvivalSeconds,
+                survivalRemainingSeconds = sample.survivalRemainingSeconds,
+                bossDifficultySeconds = sample.bossDifficultySeconds,
             };
         }
 
@@ -790,6 +1083,240 @@ namespace VoidFall.Runtime
             Array.Copy(values, expanded, values.Length);
             expanded[values.Length] = new UnityTelemetryNamedValue { id = safeId, value = 1 };
             return expanded;
+        }
+
+        private float FramePercentile(int percentile)
+        {
+            if (_framesObserved == 0) return 0;
+            var target = Math.Max(1, (int)(((long)_framesObserved * percentile + 99) / 100));
+            var count = 0;
+            for (var index = 0; index < _frameHistogram.Length; index++)
+            {
+                count += _frameHistogram[index];
+                if (count >= target) return index == 4001 ? _maximumFrameMs : index * 0.25f;
+            }
+            return _maximumFrameMs;
+        }
+
+        private static void WriteSummaryAtomically(string path, string json)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
+            var temporaryPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    var bytes = new UTF8Encoding(false).GetBytes(json);
+                    stream.Write(bytes, 0, bytes.Length);
+                    stream.Flush(true);
+                }
+                if (File.Exists(path)) File.Replace(temporaryPath, path, null);
+                else File.Move(temporaryPath, path);
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+            }
+        }
+
+        private sealed class HistoryWriter
+        {
+            private const int Capacity = 4096;
+            private const int MaximumQueuedCharacters = 4 * 1024 * 1024;
+            private const int MaximumRecordCharacters = 128 * 1024;
+            private readonly object _gate = new object();
+            private readonly Queue<string> _queue = new Queue<string>();
+            private readonly string _path;
+            private readonly Thread _thread;
+            private bool _accepting = true;
+            private bool _closeRequested;
+            private bool _closed;
+            private bool _flushRequested;
+            private bool _drainTimedOut;
+            private int _queuedCharacters;
+            private int _inFlight;
+            private long _submitted;
+            private long _written;
+            private long _flushed;
+            private long _dropped;
+            private string _lastError;
+            private int _errorCount;
+            // At most one pending summary; newer checkpoints supersede older ones.
+            private string _summaryPath;
+            private string _summaryJson;
+
+            public HistoryWriter(string path)
+            {
+                _path = path;
+                _thread = new Thread(WriteLoop) { IsBackground = true, Name = "VoidFall run history" };
+                _thread.Start();
+            }
+
+            public bool Accepting { get { lock (_gate) return _accepting; } }
+
+            public bool RejectIfUnavailable()
+            {
+                lock (_gate)
+                {
+                    if (_accepting) return false;
+                    _submitted++;
+                    _dropped++;
+                    return true;
+                }
+            }
+
+            public void Enqueue(string json)
+            {
+                lock (_gate)
+                {
+                    _submitted++;
+                    if (!_accepting || _queue.Count >= Capacity || json.Length > MaximumRecordCharacters ||
+                        _queuedCharacters + json.Length > MaximumQueuedCharacters)
+                    {
+                        _dropped++;
+                        return;
+                    }
+                    _queue.Enqueue(json);
+                    _queuedCharacters += json.Length;
+                    Monitor.Pulse(_gate);
+                }
+            }
+
+            public void RecordRejected(string error)
+            {
+                lock (_gate) { _submitted++; _dropped++; _errorCount++; _lastError = error; }
+            }
+
+            public bool TryQueueSummary(string path, string json)
+            {
+                lock (_gate)
+                {
+                    if (!_accepting) return false;
+                    _summaryPath = path;
+                    _summaryJson = json;
+                    _flushRequested = true;
+                    Monitor.Pulse(_gate);
+                    return true;
+                }
+            }
+
+            public void RequestFlush()
+            {
+                lock (_gate) { _flushRequested = true; Monitor.Pulse(_gate); }
+            }
+
+            public void Close()
+            {
+                lock (_gate)
+                {
+                    _accepting = false;
+                    _closeRequested = true;
+                    Monitor.Pulse(_gate);
+                }
+                // An inaccessible/stalled device must not hold application quit forever.
+                if (!_thread.Join(5000))
+                {
+                    lock (_gate)
+                    {
+                        if (!_drainTimedOut) _errorCount++;
+                        _drainTimedOut = true;
+                        _lastError = "History drain timed out after 5000 ms; pending records may be incomplete.";
+                    }
+                }
+            }
+
+            public UnityTelemetryHistoryInfo Snapshot()
+            {
+                lock (_gate) return new UnityTelemetryHistoryInfo
+                {
+                    file = _path, submitted = _submitted, written = _written, flushed = _flushed,
+                    dropped = _dropped, pending = _queue.Count + _inFlight, queueCapacity = Capacity,
+                    maximumQueuedCharacters = MaximumQueuedCharacters, closed = _closed,
+                    drainTimedOut = _drainTimedOut, errorCount = _errorCount, lastError = _lastError,
+                };
+            }
+
+            private void WriteLoop()
+            {
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_path)));
+                    // CreateNew prevents accidental reuse of another recorder's journal.
+                    using (var stream = new FileStream(_path, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 65536))
+                    using (var writer = new StreamWriter(stream, new UTF8Encoding(false), 65536))
+                    {
+                        var timer = System.Diagnostics.Stopwatch.StartNew();
+                        while (true)
+                        {
+                            for (var count = 0; count < 128; count++)
+                            {
+                                string line;
+                                lock (_gate)
+                                {
+                                    if (_queue.Count == 0) break;
+                                    line = _queue.Dequeue();
+                                    _queuedCharacters -= line.Length;
+                                    _inFlight = 1;
+                                }
+                                writer.WriteLine(line);
+                                lock (_gate) { _written++; _inFlight = 0; }
+                            }
+                            bool flush;
+                            bool close;
+                            string summaryPath;
+                            string summaryJson;
+                            lock (_gate)
+                            {
+                                close = _closeRequested && _queue.Count == 0;
+                                flush = close || _flushRequested || timer.ElapsedMilliseconds >= 1000;
+                                _flushRequested = false;
+                                summaryPath = _summaryPath;
+                                summaryJson = _summaryJson;
+                                _summaryPath = null;
+                                _summaryJson = null;
+                            }
+                            if (flush)
+                            {
+                                writer.Flush();
+                                stream.Flush(true);
+                                lock (_gate) _flushed = _written;
+                                timer.Restart();
+                            }
+                            if (summaryJson != null)
+                            {
+                                try { WriteSummaryAtomically(summaryPath, summaryJson); }
+                                catch (Exception exception)
+                                {
+                                    lock (_gate) { _errorCount++; _lastError = "Summary: " + exception.Message; }
+                                }
+                            }
+                            if (close) break;
+                            lock (_gate)
+                            {
+                                if (_queue.Count == 0 && !_closeRequested && !_flushRequested && _summaryJson == null)
+                                    Monitor.Wait(_gate, 1000);
+                            }
+                        }
+                    }
+                }
+                catch (Exception exception)
+                {
+                    lock (_gate)
+                    {
+                        _lastError = exception.Message;
+                        _errorCount++;
+                        _accepting = false;
+                        _dropped += _queue.Count + _inFlight + (_written - _flushed);
+                        _queue.Clear();
+                        _queuedCharacters = 0;
+                        _inFlight = 0;
+                    }
+                }
+                finally
+                {
+                    lock (_gate) { _accepting = false; _closed = true; }
+                }
+            }
         }
 
         private static float Safe(float value)

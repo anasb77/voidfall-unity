@@ -430,10 +430,13 @@ namespace VoidFall.Runtime
 
             _source.Stop();
             _source.clip = _current;
-            // Gameplay consumes the whole shuffle bag before refilling. Menu
-            // tracks retain their existing behavior: zero-offset themes loop in
-            // the engine, while intro-skipping themes restart at their offset.
-            _source.loop = _channel == Channel.MainMenu && _startOffset <= 0.01f;
+            // A run keeps its selected gameplay song until Track Shift. Native
+            // looping returns even a curated Track Shift entry to sample zero
+            // after its first pass. Menu tracks retain their existing behavior:
+            // zero-offset themes loop in the engine, while intro-skipping themes
+            // restart at their authored offset.
+            _source.loop = _channel == Channel.Gameplay ||
+                           _channel == Channel.MainMenu && _startOffset <= 0.01f;
             var latestStart = Mathf.Max(0f, _current.length - 1f);
             _source.time = Mathf.Clamp(_startOffset, 0f, latestStart);
             ResetPlaybackObservation();
@@ -467,7 +470,7 @@ namespace VoidFall.Runtime
 
         private void HandlePlaybackCompletion(float dt)
         {
-            if (_channel == Channel.None || _current == null || _source.loop || _suspended) return;
+            if (_channel == Channel.None || _current == null || _suspended) return;
 
             if (_source.isPlaying)
             {
@@ -476,10 +479,11 @@ namespace VoidFall.Runtime
                 return;
             }
 
-            // Streaming clips can report false while their background load is
-            // starting. Focus suspension is excluded above. Once playback was
-            // observed, a confirmed stop advances even if a hitch hid the end.
-            if (!_playbackObserved || _current.loadState != AudioDataLoadState.Loaded)
+            // The first observed playback distinguishes startup from completion.
+            // Streamed clips become Unloaded at their natural end: requiring
+            // Loaded here would leave a completed song silent forever. Explicit
+            // focus suspension is excluded above, and the grace handles brief stops.
+            if (!_playbackObserved)
             {
                 _notPlayingElapsed = 0f;
                 return;
@@ -488,15 +492,17 @@ namespace VoidFall.Runtime
             _notPlayingElapsed += Mathf.Max(0f, dt);
             if (_notPlayingElapsed < PlaybackCompletionGraceSeconds) return;
 
+            // Native looping owns normal gameplay completion. If playback stops
+            // unexpectedly after it was observed, recover the same song from its
+            // full beginning. Do not require Loaded here: streamed clips can be
+            // Unloaded after stopping and must still be allowed to resume.
             if (_channel == Channel.Gameplay)
             {
                 _combatEntryRequested = false;
-                BeginChannel(Channel.Gameplay);
+                _startOffset = 0f;
             }
-            else
-            {
-                RestartCurrent();
-            }
+
+            RestartCurrent();
         }
 
         private float PickStartOffset(string clipName, bool combatEntry = false)

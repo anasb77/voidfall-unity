@@ -11,25 +11,9 @@ namespace VoidFall.EditorTools
     /// <summary>Render the actual ceremony views for visual QA without starting or saving a run.</summary>
     public static class RoulettePreviewCapture
     {
-        public static void BuildPlayer() => BuildAt("../Builds/RoulettePreview/VoidFall.exe");
+        public static void BuildPlayer() => BuildScript.BuildWindows();
 
-        public static void BuildRevision() => BuildAt("../Builds/MusicRouletteRevision/VoidFall.exe");
-
-        private static void BuildAt(string path)
-        {
-            var output = Path.GetFullPath(path);
-            Directory.CreateDirectory(Path.GetDirectoryName(output));
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
-            {
-                scenes = new[] { "Assets/Scenes/SampleScene.unity" },
-                locationPathName = output,
-                target = BuildTarget.StandaloneWindows64,
-                options = BuildOptions.None,
-            });
-            var success = report.summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded;
-            Debug.Log("ROULETTE BUILD " + report.summary.result + " errors=" + report.summary.totalErrors + " path=" + output);
-            EditorApplication.Exit(success ? 0 : 1);
-        }
+        public static void BuildRevision() => BuildScript.BuildWindows();
 
         public static void Capture()
         {
@@ -42,6 +26,21 @@ namespace VoidFall.EditorTools
             {
                 CaptureAt(1280, 820, Path.GetFullPath("Logs/RouletteMusicRevision/Captures/1280x820"));
                 CaptureAt(1920, 1080, Path.GetFullPath("Logs/RouletteMusicRevision/Captures/1920x1080"));
+                EditorApplication.Exit(0);
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogException(exception);
+                EditorApplication.Exit(1);
+            }
+        }
+
+        public static void CaptureClaims()
+        {
+            try
+            {
+                CaptureAt(1280, 820, Path.GetFullPath("Logs/RouletteClaims/Captures/1280x820"));
+                CaptureAt(1920, 1080, Path.GetFullPath("Logs/RouletteClaims/Captures/1920x1080"));
                 EditorApplication.Exit(0);
             }
             catch (System.Exception exception)
@@ -86,13 +85,34 @@ namespace VoidFall.EditorTools
                 Invoke(view, "OnRaiseStakes");
                 CaptureFrame(camera, target, host.transform, output + "/wager.png");
                 view.SetVisible(false);
-                var revealRoot = UIBuilder.Stretch(UIBuilder.CreateRect(host.transform, "Prize"));
-                var reveal = revealRoot.gameObject.AddComponent<PrizeRevealView>();
+                var revealRoot = UIBuilder.Stretch(UIBuilder.CreateRect(host.transform, "Upgrade Reward"));
+                var reveal = revealRoot.gameObject.AddComponent<LevelUpView>();
                 reveal.Initialize(null);
-                reveal.Show("ORBIT BLADES +2", "2 ranks applied to Orbit Blades.", RouletteTier.Premium, null);
-                Set(reveal, "_revealElapsed", 2f);
-                Invoke(reveal, "Update");
-                CaptureFrame(camera, target, host.transform, output + "/reward.png");
+                var weapon = ContentCatalog.Weapons[0];
+                var describe = typeof(VoidFall.Runtime.VoidFallGameRuntime).GetMethod("DescribeClaimWeaponRank", BindingFlags.Static | BindingFlags.NonPublic);
+                var first = new UpgradeCardData { Title = weapon.Name, Category = "Weapon",
+                    Description = (string)describe.Invoke(null, new object[] { weapon, 2, 3 }),
+                    CurrentRank = 2, MaxRank = 6, LevelText = "RANK 2 → 3", AccentColor = UITheme.CyanLight };
+                var second = first;
+                second.CurrentRank = 3;
+                second.LevelText = "RANK 3 → 4";
+                second.Description = (string)describe.Invoke(null, new object[] { weapon, 3, 4 });
+                reveal.ShowReward(first, () => reveal.ShowReward(second, null, null, 2, 2), null, 1, 2);
+                SettleUpgradeReward(reveal);
+                CaptureFrame(camera, target, host.transform, output + "/claim-one.png");
+                reveal.transform.Find("Content/Grid/Card0").GetComponent<Button>().onClick.Invoke();
+                SettleUpgradeReward(reveal);
+                CaptureFrame(camera, target, host.transform, output + "/claim-two.png");
+                reveal.SetVisible(false);
+                reveal.ShowReward(new UpgradeCardData { Title = "500 Parts", Category = "Reward",
+                    Description = "Add 500 Parts to your run earnings for the Workshop.", AccentColor = UITheme.CyanLight }, null);
+                SettleUpgradeReward(reveal);
+                CaptureFrame(camera, target, host.transform, output + "/claim-parts.png");
+                reveal.SetVisible(false);
+                reveal.ShowReward(new UpgradeCardData { Title = WildCardRules.DisplayName(WildCardId.Greed), Category = "Wild Card",
+                    Description = WildCardRules.Description(WildCardId.Greed), AccentColor = new Color(.94f, .64f, .47f) }, () => { }, () => { });
+                SettleUpgradeReward(reveal);
+                CaptureFrame(camera, target, host.transform, output + "/wild-card.png");
                 Debug.Log("ROULETTE VISUAL QA " + output);
             }
             finally
@@ -101,6 +121,29 @@ namespace VoidFall.EditorTools
                 Object.DestroyImmediate(host);
                 Object.DestroyImmediate(cameraObject);
                 Object.DestroyImmediate(target);
+            }
+        }
+
+        public static void CaptureCorrection()
+        {
+            try
+            {
+                CaptureAt(1280, 820, Path.GetFullPath("Logs/RewardMenuCorrection/Captures/1280x820"));
+                CaptureAt(1920, 1080, Path.GetFullPath("Logs/RewardMenuCorrection/Captures/1920x1080"));
+                EditorApplication.Exit(0);
+            }
+            catch (System.Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
+        }
+
+        private static void SettleUpgradeReward(LevelUpView view)
+        {
+            Set(view, "_rewardElapsed", 2f);
+            Invoke(view, "Update");
+            Canvas.ForceUpdateCanvases();
+            foreach (var rise in view.GetComponentsInChildren<UIRiseIn>())
+            {
+                Set(rise, "_elapsed", 2f);
+                Invoke(rise, "Apply", 1f);
             }
         }
 

@@ -16,7 +16,7 @@ namespace VoidFall.Core
         public const double MultiBossStartSeconds = 20 * 60;
         public const double EnemyPopulationMultiplier = 1.6;
         public const int BaseMaxActiveEnemies = 120;
-        public const int MaxActiveEnemies = 192;
+        public const int MaxActiveEnemies = SimulationRules.MaxActiveEnemies;
         public const double InitialVoidDoubleBossChance = 0.3;
 
         public static int ScaledEnemyCount(double baseCount)

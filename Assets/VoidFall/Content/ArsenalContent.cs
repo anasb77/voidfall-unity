@@ -9,11 +9,21 @@ namespace VoidFall.Core
         public const int FirstWeaponIndex = 6;
         public const double MineArmingSeconds = 0.55;
         public const double MineLifetimeSeconds = 15;
-        public const double MineFreezeSeconds = 2.4;
+        public const double MineMinimumPlacementSeconds = 0.9;
+        public const double MineFreezeSeconds = 1.2;
+        public const double MineFreezeRecoverySeconds = 1.2;
         public const double SummonAcquisitionRange = 420;
         public const double ClockOpacity = 0.5;
-        public const double ClockFaceOpacity = 0.35;
+        public const double ClockFaceOpacity = 0.18;
+        public const double BoomerangSizeScale = 0.5;
         public const double MineRangeOpacity = 0.7;
+        public const int ClockHandCapacity = 3;
+
+        // Stable slots: original hand, evolved counterclockwise hand, rank-III seconds hand.
+        public static bool ClockHandActive(int hand, int rank, bool evolved)
+            => rank > 0 && (hand == 0 || hand == 1 && evolved || hand == 2 && rank >= 3);
+        public static double ClockHandScale(int hand) => hand == 2 ? 0.5 : 1;
+        public static double ClockHandSpeed(int hand) => hand == 2 ? 2 : 1;
 
         public static WeaponDefinition[] AppendWeapons(WeaponDefinition[] original)
         {
@@ -36,7 +46,7 @@ namespace VoidFall.Core
         {
             var result = new EvolutionDefinition[original.Length + 4];
             Array.Copy(original, result, original.Length);
-            result[original.Length] = Evolution("mines", "amplifier", "Permafrost Mines", "Explosions freeze ordinary enemies for 2.4 seconds. Bosses resist freezing.", "#8ceaff");
+            result[original.Length] = Evolution("mines", "amplifier", "Permafrost Mines", "Explosions freeze ordinary enemies for 1.2 seconds, followed by 1.2 seconds of freeze immunity. Bosses resist freezing.", "#8ceaff");
             result[original.Length + 1] = Evolution("summons", "dodge", "Volatile Brood", "Rushers explode on impact, damaging nearby enemies.", "#87f5ab");
             result[original.Length + 2] = Evolution("clock", "cycling", "Hazard's Clock", "A second hand rotates counterclockwise and damages enemies independently.", "#99f6e4");
             result[original.Length + 3] = Evolution("boomerang", "projectileSpeed", "Triple Return", "Launch three ricocheting blades with each throw.", "#63dfff");
@@ -54,7 +64,7 @@ namespace VoidFall.Core
             if (id == "mines") return new WeaponStatsDefinition
             {
                 Damage = new double[] { 60, 75, 75, 95, 115, 140 }[r],
-                Cooldown = new double[] { 1.6, 1.6, 1.35, 1.35, 1.15, 1 }[r],
+                Cooldown = new double[] { 2.4, 2.4, 2.1, 2.1, 1.9, 1.8 }[r],
                 BlastRadius = new double[] { 90, 90, 105, 105, 115, 125 }[r],
                 Range = 46, ProjectileRadius = 10, ProjectileCount = 1
             };
@@ -76,7 +86,7 @@ namespace VoidFall.Core
                 Damage = new double[] { 24, 32, 32, 40, 48, 60 }[r],
                 Cooldown = new double[] { 1.8, 1.8, 1.65, 1.65, 1.45, 1.3 }[r],
                 ChainCount = new int[] { 2, 2, 3, 3, 4, 5 }[r],
-                ProjectileSpeed = 450, Range = 650, ProjectileRadius = 9, ProjectileCount = 1
+                ProjectileSpeed = 450, Range = 650, ProjectileRadius = 9 * BoomerangSizeScale, ProjectileCount = 1
             };
             throw new ArgumentException("Unknown arsenal weapon", nameof(id));
         }
@@ -88,7 +98,7 @@ namespace VoidFall.Core
             var damage = Change("Damage", before?.Damage, after.Damage);
             if (weapon.Id == "mines") return damage + "\n" + Change("Drop delay", before?.Cooldown, after.Cooldown, "s") + "\n" + Change("Blast radius", before?.BlastRadius, after.BlastRadius);
             if (weapon.Id == "summons") return damage + "\n" + Change("Squad size", before?.ProjectileCount, after.ProjectileCount) + "\n" + Change("Spawn delay", before?.Cooldown, after.Cooldown, "s");
-            if (weapon.Id == "clock") return damage + "\n" + Change("Full rotation", before == null ? (double?)null : Math.PI * 2 / before.OrbitSpeed, Math.PI * 2 / after.OrbitSpeed, "s") + "\nReach 125";
+            if (weapon.Id == "clock") return damage + "\n" + Change("Full rotation", before == null ? (double?)null : Math.PI * 2 / before.OrbitSpeed, Math.PI * 2 / after.OrbitSpeed, "s") + "\nReach 125" + (nextRank >= 3 ? "\n" + (nextRank == 3 ? "Unlock seconds hand: " : "Seconds hand: ") + "2x speed, half reach and damage" : "");
             return damage + "\n" + Change("Targets per throw", before?.ChainCount, after.ChainCount) + "\n" + Change("Throw delay", before?.Cooldown, after.Cooldown, "s");
         }
 

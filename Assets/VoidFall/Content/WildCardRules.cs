@@ -56,6 +56,19 @@ namespace VoidFall.Core
             return seconds >= StandstillActivationSeconds;
         }
 
+        public static string Description(WildCardId id)
+        {
+            switch (id)
+            {
+                case WildCardId.Standstill: return "Deal double damage after standing still for 0.4 seconds. Moving ends the bonus.";
+                case WildCardId.Greed: return "Double all XP gains. Magnet attraction and Magnet pickups are disabled.";
+                case WildCardId.SecondLife: return "Gain one extra revive at half maximum health.";
+                case WildCardId.Overclocker: return "Keep at least tier 1 Overclock for the rest of this run.";
+                case WildCardId.ColossusArsenal: return "Double projectile size and your damage-taking hitbox. Fire rate is reduced by 25%.";
+                default: return "A rule-changing card for this run.";
+            }
+        }
+
         public static bool IsImplemented(WildCardId id)
         {
             return id == WildCardId.Standstill ||

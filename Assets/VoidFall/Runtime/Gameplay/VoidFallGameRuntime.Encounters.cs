@@ -7,7 +7,7 @@ namespace VoidFall.Runtime
 {
     public sealed partial class VoidFallGameRuntime
     {
-        private enum EncounterMovement { None, Crossing, Volley, Withdrawal }
+        private enum EncounterMovement { None, Crossing, Volley, Withdrawal, Natural }
         private struct EncounterMember
         {
             public int SpawnId, Owner;
@@ -33,7 +33,21 @@ namespace VoidFall.Runtime
         private float DirectorChallengeSeconds => _runPressure.CreditedProgressSeconds <= 0
             ? 0 : Mathf.Clamp01(PressureHundredths / (float)DirectorProfiles.For(_runDirectorProfile).PressureCeilingHundredths) * 2400f;
         private float LocalDirectorSurvivalSeconds => _objectives?.Objective is MultiPhaseObjective phases
-            ? phases.PhaseIndex > 0 ? 300f : (float)(phases.CurrentPhase.Progress01 * 300) : 0;
+            ? (float)(VoidProgressionRules.SurvivalSeconds * (phases.PhaseIndex > 0 ? 1 : phases.CurrentPhase.Progress01)) : 0;
+        private float DirectorSurvivalSecondsRemaining => Mathf.Max(0, (float)VoidProgressionRules.SurvivalSeconds - LocalDirectorSurvivalSeconds);
+
+        private float DurationAdjustedDifficultySeconds
+        {
+            get
+            {
+                if (_stressScenario != null || _voidRoute == null || !(_objectives?.Objective is MultiPhaseObjective)) return _time;
+                // The captured entry stage remains stable through rewards, when completedVoids already advanced.
+                // Remove only the added survival time; elapsed boss combat still advances the original stat curves.
+                var survivalVisits = Mathf.Max(0, _pressureStageIndex) + LocalDirectorSurvivalSeconds / (float)VoidProgressionRules.SurvivalSeconds;
+                var addedSeconds = (float)(VoidProgressionRules.SurvivalSeconds - VoidProgressionRules.BossDifficultyReferenceSurvivalSeconds);
+                return Mathf.Max(0, _time - addedSeconds * survivalVisits);
+            }
+        }
 
         private void ResetEncounterDirector()
         {
@@ -48,6 +62,8 @@ namespace VoidFall.Runtime
             _bossWindowStarted = _bossLeadStarted = false;
             _bossReinforcementWaves = 0;
             _lastSpawnBlockReason = "opening";
+            ResetSustainedDirector();
+            if (UsesSustainedDirector) _nextEncounterTime = _time + 24;
             HideEncounterWarnings();
         }
 
@@ -62,6 +78,7 @@ namespace VoidFall.Runtime
         private int DirectorBodyLimit()
         {
             if (_stressScenario != null) return MaxEnemies; // Explicit diagnostic pool-fill exception.
+            if (UsesSustainedDirector) return MaxEnemies;
             if (CurrentVoidIsNullCity) return _nullCityBossActive ? 28 : 56;
             var cap = DirectorProfiles.PopulationLimit(_runDirectorProfile, PressureHundredths);
             return ActiveBosses() > 0 ? Mathf.Min(cap, 24) : Mathf.Min(MaxEnemies, cap);
@@ -70,12 +87,22 @@ namespace VoidFall.Runtime
         private bool AdmitDirectorSpawn(string id, EnemyRoster roster, EliteVariantId? variant, bool elite)
         {
             if (!_encounterInitialized || _stressScenario != null) return true;
-            if (ActiveEnemies() >= DirectorBodyLimit()) { _lastSpawnBlockReason = "population"; return false; }
+            if (ActiveEnemies() >= DirectorBodyLimit())
+            {
+                _lastSpawnBlockReason = "population";
+                RecordRunHistory("spawn_rejected", id, _lastSpawnBlockReason);
+                return false;
+            }
             if (CurrentVoidIsNullCity || CurrentVoidIsMonochrome) return true;
             var cost = variant.HasValue ? (float)EliteRules.EliteVariantDef(variant.Value).ThreatCost
                 : elite ? 8 : (float)(DirectorRules.EnemyThreatCost(id) * EnemyRosterRules.ThreatMultiplier(roster));
             var budget = DirectorBodyLimit() * (ActiveBosses() > 0 ? 1.25f : 1.55f);
-            if (ActiveEnemyThreat() + cost > budget) { _lastSpawnBlockReason = "threat"; return false; }
+            if (ActiveEnemyThreat() + cost > budget)
+            {
+                _lastSpawnBlockReason = "threat";
+                RecordRunHistory("spawn_rejected", id, _lastSpawnBlockReason, amount: cost);
+                return false;
+            }
             _lastSpawnBlockReason = null;
             return true;
         }
@@ -101,6 +128,7 @@ namespace VoidFall.Runtime
         private void UpdateEncounterSpawns(float dt)
         {
             if (dt <= 0) return;
+            if (UsesSustainedDirector) { UpdateSustainedDirectorSpawns(dt); return; }
             if (_majorIncident.Kind != MajorIncidentKind.None)
             { _spawnTimer = .65f; _lastSpawnBlockReason = "major incident reservation"; return; }
             _directorActive = _directorWarned = false;
@@ -114,7 +142,6 @@ namespace VoidFall.Runtime
             }
             if (_time < RunOpeningSeconds) { _spawnTimer = RunOpeningSeconds - _time; _lastSpawnBlockReason = "opening"; return; }
             var bossActive = ActiveBosses() > 0;
-            var localTime = LocalDirectorSurvivalSeconds;
             if (bossActive)
             {
                 if (!_bossWindowStarted)
@@ -136,7 +163,7 @@ namespace VoidFall.Runtime
                 _lastSpawnBlockReason = "boss engagement window";
                 return;
             }
-            if (localTime >= 285 && _stressScenario == null)
+            if (DirectorSurvivalSecondsRemaining <= 15 && _stressScenario == null)
             {
                 if (!_bossLeadStarted) { CancelEncounterDirector(); BeginDirectorWithdrawal(true); _bossLeadStarted = true; }
                 _spawnTimer = .65f; _lastSpawnBlockReason = "boss lead-in"; return;
@@ -159,12 +186,16 @@ namespace VoidFall.Runtime
                 return;
             }
             var formationsEligible = !CurrentVoidIsEonSea && !CurrentVoidIsCrascendo && _arenaId != ArenaId.Hydra;
-            if (formationsEligible && _time >= _nextEncounterTime && localTime < 250 && DirectorOpeningSafe())
+            if (formationsEligible && _time >= _nextEncounterTime && DirectorSurvivalSecondsRemaining > 30 && DirectorOpeningSafe())
             {
                 BeginDirectorEncounter((_encounterSequence & 1) == 0 ? CombatEncounterKind.Crossing : CombatEncounterKind.Volley);
                 return;
             }
-            if (_time >= _nextEncounterTime && !DirectorOpeningSafe()) _nextEncounterTime = _time + 3;
+            if (_time >= _nextEncounterTime && !DirectorOpeningSafe())
+            {
+                RecordRunHistory("encounter_deferred", reason: "unsafe_opening");
+                _nextEncounterTime = _time + 3;
+            }
             if (ActiveEnemies() >= DirectorBodyLimit())
             { _spawnTimer = .45f; _lastSpawnBlockReason = "population"; return; }
             _spawnTimer = Mathf.Max(0, _spawnTimer - dt);
@@ -180,7 +211,12 @@ namespace VoidFall.Runtime
             {
                 var id = bossReinforcement ? (i % 3 == 0 ? "runner" : "chaser") : ChooseAmbientEnemy();
                 if (!AmbientTypeAllowed(id)) id = "chaser";
-                if (IsDemandingEnemy(id) && ActiveDemandingEnemies() >= DirectorProfiles.AttackLimit(_runDirectorProfile, PressureHundredths)) id = "chaser";
+                if (IsDemandingEnemy(id) && ActiveDemandingEnemies() >= DirectorProfiles.AttackLimit(_runDirectorProfile, PressureHundredths))
+                {
+                    RecordRunHistory("spawn_substituted", id, "demanding_limit", sourceId: "chaser");
+                    id = "chaser";
+                }
+                RecordRunHistory("director_choice", id, bossReinforcement ? "boss_reinforcement" : "ambient");
                 if (!SpawnEnemy(id)) break;
             }
             if (!bossReinforcement && _time >= _nextEliteVariantTime && _time > 150 && ActiveDemandingEnemies() == 0)
@@ -205,12 +241,19 @@ namespace VoidFall.Runtime
             _encounterHalfSpan = Mathf.Abs(_encounterAxis.x) > .5f ? viewport.y : viewport.x;
             _encounterGapOffset = ((hash >> 3) % 3 - 1f) * Mathf.Min(110, _encounterHalfSpan * .25f);
             _encounter.Begin(kind, DirectorProfiles.For(_runDirectorProfile).RecoverySeconds);
+            RecordRunHistory("encounter_selected", kind.ToString(), "safe_opening", instanceId: _encounterOwner);
             _spawnTimer = .65f;
             ShowArenaToast(kind == CombatEncounterKind.Crossing ? "CROSSING PACK · FIND THE GAP" : "FIRING LINE · MOVE BETWEEN SHOTS", 2.5f, ToastKind.Danger);
         }
 
         public void ForceEncounterForDiagnostics(string kind)
         {
+            if (UsesSustainedDirector)
+            {
+                BeginSustainedBeat(kind == "volley" ? CombatEncounterKind.Hunt :
+                    kind == "brute" ? CombatEncounterKind.Breakthrough : kind == "flank" ? CombatEncounterKind.Flank : CombatEncounterKind.Pursuit);
+                return;
+            }
             BeginDirectorEncounter(kind == "volley" ? CombatEncounterKind.Volley : CombatEncounterKind.Crossing);
         }
 
@@ -256,6 +299,7 @@ namespace VoidFall.Runtime
 
         private bool TryUpdateEncounterMember(ref EnemyState enemy, float dt)
         {
+            if (UsesSustainedDirector) return false;
             if (!_encounterInitialized || CurrentVoidIsNullCity || CurrentVoidIsMonochrome) return false;
             var slot = enemy.View;
             ref var member = ref _encounterMembers[slot];
@@ -320,6 +364,7 @@ namespace VoidFall.Runtime
 
         private void RetireDirectorActor(ref EnemyState enemy)
         {
+            RecordEnemyRemoval(enemy.View, "director_withdrawal");
             if (enemy.Id == "harvester" && enemy.StoredXp > 0) SpawnPickup(enemy.Position, enemy.StoredXp);
             enemy.StoredXp = 0;
             enemy.Active = false;
@@ -363,6 +408,7 @@ namespace VoidFall.Runtime
         {
             HideEncounterWarnings();
             if (_mainMenuBrowsing || _gameOver || JourneyStopsCombat) return;
+            if (UsesSustainedDirector) return; // No formation solution overlay in Director I.
             var line = 0;
             if (_encounter.Phase == CombatEncounterPhase.Warning && _encounter.Kind == CombatEncounterKind.Crossing)
             {

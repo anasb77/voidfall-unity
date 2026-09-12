@@ -10,7 +10,8 @@ namespace VoidFall.Runtime
         private readonly MajorIncidentState _majorIncident = new MajorIncidentState();
         private DirectorIncidentPresentation _incidentPresentation;
         private Vector2 _incidentCenter;
-        private const float IncidentRadius = 290f;
+        private const float IncidentRadius = MajorIncidentRules.BlackHoleRadius;
+        private float _incidentPullSampleSeconds, _incidentPullDistance, _incidentPullPeakSpeed;
         private float _nextIncidentOpportunity;
         private int _incidentSequence, _incidentCount;
         private MajorIncidentKind _lastIncidentKind;
@@ -41,6 +42,9 @@ namespace VoidFall.Runtime
 
         private void StopMajorIncident()
         {
+            FlushBlackHolePullObservation();
+            if (_majorIncident.Kind != MajorIncidentKind.None)
+                RecordRunHistory("incident_stopped", _majorIncident.Kind.ToString(), _majorIncident.Phase.ToString());
             _majorIncident.Reset();
             _incidentRaidStarted = false;
             EndDestroyerRaid();
@@ -53,7 +57,7 @@ namespace VoidFall.Runtime
         private void StepMajorIncidents(float dt)
         {
             if (dt <= 0 || _mainMenuBrowsing || _gameOver || _paused || JourneyStopsCombat) return;
-            if (ActiveBosses() > 0 || !IncidentArenaEligible() || LocalDirectorSurvivalSeconds >= 285)
+            if (ActiveBosses() > 0 || !IncidentArenaEligible() || DirectorSurvivalSecondsRemaining <= MajorIncidentRules.BossLeadSeconds)
             {
                 if (_majorIncident.Kind != MajorIncidentKind.None) StopMajorIncident();
                 _nextIncidentOpportunity = Mathf.Max(_nextIncidentOpportunity, _time + 30);
@@ -62,7 +66,13 @@ namespace VoidFall.Runtime
             if (_majorIncident.Kind != MajorIncidentKind.None)
             {
                 var kind = _majorIncident.Kind;
+                var phase = _majorIncident.Phase;
                 _majorIncident.Step(dt);
+                if (_majorIncident.Phase != phase)
+                    RecordRunHistory("incident_phase", kind.ToString(), _majorIncident.Phase.ToString(),
+                        instanceId: _incidentSequence, amount: (float)_majorIncident.Strength,
+                        durationSeconds: _majorIncident.Kind == MajorIncidentKind.None
+                            ? (float)MajorIncidentRules.TotalDuration(kind) : (float)_majorIncident.Elapsed);
                 if (kind == MajorIncidentKind.DestroyerRaid)
                 {
                     if (!_incidentRaidStarted && _majorIncident.Phase == MajorIncidentPhase.Active)
@@ -80,14 +90,33 @@ namespace VoidFall.Runtime
             if (_stressScenario != null || _incidentCount >= 4 || _time < _nextIncidentOpportunity) return;
             _incidentSequence++;
             _nextIncidentOpportunity = _time + 30 + (_runSeed ^ (uint)(_incidentSequence * 7919)) % 21;
+            var attentionBlocked = UsesSustainedDirector
+                ? _pressureReliefTimer > 0 || !SustainedIncidentOpeningSafe()
+                : ActiveDemandingEnemies() > 0 || !DirectorOpeningSafe();
             if (_encounter.Phase != CombatEncounterPhase.Flow || LocalDirectorSurvivalSeconds < 45 ||
-                ActiveDemandingEnemies() > 0 || ActiveEnemies() < 8 || ActiveEnemies() > DirectorBodyLimit() - 5 || !DirectorOpeningSafe()) return;
+                attentionBlocked || ActiveEnemies() < 8 || ActiveEnemies() > DirectorBodyLimit() - 5)
+            {
+                RecordRunHistory("incident_deferred", reason: "pacing_population_or_unsafe_opening", instanceId: _incidentSequence);
+                return;
+            }
             // Native meteors already spend attention; do not stack a generic incident onto a storm.
-            if (_arenaId == ArenaId.RedNebula && ActiveMeteorsCountForIncident() > 2) return;
+            if (_arenaId == ArenaId.RedNebula && ActiveMeteorsCountForIncident() > 2)
+            {
+                RecordRunHistory("incident_deferred", reason: "meteor_attention", instanceId: _incidentSequence);
+                return;
+            }
             var kindChoice = (MajorIncidentKind)(1 + ((_runSeed ^ (uint)(_incidentSequence * 104729)) % 3));
             if (kindChoice == _lastIncidentKind) kindChoice = (MajorIncidentKind)(1 + (int)kindChoice % 3);
-            if (!MajorIncidentRules.CanBegin(kindChoice, 300 - LocalDirectorSurvivalSeconds, false, false, false)) return;
-            if (kindChoice == MajorIncidentKind.DestroyerRaid && ActiveEnemyThreat() > DirectorBodyLimit() * 1.55f - 45) return;
+            if (!MajorIncidentRules.CanBegin(kindChoice, DirectorSurvivalSecondsRemaining, false, false, false))
+            {
+                RecordRunHistory("incident_deferred", kindChoice.ToString(), "insufficient_remaining_time", instanceId: _incidentSequence);
+                return;
+            }
+            if (kindChoice == MajorIncidentKind.DestroyerRaid && ActiveEnemyThreat() > DirectorBodyLimit() * 1.55f - 45)
+            {
+                RecordRunHistory("incident_deferred", kindChoice.ToString(), "threat_budget", instanceId: _incidentSequence);
+                return;
+            }
             BeginMajorIncident(kindChoice);
         }
 
@@ -101,25 +130,35 @@ namespace VoidFall.Runtime
             _incidentCenter = _gameSim.Player.Position;
             if (kind == MajorIncidentKind.BlackHole)
             {
-                // Choose a nearby enemy direction, then lock a center outside the player's body.
-                var direction = Vector2.right;
-                var nearest = float.MaxValue;
-                for (var i = 0; i < _gameSim.Enemies.Length; i++)
+                // Lead current movement so continuing straight crosses the warned force zone.
+                // Once selected the center stays locked, preserving the option to juke away.
+                var moving = _gameSim.Player.Velocity.sqrMagnitude > 1;
+                var direction = moving ? _gameSim.Player.Velocity.normalized : Vector2.right;
+                if (!moving)
                 {
-                    var enemy = _gameSim.Enemies[i];if (!enemy.Active || enemy.Elite) continue;
-                    var delta = enemy.Position - _gameSim.Player.Position;
-                    if (delta.sqrMagnitude > 180 * 180 && delta.sqrMagnitude < nearest)
-                    { nearest = delta.sqrMagnitude;direction = delta.normalized; }
+                    var nearest = float.MaxValue;
+                    for (var i = 0; i < _gameSim.Enemies.Length; i++)
+                    {
+                        var enemy = _gameSim.Enemies[i];if (!enemy.Active || enemy.Elite) continue;
+                        var delta = enemy.Position - _gameSim.Player.Position;
+                        if (delta.sqrMagnitude > 180 * 180 && delta.sqrMagnitude < nearest)
+                        { nearest = delta.sqrMagnitude;direction = delta.normalized; }
+                    }
                 }
-                _incidentCenter += direction * 330;
+                _incidentCenter += direction * MajorIncidentRules.BlackHoleCenterOffset;
             }
             _incidentRaidStarted = false;
             _majorIncident.Begin(kind);
+            _incidentPullSampleSeconds = _incidentPullDistance = _incidentPullPeakSpeed = 0;
+            RecordRunHistory("incident_selected", kind.ToString(), "eligible", instanceId: _incidentSequence);
+            RecordRunHistory("incident_phase", kind.ToString(), MajorIncidentPhase.Warning.ToString(),
+                instanceId: _incidentSequence);
             _incidentCount++;
             _lastIncidentKind = kind;
             _spawnTimer = .65f;
-            ShowArenaToast(kind == MajorIncidentKind.BlackHole ? "BLACK HOLE · ATTRACTION INCOMING" :
-                kind == MajorIncidentKind.DestroyerRaid ? "THE DESTROYERS HAVE ARRIVED" : "ECLIPSE", 2.5f, ToastKind.Danger);
+            ShowArenaToast(kind == MajorIncidentKind.BlackHole ? "BLACK HOLE · MOVE BEYOND THE RING" :
+                kind == MajorIncidentKind.DestroyerRaid ? "THE DESTROYERS HAVE ARRIVED" : "ECLIPSE",
+                (float)MajorIncidentRules.WarningDuration(kind), ToastKind.Danger);
         }
 
         public bool ForceMajorIncidentForDiagnostics(string name)
@@ -137,9 +176,29 @@ namespace VoidFall.Runtime
         {
             if (!BlackHoleAttractionActive() || dt <= 0) return;
             var delta = _incidentCenter - _gameSim.Player.Position;
-            var distance = delta.magnitude;if (distance <= .0001f) return;
+            var distance = delta.magnitude;
             var pull = (float)MajorIncidentRules.BlackHolePullScale(distance, IncidentRadius, _majorIncident.Strength);
-            _gameSim.Player.Position += delta / distance * ((float)ContentCatalog.Operative.MoveSpeed / 3 * pull * dt);
+            var speed = (float)ContentCatalog.Operative.MoveSpeed * MajorIncidentRules.BlackHolePlayerPullFraction * pull;
+            var displacement = Mathf.Min(distance, speed * dt);
+            if (distance > .0001f) _gameSim.Player.Position += delta / distance * displacement;
+            if (_runExportActive)
+            {
+                _incidentPullSampleSeconds += dt; _incidentPullDistance += displacement;
+                _incidentPullPeakSpeed = Mathf.Max(_incidentPullPeakSpeed, speed);
+                if (_incidentPullSampleSeconds >= 1f) FlushBlackHolePullObservation();
+            }
+        }
+
+        private void FlushBlackHolePullObservation()
+        {
+            if (_incidentPullSampleSeconds <= 0) return;
+            RecordRunHistory("black_hole_pull", MajorIncidentKind.BlackHole.ToString(), _majorIncident.Phase.ToString(),
+                instanceId: _incidentSequence, amount: _incidentPullDistance, durationSeconds: _incidentPullSampleSeconds,
+                detail: string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "distance={0:F2};radius={1:F2};peakPullSpeed={2:F2};centerX={3:F2};centerY={4:F2}",
+                    Vector2.Distance(_gameSim.Player.Position, _incidentCenter), IncidentRadius, _incidentPullPeakSpeed,
+                    _incidentCenter.x, _incidentCenter.y));
+            _incidentPullSampleSeconds = _incidentPullDistance = _incidentPullPeakSpeed = 0;
         }
 
         private void ApplyMajorIncidentEnemyDisplacement(ref EnemyState enemy, float dt)
@@ -148,7 +207,7 @@ namespace VoidFall.Runtime
             var delta = _incidentCenter - enemy.Position;
             var distance = delta.magnitude;if (distance <= .0001f) return;
             var pull = (float)MajorIncidentRules.BlackHolePullScale(distance, IncidentRadius, _majorIncident.Strength);
-            enemy.Position += delta / distance * ((float)ContentCatalog.Operative.MoveSpeed * pull * dt);
+            enemy.Position += delta / distance * Mathf.Min(distance, (float)ContentCatalog.Operative.MoveSpeed * pull * dt);
         }
 
         private bool BlackHoleAttractionActive() => _majorIncident.Kind == MajorIncidentKind.BlackHole &&

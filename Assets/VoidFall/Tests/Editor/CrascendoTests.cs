@@ -17,7 +17,7 @@ namespace VoidFall.Tests.Editor
         }
         [Test] public void Intensity_finishes_once_without_looping_and_stays_at_boss_maximum()
         {
-            Assert.That(CrascendoRules.Intensity(0, false), Is.Zero); Assert.That(CrascendoRules.Intensity(150, false), Is.EqualTo(.5f));
+            Assert.That(CrascendoRules.Intensity(0, false), Is.Zero); Assert.That(CrascendoRules.Intensity((float)VoidProgressionRules.SurvivalSeconds * .5f, false), Is.EqualTo(.5f));
             Assert.That(CrascendoRules.Intensity(900, false), Is.EqualTo(1)); Assert.That(CrascendoRules.Intensity(10, true), Is.EqualTo(1));
             Assert.That(CrascendoRules.Growth(1), Is.EqualTo(1.2f)); Assert.That(CrascendoRules.Growth(20), Is.EqualTo(5)); Assert.That(CrascendoRules.Growth(999), Is.EqualTo(5));
         }

@@ -47,6 +47,10 @@ namespace VoidFall.Runtime
         public readonly int[] PickupOrder;
         public readonly int[] PickupOrderPosition;
         public int PickupOrderCount;
+        private readonly int[] _pickupGenerations;
+        private readonly int[] _pickupStepSlots;
+        private readonly int[] _pickupStepGenerations;
+        private int _nextPickupGeneration;
 
         public readonly int[] BossOrder;
         public int BossOrderCount;
@@ -127,6 +131,9 @@ namespace VoidFall.Runtime
             HostileShotOrder = new SlotOrder(maxHostileShots);
             PickupOrder = new int[maxPickupSlots];
             PickupOrderPosition = new int[maxPickupSlots];
+            _pickupGenerations = new int[maxPickupSlots];
+            _pickupStepSlots = new int[maxPickupSlots];
+            _pickupStepGenerations = new int[maxPickupSlots];
             BossOrder = new int[maxBosses];
             MeteorOrder = new int[maxMeteors];
             MeteorOrderPosition = new int[maxMeteors];
@@ -989,9 +996,16 @@ namespace VoidFall.Runtime
             // same-step effect append after the captured range and wait for
             // the next simulation step, just like browser array growth.
             var initialOrderCount = PickupOrderCount;
+            for (var order = 0; order < initialOrderCount; order++)
+            {
+                var slot = PickupOrder[order];
+                _pickupStepSlots[order] = slot;
+                _pickupStepGenerations[order] = _pickupGenerations[slot];
+            }
             for (var order = initialOrderCount - 1; order >= 0; order--)
             {
-                var i = PickupOrder[order];
+                var i = _pickupStepSlots[order];
+                if (_pickupGenerations[i] != _pickupStepGenerations[order] || PickupOrderPosition[i] < 0) continue;
                 var pickup = Pickups[i];
                 if (!pickup.Active) continue;
                 pickup.Age += dt;
@@ -1023,7 +1037,7 @@ namespace VoidFall.Runtime
                     pickup.Velocity = Vector2.zero;
                     pickup.Speed = 0;
                     Pickups[i] = pickup;
-                    PickupCollectedHook?.Invoke(i, order, collectedFromPull);
+                    PickupCollectedHook?.Invoke(i, PickupOrderPosition[i], collectedFromPull);
                     // A collected effect may reuse the freed slot (Bomb reward
                     // drops do exactly that): never write the stale value back.
                     continue;
@@ -1042,6 +1056,8 @@ namespace VoidFall.Runtime
         public void ResetPickupOrder()
         {
             PickupOrderCount = 0;
+            _nextPickupGeneration = 0;
+            Array.Clear(_pickupGenerations, 0, _pickupGenerations.Length);
             for (var index = 0; index < PickupOrderPosition.Length; index++)
                 PickupOrderPosition[index] = -1;
         }
@@ -1050,6 +1066,7 @@ namespace VoidFall.Runtime
             if (slot < 0 || slot >= Pickups.Length || PickupOrderCount >= PickupOrder.Length)
                 return;
             if (PickupOrderPosition[slot] >= 0) return;
+            _pickupGenerations[slot] = ++_nextPickupGeneration;
             PickupOrderPosition[slot] = PickupOrderCount;
             PickupOrder[PickupOrderCount++] = slot;
         }
@@ -1295,6 +1312,7 @@ namespace VoidFall.Runtime
         // call points are part of the hashed FX-RNG contract: they must stay
         // exactly where the browser interleaved them relative to state
         // mutations and RNG draws.
+        public Func<EnemyState, bool> EnemyCanCommitAttack;
         public Action<Vector2, Color, int, float, float, float> EnemyBurstFxHook;
         public Action<Vector2, float, float, float, Color> EnemyRingWaveHook;
         public Action<Vector2, string, Color, float> EnemyFloaterHook;
@@ -1321,6 +1339,7 @@ namespace VoidFall.Runtime
         public Func<bool> EnemyGameOverQuery;
         public Func<bool> EnemyRevivePendingQuery;
         public Action<int> EnemyHidePickupViewHook;
+        public Action<int, float> PickupAbsorbedTelemetryHook;
         public Action<float> EnemyTelemetryHook;
         public Action<float> EnemyShakeHook;
 
@@ -1468,7 +1487,7 @@ namespace VoidFall.Runtime
             if (enemy.State == 0)
             {
                 enemy.Velocity = direction * enemy.Speed;
-                if (distance < 260 && enemy.Age > 0.6f)
+                if (distance < 260 && enemy.Age > 0.6f && (EnemyCanCommitAttack?.Invoke(enemy) ?? true))
                 {
                     enemy.State = 1;
                     enemy.StateTimer = (float)(definition?.TelegraphSeconds ?? 0.72);
@@ -1516,7 +1535,7 @@ namespace VoidFall.Runtime
                     direction.x * Mathf.Cos(offset) - direction.y * Mathf.Sin(offset),
                     direction.x * Mathf.Sin(offset) + direction.y * Mathf.Cos(offset)) * enemy.Speed;
                 enemy.Rotation = SourceEnemyRotationFromDirection(enemy.Velocity);
-                if (enemy.Age > 0.7f && distance < 245)
+                if (enemy.Age > 0.7f && distance < 245 && (EnemyCanCommitAttack?.Invoke(enemy) ?? true))
                 {
                     enemy.State = 1;
                     enemy.StateTimer = 0.52f;
@@ -1567,7 +1586,7 @@ namespace VoidFall.Runtime
             {
                 enemy.Velocity = direction * enemy.Speed;
                 enemy.StateTimer -= dt;
-                if (enemy.StateTimer <= 0 && distance < 560f)
+                if (enemy.StateTimer <= 0 && distance < 560f && (EnemyCanCommitAttack?.Invoke(enemy) ?? true))
                 {
                     enemy.State = 1;
                     enemy.StateTimer = (float)definition.ChargeTelegraphSeconds;
@@ -1684,7 +1703,7 @@ namespace VoidFall.Runtime
             if (distance > preferred + 55) enemy.Velocity = direction * enemy.Speed;
             else if (distance < preferred - 90) enemy.Velocity = -direction * enemy.Speed * 0.82f;
             else enemy.Velocity = new Vector2(-direction.y, direction.x) * enemy.Speed * 0.22f;
-            if (enemy.AttackCooldown <= 0 && distance < 760)
+            if (enemy.AttackCooldown <= 0 && distance < 760 && (EnemyCanCommitAttack?.Invoke(enemy) ?? true))
             {
                 enemy.State = 1;
                 enemy.StateTimer = siege ? (float)stats.TelegraphSeconds : (float)(definition?.TelegraphSeconds ?? 1.15);
@@ -1705,7 +1724,7 @@ namespace VoidFall.Runtime
             if (enemy.State == 0)
             {
                 enemy.Velocity = direction * enemy.Speed;
-                if (distance < (float)(definition?.TriggerDistance ?? 72))
+                if (distance < (float)(definition?.TriggerDistance ?? 72) && (EnemyCanCommitAttack?.Invoke(enemy) ?? true))
                 {
                     enemy.State = 1;
                     enemy.StateTimer = telegraph;
@@ -1834,6 +1853,7 @@ namespace VoidFall.Runtime
                 globalStoredXp,
                 xpNeed);
             if (absorbed <= 0) return;
+            PickupAbsorbedTelemetryHook?.Invoke(targetIndex, absorbed);
             if (absorbed >= pickupState.Value)
             {
                 pickupState.Active = false;
@@ -1977,7 +1997,7 @@ namespace VoidFall.Runtime
                 enemy.Velocity = new Vector2(-direction.y, direction.x) * enemy.Speed * 0.35f;
             }
 
-            if (enemy.AttackCooldown <= 0 && distance < 620)
+            if (enemy.AttackCooldown <= 0 && distance < 620 && (EnemyCanCommitAttack?.Invoke(enemy) ?? true))
             {
                 enemy.State = 1;
                 enemy.StateTimer = curved

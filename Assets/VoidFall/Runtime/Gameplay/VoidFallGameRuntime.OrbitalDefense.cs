@@ -64,13 +64,14 @@ namespace VoidFall.Runtime
             var clockRank = ArsenalRank(8);
             if (!intercepted && clockRank > 0)
             {
-                var reach = (float)ArsenalStats(8, clockRank).OrbitRadius * _areaMultiplier;
-                var width = shotRadius + 7 * ArsenalSizeMultiplier();
-                var hands = ArsenalEvolved(8) ? 2 : 1;
-                for (var hand = 0; hand < hands && !intercepted; hand++)
+                for (var hand = 0; hand < ArsenalContent.ClockHandCapacity && !intercepted; hand++)
                 {
-                    var startAngle = hand == 0 ? _orbitalClockStartAngle : -_orbitalClockStartAngle + Mathf.PI;
-                    var endAngle = hand == 0 ? _arsenalClockAngle : -_arsenalClockAngle + Mathf.PI;
+                    if (!ArsenalContent.ClockHandActive(hand, clockRank, ArsenalEvolved(8))) continue;
+                    var scale = (float)ArsenalContent.ClockHandScale(hand);
+                    var reach = (float)ArsenalStats(8, clockRank).OrbitRadius * _areaMultiplier * scale;
+                    var width = shotRadius + 7 * ArsenalSizeMultiplier() * scale;
+                    var startAngle = ArsenalClockHandAngle(hand, _orbitalClockStartAngle);
+                    var endAngle = ArsenalClockHandAngle(hand, _arsenalClockAngle);
                     var angularDelta = Mathf.DeltaAngle(startAngle * Mathf.Rad2Deg, endAngle * Mathf.Rad2Deg) * Mathf.Deg2Rad;
                     // Transform synchronized motion into the rotating hand's frame. Comparing a whole
                     // bullet path against each old hand pose would incorrectly turn its sweep into a shield.

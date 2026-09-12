@@ -14,20 +14,22 @@ namespace VoidFall.Runtime
             public bool Active, Evolved, Returning, Idle;
             public Vector2 Position;
             public float Age, Angle;
-            public int Rank, Hits, Hit0, Hit1, Hit2, Hit3, Hit4;
+            public int Rank, Hits, Hit0, Hit1, Hit2, Hit3, Hit4, MineIdentity;
         }
         private readonly ArsenalEntity[] _arsenalMines = new ArsenalEntity[ArsenalMineCapacity];
         private readonly ArsenalEntity[] _arsenalSummons = new ArsenalEntity[ArsenalSummonCapacity];
         private readonly ArsenalEntity[] _arsenalBoomerangs = new ArsenalEntity[ArsenalBoomerangCapacity];
         private readonly float[] _arsenalFreeze = new float[MaxEnemies];
+        private readonly float[] _arsenalFreezeRecovery = new float[MaxEnemies];
         private readonly int[] _arsenalFreezeIds = new int[MaxEnemies];
-        private readonly float[] _clockEnemyHits = new float[MaxEnemies * 2];
+        private readonly float[] _clockEnemyHits = new float[MaxEnemies * ArsenalContent.ClockHandCapacity];
         private readonly int[] _clockEnemyIds = new int[MaxEnemies];
-        private readonly float[] _clockBossHits = new float[MaxBosses * 2];
+        private readonly float[] _clockBossHits = new float[MaxBosses * ArsenalContent.ClockHandCapacity];
         private readonly int[] _clockBossIds = new int[MaxBosses];
         private readonly int[] _arsenalVisited = new int[5];
         private float _arsenalClockAngle;
         private int _arsenalGeneration;
+        private int _nextArsenalMineIdentity;
 
         private int ArsenalRank(int index) => _upgradeProgress != null && index < _upgradeProgress.WeaponRanks.Length ? _upgradeProgress.WeaponRanks[index] : 0;
         private bool ArsenalEvolved(int index) => _upgradeProgress != null && index < _upgradeProgress.Evolved.Length && _upgradeProgress.Evolved[index];
@@ -42,6 +44,7 @@ namespace VoidFall.Runtime
             Array.Clear(_arsenalSummons, 0, _arsenalSummons.Length);
             Array.Clear(_arsenalBoomerangs, 0, _arsenalBoomerangs.Length);
             Array.Clear(_arsenalFreeze, 0, _arsenalFreeze.Length);
+            Array.Clear(_arsenalFreezeRecovery, 0, _arsenalFreezeRecovery.Length);
             Array.Clear(_arsenalFreezeIds, 0, _arsenalFreezeIds.Length);
             Array.Clear(_clockEnemyIds, 0, _clockEnemyIds.Length);
             Array.Clear(_clockBossIds, 0, _clockBossIds.Length);
@@ -51,7 +54,11 @@ namespace VoidFall.Runtime
 
         private bool AdvanceArsenalFrozenEnemy(int slot, EnemyState enemy, float dt)
         {
-            if (_arsenalFreeze[slot] <= 0 || _arsenalFreezeIds[slot] != EnemyIdentity(enemy, slot)) return false;
+            if (_arsenalFreezeIds[slot] != EnemyIdentity(enemy, slot)) return false;
+            // This eligibility timer includes the freeze and the subsequent mobile
+            // recovery. Never refresh either timer when another mine overlaps.
+            _arsenalFreezeRecovery[slot] = Mathf.Max(0, _arsenalFreezeRecovery[slot] - dt);
+            if (_arsenalFreeze[slot] <= 0) return false;
             _arsenalFreeze[slot] = Mathf.Max(0, _arsenalFreeze[slot] - dt);
             return true;
         }
@@ -81,7 +88,13 @@ namespace VoidFall.Runtime
                         if (!_arsenalMines[i].Active) { if (free < 0) free = i; }
                         else if ((_arsenalMines[i].Position - player).sqrMagnitude < 24 * 24) nearby = true;
                     }
-                    if (free >= 0 && !nearby) _arsenalMines[free] = new ArsenalEntity { Active = true, Position = player, Rank = rank, Evolved = evolved };
+                    if (free >= 0 && !nearby)
+                    {
+                        var identity = ++_nextArsenalMineIdentity;
+                        _arsenalMines[free] = new ArsenalEntity { Active = true, Position = player, Rank = rank, Evolved = evolved, MineIdentity = identity };
+                        RecordRunHistory("mine_placement", "mines", "placed", sourceId: "mines", instanceId: identity, amount: 1);
+                    }
+                    else RecordRunHistory("mine_placement", "mines", nearby ? "nearby" : "pool_full", sourceId: "mines");
                 }
                 else if (weapon == 7)
                 {
@@ -114,6 +127,7 @@ namespace VoidFall.Runtime
                     }
                 }
                 _weaponCooldowns[weapon] = (float)stats.Cooldown * recovery;
+                if (weapon == 6) _weaponCooldowns[weapon] = Mathf.Max((float)ArsenalContent.MineMinimumPlacementSeconds, _weaponCooldowns[weapon]);
             }
             StepArsenalMines(dt);
             if (generation != _arsenalGeneration) return;
@@ -132,7 +146,11 @@ namespace VoidFall.Runtime
                 var mine = _arsenalMines[i];
                 if (!mine.Active) continue;
                 mine.Age += dt;
-                if (mine.Age >= ArsenalContent.MineLifetimeSeconds) mine.Active = false;
+                if (mine.Age >= ArsenalContent.MineLifetimeSeconds)
+                {
+                    mine.Active = false;
+                    RecordRunHistory("mine_expired", "mines", "lifetime", sourceId: "mines", instanceId: mine.MineIdentity);
+                }
                 else if (mine.Age >= ArsenalContent.MineArmingSeconds && ArsenalMineTriggered(mine.Position))
                 {
                     // Free before damage: death callbacks may reuse pooled combat slots.
@@ -140,6 +158,8 @@ namespace VoidFall.Runtime
                     _arsenalMines[i] = mine;
                     var stats = ArsenalStats(6, mine.Rank);
                     var radius = (float)stats.BlastRadius * _areaMultiplier;
+                    var frozen = 0;
+                    var resisted = 0;
                     if (mine.Evolved)
                     {
                         for (var order = 0; order < _gameSim.EnemyOrderCount; order++)
@@ -147,10 +167,23 @@ namespace VoidFall.Runtime
                             var slot = _gameSim.EnemyOrder[order];
                             var enemy = _gameSim.Enemies[slot];
                             if (!enemy.Active || enemy.Age < .15f || (enemy.Position - mine.Position).sqrMagnitude > (radius + enemy.Radius) * (radius + enemy.Radius)) continue;
-                            _arsenalFreezeIds[slot] = EnemyIdentity(enemy, slot);
+                            var identity = EnemyIdentity(enemy, slot);
+                            if (_arsenalFreezeIds[slot] == identity && _arsenalFreezeRecovery[slot] > 0)
+                            {
+                                resisted++;
+                                continue;
+                            }
+                            _arsenalFreezeIds[slot] = identity;
                             _arsenalFreeze[slot] = (float)ArsenalContent.MineFreezeSeconds;
+                            _arsenalFreezeRecovery[slot] = (float)(ArsenalContent.MineFreezeSeconds + ArsenalContent.MineFreezeRecoverySeconds);
+                            frozen++;
                         }
                     }
+                    // Aggregate control outcomes once per explosion, before damage
+                    // callbacks can kill or replace targets or reset the arsenal.
+                    RecordRunHistory("mine_detonated", "mines", mine.Evolved ? "evolved" : "base", sourceId: "mines",
+                        instanceId: mine.MineIdentity, amount: frozen, blockedAttempts: resisted,
+                        durationSeconds: mine.Evolved ? (float)ArsenalContent.MineFreezeSeconds : 0);
                     ArsenalBlast(mine.Position, radius, (float)stats.Damage, 6, mine.Evolved ? "#8ceaff" : "#ffb75e");
                     if (generation != _arsenalGeneration) return;
                 }
@@ -215,6 +248,9 @@ namespace VoidFall.Runtime
             }
         }
 
+        private static float ArsenalClockHandAngle(int hand, float angle)
+            => hand == 1 ? -angle + Mathf.PI : angle * (float)ArsenalContent.ClockHandSpeed(hand);
+
         private void StepArsenalClock(float dt, float recovery)
         {
             var generation = _arsenalGeneration;
@@ -224,11 +260,13 @@ namespace VoidFall.Runtime
             _orbitalClockStartAngle = _arsenalClockAngle;
             var advance = (float)stats.OrbitSpeed * dt * OrbitalRotationSpeedScale(recovery);
             _arsenalClockAngle = Mathf.Repeat(_arsenalClockAngle - advance, Mathf.PI * 2);
-            var hands = ArsenalEvolved(8) ? 2 : 1;
-            var reach = (float)stats.OrbitRadius * _areaMultiplier;
-            for (var hand = 0; hand < hands; hand++)
+            for (var hand = 0; hand < ArsenalContent.ClockHandCapacity; hand++)
             {
-                var angle = hand == 0 ? _arsenalClockAngle : -_arsenalClockAngle + Mathf.PI;
+                if (!ArsenalContent.ClockHandActive(hand, rank, ArsenalEvolved(8))) continue;
+                var scale = (float)ArsenalContent.ClockHandScale(hand);
+                var reach = (float)stats.OrbitRadius * _areaMultiplier * scale;
+                var handAdvance = advance * (float)ArsenalContent.ClockHandSpeed(hand);
+                var angle = ArsenalClockHandAngle(hand, _arsenalClockAngle);
                 // Walk the initial order length backwards; identity sidecars prevent a recycled slot inheriting a hit timer.
                 for (var order = _gameSim.EnemyOrderCount - 1; order >= 0; order--)
                 {
@@ -237,11 +275,16 @@ namespace VoidFall.Runtime
                     var enemy = _gameSim.Enemies[slot];
                     if (!enemy.Active || enemy.Age < .15f) continue;
                     var id = EnemyIdentity(enemy, slot);
-                    if (_clockEnemyIds[slot] != id) { _clockEnemyIds[slot] = id; _clockEnemyHits[slot * 2] = _clockEnemyHits[slot * 2 + 1] = -999; }
-                    if ((float)_time - _clockEnemyHits[slot * 2 + hand] < stats.HitCooldown * recovery) continue;
-                    if (!ArsenalClockTouches(enemy.Position, enemy.Radius, angle, advance, reach)) continue;
-                    _clockEnemyHits[slot * 2 + hand] = (float)_time;
-                    ArsenalHit(new HostileTarget { Valid = true, Index = slot, Identity = id, Position = enemy.Position }, (float)stats.Damage, 8, _gameSim.Player.Position);
+                    if (_clockEnemyIds[slot] != id)
+                    {
+                        _clockEnemyIds[slot] = id;
+                        for (var h = 0; h < ArsenalContent.ClockHandCapacity; h++) _clockEnemyHits[slot * ArsenalContent.ClockHandCapacity + h] = -999;
+                    }
+                    var hitIndex = slot * ArsenalContent.ClockHandCapacity + hand;
+                    if ((float)_time - _clockEnemyHits[hitIndex] < stats.HitCooldown * recovery) continue;
+                    if (!ArsenalClockTouches(enemy.Position, enemy.Radius, angle, handAdvance, reach, scale)) continue;
+                    _clockEnemyHits[hitIndex] = (float)_time;
+                    ArsenalHit(new HostileTarget { Valid = true, Index = slot, Identity = id, Position = enemy.Position }, (float)stats.Damage * scale, 8, _gameSim.Player.Position);
                     if (generation != _arsenalGeneration) return;
                 }
                 EnsureBossOrderEntries();
@@ -251,21 +294,26 @@ namespace VoidFall.Runtime
                     var boss = _gameSim.Bosses[slot];
                     if (!boss.Active || boss.State == 4) continue;
                     var id = BossIdentity(boss, slot);
-                    if (_clockBossIds[slot] != id) { _clockBossIds[slot] = id; _clockBossHits[slot * 2] = _clockBossHits[slot * 2 + 1] = -999; }
-                    if ((float)_time - _clockBossHits[slot * 2 + hand] < stats.HitCooldown * recovery || !ArsenalClockTouches(boss.Position, boss.Radius, angle, advance, reach)) continue;
-                    _clockBossHits[slot * 2 + hand] = (float)_time;
-                    ArsenalHit(new HostileTarget { Valid = true, Boss = true, Index = slot, Identity = id, Position = boss.Position }, (float)stats.Damage, 8, _gameSim.Player.Position);
+                    if (_clockBossIds[slot] != id)
+                    {
+                        _clockBossIds[slot] = id;
+                        for (var h = 0; h < ArsenalContent.ClockHandCapacity; h++) _clockBossHits[slot * ArsenalContent.ClockHandCapacity + h] = -999;
+                    }
+                    var hitIndex = slot * ArsenalContent.ClockHandCapacity + hand;
+                    if ((float)_time - _clockBossHits[hitIndex] < stats.HitCooldown * recovery || !ArsenalClockTouches(boss.Position, boss.Radius, angle, handAdvance, reach, scale)) continue;
+                    _clockBossHits[hitIndex] = (float)_time;
+                    ArsenalHit(new HostileTarget { Valid = true, Boss = true, Index = slot, Identity = id, Position = boss.Position }, (float)stats.Damage * scale, 8, _gameSim.Player.Position);
                     if (generation != _arsenalGeneration) return;
                 }
             }
         }
 
-        private bool ArsenalClockTouches(Vector2 position, float radius, float angle, float advance, float reach)
+        private bool ArsenalClockTouches(Vector2 position, float radius, float angle, float advance, float reach, float scale)
         {
             var delta = position - _gameSim.Player.Position;
             var distance = delta.magnitude;
             if (distance > reach + radius) return false;
-            var width = Mathf.Asin(Mathf.Min(1, (radius + 7 * ArsenalSizeMultiplier()) / Mathf.Max(1, distance)));
+            var width = Mathf.Asin(Mathf.Min(1, (radius + 7 * ArsenalSizeMultiplier() * scale) / Mathf.Max(1, distance)));
             return Mathf.Abs(Mathf.DeltaAngle(angle * Mathf.Rad2Deg, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg)) * Mathf.Deg2Rad <= width + advance;
         }
 
@@ -289,7 +337,7 @@ namespace VoidFall.Runtime
                 {
                     if ((shot.Position - destination).sqrMagnitude < 18 * 18 || shot.Age > 8) shot.Active = false;
                 }
-                else if ((shot.Position - destination).sqrMagnitude <= Mathf.Pow(ArsenalTargetRadius(target) + 9 * ArsenalSizeMultiplier(), 2))
+                else if ((shot.Position - destination).sqrMagnitude <= Mathf.Pow(ArsenalTargetRadius(target) + (float)stats.ProjectileRadius * ArsenalSizeMultiplier(), 2))
                 {
                     var identity = target.Boss ? -target.Identity : target.Identity;
                     switch (shot.Hits) { case 0: shot.Hit0 = identity; break; case 1: shot.Hit1 = identity; break; case 2: shot.Hit2 = identity; break; case 3: shot.Hit3 = identity; break; case 4: shot.Hit4 = identity; break; }
