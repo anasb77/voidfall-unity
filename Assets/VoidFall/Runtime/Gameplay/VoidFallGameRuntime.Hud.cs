@@ -94,7 +94,7 @@ namespace VoidFall.Runtime
                 _lastHudParts = _partsEarned;
                 _lastHudScore = hudScore;
                 if (_metricsText != null)
-                    _metricsText.text = $"K {_kills}   P {_partsEarned}   SCORE {hudScore:N0}";
+                    _metricsText.text = $"K {_kills}   S {_partsEarned}   SCORE {hudScore:N0}";
                 if (_metricValues[0] != null) _metricValues[0].text = _kills.ToString();
                 if (_metricValues[1] != null) _metricValues[1].text = _partsEarned.ToString();
                 if (_metricValues[2] != null) _metricValues[2].text = hudScore.ToString("N0");

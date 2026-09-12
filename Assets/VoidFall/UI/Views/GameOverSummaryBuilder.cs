@@ -30,8 +30,17 @@ namespace VoidFall.UI
             string killedByName = "",
             string killedByDetail = "",
             string killedByGlyph = "",
-            UnityEngine.Color killedByColor = default(UnityEngine.Color))
+            UnityEngine.Color killedByColor = default(UnityEngine.Color),
+            string formName = null,
+            string starterName = null)
         {
+            // The result records which form played and its starter (spec §05).
+            var formLine = string.Empty;
+            if (!string.IsNullOrEmpty(formName))
+            {
+                formLine = "Form " + formName;
+                if (!string.IsNullOrEmpty(starterName)) formLine += " · " + starterName;
+            }
             var summary = new GameOverSummary
             {
                 Victory = victory,
@@ -49,7 +58,8 @@ namespace VoidFall.UI
                 KilledByName = killedByName ?? string.Empty,
                 KilledByDetail = killedByDetail ?? string.Empty,
                 KilledByGlyph = string.IsNullOrEmpty(killedByGlyph) ? "\u25C6" : killedByGlyph,
-                KilledByColor = killedByColor
+                KilledByColor = killedByColor,
+                FormLine = formLine
             };
 
             if (weaponRanks != null)

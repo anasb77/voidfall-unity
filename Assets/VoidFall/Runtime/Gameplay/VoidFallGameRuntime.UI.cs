@@ -59,7 +59,7 @@ namespace VoidFall.Runtime
         {
             TryBuyWorkshop(id);
             RefreshWorkshopUi();
-            // Parts changed, so the home screen's balance and the Workshop nav
+            // Scraps changed, so the home screen's balance and the Workshop nav
             // card's detail line are both stale now.
             RefreshMenuProfileUi();
         }
@@ -113,12 +113,16 @@ namespace VoidFall.Runtime
         private void RefreshMenuProfileUi()
         {
             if (_ui?.MainMenu == null) return;
+            var form = PlayerForms.Form(PlayerForms.NormaliseId(_saveData?.form));
             _ui.MainMenu.UpdateProfile(new UIProfileState
             {
                 Parts = _saveData?.parts ?? 0,
                 BestScore = CurrentBestScore(),
                 TotalRuns = _saveData?.stats?.totalRuns ?? 0,
-                ArenaName = ArenaName(_arenaId)
+                ArenaName = ArenaName(_arenaId),
+                FormName = form.Name,
+                FormUnlocked = PlayerForms.IsUnlocked(_saveData?.unlockedForms, form.Id),
+                FormHint = form.UnlockHint
             });
         }
 
@@ -186,7 +190,7 @@ namespace VoidFall.Runtime
             var parts = profile.parts;
             var refundedParts = _workshopController.RefundAll(profile.workshop, ref parts);
             profile.parts = parts;
-            EnqueueToast("Workshop refunded", $"+{refundedParts} Parts", 2.5f, ToastKind.Reward);
+            EnqueueToast("Workshop refunded", $"+{refundedParts} Scraps", 2.5f, ToastKind.Reward);
         }
 
         private void EnterMainMenu()
@@ -3842,7 +3846,7 @@ namespace VoidFall.Runtime
                     64,
                     32,
                     6f,
-                    "VoidFall Profile Parts Balance");
+                    "VoidFall Profile Scraps Balance");
                 SetGuiStyleState(_profilePartsBalanceStyle.normal, background, Color.white);
                 SetGuiStyleState(_profilePartsBalanceStyle.hover, background, Color.white);
             }

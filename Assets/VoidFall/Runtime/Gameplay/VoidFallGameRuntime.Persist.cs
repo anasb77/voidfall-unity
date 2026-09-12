@@ -74,13 +74,16 @@ namespace VoidFall.Runtime
             _saveData.stats.totalPartsEarned = AddCounter(_saveData.stats.totalPartsEarned, _partsEarned);
             // The browser keeps run rewards in partsEarned until recordRun at
             // terminal Game Over. Commit the complete run total here so
-            // pickups, elite/boss rewards, and tune-limit Parts are all saved
+            // pickups, elite/boss rewards, and tune-limit Scraps are all saved
             // once and a live run cannot mutate the profile early.
             CommitRunParts(_saveData, _partsEarned);
             _saveData.stats.bestScore = Mathf.Max(_saveData.stats.bestScore, CurrentScore());
             _saveData.stats.bestTime = Mathf.Max(_saveData.stats.bestTime, Mathf.FloorToInt(_time));
             _saveData.stats.bestKills = Mathf.Max(_saveData.stats.bestKills, _kills);
             _saveData.stats.highestLevel = Mathf.Max(_saveData.stats.highestLevel, _level);
+            // Gate evaluation runs here too so a run that ends on its first
+            // guardian still opens the form before the profile is written.
+            EvaluateFormUnlocks();
 
             var run = new RunRecordEntry
             {

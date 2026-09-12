@@ -48,6 +48,8 @@ namespace VoidFall.UI
 
         public Action PrevArena;
         public Action NextArena;
+        public Action PrevForm;
+        public Action NextForm;
 
         public Action<string> BuyWorkshop;
         public Action<string> PreviewWorkshop;
@@ -117,6 +119,9 @@ namespace VoidFall.UI
         public int BestScore;
         public int TotalRuns;
         public string ArenaName;
+        public string FormName;
+        public bool FormUnlocked;
+        public string FormHint;
     }
 
     /// <summary>

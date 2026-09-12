@@ -55,6 +55,9 @@ namespace VoidFall.UI
 
         /// <summary>Portrait accent for the killer.</summary>
         public Color KilledByColor;
+
+        /// <summary>Which form played the run, recorded in the result (spec §05). Empty hides it.</summary>
+        public string FormLine;
     }
 
     /// <summary>
@@ -155,7 +158,7 @@ namespace VoidFall.UI
             _score = UIBuilder.CreateMetricTile(_metricGrid, "Score", "Score", "0");
             _time = UIBuilder.CreateMetricTile(_metricGrid, "Time", "Time", "0:00");
             _kills = UIBuilder.CreateMetricTile(_metricGrid, "Kills", "Kills", "0");
-            _parts = UIBuilder.CreateMetricTile(_metricGrid, "Parts", "Parts", "+0");
+            _parts = UIBuilder.CreateMetricTile(_metricGrid, "Parts", "Scraps", "+0");
             _level = UIBuilder.CreateMetricTile(_metricGrid, "Level", "Level", "1");
             _bosses = UIBuilder.CreateMetricTile(_metricGrid, "Bosses", "Bosses", "0");
         }
@@ -356,7 +359,8 @@ namespace VoidFall.UI
         public void Show(GameOverSummary summary)
         {
             // The kicker carries emulated tracking, so it goes through SetText.
-            UIBuilder.SetText(_kicker, summary.Victory ? "RUN COMPLETE" : "RUN ENDED");
+            var formSuffix = string.IsNullOrEmpty(summary.FormLine) ? string.Empty : " · " + summary.FormLine;
+            UIBuilder.SetText(_kicker, (summary.Victory ? "RUN COMPLETE" : "RUN ENDED") + formSuffix);
             if (_title != null)
             {
                 _title.text = summary.Victory ? "Abyss held" : "Try another build";

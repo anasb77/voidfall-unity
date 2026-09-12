@@ -184,12 +184,16 @@ namespace VoidFall.Tests.PlayMode
         [Test]
         public void Roulette_new_card_cannot_bypass_weapon_slots()
         {
+            // Fill exactly the base slot allowance, derived from the arsenal
+            // constant rather than a literal, so changing the allowance cannot
+            // silently turn this invariant into a different assertion.
+            var limit = UpgradeRules.BaseWeaponSlots;
             var progress = new UpgradeProgress();
-            progress.WeaponRanks[0] = progress.WeaponRanks[1] = progress.WeaponRanks[2] = 1;
+            for (var i = 0; i < limit; i++) progress.WeaponRanks[i] = 1;
             for (var i = 0; i < progress.SupportRanks.Length; i++) progress.SupportRanks[i] = ExtendedCatalog.AllSupports()[i].MaxRank;
             Set("_upgradeProgress", progress); Set("_rouletteRng", new Rng(7));
             Call("GrantNewCardRank");
-            Assert.That(Array.FindAll(progress.WeaponRanks, rank => rank > 0).Length, Is.EqualTo(3));
+            Assert.That(Array.FindAll(progress.WeaponRanks, rank => rank > 0).Length, Is.EqualTo(limit));
         }
 
         [Test]

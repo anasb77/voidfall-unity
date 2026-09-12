@@ -2228,7 +2228,7 @@ namespace VoidFall.Runtime
             _partsEarned += parts;
             SpawnFloater(
                 _gameSim.Player.Position + Vector2.up * 18f,
-                "+" + parts + " Part" + (parts > 1 ? "s" : string.Empty),
+                "+" + parts + " Scrap" + (parts > 1 ? "s" : string.Empty),
                 new Color(0.98f, 0.79f, 0.08f, 1f),
                 12);
             _audio?.Play(ProceduralAudio.Cue.PartsPickup);
@@ -4187,7 +4187,7 @@ namespace VoidFall.Runtime
                     $"{EliteRules.EliteVariantDef(enemy.EliteKind.Value).Name} cleared",
                     2.5f,
                     ToastKind.Reward,
-                    $"+{rewardParts} Parts");
+                    $"+{rewardParts} Scraps");
             }
 
             if (enemy.Elite && !enemy.EliteKind.HasValue)
@@ -4203,7 +4203,7 @@ namespace VoidFall.Runtime
                 // effects, matching the browser's eliteDie() call.
                 _audio?.Play(ProceduralAudio.Cue.Elite, 0.72f);
                 _audio?.Play(ProceduralAudio.Cue.EliteDeath);
-                ShowArenaToast("Elite cleared", 2.5f, ToastKind.Reward, "+8 Parts");
+                ShowArenaToast("Elite cleared", 2.5f, ToastKind.Reward, "+8 Scraps");
             }
             else if (!escaping && (destroyedExploder || enemy.MutationGene == MutationGene.Volatile) && !selfDetonated)
             {
@@ -4358,7 +4358,7 @@ namespace VoidFall.Runtime
             SpawnPickup(boss.Position, 70f + boss.EncounterIndex * 5f);
             SpawnRarePickup(boss.Position);
             // Browser killBoss() emits the death cue after its reward drops,
-            // then shows the named clear toast with the Parts detail.
+            // then shows the named clear toast with the Scraps detail.
             _audio?.Play(ProceduralAudio.Cue.BossDeath, 0.9f);
             if (definition != null)
             {
@@ -4366,7 +4366,7 @@ namespace VoidFall.Runtime
                     definition.Name + " cleared",
                     2.5f,
                     ToastKind.Reward,
-                    "+" + definition.RewardParts + " Parts");
+                    "+" + definition.RewardParts + " Scraps");
             }
             // The Void demands its ceremony once the encounter is fully clear.
             if (noBossesRemain) SpawnRouletteChest(boss.Position);

@@ -98,14 +98,14 @@ namespace VoidFall.UI
                 _views.SetLevelText($"LV {s.Level}");
             }
 
-            // Metrics strip: kills/parts/score share one rewrite gate.
+            // Metrics strip: kills/scraps/score share one rewrite gate.
             if (!_hasPrevious || _lastKills != s.Kills || _lastParts != s.PartsEarned ||
                 _lastScore != s.Score)
             {
                 _lastKills = s.Kills;
                 _lastParts = s.PartsEarned;
                 _lastScore = s.Score;
-                _views.SetMetricsSummary($"K {s.Kills}   P {s.PartsEarned}   SCORE {s.Score:N0}");
+                _views.SetMetricsSummary($"K {s.Kills}   S {s.PartsEarned}   SCORE {s.Score:N0}");
                 _views.SetMetricValue(0, s.Kills.ToString());
                 _views.SetMetricValue(1, s.PartsEarned.ToString());
                 _views.SetMetricValue(2, s.Score.ToString("N0"));

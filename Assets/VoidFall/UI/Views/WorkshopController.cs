@@ -113,7 +113,7 @@ namespace VoidFall.UI
         }
 
         /// <summary>
-        /// Guarded purchase: validates cost and balance, deducts Parts,
+        /// Guarded purchase: validates cost and balance, deducts Scraps,
         /// increments the rank, persists, and rolls both back when storage
         /// fails. Returns false with a player-facing notice on every failure
         /// path.
@@ -135,7 +135,7 @@ namespace VoidFall.UI
             }
             if (parts < cost)
             {
-                notice = $"Need {cost - parts} more Parts.";
+                notice = $"Need {cost - parts} more Scraps.";
                 return false;
             }
 
@@ -151,13 +151,13 @@ namespace VoidFall.UI
             // matches what is on disk.
             parts += cost;
             entry.rank--;
-            notice = "Purchase could not be saved. Parts were not spent.";
+            notice = "Purchase could not be saved. Scraps were not spent.";
             return false;
         }
 
         /// <summary>
         /// Refunds every purchased rank at its original cost, zeroes all
-        /// ranks, and persists. Returns the refunded Part total (0 when there
+        /// ranks, and persists. Returns the refunded Scrap total (0 when there
         /// is nothing to refund or no workshop data exists).
         /// </summary>
         public int RefundAll(IList<WorkshopEntry> entries, ref int parts)

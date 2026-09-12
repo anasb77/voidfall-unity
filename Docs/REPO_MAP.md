@@ -279,6 +279,13 @@ the gameplay HUD has separate canvas ownership.
 `UI/Core/UIBuilder.cs` contains construction helpers **and `UIViewBase`**.
 Views build once via `Initialize`, reuse their hierarchy and toggle visibility
 through a `CanvasGroup`. Look in `UI/Views/` for the screen being changed.
+`CreateProfilePanel` (Workshop/Records/Settings shell) returns the padded
+content area below its header and outputs the panel itself through
+`panelRoot`; `UIBuilder.FitPanel` must be given that root — the root is
+centre-anchored while the content area is stretch-anchored, so a sizeDelta on
+the content inflates it over the header instead of resizing. FitPanel clamps
+against the 1600x900 reference units (the canvas scaler matches height), not
+raw screen pixels.
 Live HUD synchronization is chiefly `Runtime/Gameplay/VoidFallGameRuntime.Hud.cs`
 and `.UI.cs`; `UI/Hud/HudPresenter.cs` is not the sole live HUD owner.
 
@@ -312,6 +319,22 @@ reloads profile ranks through `RefreshWorkshopCosmeticRanks` in `.Cosmetics.cs`.
 in-game decorations. Retain the existing Workshop design and artwork; the
 exploratory browser alternatives are not approved replacements.
 
+Player forms (spec §05) live in `Content/PlayerForms.cs`: engine-free
+definitions, stats and unlock gates. The runtime partial `.Forms.cs` owns menu
+selection cycling, unlock evaluation and void-clear recording; the gates are
+the spec's proposals [P] (first guardian defeat → Dasher, three distinct Void
+clears across runs → Brute) and evaluate on void completion and at terminal
+save. `StartRunInternal` resolves the selected form's starter weapon (Dasher:
+Arc Lash, Brute: Seeker Launcher; the default keeps the Operative's pistol)
+and `RecalculatePlayerStats` applies the form's base health and movement
+factor exactly once alongside the normal buffs — the default form defers to
+`ContentCatalog.Operative`, so legacy profiles and the golden-master path are
+unchanged. Form selection, unlocks and distinct-Void clears persist in
+`SaveData` (`form`, `unlockedForms`, `voidsCleared`) separately from the
+shared Workshop ranks; the main-menu form selector cycles unlocked forms only,
+and the run result records the form and starter. Form silhouettes and mastery
+benefits are intentionally deferred visual/balance work.
+
 **Cosmetic sizing invariant:** the sprite factory normalizes cosmetic canvases
 to one world unit. In-game renderers restore design-pixel dimensions using
 `sprite.pixelsPerUnit`, then apply the preview-to-game scale `74 / 94`.
@@ -326,7 +349,11 @@ test profile. `Tests/Editor/WorkshopControllerTests.cs` covers transactions.
 `Persistence/SaveStore.cs` defines `SaveData`, `SaveSettings`, `LifetimeStats`,
 record/bestiary entries and schema handling. It saves under
 `Application.persistentDataPath`; schema v5 intentionally retains the filename
-`voidfall_save_v4.json`. Writes use temp + flush + atomic replacement + backup.
+`voidfall_save_v4.json`. The currency's display name is **Scraps**; its
+serialized keys (`SaveData.parts`, `LifetimeStats.totalPartsEarned`, browser
+adapter `parts`/`totalPartsEarned`) intentionally keep the historical `parts`
+names for save compatibility — rename display text, not schema. Writes use
+temp + flush + atomic replacement + backup.
 Recovery prioritizes the current backup over legacy profiles and protects it
 across failed writes. `BrowserSaveImporter.cs` / `BrowserSaveExporter.cs` are
 compatibility adapters, not a reason to reopen the deprecated browser project.

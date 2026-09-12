@@ -74,7 +74,7 @@ namespace VoidFall.Tests.Editor
             Assert.That(parts, Is.EqualTo(44), "balance must not change on a rejected purchase");
             Assert.That(entries[0].rank, Is.EqualTo(0));
             Assert.That(bridge.PersistCalls, Is.EqualTo(0), "nothing to persist when the purchase is rejected");
-            Assert.That(notice, Does.Contain("Need 1 more Parts."));
+            Assert.That(notice, Does.Contain("Need 1 more Scraps."));
         }
 
         [Test]

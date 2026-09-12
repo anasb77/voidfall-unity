@@ -32,7 +32,7 @@ namespace VoidFall.UI
         private readonly Dictionary<string, Text> _rankStrip =
             new Dictionary<string, Text>();
 
-        private Text _partsBadge;
+        private Text _scrapsBadge;
         private Text _previewTitle;
         private Text _previewDetail;
         private Text _previewRank;
@@ -73,10 +73,11 @@ namespace VoidFall.UI
                 "Permanent upgrades",
                 "Workshop",
                 () => Callbacks?.CloseMenuPage?.Invoke(),
-                out var headerSlot);
-            _panel = content;
+                out var headerSlot,
+                out var panelRoot);
+            _panel = panelRoot;
 
-            _partsBadge = UIBuilder.CreatePartsBadge(headerSlot, "PartsBalance");
+            _scrapsBadge = UIBuilder.CreateScrapsBadge(headerSlot, "ScrapsBalance");
 
             var intro = UIBuilder.CreateParagraph(
                 content,
@@ -260,9 +261,9 @@ namespace VoidFall.UI
         /// Rebuilds the list. Called on open and after every purchase, since a
         /// purchase changes ranks, costs and affordability across the board.
         /// </summary>
-        public void Populate(int totalParts, IReadOnlyList<WorkshopItemData> items)
+        public void Populate(int totalScraps, IReadOnlyList<WorkshopItemData> items)
         {
-            if (_partsBadge != null) _partsBadge.text = FormatNumber(totalParts);
+            if (_scrapsBadge != null) _scrapsBadge.text = FormatNumber(totalScraps);
 
             if (items != null && CanReuseRows(items))
             {

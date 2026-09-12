@@ -338,14 +338,17 @@ namespace VoidFall.Tests.PlayMode
         {
             Set(_runtime, "_partsEarned", 17);
             Set(_runtime, "_kills", 4);
-            var profileBefore = JsonUtility.ToJson(Get(_runtime, "_saveData"));
-            var diskBefore = File.ReadAllText(_testStore.PathOnDisk);
             var blockedParent = Path.Combine(_temporaryDirectory, "blocked-parent");
             File.WriteAllText(blockedParent, "A file prevents creation of the save directory.");
             Set(_runtime, "_saveStore", new SaveStore(Path.Combine(blockedParent, "profile.json")));
             LogAssert.Expect(LogType.Error, new Regex("^VoidFall run save failed:"));
 
             FinishSingleVoidRoute();
+            // Snapshot at the save-attempt boundary: the completed Void was
+            // recorded into the profile (form unlock gates, spec §05) before
+            // the save ran, and the failed save must still retain all of it.
+            var profileBefore = JsonUtility.ToJson(Get(_runtime, "_saveData"));
+            var diskBefore = File.ReadAllText(_testStore.PathOnDisk);
             _runtime.enabled = true;
             yield return null;
             _runtime.enabled = false;

@@ -37,13 +37,33 @@ namespace VoidFall.Core
 
     public static class UpgradeRules
     {
-        public const int BaseWeaponSlots = 3;
-        public const int ExpandedWeaponSlots = 4;
-        public const int MaxedWeaponsForExtraSlot = 2;
+        // Single source of truth: these mirrored the Core constants and could
+        // drift apart, so they now alias them.
+        public const int BaseWeaponSlots = ProgressionRules.BaseWeaponSlots;
+        public const int ExpandedWeaponSlots = ProgressionRules.ExpandedWeaponSlots;
+        public const int MaxedWeaponsForExtraSlot = ProgressionRules.MaxedWeaponsForExtraSlot;
 
         public static int StartingWeaponIndex()
         {
-            return WeaponIndex(ContentCatalog.Operative.StartingWeapon);
+            return StartingWeaponIndex(ContentCatalog.Operative.StartingWeapon);
+        }
+
+        /// <summary>
+        /// The catalogue slot of a run's starting weapon. Forms start with
+        /// their own weapon (PlayerForms), so the id is resolved explicitly.
+        /// </summary>
+        public static int StartingWeaponIndex(string weaponId)
+        {
+            return WeaponIndex(weaponId);
+        }
+
+        /// <summary>The catalogue display name of a weapon id, for result text.</summary>
+        public static string WeaponDisplayName(string weaponId)
+        {
+            var index = WeaponIndex(weaponId);
+            return index >= 0 && index < ContentCatalog.Weapons.Length
+                ? ContentCatalog.Weapons[index].Name
+                : weaponId ?? string.Empty;
         }
 
         public static int WeaponSlotLimit(UpgradeProgress progress)

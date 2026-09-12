@@ -1340,7 +1340,7 @@ namespace VoidFall.Runtime
                 new ResultMetric("Score", CurrentScore().ToString("N0")),
                 new ResultMetric("Time", FormatRunTime(Mathf.FloorToInt(_time))),
                 new ResultMetric("Kills", _kills.ToString()),
-                new ResultMetric("Parts", "+" + _partsEarned.ToString()),
+                new ResultMetric("Scraps", "+" + _partsEarned.ToString()),
                 new ResultMetric("Level", _level.ToString()),
                 new ResultMetric("Bosses", _bossKills.ToString()),
             };
@@ -2381,7 +2381,7 @@ namespace VoidFall.Runtime
                 GUILayout.ExpandWidth(true));
             DrawHomeStatusMetric("BEST SCORE", bestScore.ToString("N0"), "trophy");
             DrawHomeStatusDivider();
-            DrawHomeStatusMetric("PARTS", (_saveData?.parts ?? 0).ToString("N0"), "coins");
+            DrawHomeStatusMetric("SCRAPS", (_saveData?.parts ?? 0).ToString("N0"), "coins");
             DrawHomeStatusDivider();
             DrawHomeStatusMetric("RUNS", stats.totalRuns.ToString(), "skull");
             GUILayout.EndHorizontal();
@@ -2390,7 +2390,7 @@ namespace VoidFall.Runtime
             var homeColumns = HomeMenuColumnsForLayout(safeArea.width, safeArea.height);
             var cardHeight = landscapeMobileLayout ? 72f : 67f;
             GUILayout.BeginHorizontal();
-            if (DrawHomeMenuCard("Workshop", $"{_saveData?.parts ?? 0} Parts", "wrench", cardHeight))
+            if (DrawHomeMenuCard("Workshop", $"{_saveData?.parts ?? 0} Scraps", "wrench", cardHeight))
             {
                 _menuPage = MenuPage.Workshop;
                 _menuScroll = Vector2.zero;
@@ -2685,7 +2685,7 @@ namespace VoidFall.Runtime
             GUILayout.Label("Run summary", MenuSectionStyle());
             GUILayout.Label(
                 $"Time {FormatRunTime(Mathf.FloorToInt(_time))}   Level {_level}   Kills {_kills}   Bosses {_bossKills}   Score {CurrentScore()}\n" +
-                $"Integrity {_gameSim.Player.Health:0}/{_gameSim.Player.MaxHealth:0}   Parts earned {_partsEarned}\n" +
+                $"Integrity {_gameSim.Player.Health:0}/{_gameSim.Player.MaxHealth:0}   Scraps earned {_partsEarned}\n" +
                 $"Best score {stats.bestScore}   Best time {FormatRunTime(stats.bestTime)}   Highest level {stats.highestLevel}",
                 MenuBodyStyle());
             if (!string.IsNullOrEmpty(_lastTelemetryPath))
@@ -3167,7 +3167,7 @@ namespace VoidFall.Runtime
                 new RecordMetric("Bosses", stats.totalBossKills.ToString()),
                 new RecordMetric("Elites", stats.totalEliteKills.ToString()),
                 new RecordMetric("Total time", FormatRunTime(stats.totalPlaySeconds)),
-                new RecordMetric("Parts earned", FormatProfileNumber(stats.totalPartsEarned)),
+                new RecordMetric("Scraps earned", FormatProfileNumber(stats.totalPartsEarned)),
                 new RecordMetric("Best kills", stats.bestKills.ToString()),
                 new RecordMetric("Best level", stats.highestLevel.ToString()),
                 new RecordMetric("Damage dealt", FormatProfileNumber(stats.totalDamageDealt)),
@@ -3317,7 +3317,7 @@ namespace VoidFall.Runtime
             GUILayout.Space(12f);
             GUILayout.Label("Local progress", MenuSectionStyle());
             GUILayout.Label(
-                "This resets Parts, workshop ranks, records, discoveries, and saved preferences.",
+                "This resets Scraps, workshop ranks, records, discoveries, and saved preferences.",
                 MenuBodyStyle());
             var resetLabel = _resetProgressArmed
                 ? "Tap again to reset all local progress"

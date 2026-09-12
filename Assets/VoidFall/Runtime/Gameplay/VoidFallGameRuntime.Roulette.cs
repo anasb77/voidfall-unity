@@ -167,7 +167,7 @@ namespace VoidFall.Runtime
                     var amount = RouletteRules.PartsReward(prize.Tier);
                     _partsEarned += amount;
                     return new RoulettePrizeReveal(
-                        "PARTS CACHE", "+" + amount + " Parts earned for the Workshop.", prize.Tier);
+                        "SCRAPS CACHE", "+" + amount + " Scraps earned for the Workshop.", prize.Tier);
                 case RoulettePrizeKind.UpgradeRandomOwned:
                 {
                     var (applied, name) = GrantRandomOwnedRank(1);
@@ -178,7 +178,7 @@ namespace VoidFall.Runtime
                     var (granted, name) = GrantNewCardRank();
                     return granted
                         ? new RoulettePrizeReveal(name, "A new card joins your arsenal.", prize.Tier)
-                        : new RoulettePrizeReveal("EVERY CARD OWNED", "+40 Parts instead.", RouletteTier.Mediocre);
+                        : new RoulettePrizeReveal("EVERY CARD OWNED", "+40 Scraps instead.", RouletteTier.Mediocre);
                 }
                 case RoulettePrizeKind.WeaponUpgradeQuality:
                 {
@@ -205,7 +205,7 @@ namespace VoidFall.Runtime
                     _partsEarned += 80;
                     _score += 750;
                     return new RoulettePrizeReveal(
-                        "WILD CARD CASHES OUT", "Every card is already held: +80 Parts, +750 score.",
+                        "WILD CARD CASHES OUT", "Every card is already held: +80 Scraps, +750 score.",
                         RouletteTier.Premium);
                 }
                 default:
@@ -222,7 +222,7 @@ namespace VoidFall.Runtime
                     applied + (applied == 1 ? " rank" : " ranks") + " applied to " + name + ".",
                     prize.Tier)
                 : new RoulettePrizeReveal(
-                    "NOTHING LEFT TO UPGRADE", "+40 Parts instead.", RouletteTier.Mediocre);
+                    "NOTHING LEFT TO UPGRADE", "+40 Scraps instead.", RouletteTier.Mediocre);
         }
 
         /// <summary>

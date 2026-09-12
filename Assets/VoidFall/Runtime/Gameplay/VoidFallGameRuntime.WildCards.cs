@@ -63,7 +63,7 @@ namespace VoidFall.Runtime
         /// <summary>
         /// Grants one random implemented card the player does not already
         /// hold. Returns false when every implemented card is held (the caller
-        /// then pays a Parts fallback).
+        /// then pays a Scraps fallback).
         /// </summary>
         private bool TryGrantRandomWildCard(RouletteSession session, out WildCardId granted, bool announce = true)
         {

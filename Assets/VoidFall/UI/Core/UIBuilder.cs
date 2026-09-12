@@ -437,14 +437,27 @@ namespace VoidFall.UI
         /// never exceeds 94% of the viewport. Reapplied every time the tab
         /// opens, so resolution changes take effect on the next visit. Text
         /// sizes stay authored; the extra room goes to spacing and columns.
+        ///
+        /// Pass the panel ROOT here (centre-anchored, see CreateProfilePanel's
+        /// panelRoot output), never the padded content area: that one is
+        /// stretch-anchored, so a sizeDelta would inflate it past the header
+        /// instead of resizing it.
         /// </summary>
         public static void FitPanel(RectTransform panel, float designWidth, float designHeight)
         {
             if (panel == null) return;
             var width = designWidth;
             var height = designHeight;
-            if (Screen.width > 0) width = Mathf.Min(width, Screen.width * 0.94f);
-            if (Screen.height > 0) height = Mathf.Min(height, Screen.height * 0.94f);
+            if (Screen.width > 0 && Screen.height > 0)
+            {
+                // sizeDelta is in 1600x900 reference units while Screen reports
+                // pixels. The menu canvas scales to match height, so one
+                // reference unit is Screen.height / ReferenceHeight pixels;
+                // clamping in raw pixels never fired on taller windows.
+                var pixelsPerUnit = Screen.height / UITheme.ReferenceHeight;
+                width = Mathf.Min(width, Screen.width * 0.94f / pixelsPerUnit);
+                height = Mathf.Min(height, Screen.height * 0.94f / pixelsPerUnit);
+            }
             panel.sizeDelta = new Vector2(width, height);
         }
 
@@ -1523,6 +1536,7 @@ namespace VoidFall.UI
         /// Back button, a kicker over a heading, an optional right-hand slot and a
         /// bottom rule, exactly like .menu-panel > header.
         /// </summary>
+        /// <param name="panelRoot">The panel itself; pass this to FitPanel.</param>
         /// <returns>The padded content area below the header.</returns>
         public static RectTransform CreateProfilePanel(
             Transform parent,
@@ -1531,9 +1545,11 @@ namespace VoidFall.UI
             string kicker,
             string title,
             Action onBack,
-            out RectTransform headerSlot)
+            out RectTransform headerSlot,
+            out RectTransform panelRoot)
         {
             var panel = CreatePanel(parent, name, size);
+            panelRoot = panel;
             var body = panel.Find("Body") as RectTransform ?? panel;
 
             var inner = Stretch(CreateRect(body, "Inner"), 22f);
@@ -1641,9 +1657,9 @@ namespace VoidFall.UI
         }
 
         /// <summary>
-        /// The parts balance chip that sits in the Workshop header slot.
+        /// The Scraps balance chip that sits in the Workshop header slot.
         /// </summary>
-        public static Text CreatePartsBadge(Transform parent, string name)
+        public static Text CreateScrapsBadge(Transform parent, string name)
         {
             var rt = CreateRect(parent, name);
             rt.anchorMin = new Vector2(1f, 0.5f);

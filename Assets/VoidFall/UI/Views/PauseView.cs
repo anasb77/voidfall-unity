@@ -63,7 +63,7 @@ namespace VoidFall.UI
             _time = UIBuilder.CreateMetricTile(grid, "Time", "Time", "0:00");
             _kills = UIBuilder.CreateMetricTile(grid, "Kills", "Kills", "0");
             _level = UIBuilder.CreateMetricTile(grid, "Level", "Level", "1");
-            _parts = UIBuilder.CreateMetricTile(grid, "Parts", "Parts", "+0");
+            _parts = UIBuilder.CreateMetricTile(grid, "Parts", "Scraps", "+0");
             _bosses = UIBuilder.CreateMetricTile(grid, "Bosses", "Bosses", "0");
         }
 

@@ -21,6 +21,7 @@ namespace VoidFall.UI
         private Text _workshopDetail;
         private Text _recordsDetail;
         private Text _arenaName;
+        private Text _formValue;
 
         protected override void Build()
         {
@@ -42,6 +43,8 @@ namespace VoidFall.UI
             cursor += 11f;
             cursor += BuildNavGrid(content, cursor);
             cursor += 12f;
+            cursor += BuildFormSelector(content, cursor);
+            cursor += 10f;
             BuildArenaSelector(content, cursor);
 
             content.sizeDelta = new Vector2(ContentWidth, cursor + 40f);
@@ -170,7 +173,7 @@ namespace VoidFall.UI
 
             _bestScoreValue = BuildStatusCell(row, "BestScore", "trophy", "Best score", "0");
             BuildStatusDivider(row, "DividerA");
-            _partsValue = BuildStatusCell(row, "Parts", "coins", "Parts", "0");
+            _partsValue = BuildStatusCell(row, "Parts", "coins", "Scraps", "0");
             BuildStatusDivider(row, "DividerB");
             _runsValue = BuildStatusCell(row, "Runs", "skull", "Runs", "0");
             return height;
@@ -249,7 +252,7 @@ namespace VoidFall.UI
             var cellWidth = (ContentWidth - 20f) / 3f;
             UIBuilder.AddGrid(grid, new Vector2(cellWidth, height), new Vector2(10f, 10f), 3);
 
-            BuildNavCard(grid, "Workshop", "wrench", "Workshop", "0 Parts",
+            BuildNavCard(grid, "Workshop", "wrench", "Workshop", "0 Scraps",
                 () => Callbacks?.OpenWorkshop?.Invoke(), out _workshopDetail);
             BuildNavCard(grid, "Records", "trophy", "Records", "0 runs",
                 () => Callbacks?.OpenRecords?.Invoke(), out _recordsDetail);
@@ -285,6 +288,44 @@ namespace VoidFall.UI
                 if (child == null) continue;
                 child.offsetMin = new Vector2(42f, child.offsetMin.y);
             }
+        }
+
+        /// <summary>
+        /// The form selector, styled after the arena selector: a quiet footer
+        /// row cycling only the unlocked forms (spec §05). The runtime skips
+        /// locked entries, so the shown form is always playable.
+        /// </summary>
+        private float BuildFormSelector(RectTransform parent, float top)
+        {
+            var row = Place(parent, "FormSelector", top, 34f);
+
+            var prev = UIBuilder.CreateIconButton(row, "PrevForm", "\u25C0",
+                () => Callbacks?.PrevForm?.Invoke(), 28f);
+            var prevRect = prev.GetComponent<RectTransform>();
+            prevRect.anchorMin = new Vector2(0.5f, 0.5f);
+            prevRect.anchorMax = new Vector2(0.5f, 0.5f);
+            prevRect.anchoredPosition = new Vector2(-104f, 0f);
+
+            _formValue = UIBuilder.CreateText(
+                row,
+                "FormName",
+                "Default",
+                11f,
+                UITheme.CyanLabel,
+                TextAnchor.MiddleCenter,
+                true,
+                FontStyle.Bold,
+                0.16f);
+            _formValue.rectTransform.offsetMin = new Vector2(140f, 0f);
+            _formValue.rectTransform.offsetMax = new Vector2(-140f, 0f);
+
+            var next = UIBuilder.CreateIconButton(row, "NextForm", "\u25B6",
+                () => Callbacks?.NextForm?.Invoke(), 28f);
+            var nextRect = next.GetComponent<RectTransform>();
+            nextRect.anchorMin = new Vector2(0.5f, 0.5f);
+            nextRect.anchorMax = new Vector2(0.5f, 0.5f);
+            nextRect.anchoredPosition = new Vector2(104f, 0f);
+            return 34f;
         }
 
         /// <summary>
@@ -333,7 +374,7 @@ namespace VoidFall.UI
             // raw Text.text assignment.
             UIBuilder.SetText(_partsValue, FormatNumber(parts));
             UIBuilder.SetText(_bestScoreValue, FormatNumber(bestScore));
-            UIBuilder.SetText(_workshopDetail, FormatNumber(parts) + " Parts");
+            UIBuilder.SetText(_workshopDetail, FormatNumber(parts) + " Scraps");
             UIBuilder.SetText(_arenaName, (arenaName ?? "Abyss").ToUpperInvariant());
         }
 
@@ -342,6 +383,15 @@ namespace VoidFall.UI
         {
             UpdateProfile(profile.Parts, profile.BestScore, profile.ArenaName);
             UIBuilder.SetText(_runsValue, FormatNumber(profile.TotalRuns));
+            if (_formValue != null)
+            {
+                var locked = !profile.FormUnlocked;
+                var label = locked && !string.IsNullOrEmpty(profile.FormHint)
+                    ? profile.FormName + " — LOCKED · " + profile.FormHint
+                    : profile.FormName;
+                UIBuilder.SetText(_formValue, ("Form · " + label).ToUpperInvariant());
+                _formValue.color = locked ? UITheme.TextInactive : UITheme.CyanLabel;
+            }
             UIBuilder.SetText(_recordsDetail, FormatNumber(profile.TotalRuns) + " runs");
         }
     }

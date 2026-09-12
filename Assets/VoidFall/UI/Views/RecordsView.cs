@@ -62,6 +62,7 @@ namespace VoidFall.UI
                 "Local profile",
                 "Records",
                 () => Callbacks?.CloseMenuPage?.Invoke(),
+                out _,
                 out _);
 
             _content = UIBuilder.CreateScrollView(area, "Scroll", out _);
@@ -89,7 +90,7 @@ namespace VoidFall.UI
             AddMetric(grid, "bosses", "Bosses");
             AddMetric(grid, "elites", "Elites");
             AddMetric(grid, "totalTime", "Total time");
-            AddMetric(grid, "parts", "Parts earned");
+            AddMetric(grid, "parts", "Scraps earned");
             AddMetric(grid, "bestKills", "Best kills");
             AddMetric(grid, "bestLevel", "Best level");
             AddMetric(grid, "damageDealt", "Damage dealt");

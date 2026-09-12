@@ -146,7 +146,7 @@ namespace VoidFall.Core
     }
 
     /// <summary>
-    /// Boss Roulette ceremony rules: the wedge table, the two Parts purchases,
+    /// Boss Roulette ceremony rules: the wedge table, the two Scraps purchases,
     /// the Void's refund roll, and the weighted landing sample.
     ///
     /// Integrity rule (spec 43.3): the result is sampled once, up front, from
@@ -176,22 +176,22 @@ namespace VoidFall.Core
         /// <summary>Each purchase type may be used at most this many times per ceremony.</summary>
         public const int MaxUsesPerPurchase = 2;
 
-        /// <summary>Base Parts cost; each additional use of the same purchase doubles it.</summary>
+        /// <summary>Base Scraps cost; each additional use of the same purchase doubles it.</summary>
         public const int ImproveOddsBaseCost = 25;
         public const int RaiseStakesBaseCost = 40;
 
         public static readonly string[] RefundLines =
         {
-            "The Void is amused by your courage. Your Parts have been returned.",
+            "The Void is amused by your courage. Your Scraps have been returned.",
             "The wager pleases the Void. No tribute required.",
-            "Something beyond the veil laughs. Your Parts return.",
+            "Something beyond the veil laughs. Your Scraps return.",
             "The Void accepts your audacity. Keep your offering.",
             "Fortune bends. The price is forgiven.",
         };
 
         /// <summary>
         /// The prototype wedge table. Deliberately mixed quality: mediocre
-        /// wedges must be visible for the Parts purchases to matter. Weights
+        /// wedges must be visible for the Scraps purchases to matter. Weights
         /// are relative, not percentages.
         /// </summary>
         public static RouletteWedgeDefinition[] DefaultTable()
@@ -199,7 +199,7 @@ namespace VoidFall.Core
             return new RouletteWedgeDefinition[]
             {
                 new RouletteWedgeDefinition(RoulettePrizeKind.Parts, RouletteTier.Mediocre,
-                    16, "PARTS CACHE", "A modest pile of Parts.", "#7f8ea8"),
+                    16, "SCRAPS CACHE", "A modest pile of Scraps.", "#7f8ea8"),
                 new RouletteWedgeDefinition(RoulettePrizeKind.UpgradeRandomOwned, RouletteTier.Standard,
                     20, "RANDOM UPGRADE", "A random owned card gains a rank.", "#4fc3f7"),
                 new RouletteWedgeDefinition(RoulettePrizeKind.NewRandomCard, RouletteTier.Standard,

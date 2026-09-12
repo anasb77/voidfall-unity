@@ -41,7 +41,7 @@ namespace VoidFall.Core
         {
             switch (wedge.Kind)
             {
-                case RoulettePrizeKind.Parts: return "+" + RouletteRules.PartsReward(wedge.Tier) + " Parts for the Workshop";
+                case RoulettePrizeKind.Parts: return "+" + RouletteRules.PartsReward(wedge.Tier) + " Scraps for the Workshop";
                 case RoulettePrizeKind.UpgradeRandomOwned: return "+1 rank to a random owned card";
                 case RoulettePrizeKind.NewRandomCard: return "A random unowned weapon or support, rank 1";
                 case RoulettePrizeKind.WeaponUpgradeQuality: return "+2 ranks to a random owned weapon";
@@ -74,9 +74,9 @@ namespace VoidFall.Core
             {
                 case RoulettePrizeKind.UpgradeRandomOwned:
                 case RoulettePrizeKind.WeaponUpgradeQuality:
-                case RoulettePrizeKind.SupportUpgradeQuality: return "Ranks stop at the cap. No eligible card: +40 Parts.";
-                case RoulettePrizeKind.NewRandomCard: return "Every card owned: +40 Parts instead.";
-                case RoulettePrizeKind.WildCard: return "Every Wild Card held: +80 Parts and 750 score.";
+                case RoulettePrizeKind.SupportUpgradeQuality: return "Ranks stop at the cap. No eligible card: +40 Scraps.";
+                case RoulettePrizeKind.NewRandomCard: return "Every card owned: +40 Scraps instead.";
+                case RoulettePrizeKind.WildCard: return "Every Wild Card held: +80 Scraps and 750 score.";
                 default: return string.Empty;
             }
         }

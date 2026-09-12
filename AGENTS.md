@@ -36,6 +36,9 @@ Workshop direction: **retain the existing Workshop and its upgrade artwork**.
 Its purpose is permanent meta progression with visible changes to Zack, as
 well as stat benefits. Purchased ranks must appear on the next run's character
 at the scale shown by the existing preview; refunds must remove them.
+The currency displays as **Scraps** in every player-facing string; serialized
+save keys intentionally remain `parts`/`totalPartsEarned` for save
+compatibility, so rename display text and identifiers, never schema names.
 The browser studies (evolving bodies, specialized frames, modules, Iris,
 Instinct and Fragments) were exploration, not approved replacement designs.
 Do not infer additional Zack lore or a recovery/corruption arc from those studies.

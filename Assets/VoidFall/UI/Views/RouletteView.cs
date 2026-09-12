@@ -68,7 +68,7 @@ namespace VoidFall.UI
             _improveOddsButton = MakeButton(_content, "Improve Odds", -130, -367, 190.8f, 51.6f, false, OnImproveOdds, out var improveTitle);
             improveTitle.rectTransform.anchoredPosition = new Vector2(0, 16);
             improveTitle.fontSize = 13;
-            _improveDetail = Label(_improveOddsButton.transform, "Effect", "Cache: 60 → 90 Parts", 0, 0, 178, 16, 11, Muted);
+            _improveDetail = Label(_improveOddsButton.transform, "Effect", "Cache: 60 → 90 Scraps", 0, 0, 178, 16, 11, Muted);
             _improveOddsCostLabel = Label(_improveOddsButton.transform, "Cost", string.Empty, 0, -16, 178, 16, 11, RouletteWheelGraphic.Gold);
             _raiseStakesButton = MakeButton(_content, "Raise Stakes", 130, -367, 190.8f, 51.6f, false, OnRaiseStakes, out var raiseTitle);
             raiseTitle.rectTransform.anchoredPosition = new Vector2(0, 16);
@@ -219,16 +219,16 @@ namespace VoidFall.UI
         {
             if (_session == null) return;
             var parts = _availableParts - _session.PartsSpent + _session.PartsRefunded;
-            _partsLabel.text = "PARTS  " + parts;
+            _partsLabel.text = "SCRAPS  " + parts;
             var improveCost = RouletteRules.ImproveOddsCost(_session.ImproveOddsUses);
             var raiseCost = RouletteRules.RaiseStakesCost(_session.RaiseStakesUses);
             var canImprove = RouletteRules.CanImproveOdds(_session.Wedges) && _session.ImproveOddsUses < RouletteRules.MaxUsesPerPurchase;
             _improveOddsButton.interactable = !_rewardsOpen && _stage == Stage.Choosing && canImprove && parts >= improveCost;
-            _improveOddsCostLabel.text = !canImprove ? "ALREADY IMPROVED" : parts < improveCost ? "NEED " + improveCost + " PARTS" : improveCost + " PARTS";
-            _improveDetail.text = canImprove ? "Cache: 60 → 90 Parts" : "Cache: 90 Parts";
+            _improveOddsCostLabel.text = !canImprove ? "ALREADY IMPROVED" : parts < improveCost ? "NEED " + improveCost + " SCRAPS" : improveCost + " SCRAPS";
+            _improveDetail.text = canImprove ? "Cache: 60 → 90 Scraps" : "Cache: 90 Scraps";
             var capped = _session.RaiseStakesUses >= RouletteRules.MaxUsesPerPurchase;
             _raiseStakesButton.interactable = !_rewardsOpen && _stage == Stage.Choosing && !capped && parts >= raiseCost;
-            _raiseStakesCostLabel.text = capped ? "MAXIMUM STAKES" : parts < raiseCost ? "NEED " + raiseCost + " PARTS" : raiseCost + " PARTS";
+            _raiseStakesCostLabel.text = capped ? "MAXIMUM STAKES" : parts < raiseCost ? "NEED " + raiseCost + " SCRAPS" : raiseCost + " SCRAPS";
             var before = LegendaryChance(_session.Wedges);
             var after = capped ? before : LegendaryChance(RouletteRules.ApplyRaiseStakes(_session.Wedges));
             _raiseDetail.text = "Legendary: " + before.ToString("0.#") + "%" + (capped ? string.Empty : " → " + after.ToString("0.#") + "%");
@@ -250,7 +250,7 @@ namespace VoidFall.UI
             if (!RouletteRules.Purchase(_session, improve, _availableParts - _session.PartsSpent + _session.PartsRefunded, _rng, out _, out var refund)) return;
             RebuildMarkers();
             RefreshWagerUi();
-            _statusLabel.text = refund ?? (improve ? "Parts cache upgraded. The weakest outcome is now worth 90 Parts." : "Legendary segments expanded. These are your new chances.");
+            _statusLabel.text = refund ?? (improve ? "Scraps cache upgraded. The weakest outcome is now worth 90 Scraps." : "Legendary segments expanded. These are your new chances.");
             WagerChanged?.Invoke();
         }
 
@@ -347,7 +347,7 @@ namespace VoidFall.UI
         {
             switch (kind)
             {
-                case RoulettePrizeKind.Parts: return "PARTS";
+                case RoulettePrizeKind.Parts: return "SCRAPS";
                 case RoulettePrizeKind.UpgradeRandomOwned: return "UPGRADE";
                 case RoulettePrizeKind.NewRandomCard: return "ARSENAL";
                 case RoulettePrizeKind.WeaponUpgradeQuality: return "WEAPON";

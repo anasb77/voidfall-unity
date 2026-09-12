@@ -109,6 +109,12 @@ namespace VoidFall.Persistence
         public RunRecordEntry[] recentRuns = Array.Empty<RunRecordEntry>();
         public BestiaryEntry[] bestiary = Array.Empty<BestiaryEntry>();
         public string arena = "void";
+        // Player forms (spec §05). Stored separately from the shared Workshop
+        // ranks; missing fields on legacy saves deserialize to the defaults,
+        // which keep those profiles on the original form with only it unlocked.
+        public string form = PlayerForms.DefaultId;
+        public string[] unlockedForms = { PlayerForms.DefaultId };
+        public string[] voidsCleared = Array.Empty<string>();
     }
 
     public sealed class SaveStore
@@ -534,6 +540,9 @@ namespace VoidFall.Persistence
             result.recentRuns = SanitizeRecentRuns(result.recentRuns);
             result.bestiary = SanitizeBestiary(result.bestiary);
             result.arena = IsArena(result.arena) ? result.arena : "void";
+            result.form = PlayerForms.NormaliseId(result.form);
+            result.unlockedForms = SanitizeFormIds(result.unlockedForms, knownOnly: true, alwaysInclude: PlayerForms.DefaultId);
+            result.voidsCleared = SanitizeFormIds(result.voidsCleared, knownOnly: false, alwaysInclude: null);
             foreach (var score in result.highScores)
             {
                 if (score == null) continue;
@@ -553,6 +562,29 @@ namespace VoidFall.Persistence
                 if (entry != null && entry.id == "protocol") rank = Math.Max(rank, entry.rank);
             }
             return ClampInt(rank, 0, WorkshopMaxRank);
+        }
+
+        /// <summary>
+        /// Deduplicates a stored id list. Form unlock lists keep only known
+        /// form ids and always contain the default; the distinct-Void list
+        /// accepts any non-empty arena id and is bounded.
+        /// </summary>
+        private static string[] SanitizeFormIds(string[] source, bool knownOnly, string alwaysInclude)
+        {
+            var cleaned = new List<string>();
+            foreach (var id in source ?? Array.Empty<string>())
+            {
+                if (string.IsNullOrEmpty(id)) continue;
+                if (knownOnly && !PlayerForms.IsKnown(id)) continue;
+                if (cleaned.Count >= 64) break;
+                if (cleaned.IndexOf(id) >= 0) continue;
+                cleaned.Add(id);
+            }
+            if (!string.IsNullOrEmpty(alwaysInclude) && cleaned.IndexOf(alwaysInclude) < 0)
+            {
+                cleaned.Insert(0, alwaysInclude);
+            }
+            return cleaned.ToArray();
         }
 
         private void BackupCorruptFile(string raw, string reason)

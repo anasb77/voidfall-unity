@@ -173,7 +173,7 @@ namespace VoidFall.UI
         /// <summary>#facc15 - gold, the overclock meter fill.</summary>
         public static readonly Color Gold = Hex("#facc15");
 
-        /// <summary>#fde68a - parts balance and the "new best" badge.</summary>
+        /// <summary>#fde68a - Scraps balance and the "new best" badge.</summary>
         public static readonly Color GoldLight = Hex("#fde68a");
 
         /// <summary>#ef4444 - boss health and the armed reset border.</summary>
@@ -325,7 +325,7 @@ namespace VoidFall.UI
         /// <summary>rgba(100, 116, 139, 0.28) - empty rank pip.</summary>
         public static readonly Color PipEmpty = Rgba(100, 116, 139, 0.28f);
 
-        /// <summary>rgba(250, 204, 21, 0.22) - parts balance border.</summary>
+        /// <summary>rgba(250, 204, 21, 0.22) - Scraps balance border.</summary>
         public static readonly Color BorderParts = Rgba(250, 204, 21, 0.22f);
 
         /// <summary>rgba(250, 204, 21, 0.32) - new-best badge border.</summary>
@@ -368,7 +368,7 @@ namespace VoidFall.UI
         /// <summary>rgba(30, 41, 59, 0.18) - disabled buy fill.</summary>
         public static readonly Color BuyFillDisabled = Rgba(30, 41, 59, 0.18f);
 
-        /// <summary>rgba(113, 63, 18, 0.14) - parts balance fill.</summary>
+        /// <summary>rgba(113, 63, 18, 0.14) - Scraps balance fill.</summary>
         public static readonly Color PartsFill = Rgba(113, 63, 18, 0.14f);
 
         /// <summary>rgba(113, 63, 18, 0.18) - new-best badge fill.</summary>

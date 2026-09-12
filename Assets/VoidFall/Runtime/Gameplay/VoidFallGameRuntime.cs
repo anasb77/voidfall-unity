@@ -733,6 +733,7 @@ namespace VoidFall.Runtime
         private int _level;
         private int _pistolRank;
         private int _calibrationRank;
+        private string _formId = PlayerForms.DefaultId;
         private UpgradeProgress _upgradeProgress;
         private UpgradeOptionDefinition[] _levelOptions;
         private int _rerollsRemaining;
@@ -1102,6 +1103,8 @@ namespace VoidFall.Runtime
 
                 PrevArena = CyclePrevArenaFromUi,
                 NextArena = CycleNextArenaFromUi,
+                PrevForm = CyclePrevFormFromUi,
+                NextForm = CycleNextFormFromUi,
 
                 BuyWorkshop = TryBuyWorkshopFromUi,
                 PreviewWorkshop = id => _workshopPreviewId = id,
@@ -1905,6 +1908,9 @@ namespace VoidFall.Runtime
             _stressScenario = null;
             _stressTopUpTimer = 0;
             _runSeed = SelectRunSeed();
+            // The selected form is fixed for the whole run: starting weapon,
+            // base health and movement all resolve from it below.
+            _formId = PlayerForms.NormaliseId(_saveData?.form);
             _gameSim.Rng = new Rng(_runSeed);
             _gameSim.ResetMeteorIdentityForRun();
             _fxSim.FxRng = new Rng(_runSeed ^ 0xa5a5a5a5u);
@@ -2069,7 +2075,7 @@ namespace VoidFall.Runtime
             _gameSim.Player.Velocity = Vector2.zero;
             _cameraFollowPosition = Vector2.zero;
             RefreshWorkshopCosmeticRanks();
-            _gameSim.Player.MaxHealth = (float)ContentCatalog.Operative.MaxHealth + _workshopIntegrity * 5;
+            _gameSim.Player.MaxHealth = (float)PlayerForms.BaseMaxHealth(_formId) + _workshopIntegrity * 5;
             _gameSim.Player.Health = _gameSim.Player.MaxHealth;
             _healthGhostFraction = 1f;
             _gameSim.Player.Iframes = 0;
@@ -2119,9 +2125,11 @@ namespace VoidFall.Runtime
             _level = 1;
             _xpNeed = BalanceRules.XpNeededForLevel(_level);
             _upgradeProgress = new UpgradeProgress();
-            var startingWeaponIndex = UpgradeRules.StartingWeaponIndex();
+            // The form's own starter weapon is granted here at rank I; its
+            // base health and movement apply in RecalculatePlayerStats below.
+            var startingWeaponIndex = UpgradeRules.StartingWeaponIndex(PlayerForms.StartingWeapon(_formId));
             if (startingWeaponIndex < 0)
-                throw new InvalidOperationException("Operative starting weapon is missing from the generated catalog.");
+                throw new InvalidOperationException("Form starting weapon is missing from the generated catalog.");
             _upgradeProgress.WeaponRanks[startingWeaponIndex] = 1;
             _lastLoadoutHudText = null;
             _nextLoadoutHudRefresh = 0;
@@ -2133,9 +2141,13 @@ namespace VoidFall.Runtime
             _rouletteRng = null;
             _activeWildCards.Clear();
             _standstillSeconds = 0;
-            _pistolRank = 1;
+            _pistolRank = _upgradeProgress.WeaponRanks[0];
             _calibrationRank = 0;
             RecalculatePlayerStats(false);
+            // Forms change the base between runs, so full health is restored
+            // after the recalculation, not from the previous run's maximum.
+            _gameSim.Player.Health = _gameSim.Player.MaxHealth;
+            _healthGhostFraction = 1f;
             _kills = 0;
             _eliteKills = 0;
             _bossKills = 0;
@@ -3256,7 +3268,9 @@ namespace VoidFall.Runtime
                     killedByName: killerName,
                     killedByDetail: killerDetail,
                     killedByGlyph: killerGlyph,
-                    killedByColor: killerColor);
+                    killedByColor: killerColor,
+                    formName: PlayerForms.Form(_formId).Name,
+                    starterName: UpgradeRules.WeaponDisplayName(PlayerForms.StartingWeapon(_formId)));
                 _ui.GameOver?.Show(summary);
             }
         }
@@ -3412,7 +3426,10 @@ namespace VoidFall.Runtime
             }
             if (expandedWeaponSlots)
             {
-                ShowArenaToast("Fourth weapon slot unlocked", 2.5f, ToastKind.Reward);
+                ShowArenaToast(
+                    OrdinalSlotName(UpgradeRules.ExpandedWeaponSlots) + " weapon slot unlocked",
+                    2.5f,
+                    ToastKind.Reward);
                 SpawnRingWave(_gameSim.Player.Position, 16f, 360f, 0.46f,
                     new Color(0.133f, 0.827f, 0.933f, 0.8f));
                 BurstFx(_gameSim.Player.Position, SourceDotColor("cyan"),
@@ -3439,6 +3456,23 @@ namespace VoidFall.Runtime
             // non-evolution choice after the upgrade is committed.
             if (option.Kind != UpgradeOptionKind.Evolution)
                 _audio?.Play(ProceduralAudio.Cue.Pickup, 1f);
+        }
+
+        /// <summary>
+        /// Spells the unlocked slot number so the toast follows the arsenal
+        /// constants instead of a hard-coded word.
+        /// </summary>
+        private static string OrdinalSlotName(int slot)
+        {
+            switch (slot)
+            {
+                case 2: return "Second";
+                case 3: return "Third";
+                case 4: return "Fourth";
+                case 5: return "Fifth";
+                case 6: return "Sixth";
+                default: return "Extra";
+            }
         }
 
         private void RerollLevelOptions()
@@ -3495,13 +3529,19 @@ namespace VoidFall.Runtime
         {
             var plating = SupportRank("plating");
             var frame = LateRank("frame");
-            _gameSim.Player.MaxHealth = (float)ContentCatalog.Operative.MaxHealth + _workshopIntegrity * 5 + plating * 20 + frame * 8;
+            // The form supplies the base; every recalculation preserves it
+            // (spec §05). The default form defers to the Operative entry, so
+            // legacy profiles keep their exact numbers.
+            _gameSim.Player.MaxHealth = (float)PlayerForms.BaseMaxHealth(_formId) + _workshopIntegrity * 5 + plating * 20 + frame * 8;
             _damageMultiplier = Mathf.Pow(1.12f, SupportRank("calibration")) *
                 (1 + _workshopPower * 0.04f) * Mathf.Pow(1.05f, LateRank("output"));
             _cooldownMultiplier = Mathf.Pow(0.92f, SupportRank("cycling")) *
                 Mathf.Pow(0.97f, LateRank("cooling")) *
                 (1f - WorkshopRank("arsenal") * 0.03f);
-            _moveSpeedMultiplier = Mathf.Pow(1.08f, SupportRank("mobility")) *
+            // The form's movement factor is applied once, alongside the
+            // normal support and Workshop buffs.
+            _moveSpeedMultiplier = PlayerForms.MoveSpeedMultiplier(_formId) *
+                Mathf.Pow(1.08f, SupportRank("mobility")) *
                 (1 + _workshopMobility * 0.03f);
             _pickupRadius = (float)ContentCatalog.Operative.PickupRadius *
                 Mathf.Pow(1.25f, SupportRank("collector"));

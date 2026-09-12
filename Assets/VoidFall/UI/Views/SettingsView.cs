@@ -60,17 +60,18 @@ namespace VoidFall.UI
         {
             UIBuilder.CreateScrim(Root, "Blocker", new Color(0f, 0f, 0f, 0.0001f));
 
-            var area = UIBuilder.CreateProfilePanel(
+            var content = UIBuilder.CreateProfilePanel(
                 Root,
                 "Panel",
                 new Vector2(837f, 891f),
                 "Local preferences",
                 "Settings",
                 () => Callbacks?.CloseMenuPage?.Invoke(),
-                out _);
-            _panel = area;
+                out _,
+                out var panelRoot);
+            _panel = panelRoot;
 
-            _content = UIBuilder.CreateScrollView(area, "Scroll", out _);
+            _content = UIBuilder.CreateScrollView(content, "Scroll", out _);
             UIBuilder.AddVerticalLayout(_content, 12f, new RectOffset(0, 0, 8, 8));
 
             AddSlider("master", "Master volume", 0f, 1f, v => Callbacks?.SetMasterVolume?.Invoke(v), FormatPercent);

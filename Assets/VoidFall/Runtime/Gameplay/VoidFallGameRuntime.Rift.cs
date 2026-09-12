@@ -80,6 +80,8 @@ namespace VoidFall.Runtime
         {
             if (_voidRoute == null || _gameOver || _stressScenario != null) return;
             if (!_voidRoute.NotifyVoidCompleted(_voidRoute.CurrentVoidId)) return;
+            // A cleared Void also advances the form unlock gates (spec §05).
+            RecordVoidClearedForForms();
             var completedName = _voidRoute.Node(_voidRoute.CurrentVoidId).DisplayName.ToUpperInvariant();
             Debug.Log($"VOIDFLOW objective-complete void={_voidRoute.CurrentVoidId} t={_time:F1}");
             _objectiveLine = completedName + " COMPLETE";
