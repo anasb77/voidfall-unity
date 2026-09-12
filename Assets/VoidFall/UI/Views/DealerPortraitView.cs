@@ -14,7 +14,9 @@ namespace VoidFall.UI
         private static readonly float[] Depth = { 1, 1.65f, 1.8f, 1.55f, 2.5f, 2.1f, 1.2f, .45f };
         private static string[] _rows;
         private static Font _font;
-        private const int AtlasSize = 64;
+        // Rasterize near the displayed size, as the browser does. Shrinking a 64px
+        // atlas made the hair into thin wire outlines instead of dense hinted glyphs.
+        private const int AtlasSize = 12;
         private const string Glyphs = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
         private static readonly Color32[] Tones = {
             new Color32(154,163,168,255), new Color32(217,223,226,255), new Color32(217,223,226,255),
@@ -61,8 +63,7 @@ namespace VoidFall.UI
         protected override void OnPopulateMesh(VertexHelper mesh)
         {
             mesh.Clear(); if (_font == null || _fontSize <= 0) return;
-            _font.GetCharacterInfo('M', out var mono, AtlasSize);
-            var unit = _fontSize / AtlasSize; var advance = mono.advance * unit;
+            var unit = _fontSize / AtlasSize; var advance = _fontSize * .5498f;
             var origin = new Vector2(-advance * 32, rectTransform.rect.yMax - _fontSize * .86f);
             var breath = _reduced ? 0 : Mathf.Sin(_phase);
             var pivot = new Vector2(0, rectTransform.rect.yMax - 34 * _fontSize * 1.12f * .85f);
