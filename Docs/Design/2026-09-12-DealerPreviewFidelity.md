@@ -43,3 +43,21 @@ labels hidden. Promotion hashes are recorded in
 Canonical build remains `../Builds/VoidFall.exe`; no extra permanent build entry
 point is introduced. Old player payload is retained in
 `../Builds/Archive/2026-09-12-before-dealer-fidelity/` after validation.
+
+## Owner follow-up: float beyond the platform
+
+Removed the circled upper-left heading and bottom-left movement help. The owner
+confirmed occasional lower appearances should remain. The platform is reframed
+to leave empty space on the selected side; the face stays beyond its edge with
+no floor shadow. Browse anchors remain reachable from the legal walking area,
+and the prompt occupies the gap without overlapping Zack.
+
+Face breathing, hair, head/gaze and hover run at 1.3 times their former speed.
+The same four appearances and reduced-motion preference remain.
+
+Build source `031fded`; GUID `dd1196b6d74b4f0db0502ffa8172dc9a`.
+26/26 dealer/journey tests passed (`Logs/dealer-floating-playmode.xml`). Native
+captures and purchase/assembly verification passed in
+`Logs/DealerFloating/FinalPlayer`, including browsing from the legal lower edge.
+The previous player is preserved in
+`../Builds/Archive/2026-09-12-before-floating-dealer/`.
