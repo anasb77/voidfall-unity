@@ -163,7 +163,7 @@ namespace VoidFall.Runtime
                 _junctionPortals[i].enabled = false; _junctionLabels[i].gameObject.SetActive(false);
             }
             _dealerRoom.Draw(_gameSim.Player.Position, _dealerPosition, _dealerVariation,
-                Time.unscaledTime < _dealerSmileUntil, reduced, CanOpenDealer && !_dealerOpen,
+                Time.unscaledTime < _dealerSmileUntil, reduced, CanOpenDealer && !_dealerOpen, _dealerOpen,
                 _partsEarned, _voidRoute.Node(CurrentVoidId).DisplayName, names, colors, frames, _dealerRoomClock);
             _dealerRoom.PresentPlayer(_playerAuraView); _dealerRoom.PresentPlayer(_playerRingView);
             if (_playerTrailViews != null) foreach (var view in _playerTrailViews) _dealerRoom.PresentPlayer(view);

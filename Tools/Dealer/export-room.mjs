@@ -18,7 +18,8 @@ let edges='';
 for(const d of ['M188 504L275 362','M293 622L446 677','M773 677L922 628','M952 374L1023 501'])edges+=`<path d="${d}" stroke="#65b9c9" stroke-opacity=".2" stroke-width="2"/>`;
 await fs.writeFile(path.join(here,'reference/room.svg'),svg(1200,760,defs+`<circle cx="600" cy="395" r="420" fill="url(#haze)"/><polygon transform="translate(0 18)" points="${floor}" fill="#020408" stroke="#1b2b35" stroke-opacity=".267"/><polygon points="${floor}" fill="url(#ground)" stroke="#496a79" stroke-opacity=".294" stroke-width="1.1"/><g clip-path="url(#floor)">${details}</g>${edges}`));
 await sharp(path.join(here,'reference/room.svg')).png().toFile(path.join(output,'room-floor.png'));
-let rings='<defs><filter id="mist" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10"/></filter></defs>';
+// Precompose the mist in sRGB: Unity's linear alpha blend otherwise amplifies these very faint arcs.
+let rings='<rect width="1400" height="1400" fill="#05070c"/><defs><filter id="mist" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10"/></filter></defs>';
 const arc=(r,a,b)=>`M${700+Math.cos(a)*r} ${700+Math.sin(a)*r}A${r} ${r} 0 0 1 ${700+Math.cos(b)*r} ${700+Math.sin(b)*r}`;
 for(let ring=0;ring<5;ring++){
  const radius=255+ring*88,start=ring*1.7,d=arc(radius,start,start+2.15),width=8+ring*4;
@@ -26,5 +27,5 @@ for(let ring=0;ring<5;ring++){
 }
 await sharp(Buffer.from(svg(1400,1400,rings))).png().toFile(path.join(output,'room-rings.png'));
 await sharp(Buffer.from(svg(240,100,'<defs><filter id="blur"><feGaussianBlur stdDeviation="7"/></filter></defs><ellipse cx="120" cy="50" rx="53" ry="10" fill="#000" opacity=".45" filter="url(#blur)"/><ellipse cx="120" cy="50" rx="50" ry="9" fill="#000" opacity=".66"/>'))).png().toFile(path.join(output,'room-shadow.png'));
-await sharp(Buffer.from(svg(300,300,'<defs><radialGradient id="g"><stop stop-color="white" stop-opacity=".125"/><stop offset="1" stop-color="white" stop-opacity="0"/></radialGradient></defs><circle cx="150" cy="150" r="135" fill="url(#g)"/><ellipse cx="150" cy="211" rx="76" ry="17" fill="#000" opacity=".6"/><ellipse cx="150" cy="210" rx="80" ry="21" fill="none" stroke="white" stroke-opacity=".208"/>'))).png().toFile(path.join(output,'room-portal-pad.png'));
+await sharp(Buffer.from(svg(300,300,'<defs><radialGradient id="g"><stop stop-color="#666666" stop-opacity=".125"/><stop offset="1" stop-color="#666666" stop-opacity="0"/></radialGradient></defs><circle cx="150" cy="150" r="135" fill="url(#g)"/><ellipse cx="150" cy="211" rx="76" ry="17" fill="#000" opacity=".6"/><ellipse cx="150" cy="210" rx="80" ry="21" fill="none" stroke="#666666" stroke-opacity=".208"/>'))).png().toFile(path.join(output,'room-portal-pad.png'));
 console.log('Exported approved crossing floor, mist rings, hovering shadow and portal pads.');

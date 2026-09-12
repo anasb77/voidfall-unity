@@ -312,11 +312,18 @@ fragment saving. Closing/reopening never regenerates the session. One offer
 can be purchased per crossing; ordinary spending uses the run wallet.
 
 `UI/Views/DealerView.cs` provides cards/icons/puzzle art and prices;
-`DealerPortraitView.cs` renders the shared ASCII face in separate hair/feature
-layers. `Resources/VoidFall/Dealer/` is exported by `Tools/Dealer/export-art.mjs`
-from the approved reference snapshot. The importer preserves transparent NPOT
-art. World crossing layers temporarily raise Zack and Workshop cosmetics,
-then restore their original sorting orders on departure.
+`DealerPortraitView.cs` renders CSS-sized glyph quads with the preview's fixed
+1.12 line spacing, feature colors and individual hair-strand offsets; it must
+not inherit UITheme's general text scaling. `DealerRoomView.cs` preserves the
+preview's 1200x760 composition on a screen-space stage, unaffected by the combat
+camera's zoom or post effects. Its native interaction coordinates map preview
+pixels through `(x-600, 380-y)`. Existing destination sprites and Zack's current
+Workshop artwork are presented over the shared floor; the route graph still
+owns actual destination names and colors.
+
+`Resources/VoidFall/Dealer/` is exported by `Tools/Dealer/export-art.mjs` and
+`Tools/Dealer/export-room.mjs` from approved references. The importer preserves
+transparent NPOT art; the room textures retain their authored resolution.
 
 Runtime `.Legendaries.cs` owns a separate manual slot, keyed hit cooldowns,
 held-input cancellation, waveform/rifle rendering and shared damage calls.
