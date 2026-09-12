@@ -5,6 +5,11 @@ change. This is a navigation aid, not a claim that every planned feature is
 implemented. All paths below are relative to **`Assets/VoidFall/`**, except
 paths explicitly starting with `Assets/`, `Docs/`, `Packages/` or `.github/`.
 
+Canonical source: this `voidfall-unity` project. Canonical player:
+`../Builds/VoidFall.exe`; launch instructions: `../START_HERE.md`. Sibling source
+worktrees and `../Builds/Archive/` are recovery references. Source provenance is
+recorded in `Docs/Design/2026-09-12-Consolidation.md`.
+
 ## Character identity and visual references
 
 **Owner-established context:** the blue player eye belongs to **Zack Hazard**,
@@ -313,11 +318,11 @@ can be purchased per crossing; ordinary spending uses the run wallet.
 
 `UI/Views/DealerView.cs` provides cards/icons/puzzle art and prices;
 `DealerPortraitView.cs` renders CSS-sized glyph quads with the preview's fixed
-1.12 line spacing, feature colors and individual hair-strand offsets; it must
-not inherit UITheme's general text scaling. `DealerRoomView.cs` preserves the
-preview's 1200x760 composition on a screen-space stage, unaffected by the combat
-camera's zoom or post effects. Its native interaction coordinates map preview
-pixels through `(x-600, 380-y)`. Existing destination sprites and Zack's current
+1.12 line spacing, small-font hinting, feature colors and individual hair-strand
+offsets; it must not inherit UITheme's general text scaling. `DealerRoomView.cs`
+uses the preview's 1200x760 reference coordinates on a screen-space stage,
+unaffected by combat camera zoom or post effects. Native interaction coordinates
+map preview pixels through `(x-600, 380-y)`. Existing destination sprites and Zack's current
 Workshop artwork are presented over the shared floor; the route graph still
 owns actual destination names and colors.
 The room omits the heading and movement-help copy. A separate platform frame
@@ -325,10 +330,19 @@ leaves space beyond the selected upper/lower edge for the hovering face, with
 an interaction anchor reachable from the legal walking area. The portrait has
 no platform shadow. `DealerPortraitView.AnimationSpeed` scales head/gaze,
 breathing, hair and room hover cycles by 1.3; reduced-motion settings still apply.
+The platform's scale/offset is presentation-only: its portals, labels, player
+art and browse prompt share that frame. Keep native interaction anchors within
+reach of the walking bounds when changing its framing. Approved references and
+later owner corrections are distinguished in
+`Docs/Design/2026-09-12-DealerPreviewFidelity.md`.
 
 `Resources/VoidFall/Dealer/` is exported by `Tools/Dealer/export-art.mjs` and
 `Tools/Dealer/export-room.mjs` from approved references. The importer preserves
 transparent NPOT art; the room textures retain their authored resolution.
+The room canvas preserves gamma-space vertex colors to avoid dark-color
+quantization. Mist rings are precomposed in sRGB because linear alpha blending
+made the browser's faint glows too bright. The room portrait and text chrome
+hide beneath the shop; do not let a second face show through its backdrop.
 
 Runtime `.Legendaries.cs` owns a separate manual slot, keyed hit cooldowns,
 held-input cancellation, waveform/rifle rendering and shared damage calls.
@@ -345,6 +359,8 @@ transactions, persistence, cooldown reuse, input guards, damage and exports.
 `-vfdealer-check=<absolute-folder>` runs the rendered `DealerIntegrationProbe`
 with a profile selected before the first load. It writes crossing/shop/weapon
 captures and a success/failure file. No fake preview income controls ship.
+Its `room-browse` capture exercises the lower dealer from the legal platform
+edge before purchase; inspect upper/lower framing and prompt clearance too.
 Roulette fragments and the three alternative legendary candidates are deferred.
 
 `UI/Core/UIManager.cs` defines `UIScreen`, `UICallbacks` and `UIManager`.
@@ -623,7 +639,11 @@ authoritative hash and its change explanation in the test, not this map.
 implementation and writes `../Builds/VoidFall.exe`. Legacy validation, preview,
 delivery and baseline build methods delegate to it; they do not create separate
 players. Content baking, Addressables builds and capture entry points retain
-their own responsibilities. `.github/workflows/ci.yml` runs Unity
+their own responsibilities. `VOIDFALL_BUILD_OUTPUT` temporarily redirects that
+same builder for validation, while `VOIDFALL_SOURCE_REVISION` stamps BUILD_INFO.
+Promote only a verified payload to the canonical path and remove the temporary
+staging copy; retain designated archives and live run exports.
+`.github/workflows/ci.yml` runs Unity
 tests only with `UNITY_TESTS_ENABLED` and credentials configured. Runtime
 `StressBenchmarkProbe.cs` is opt-in via `-vfbench`; verify simulated progress,
 not just wall time. `Runtime/Telemetry/RunTelemetry.cs` records run events and

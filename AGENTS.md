@@ -13,6 +13,12 @@ Check `git status` before editing and preserve unrelated work. Historical
 findings live in `Docs/AI/ReleaseReadiness-2026-09-04.md`; consult them when
 relevant, not as mandatory context for every change.
 
+`voidfall-unity` is the canonical source project. The sibling director/journey
+worktrees are preserved recovery references, not competing release projects.
+Use `../START_HERE.md` for launch instructions and
+`Docs/Design/2026-09-12-Consolidation.md` for source provenance. Preserve the
+designated `../Builds/Archive/` releases and the live `../Builds/RunExports/`.
+
 ## Character, art direction and Workshop
 
 Owner-established fiction: the playable blue eye is **the eye of Zack Hazard**,
@@ -42,6 +48,38 @@ compatibility, so rename display text and identifiers, never schema names.
 The browser studies (evolving bodies, specialized frames, modules, Iris,
 Instinct and Fragments) were exploration, not approved replacement designs.
 Do not infer additional Zack lore or a recovery/corruption arc from those studies.
+
+## Approved dealer and legendary direction
+
+The dealer studies in `../Prototypes/dealer-travel` and `../Prototypes/dealer-shop`
+are approved visual references. Follow the owner's subsequent floating-placement
+changes in `Docs/Design/2026-09-12-DealerPreviewFidelity.md`; do not restore the
+original platform overlap simply to match an older screenshot. Preserve the same
+creepy ASCII face, four appearances, feature shading, moving hair, breathing,
+head/gaze motion and purchase grin. The face floats beyond the platform with
+occasional upper and lower appearances, no platform shadow, and 1.3x animation
+speed. Keep reduced-motion support. The room heading and movement-help text
+stay removed; retain destination labels, Scraps and reachable E Browse.
+
+The shop follows the level-up card design: icon/puzzle art, name, description,
+and price below. No dealer headline, Gives/Takes sections or explanatory copy.
+Browsing is free; three stable offers cost 100 **run Scraps** each, with one
+purchase per crossing. Reopening must not reroll stock. Keep fragment saves
+atomic; save failures must leave the wallet and fragment ownership unchanged.
+
+Sound Blade and Charged Rifle are approved, each assembled from three distinct
+permanent fragments and equipped in a separate manual slot. Do not replace
+Workshop progression or consume automatic weapon slots. Roulette fragments and
+the three alternative legendary candidates remain deferred. See
+`Docs/Design/2026-09-12-DealerIntegration.md` for implemented scope; the earlier
+unapproved Workshop "Fragments" study is a separate concept.
+
+For dealer visuals, compare real Windows captures against the approved reference
+and later owner changes. Compilation and gameplay tests alone do not establish
+visual fidelity. Preserve the portrait's explicit glyph metrics and the room's
+dark colors/faint rings; generic UI text scaling and linear alpha blending
+previously changed their appearance. `Docs/REPO_MAP.md` locates the renderers,
+art exporters and isolated capture probe.
 
 ## Architecture and locations
 
@@ -177,6 +215,9 @@ include `-quit`. The canonical integrated player is `../Builds/VoidFall.exe`.
 `VoidFall.EditorTools.BuildScript.BuildWindows` owns the Windows build pipeline;
 legacy validation/preview/baseline helpers delegate to it. Keep new player build
 entry points on that path rather than adding separate output directories.
+The same builder accepts `VOIDFALL_BUILD_OUTPUT` for temporary validation and
+`VOIDFALL_SOURCE_REVISION` for provenance. Verify the replacement before promoting
+it to the canonical path; do not leave the staging player as another release.
 Windows builds explicitly prefer DX11; DX12 is retained for opt-in diagnostics.
 This mitigates the owner's fullscreen/focus freeze risk; the original forced-kill
 hang had no captured stack and must not be described as conclusively fixed.
