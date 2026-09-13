@@ -5,6 +5,17 @@ using UnityEngine.UI;
 
 namespace VoidFall.UI
 {
+    public struct WorkshopFormData
+    {
+        public string Id;
+        public string Name;
+        public string Stats;
+        public string StartingWeapon;
+        public string UnlockHint;
+        public bool Unlocked;
+        public bool Selected;
+    }
+
     /// <summary>One permanent-upgrade row, supplied by the runtime.</summary>
     public struct WorkshopItemData
     {
@@ -41,6 +52,19 @@ namespace VoidFall.UI
         private RectTransform _previewStage;
         private RectTransform _panel;
         private string _focusedId;
+        private RectTransform _formRow;
+        private string _selectedFormName;
+        private readonly List<FormWidgets> _forms = new List<FormWidgets>();
+
+        private sealed class FormWidgets
+        {
+            public string Id;
+            public Button Button;
+            public Image Surface;
+            public Text Name;
+            public Text Details;
+            public Text State;
+        }
 
         /// <summary>
         /// The rect the runtime mounts the live frame preview on.
@@ -82,7 +106,7 @@ namespace VoidFall.UI
             var intro = UIBuilder.CreateParagraph(
                 content,
                 "Intro",
-                "Focus an upgrade to preview its next visual rank.",
+                "Choose a form for your next run. Focus an upgrade to preview its next visual rank.",
                 12f,
                 UITheme.TextIntro);
             intro.rectTransform.anchorMin = new Vector2(0f, 1f);
@@ -91,14 +115,94 @@ namespace VoidFall.UI
             intro.rectTransform.sizeDelta = new Vector2(0f, 20f);
             intro.rectTransform.anchoredPosition = new Vector2(0f, -4f);
 
+            _formRow = UIBuilder.CreateRect(content, "Forms");
+            _formRow.anchorMin = new Vector2(0f, 1f);
+            _formRow.anchorMax = new Vector2(1f, 1f);
+            _formRow.pivot = new Vector2(0.5f, 1f);
+            _formRow.sizeDelta = new Vector2(0f, 102f);
+            _formRow.anchoredPosition = new Vector2(0f, -32f);
+
             var layout = UIBuilder.CreateRect(content, "Layout");
             layout.anchorMin = Vector2.zero;
             layout.anchorMax = Vector2.one;
             layout.offsetMin = Vector2.zero;
-            layout.offsetMax = new Vector2(0f, -32f);
+            layout.offsetMax = new Vector2(0f, -148f);
 
             BuildPreviewColumn(layout);
             BuildListColumn(layout);
+        }
+
+        public void PopulateForms(IReadOnlyList<WorkshopFormData> forms)
+        {
+            if (_formRow == null || forms == null) return;
+            var reuse = _forms.Count == forms.Count;
+            for (var index = 0; reuse && index < forms.Count; index++)
+                reuse = _forms[index].Id == forms[index].Id;
+            if (!reuse)
+            {
+                ClearChildren(_formRow);
+                _forms.Clear();
+                for (var index = 0; index < forms.Count; index++)
+                {
+                    var id = forms[index].Id;
+                    var surface = UIBuilder.CreateSurface(_formRow, "Form." + id, null, true);
+                    surface.rectTransform.anchorMin = new Vector2(index / (float)forms.Count, 0f);
+                    surface.rectTransform.anchorMax = new Vector2((index + 1f) / forms.Count, 1f);
+                    surface.rectTransform.offsetMin = new Vector2(index == 0 ? 0f : 5f, 0f);
+                    surface.rectTransform.offsetMax = new Vector2(index == forms.Count - 1 ? 0f : -5f, 0f);
+                    var button = surface.gameObject.AddComponent<Button>();
+                    button.targetGraphic = surface;
+                    button.transition = Selectable.Transition.SpriteSwap;
+                    var focusSprite = UISprites.Rounded(UITheme.RadiusRow,
+                        UITheme.RowFillActive, UITheme.RowFillActive, UITheme.CyanPale);
+                    button.spriteState = new SpriteState
+                    {
+                        highlightedSprite = focusSprite,
+                        selectedSprite = focusSprite,
+                        pressedSprite = focusSprite
+                    };
+                    button.onClick.AddListener(() => Callbacks?.SelectForm?.Invoke(id));
+                    var name = UIBuilder.CreateText(surface.transform, "Name", "", 14f,
+                        UITheme.TextBody, TextAnchor.UpperLeft, true, FontStyle.Bold);
+                    PlaceFormText(name, 10f, 12f, 22f);
+                    var detail = UIBuilder.CreateParagraph(surface.transform, "Details", "", 11f, UITheme.TextRowDetail);
+                    PlaceFormText(detail, 36f, 12f, 36f);
+                    var state = UIBuilder.CreateParagraph(surface.transform, "State", "", 10f, UITheme.TextInactive);
+                    PlaceFormText(state, 76f, 12f, 22f);
+                    _forms.Add(new FormWidgets { Id = id, Button = button, Surface = surface,
+                        Name = name, Details = detail, State = state });
+                }
+            }
+
+            _selectedFormName = null;
+            for (var index = 0; index < forms.Count; index++)
+            {
+                var form = forms[index];
+                var widgets = _forms[index];
+                widgets.Button.interactable = form.Unlocked;
+                widgets.Name.text = form.Name;
+                widgets.Name.color = form.Unlocked ? UITheme.TextBody : UITheme.TextInactive;
+                widgets.Details.text = form.Stats + "\nStarts with " + form.StartingWeapon;
+                widgets.State.text = !form.Unlocked ? "Locked · " + form.UnlockHint :
+                    form.Selected ? "Selected · next run" : "Select form";
+                widgets.State.color = form.Selected && form.Unlocked ? UITheme.CyanPale : UITheme.TextInactive;
+                widgets.Surface.sprite = UISprites.Rounded(UITheme.RadiusRow,
+                    form.Selected ? UITheme.RowFillActive : UITheme.RowFill,
+                    form.Selected ? UITheme.RowFillActive : UITheme.RowFill,
+                    form.Selected ? UITheme.CyanLight : UITheme.BorderRow);
+                if (form.Selected) _selectedFormName = form.Name;
+            }
+            RefreshPreview();
+        }
+
+        private static void PlaceFormText(Text text, float top, float inset, float height)
+        {
+            var rect = text.rectTransform;
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.offsetMin = new Vector2(inset, -top - height);
+            rect.offsetMax = new Vector2(-inset, -top);
         }
 
         /// <summary>
@@ -526,7 +630,8 @@ namespace VoidFall.UI
 
             if (focused == null)
             {
-                if (_previewTitle != null) _previewTitle.text = "Current configuration";
+                if (_previewTitle != null) _previewTitle.text = string.IsNullOrEmpty(_selectedFormName)
+                    ? "Current configuration" : _selectedFormName + " · current configuration";
                 if (_previewDetail != null) _previewDetail.text = "Hover an upgrade to inspect it.";
                 if (_previewRank != null) _previewRank.text = "\u2014";
                 return;

@@ -78,6 +78,7 @@ namespace VoidFall.Runtime
                 _workshopController = new WorkshopController(_gameBridge);
             var rows = _workshopController.BuildRows(WorkshopOrder, _saveData?.parts ?? 0, _saveData?.workshop);
             _ui.Workshop.Populate(_saveData?.parts ?? 0, rows);
+            _ui.Workshop.PopulateForms(_workshopController.BuildForms(_saveData));
         }
 
         private void RefreshRecordsUi()

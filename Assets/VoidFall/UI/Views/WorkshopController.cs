@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using VoidFall.Core;
 using VoidFall.Persistence;
 
 namespace VoidFall.UI
@@ -17,6 +18,46 @@ namespace VoidFall.UI
         public WorkshopController(IGameBridge bridge)
         {
             _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
+        }
+
+        public IReadOnlyList<WorkshopFormData> BuildForms(SaveData profile)
+        {
+            var forms = new List<WorkshopFormData>(PlayerForms.All.Length);
+            foreach (var form in PlayerForms.All)
+            {
+                var speedPercent = (int)Math.Round((PlayerForms.MoveSpeedMultiplier(form.Id) - 1f) * 100f);
+                forms.Add(new WorkshopFormData
+                {
+                    Id = form.Id,
+                    Name = form.Name,
+                    Stats = PlayerForms.BaseMaxHealth(form.Id) + " HP · " +
+                        (speedPercent == 0 ? "Normal speed" : (speedPercent > 0 ? "+" : "") + speedPercent + "% speed"),
+                    StartingWeapon = UpgradeRules.WeaponDisplayName(PlayerForms.StartingWeapon(form.Id)),
+                    UnlockHint = form.UnlockHint,
+                    Unlocked = PlayerForms.IsUnlocked(profile?.unlockedForms, form.Id),
+                    Selected = PlayerForms.NormaliseId(profile?.form) == form.Id
+                });
+            }
+            return forms;
+        }
+
+        public bool TrySelectForm(SaveData profile, string id, out string notice)
+        {
+            notice = null;
+            if (profile == null || !PlayerForms.IsKnown(id)) return false;
+            if (!PlayerForms.IsUnlocked(profile.unlockedForms, id))
+            {
+                notice = PlayerForms.Form(id).UnlockHint;
+                return false;
+            }
+            if (profile.form == id) return true;
+
+            var previous = profile.form;
+            profile.form = id;
+            if (_bridge.TryPersistProfile()) return true;
+            profile.form = previous;
+            notice = "Form selection could not be saved. Your previous form is still selected.";
+            return false;
         }
 
         public static string NameFor(string id)

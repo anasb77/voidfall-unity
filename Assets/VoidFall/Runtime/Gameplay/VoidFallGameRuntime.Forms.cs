@@ -65,11 +65,28 @@ namespace VoidFall.Runtime
 
         private void CyclePrevFormFromUi() => CycleFormFromUi(-1);
 
+        private void SelectFormFromUi(string id)
+        {
+            if (!_mainMenuBrowsing || _saveData == null) return;
+            if (_workshopController == null)
+                _workshopController = new WorkshopController(_gameBridge);
+            if (!_workshopController.TrySelectForm(_saveData, id, out var notice))
+            {
+                if (!string.IsNullOrEmpty(notice)) SetMenuNotice(notice);
+            }
+            else
+            {
+                _audio?.Play(ProceduralAudio.Cue.Ui, 1f);
+            }
+            RefreshWorkshopUi();
+            RefreshMenuProfileUi();
+        }
+
         /// <summary>
         /// Menu form cycling. Locked forms are skipped, not offered; with only
         /// the default unlocked the control is inert but still clickable.
         /// Mirrors the arena selector's flow: mutate the profile, refresh the
-        /// menu, play the shared UI cue. Persisted with the next terminal save.
+        /// menu, play the shared UI cue. Uses the same immediate save as Workshop.
         /// </summary>
         private void CycleFormFromUi(int delta)
         {
@@ -83,9 +100,7 @@ namespace VoidFall.Runtime
                 if (Array.IndexOf(unlocked, PlayerForms.All[nextIndex].Id) >= 0) break;
             }
             if (nextIndex == currentIndex) return;
-            _saveData.form = PlayerForms.All[nextIndex].Id;
-            RefreshMenuProfileUi();
-            _audio?.Play(ProceduralAudio.Cue.Ui, 1f);
+            SelectFormFromUi(PlayerForms.All[nextIndex].Id);
         }
     }
 }

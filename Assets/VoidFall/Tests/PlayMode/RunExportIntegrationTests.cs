@@ -148,6 +148,21 @@ namespace VoidFall.Tests.PlayMode
         private string ExportDirectory => Path.Combine(_directory, "RunExports");
 
         [Test]
+        public void Run_export_identifies_the_committed_form_and_starting_weapon()
+        {
+            var profile = (SaveData)Get(_runtime, "_saveData");
+            profile.form = PlayerForms.BruteId;
+            profile.unlockedForms = new[] { PlayerForms.DefaultId, PlayerForms.BruteId };
+            Call("StartRunInternal", true, false);
+            Call("FinishRunExport", "quit");
+            var report = Directory.GetFiles(ExportDirectory, "*.json")
+                .Select(path => JsonUtility.FromJson<UnityTelemetryReport>(File.ReadAllText(path)))
+                .Single(item => item.context.formId == PlayerForms.BruteId);
+            Assert.That(report.context.formId, Is.EqualTo(PlayerForms.BruteId));
+            Assert.That(report.context.startingWeaponId, Is.EqualTo("seeker"));
+        }
+
+        [Test]
         public void Second_rank_six_weapon_exports_the_fifth_slot_unlock()
         {
             var progress = (UpgradeProgress)Get(_runtime, "_upgradeProgress");

@@ -54,6 +54,7 @@ namespace VoidFall.UI
         public Action NextArena;
         public Action PrevForm;
         public Action NextForm;
+        public Action<string> SelectForm;
 
         public Action<string> BuyWorkshop;
         public Action<string> PreviewWorkshop;

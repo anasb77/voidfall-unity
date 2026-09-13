@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using VoidFall.Core;
 using VoidFall.Persistence;
 using VoidFall.UI;
 
@@ -26,6 +27,63 @@ namespace VoidFall.Tests.Editor
         }
 
         private static WorkshopEntry Entry(string id, int rank) => new WorkshopEntry { id = id, rank = rank };
+
+        [Test]
+        public void Forms_include_locked_choices_and_current_starting_stats()
+        {
+            var forms = new WorkshopController(new FakeBridge()).BuildForms(SaveStore.CreateDefault());
+            Assert.That(forms.Count, Is.EqualTo(3));
+            Assert.That(forms[0].Id, Is.EqualTo(PlayerForms.DefaultId));
+            Assert.That(forms[0].Selected && forms[0].Unlocked, Is.True);
+            Assert.That(forms[1].Stats, Is.EqualTo("70 HP · +25% speed"));
+            Assert.That(forms[1].StartingWeapon, Is.EqualTo(UpgradeRules.WeaponDisplayName("arc")));
+            Assert.That(forms[1].Unlocked, Is.False);
+            Assert.That(forms[1].UnlockHint, Is.Not.Empty);
+            Assert.That(forms[2].Stats, Is.EqualTo("150 HP · -20% speed"));
+            Assert.That(forms[2].StartingWeapon, Is.EqualTo(UpgradeRules.WeaponDisplayName("seeker")));
+        }
+
+        [Test]
+        public void Selecting_a_form_saves_immediately_without_changing_workshop_or_scraps()
+        {
+            var bridge = new FakeBridge();
+            var controller = new WorkshopController(bridge);
+            var profile = SaveStore.CreateDefault();
+            profile.unlockedForms = new[] { PlayerForms.DefaultId, PlayerForms.DasherId };
+            profile.parts = 42;
+            profile.workshop[0].rank = 2;
+            Assert.That(controller.TrySelectForm(profile, PlayerForms.DasherId, out _), Is.True);
+            Assert.That(profile.form, Is.EqualTo(PlayerForms.DasherId));
+            Assert.That(bridge.PersistCalls, Is.EqualTo(1));
+            Assert.That(profile.parts, Is.EqualTo(42));
+            Assert.That(profile.workshop[0].rank, Is.EqualTo(2));
+            Assert.That(controller.TrySelectForm(profile, PlayerForms.DasherId, out _), Is.True);
+            Assert.That(bridge.PersistCalls, Is.EqualTo(1), "Selecting the same form is a no-op.");
+        }
+
+        [Test]
+        public void Locked_or_unknown_forms_cannot_be_selected()
+        {
+            var bridge = new FakeBridge();
+            var controller = new WorkshopController(bridge);
+            var profile = SaveStore.CreateDefault();
+            Assert.That(controller.TrySelectForm(profile, PlayerForms.BruteId, out var notice), Is.False);
+            Assert.That(notice, Is.EqualTo(PlayerForms.Form(PlayerForms.BruteId).UnlockHint));
+            Assert.That(controller.TrySelectForm(profile, "unknown", out _), Is.False);
+            Assert.That(profile.form, Is.EqualTo(PlayerForms.DefaultId));
+            Assert.That(bridge.PersistCalls, Is.Zero);
+        }
+
+        [Test]
+        public void Failed_form_save_restores_the_previous_selection()
+        {
+            var bridge = new FakeBridge { PersistSucceeds = false };
+            var profile = SaveStore.CreateDefault();
+            profile.unlockedForms = new[] { PlayerForms.DefaultId, PlayerForms.DasherId };
+            Assert.That(new WorkshopController(bridge).TrySelectForm(profile, PlayerForms.DasherId, out var notice), Is.False);
+            Assert.That(profile.form, Is.EqualTo(PlayerForms.DefaultId));
+            Assert.That(notice, Does.Contain("could not be saved"));
+        }
 
         private static readonly string[] Order =
         {

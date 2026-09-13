@@ -306,6 +306,18 @@ for proposed additions and unresolved counting/pacing decisions.
 
 ## UI, settings and profile progression
 
+Workshop lists Default, Dasher and Brute through `WorkshopController.BuildForms`
+and `WorkshopView.PopulateForms`, including current base stats, starter and unlock
+hints. `UICallbacks.SelectForm` routes to runtime `.Forms.cs`; both Workshop and
+Home selection use the same guarded immediate save with rollback on failure.
+Locked forms remain visible but cannot be selected, and active runs cannot be
+changed through the callback. Existing shared ranks and eye artwork are retained.
+Run-export context records the committed `formId` and `startingWeaponId`.
+`WorkshopControllerTests` and `WorkshopCosmeticsIntegrationTests` cover these
+selection/persistence boundaries and navigation focus. The editor-only
+`WorkshopFormsCapture.Capture` renders locked/selected layouts with prepared
+artwork to `Logs/WorkshopForms`, without reading or writing a real profile.
+
 ### Dealer crossing and manual legendaries
 
 `Content/DealerRules.cs` owns fixed 100-Scrap transactions, three distinct offers,

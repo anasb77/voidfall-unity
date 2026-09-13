@@ -46,6 +46,10 @@ starting ranks/Workshop and CPU/GPU/RAM. `play` is an ordinary owner run;
 `-vfprofile=<absolute file>` isolates a normal startup for focus/platform
 testing without changing background-play policy; its runs are tagged diagnostic.
 
+`context.formId` and `context.startingWeaponId` identify the form and starter
+committed at run start, including selections made in Workshop. These are stable
+catalogue IDs, not menu labels; older schema-4 exports omit these fields.
+
 Context also includes `graphicsApi`, `graphicsDeviceVersion`, actual
 `fullscreenMode`, `windowWidth`, `windowHeight` and `runInBackground` at run
 start. Focus events carry the current display state because it can change

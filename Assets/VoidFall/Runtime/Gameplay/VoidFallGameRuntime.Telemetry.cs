@@ -67,6 +67,8 @@ namespace VoidFall.Runtime
                 systemMemoryMb = SystemInfo.systemMemorySize,
                 graphicsMemoryMb = SystemInfo.graphicsMemorySize,
                 directorId = (int)_runDirectorProfile,
+                formId = _formId,
+                startingWeaponId = PlayerForms.StartingWeapon(_formId),
                 startingProgress = BuildTelemetryProgress(),
                 baseWeaponSlots = ProgressionRules.BaseWeaponSlots,
                 expandedWeaponSlots = ProgressionRules.ExpandedWeaponSlots,

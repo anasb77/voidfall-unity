@@ -77,6 +77,8 @@ namespace VoidFall.Runtime
         public int systemMemoryMb;
         public int graphicsMemoryMb;
         public int directorId;
+        public string formId;
+        public string startingWeaponId;
         public UnityTelemetryProgress startingProgress;
         public int baseWeaponSlots;
         public int expandedWeaponSlots;

@@ -1108,6 +1108,7 @@ namespace VoidFall.Runtime
                 NextArena = CycleNextArenaFromUi,
                 PrevForm = CyclePrevFormFromUi,
                 NextForm = CycleNextFormFromUi,
+                SelectForm = SelectFormFromUi,
 
                 BuyWorkshop = TryBuyWorkshopFromUi,
                 PreviewWorkshop = id => _workshopPreviewId = id,

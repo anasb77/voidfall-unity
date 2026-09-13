@@ -7,6 +7,8 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using VoidFall.Core;
 using VoidFall.Persistence;
 using VoidFall.Runtime;
 using VoidFall.Runtime.Rendering;
@@ -57,6 +59,90 @@ namespace VoidFall.Tests.PlayMode
             if (_profileDirectory != null && Directory.Exists(_profileDirectory))
                 Directory.Delete(_profileDirectory, true);
             yield return null;
+        }
+
+        [TestCase(PlayerForms.DasherId)]
+        [TestCase(PlayerForms.BruteId)]
+        public void Workshop_lists_all_forms_and_selects_an_unlocked_form_for_the_next_run(string selectedId)
+        {
+            var profile = (SaveData)Get(_runtime, "_saveData");
+            profile.unlockedForms = new[] { PlayerForms.DefaultId, PlayerForms.DasherId, PlayerForms.BruteId };
+            Call("EnterMainMenu");
+            var ui = (UIManager)Get(_runtime, "_ui");
+            ui.Callbacks.OpenWorkshop();
+            foreach (var form in PlayerForms.All)
+            {
+                var button = FindFormButton(ui.Workshop, form.Id);
+                Assert.That(button, Is.Not.Null, form.Name + " must be visible in Workshop.");
+                Assert.That(button.gameObject.activeInHierarchy, Is.True);
+            }
+
+            FindFormButton(ui.Workshop, selectedId).onClick.Invoke();
+            Assert.That(((SaveData)Get(_runtime, "_saveData")).form, Is.EqualTo(selectedId));
+            Assert.That(((SaveStore)Get(_runtime, "_saveStore")).Load().form, Is.EqualTo(selectedId),
+                "Selection must survive closing the game before playing a run.");
+            Assert.That(ui.CurrentScreen, Is.EqualTo(UIScreen.Workshop));
+            Call("StartRunInternal", false, false);
+            Assert.That(Get(_runtime, "_formId"), Is.EqualTo(selectedId));
+            var progress = (UpgradeProgress)Get(_runtime, "_upgradeProgress");
+            var starter = UpgradeRules.StartingWeaponIndex(PlayerForms.StartingWeapon(selectedId));
+            Assert.That(progress.WeaponRanks[starter], Is.EqualTo(1));
+            Assert.That((float)Get(Get(Get(_runtime, "_gameSim"), "Player"), "MaxHealth"),
+                Is.EqualTo(PlayerForms.BaseMaxHealth(selectedId)));
+        }
+
+        [Test]
+        public void Locked_forms_stay_visible_and_reject_selection_even_if_the_callback_is_invoked()
+        {
+            Call("EnterMainMenu");
+            var ui = (UIManager)Get(_runtime, "_ui");
+            ui.Callbacks.OpenWorkshop();
+            foreach (var id in new[] { PlayerForms.DasherId, PlayerForms.BruteId })
+            {
+                var button = FindFormButton(ui.Workshop, id);
+                Assert.That(button, Is.Not.Null);
+                Assert.That(button.gameObject.activeInHierarchy, Is.True);
+                Assert.That(button.interactable, Is.False);
+                Assert.That(button.transform.Find("State").GetComponent<Text>().text,
+                    Does.Contain(PlayerForms.Form(id).UnlockHint));
+                button.onClick.Invoke();
+                Assert.That(((SaveData)Get(_runtime, "_saveData")).form, Is.EqualTo(PlayerForms.DefaultId));
+            }
+        }
+
+        [Test]
+        public void Form_selection_cannot_change_a_live_run()
+        {
+            var profile = (SaveData)Get(_runtime, "_saveData");
+            profile.unlockedForms = new[] { PlayerForms.DefaultId, PlayerForms.DasherId };
+            ((UIManager)Get(_runtime, "_ui")).Callbacks.SelectForm(PlayerForms.DasherId);
+            Assert.That(profile.form, Is.EqualTo(PlayerForms.DefaultId));
+            Assert.That(Get(_runtime, "_formId"), Is.EqualTo(PlayerForms.DefaultId));
+        }
+
+        [Test]
+        public void Navigation_focus_is_visible_without_equipping_the_form()
+        {
+            var profile = (SaveData)Get(_runtime, "_saveData");
+            profile.unlockedForms = new[] { PlayerForms.DefaultId, PlayerForms.DasherId };
+            Call("EnterMainMenu");
+            var ui = (UIManager)Get(_runtime, "_ui");
+            ui.Callbacks.OpenWorkshop();
+            var button = FindFormButton(ui.Workshop, PlayerForms.DasherId);
+            EventSystem.current.SetSelectedGameObject(null);
+            var surface = button.GetComponent<Image>();
+            var restingSprite = surface.overrideSprite;
+            EventSystem.current.SetSelectedGameObject(button.gameObject);
+            Assert.That(surface.overrideSprite, Is.Not.SameAs(restingSprite));
+            Assert.That(((SaveData)Get(_runtime, "_saveData")).form, Is.EqualTo(PlayerForms.DefaultId));
+            EventSystem.current.SetSelectedGameObject(null);
+        }
+
+        private static Button FindFormButton(WorkshopView workshop, string id)
+        {
+            foreach (var button in workshop.GetComponentsInChildren<Button>(true))
+                if (button.name == "Form." + id) return button;
+            return null;
         }
 
         [TestCase(1)]
