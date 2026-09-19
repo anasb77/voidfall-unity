@@ -18,7 +18,7 @@ namespace VoidFall.UI
     {
         /// <summary>Shipped intensities from VoidFallDefaultVolumeProfile.</summary>
         public const float DefaultBloom = 1.2f;
-        public const float DefaultChromatic = 0.12f;
+        public const float DefaultChromatic = 0f;
 
         public const float MaxBloom = SaveSettings.MaxBloom;
         public const float MaxChromatic = SaveSettings.MaxChromatic;

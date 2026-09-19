@@ -55,7 +55,7 @@ namespace VoidFall.Runtime
 
                 _healthText.text = $"INTEGRITY   {Mathf.CeilToInt(Mathf.Max(0, _gameSim.Player.Health))}/{Mathf.CeilToInt(_gameSim.Player.MaxHealth)}";
             }
-            if (_healthLabelText != null) _healthLabelText.text = "INTEGRITY";
+            if (_healthLabelText != null) _healthLabelText.text = "HP";
             if (_healthValueText != null && (_lastHudHealth != _gameSim.Player.Health || _lastHudMaxHealth != _gameSim.Player.MaxHealth))
                 _healthValueText.text = $"{Mathf.CeilToInt(Mathf.Max(0, _gameSim.Player.Health))}/{Mathf.CeilToInt(_gameSim.Player.MaxHealth)}";
             _lastHudHealth = _gameSim.Player.Health;
@@ -99,6 +99,7 @@ namespace VoidFall.Runtime
                 if (_metricValues[0] != null) _metricValues[0].text = _kills.ToString();
                 if (_metricValues[1] != null) _metricValues[1].text = _partsEarned.ToString();
                 if (_metricValues[2] != null) _metricValues[2].text = hudScore.ToString("N0");
+                LayoutApprovedMetrics();
             }
             if (_pauseButton != null)
             {
@@ -245,6 +246,7 @@ namespace VoidFall.Runtime
             UpdateUnifiedOverclockHud();
             UpdateToastViews();
             UpdateTouchHud();
+            UpdateApprovedHudCooldown();
         }
 
         private void UpdateArenaBanner()
@@ -287,104 +289,7 @@ namespace VoidFall.Runtime
 
         private void UpdateHudResponsiveLayout()
         {
-            if (_canvas == null) return;
-            var viewportWidth = Screen.width;
-            var viewportHeight = Screen.height;
-            var safeArea = Screen.safeArea;
-            var narrow = viewportWidth <= 720;
-            if (_hudLayoutInitialized &&
-                narrow == _hudNarrow &&
-                viewportWidth == _hudLayoutWidth &&
-                viewportHeight == _hudLayoutHeight &&
-                safeArea == _hudLayoutSafeArea) return;
-            _hudLayoutInitialized = true;
-            _hudNarrow = narrow;
-            _hudLayoutWidth = viewportWidth;
-            _hudLayoutHeight = viewportHeight;
-            _hudLayoutSafeArea = safeArea;
-            var safeLeftInset = Mathf.Max(12f, safeArea.xMin);
-            var safeRightInset = Mathf.Max(12f, viewportWidth - safeArea.xMax);
-            var safeTopInset = Mathf.Max(0f, viewportHeight - safeArea.yMax);
-
-            // The browser's narrow grid gives the integrity block the
-            // remaining first-column width: viewport minus the 78px clock,
-            // 44px pause button, two 8px gaps, and 12px outer margins. Keep
-            // the source minimum of 120px instead of leaving the desktop
-            // 240px panel stranded beside the clock.
-            var healthWidth = narrow ? Mathf.Max(120f, Screen.width - 162f) : 252f;
-            if (_healthPanel != null)
-            {
-                _healthPanel.rectTransform.sizeDelta = new Vector2(healthWidth, 48f);
-                if (_healthBarBackground != null)
-                    _healthBarBackground.rectTransform.sizeDelta = new Vector2(healthWidth - 20f, 10f);
-                if (_healthBarGhost != null)
-                    _healthBarGhost.rectTransform.sizeDelta = new Vector2(healthWidth - 20f, 10f);
-                if (_healthBarFill != null)
-                    _healthBarFill.rectTransform.sizeDelta = new Vector2(healthWidth - 20f, 10f);
-                if (_healthText != null)
-                    _healthText.rectTransform.sizeDelta = new Vector2(healthWidth - 20f, 18f);
-                if (_healthLabelText != null)
-                    _healthLabelText.rectTransform.sizeDelta = new Vector2(Mathf.Max(80f, healthWidth - 90f), 16f);
-                if (_healthValueText != null)
-                    _healthValueText.rectTransform.anchoredPosition = new Vector2(12f + healthWidth - 10f, -27f);
-            }
-
-            if (_clockPanel != null)
-            {
-                var clockWidth = narrow ? 78f : 116f;
-                _clockPanel.rectTransform.sizeDelta = new Vector2(clockWidth, 71f);
-                SetTopHudAnchor(_clockPanel.rectTransform, narrow, clockWidth, -13f);
-                if (_timeText != null)
-                {
-                    _timeText.rectTransform.sizeDelta = new Vector2(clockWidth, 30f);
-                    SetTopHudAnchor(_timeText.rectTransform, narrow, clockWidth, -19f);
-                }
-                if (_levelText != null)
-                {
-                    _levelText.rectTransform.sizeDelta = new Vector2(clockWidth, 16f);
-                    SetTopHudAnchor(_levelText.rectTransform, narrow, clockWidth, -67f);
-                }
-            }
-
-            var metricsVisible = !narrow;
-            if (_metricsPanel != null) _metricsPanel.enabled = metricsVisible;
-            for (var index = 0; index < _metricIcons.Length; index++)
-            {
-                if (_metricIcons[index] != null) _metricIcons[index].enabled = metricsVisible;
-                if (_metricValues[index] != null) _metricValues[index].enabled = metricsVisible;
-                if (index < _metricDividers.Length && _metricDividers[index] != null)
-                    _metricDividers[index].enabled = metricsVisible;
-            }
-
-            for (var index = 0; index < _weaponChipBackgrounds.Length; index++)
-            {
-                var width = narrow ? 56f : 122f;
-                if (_weaponChipBackgrounds[index] != null)
-                {
-                    _weaponChipBackgrounds[index].rectTransform.sizeDelta = new Vector2(width, 34f);
-                    _weaponChipBackgrounds[index].rectTransform.anchoredPosition =
-                        new Vector2(12f + index * (narrow ? 63f : 129f), 12f);
-                }
-            }
-            ResizeOwnedChipViews(
-                _supportChipBackgrounds,
-                _supportChipRanks,
-                narrow,
-                narrow ? 60f : 174f,
-                new Vector2(safeLeftInset, -OwnedUpgradeStripTop(false, safeTopInset)),
-                false,
-                viewportHeight);
-            ResizeOwnedChipViews(
-                _lateChipBackgrounds,
-                _lateChipRanks,
-                narrow,
-                narrow ? 60f : 174f,
-                new Vector2(-safeRightInset, -OwnedUpgradeStripTop(true, safeTopInset)),
-                true,
-                viewportHeight);
-            SetChipLabelVisibility(_weaponChipNames, _weaponChipBackgrounds, !narrow);
-            SetChipLabelVisibility(_supportChipNames, _supportChipBackgrounds, !narrow);
-            SetChipLabelVisibility(_lateChipNames, _lateChipBackgrounds, !narrow);
+            LayoutApprovedHud();
         }
 
         private static float OwnedUpgradeStripTop(bool late, float safeTopInset)
@@ -394,103 +299,7 @@ namespace VoidFall.Runtime
 
         private void UpdateBuildChipHud()
         {
-            for (var index = 0; index < _weaponChipBackgrounds.Length; index++)
-            {
-                var rank = _upgradeProgress != null && index < _upgradeProgress.WeaponRanks.Length
-                    ? _upgradeProgress.WeaponRanks[index]
-                    : 0;
-                var evolved = _upgradeProgress != null && index < _upgradeProgress.Evolved.Length &&
-                    _upgradeProgress.Evolved[index];
-                var active = index < ContentCatalog.Weapons.Length && rank > 0;
-                var weapon = active ? ContentCatalog.Weapons[index] : null;
-                SetBuildChipView(
-                    _weaponChipBackgrounds[index],
-                    _weaponChipAccentBars[index],
-                    _weaponChipIcons[index],
-                    _weaponChipNames[index],
-                    _weaponChipRanks[index],
-                    active,
-                    weapon == null ? string.Empty : weapon.Id,
-                    active ? WeaponDisplayName(index, evolved) : string.Empty,
-                    rank,
-                    weapon == null ? 0 : weapon.Ranks.Length,
-                    active ? ParseColor(WeaponDisplayAccent(index, evolved), new Color(0.4f, 0.9f, 1f, 1f)) : Color.white,
-                    false,
-                    evolved);
-            }
-
-            for (var index = 0; index < _supportChipBackgrounds.Length; index++)
-            {
-                var rank = _upgradeProgress != null && index < _upgradeProgress.SupportRanks.Length
-                    ? _upgradeProgress.SupportRanks[index]
-                    : 0;
-                var active = index < ExtendedCatalog.AllSupports().Length && rank > 0;
-                var support = active ? ExtendedCatalog.AllSupports()[index] : null;
-                SetBuildChipView(
-                    _supportChipBackgrounds[index],
-                    _supportChipAccentBars[index],
-                    _supportChipIcons[index],
-                    _supportChipNames[index],
-                    _supportChipRanks[index],
-                    active,
-                    support == null ? string.Empty : support.Id,
-                    support == null ? string.Empty : support.Name,
-                    rank,
-                    support == null ? 0 : support.MaxRank,
-                    support == null ? Color.white : ParseColor(support.Accent, new Color(0.4f, 0.9f, 1f, 1f)),
-                    true,
-                    false);
-            }
-
-            for (var index = 0; index < _lateChipBackgrounds.Length; index++)
-            {
-                var rank = _upgradeProgress != null && index < _upgradeProgress.LateRanks.Length
-                    ? _upgradeProgress.LateRanks[index]
-                    : 0;
-                var active = index < ContentCatalog.LateUpgrades.Length && rank > 0;
-                var late = active ? ContentCatalog.LateUpgrades[index] : null;
-                SetBuildChipView(
-                    _lateChipBackgrounds[index],
-                    _lateChipAccentBars[index],
-                    _lateChipIcons[index],
-                    _lateChipNames[index],
-                    _lateChipRanks[index],
-                    active,
-                    late == null ? string.Empty : late.Id,
-                    late == null ? string.Empty : late.Name,
-                    rank,
-                    late == null ? 0 : late.MaxRank,
-                    late == null ? Color.white : ParseColor(late.Accent, new Color(0.4f, 0.9f, 1f, 1f)),
-                    true,
-                    false);
-            }
-            SetChipLabelVisibility(_weaponChipNames, _weaponChipBackgrounds, !_hudNarrow);
-            SetChipLabelVisibility(_supportChipNames, _supportChipBackgrounds, !_hudNarrow);
-            SetChipLabelVisibility(_lateChipNames, _lateChipBackgrounds, !_hudNarrow);
-            ResizeOwnedChipViews(
-                _supportChipBackgrounds,
-                _supportChipRanks,
-                _hudNarrow,
-                _hudNarrow ? 60f : 174f,
-                new Vector2(
-                    Mathf.Max(12f, Screen.safeArea.xMin),
-                    -OwnedUpgradeStripTop(
-                        false,
-                        Mathf.Max(0f, Screen.height - Screen.safeArea.yMax))),
-                false,
-                Screen.height);
-            ResizeOwnedChipViews(
-                _lateChipBackgrounds,
-                _lateChipRanks,
-                _hudNarrow,
-                _hudNarrow ? 60f : 174f,
-                new Vector2(
-                    -Mathf.Max(12f, Screen.width - Screen.safeArea.xMax),
-                    -OwnedUpgradeStripTop(
-                        true,
-                        Mathf.Max(0f, Screen.height - Screen.safeArea.yMax))),
-                true,
-                Screen.height);
+            RefreshApprovedBuildHud();
         }
 
         private void UpdateTouchHud()
@@ -774,19 +583,20 @@ namespace VoidFall.Runtime
             _xpBarBackground.rectTransform.anchorMin = new Vector2(0, 1);
             _xpBarBackground.rectTransform.anchorMax = new Vector2(1, 1);
             _xpBarBackground.rectTransform.pivot = new Vector2(0.5f, 1);
-            _xpBarBackground.rectTransform.offsetMin = new Vector2(0, -6);
+            _xpBarBackground.rectTransform.offsetMin = new Vector2(0, -8);
             _xpBarBackground.rectTransform.offsetMax = Vector2.zero;
             _xpBarBackground.enabled = true;
             _xpBarFill = CreateHudImage(canvasObject.transform, "XP Bar Fill");
             _xpBarFill.sprite = ProceduralSpriteFactory.Square();
-            _xpBarFill.color = new Color(0.204f, 0.827f, 0.6f, 1f);
+            _xpBarFill.color = Color.white;
+            _xpBarFill.gameObject.AddComponent<LegacyHudGradient>().Configure(new Color(.13f, .83f, .93f), new Color(.29f, .87f, .5f));
             _xpBarFill.type = Image.Type.Filled;
             _xpBarFill.fillMethod = Image.FillMethod.Horizontal;
             _xpBarFill.fillOrigin = 0;
             _xpBarFill.rectTransform.anchorMin = new Vector2(0, 1);
             _xpBarFill.rectTransform.anchorMax = new Vector2(1, 1);
             _xpBarFill.rectTransform.pivot = new Vector2(0.5f, 1);
-            _xpBarFill.rectTransform.offsetMin = new Vector2(0, -6);
+            _xpBarFill.rectTransform.offsetMin = new Vector2(0, -8);
             _xpBarFill.rectTransform.offsetMax = Vector2.zero;
             _xpBarFill.enabled = true;
 
@@ -797,7 +607,7 @@ namespace VoidFall.Runtime
             _healthPanel.rectTransform.anchorMax = new Vector2(0, 1);
             _healthPanel.rectTransform.pivot = new Vector2(0, 1);
             _healthPanel.rectTransform.anchoredPosition = new Vector2(12, -13);
-            _healthPanel.rectTransform.sizeDelta = new Vector2(240, 43);
+            _healthPanel.rectTransform.sizeDelta = new Vector2(240, 49);
             _healthPanel.enabled = true;
             _healthBarBackground = CreateHudImage(canvasObject.transform, "Integrity Bar Background");
             _healthBarBackground.sprite = ProceduralSpriteFactory.Square();
@@ -811,7 +621,8 @@ namespace VoidFall.Runtime
             _healthBarGhost.enabled = true;
             _healthBarFill = CreateHudImage(canvasObject.transform, "Integrity Bar Fill");
             _healthBarFill.sprite = ProceduralSpriteFactory.Square();
-            _healthBarFill.color = new Color(0.91f, 0.337f, 0.439f, 1f);
+            _healthBarFill.color = Color.white;
+            _healthBarFill.gameObject.AddComponent<LegacyHudGradient>().Configure(new Color(.94f, .27f, .38f), new Color(1f, .55f, .61f));
             ConfigureTopLeftBar(_healthBarFill, new Vector2(22, -37));
             _healthBarFill.enabled = true;
             _healthText = CreateText(canvasObject.transform, new Vector2(22, -23), new Vector2(0, 1), 11, new Color(0.72f, 0.78f, 0.84f));
@@ -853,20 +664,28 @@ namespace VoidFall.Runtime
 
             _clockPanel = CreateHudImage(canvasObject.transform, "Run Clock Panel");
             _clockPanel.sprite = ProceduralSpriteFactory.Square();
-            _clockPanel.color = new Color(0.02f, 0.035f, 0.063f, 0.72f);
+            _clockPanel.color = Color.clear;
             _clockPanel.rectTransform.anchorMin = new Vector2(0.5f, 1);
             _clockPanel.rectTransform.anchorMax = new Vector2(0.5f, 1);
             _clockPanel.rectTransform.pivot = new Vector2(0.5f, 1);
             _clockPanel.rectTransform.anchoredPosition = new Vector2(-10, -13);
             _clockPanel.rectTransform.sizeDelta = new Vector2(94, 52);
             _clockPanel.enabled = true;
-            _timeText = CreateText(canvasObject.transform, new Vector2(-10, -19), new Vector2(0.5f, 1), 23, new Color(0.945f, 0.961f, 0.976f));
+            _timeText = CreateText(canvasObject.transform, new Vector2(-10, -19), new Vector2(0.5f, 1), 38, new Color(0.945f, 0.961f, 0.976f));
             _timeText.alignment = TextAnchor.UpperCenter;
             _timeText.rectTransform.sizeDelta = new Vector2(94, 30);
-            _levelText = CreateText(canvasObject.transform, new Vector2(-10, -67), new Vector2(0.5f, 1), 10, new Color(0.49f, 0.827f, 0.988f));
-            _levelText.alignment = TextAnchor.UpperCenter;
+            _levelText = CreateText(canvasObject.transform, new Vector2(-10, -64), new Vector2(0.5f, 1), 13, new Color(.53f, .94f, .67f));
+            _levelText.alignment = TextAnchor.MiddleCenter;
+            var levelFrameObject = new GameObject("Level Badge", typeof(RectTransform));
+            levelFrameObject.transform.SetParent(_clockPanel.transform, false);
+            var levelFrame = levelFrameObject.AddComponent<LegacyLevelBadge>();
+            levelFrame.rectTransform.anchorMin = Vector2.zero;
+            levelFrame.rectTransform.anchorMax = Vector2.one;
+            levelFrame.rectTransform.offsetMin = levelFrame.rectTransform.offsetMax = Vector2.zero;
+            levelFrame.color = new Color(.29f, .87f, .5f, .8f);
+            levelFrame.raycastTarget = false;
             _levelText.rectTransform.sizeDelta = new Vector2(94, 16);
-            _objectiveText = CreateText(canvasObject.transform, new Vector2(-10, -86), new Vector2(0.5f, 1), 10, new Color(0.663f, 0.733f, 0.812f));
+            _objectiveText = CreateText(canvasObject.transform, new Vector2(-10, -111), new Vector2(0.5f, 1), 10, new Color(0.663f, 0.733f, 0.812f));
             _objectiveText.alignment = TextAnchor.UpperCenter;
             _objectiveText.rectTransform.sizeDelta = new Vector2(420, 16);
             _objectiveText.enabled = false;
@@ -1117,6 +936,9 @@ namespace VoidFall.Runtime
             transitionObject.transform.SetParent(canvasObject.transform, false);
             _transitionOverlay = transitionObject.AddComponent<ArenaTransitionGraphic>();
             _transitionOverlay.raycastTarget = false;
+            var transitionCanvas = transitionObject.AddComponent<Canvas>();
+            transitionCanvas.overrideSorting = true;
+            transitionCanvas.sortingOrder = 150;
             var transitionRect = _transitionOverlay.rectTransform;
             transitionRect.anchorMin = Vector2.zero;
             transitionRect.anchorMax = Vector2.one;
@@ -1187,6 +1009,7 @@ namespace VoidFall.Runtime
             SetupHudFxViews();
             CreateBuildChipHud(canvasObject.transform);
             SetupOverclockRemaster();
+            SetupApprovedHud();
         }
     }
 }

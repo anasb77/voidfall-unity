@@ -72,6 +72,10 @@ Runtime     -> Core + Content + Persistence + UI + Audio
 Assembly definitions live at each subsystem root. `Core` and `Content` have
 `noEngineReferences: true`; `GameSim` is in Runtime and uses Unity types.
 
+## Legacy restoration ownership
+
+`Content/LegacyRestorationRules.cs` appends the three enemy families and compatible support cards without changing generated IDs. Runtime `.LegacyRestoration.cs` owns Second Wind cooldown, delayed Spiky chains, shuriken/Spiky motion, roster introductions, the independent V1 ring clock and identity-keyed V1 dash controllers; `.DirectorI.cs` owns the sustained v5 schedule and budgets. The approved browser HUD is owned by runtime `.ApprovedHud.cs` and `ApprovedHudSlot.cs`; it reuses the original HUD bindings with bundled Chakra Petch fonts, live slots, and a 0.66 study scale. `LegacyHudGradient.cs` supplies the bar gradients. `.Journey.cs` / `.Rift.cs` / `.Escape.cs` retain covered swaps and the ten-second reward window. `LegacyRestorationProbe.cs` provides isolated native captures with `-vfrestoration-check=<directory>`. See `Docs/Design/2026-09-19-LegacyRestoration.md` for approved tuning and `LegacyRestoration*Tests` for regression coverage.
+
 ## Locate a gameplay change
 
 | Task | First files to inspect |
@@ -305,6 +309,8 @@ successful-run duration of roughly 30–40 minutes. See `Docs/Design/RunJourney.
 for proposed additions and unresolved counting/pacing decisions.
 
 ## UI, settings and profile progression
+
+`UI/Views/SettingsView.cs` owns the Video monitor cycler. `SaveSettings.monitorIndex` (-1 AUTO) is included in runtime settings snapshots. `.VideoSettings.cs` serializes asynchronous main-window moves before applying resolution; disconnected choices fall back to the current display. `UIManager.LayoutMuteControl` anchors the reduced gameplay mute control below the approved score.
 
 Workshop lists Default, Dasher and Brute through `WorkshopController.BuildForms`
 and `WorkshopView.PopulateForms`, including current base stats, starter and unlock
@@ -551,7 +557,7 @@ are different representations: use existing mapping helpers.
   extend that data. Legacy enums/counts are not necessarily the full live
   catalogue; consumers such as support selection use `ExtendedCatalog.AllSupports()`.
 
-## Director I sustained combat (version 2)
+## Director I sustained combat (version 3)
 
 Current duration is **360 seconds** for all eight voids (`Core/VoidProgressionRules`).
 `LocalDirectorSurvivalSeconds` reports actual seconds; beat cutoff330 and

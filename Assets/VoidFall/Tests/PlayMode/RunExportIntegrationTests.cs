@@ -141,8 +141,55 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(history.Any(e => e.kind == "upgrade_applied" && e.progress != null), Is.True);
             Assert.That(history.Any(e => e.kind == "encounter_selected"), Is.True);
             Assert.That(ReadReport().samples.Last().viewportWidth, Is.GreaterThan(0));
-            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(2));
+            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(5));
             Assert.That(ReadReport().samples.Last().specialAttackLimit, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void Uniform_legacy_ring_records_its_actual_composition_and_admitted_count()
+        {
+            Set(_runtime, "_time", 30f);
+            ((bool[])Get(_runtime, "_restorationIntroduced"))[1] = true;
+            Call("TryDeployLegacySwarm");
+            Call("FinishRunExport", "quit");
+            var ring = ReadHistory().Single(e => e.kind == "director_circle_deployed");
+            Assert.That(ring.id, Is.EqualTo("legacy-rush-circle"));
+            Assert.That(ring.amount, Is.EqualTo(11));
+            Assert.That(ring.detail, Does.Contain("composition=runner"));
+            Assert.That(ring.detail, Does.Contain("nextAt=64"));
+            Assert.That(ReadReport().context.spikyPhaseSeconds, Is.EqualTo(.5));
+        }
+
+        [Test]
+        public void Restoration_healing_and_chain_decisions_are_exported_with_policy_context()
+        {
+            var progress = (UpgradeProgress)Get(_runtime, "_upgradeProgress");
+            progress.SupportRanks[Array.FindIndex(ExtendedCatalog.AllSupports(), s => s.Id == "secondWind")] = 1;
+            Set(_runtime, "_level", 9);
+            var sim = Get(_runtime, "_gameSim");
+            var player = Get(sim, "Player"); Set(player, "Health", 5f); Set(sim, "Player", player);
+            Call("TrySecondWind");
+            Call("SpawnEnemy", "spiky");
+            Call("ApplyEnemyDamage", 0, 100000f);
+            Call("StepLegacyRestoration", .1f);
+            Call("FinishRunExport", "quit");
+            var heal = ReadHistory().Single(e => e.kind == "second_wind");
+            Assert.That(heal.amount, Is.EqualTo(9));
+            Assert.That(heal.durationSeconds, Is.EqualTo(180));
+            Assert.That(ReadHistory().Any(e => e.kind == "spiky_chain_burst" && e.instanceId > 0), Is.True);
+            Assert.That(ReadReport().context.restorationVersion, Is.EqualTo(LegacyRestorationRules.Version));
+            Assert.That(ReadReport().context.escapeSeconds, Is.EqualTo(10));
+            Assert.That(ReadReport().context.arrivalRateMultiplier, Is.EqualTo(2.5));
+            Assert.That(ReadReport().context.startingPressureHundredths, Is.EqualTo(100));
+            Assert.That(ReadReport().context.spikyBaseRadius, Is.EqualTo(19.5f));
+            Assert.That(ReadReport().context.spikyExpandedScale, Is.EqualTo(3));
+            Assert.That(ReadReport().context.shurikenSpinRadians, Is.EqualTo(14));
+            Assert.That(ReadReport().context.swarmIntervalSeconds, Is.EqualTo(34));
+            Assert.That(ReadReport().context.ordinaryRareDropChance, Is.EqualTo(1d / 300).Within(.0000001));
+            Assert.That(ReadReport().context.overclockMaximumBankedSeconds, Is.EqualTo(30));
+            Assert.That(ReadReport().context.xpMultiplierAfterLevelFive, Is.EqualTo(1.25));
+            Assert.That(ReadReport().context.boomerangSizeScale, Is.EqualTo(.675));
+            Assert.That(ReadReport().context.clockFaceOpacity, Is.EqualTo(.126));
         }
 
         private string ExportDirectory => Path.Combine(_directory, "RunExports");

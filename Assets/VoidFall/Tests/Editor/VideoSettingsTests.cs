@@ -107,6 +107,7 @@ namespace VoidFall.Tests.Editor
                 "{\"version\":5,\"parts\":10,\"settings\":{\"masterVolume\":0.8,\"quality\":\"high\"}}");
 
             Assert.That(legacy, Is.Not.Null);
+            Assert.That(legacy.settings.monitorIndex, Is.EqualTo(-1));
             Assert.That(legacy.settings.resolutionWidth, Is.Zero);
             Assert.That(legacy.settings.resolutionHeight, Is.Zero);
             Assert.That(legacy.settings.fullscreenMode, Is.EqualTo(1));
@@ -126,6 +127,7 @@ namespace VoidFall.Tests.Editor
         public void Sanitize_preserves_valid_video_preferences()
         {
             var data = SaveStore.CreateDefault();
+            data.settings.monitorIndex = 1;
             data.settings.resolutionWidth = 2560;
             data.settings.resolutionHeight = 1440;
             data.settings.fullscreenMode = 3;
@@ -134,6 +136,9 @@ namespace VoidFall.Tests.Editor
 
             var sanitized = SaveStore.Sanitize(data);
 
+            Assert.That(sanitized.settings.monitorIndex, Is.EqualTo(1));
+            var reloaded = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(sanitized));
+            Assert.That(reloaded.settings.monitorIndex, Is.EqualTo(1));
             Assert.That(sanitized.settings.resolutionWidth, Is.EqualTo(2560));
             Assert.That(sanitized.settings.resolutionHeight, Is.EqualTo(1440));
             Assert.That(sanitized.settings.fullscreenMode, Is.EqualTo(3));
@@ -181,7 +186,7 @@ namespace VoidFall.Tests.Editor
             Assert.That(VideoSettingsRules.EffectiveBloom(0.75f), Is.EqualTo(0.75f).Within(0.0001f));
             Assert.That(VideoSettingsRules.EffectiveBloom(9f), Is.EqualTo(2f).Within(0.0001f), "the slider range tops out at 2");
 
-            Assert.That(VideoSettingsRules.EffectiveChromatic(-1f), Is.EqualTo(0.12f).Within(0.0001f), "sentinel means the shipped 0.12");
+            Assert.That(VideoSettingsRules.EffectiveChromatic(-1f), Is.EqualTo(0f).Within(0.0001f), "sentinel means chromatic aberration is off by default");
             Assert.That(VideoSettingsRules.EffectiveChromatic(0.25f), Is.EqualTo(0.25f).Within(0.0001f));
             Assert.That(VideoSettingsRules.EffectiveChromatic(2f), Is.EqualTo(0.5f).Within(0.0001f), "the slider range tops out at 0.5");
         }

@@ -10,7 +10,7 @@ namespace VoidFall.Tests.Editor
     public sealed class MusicReactiveFeatureTests
     {
         [Test]
-        public void Overclock_PickupsAccumulateTimeAndCapOnlyPowerTier()
+        public void Overclock_PickupsCapBankedTimeAndPowerButRetainStreak()
         {
             var state = default(OverclockState);
 
@@ -19,7 +19,7 @@ namespace VoidFall.Tests.Editor
                 state.ApplyPickup();
                 Assert.That(state.PowerTier, Is.EqualTo(System.Math.Min(3, pickup)));
                 Assert.That(state.Streak, Is.EqualTo(pickup));
-                Assert.That(state.RemainingSeconds, Is.EqualTo(15f * pickup).Within(0.001f));
+                Assert.That(state.RemainingSeconds, Is.EqualTo(System.Math.Min(30f, 15f * pickup)).Within(0.001f));
             }
         }
 

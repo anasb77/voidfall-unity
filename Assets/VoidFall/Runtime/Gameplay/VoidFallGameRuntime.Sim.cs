@@ -191,6 +191,11 @@ namespace VoidFall.Runtime
 
         private void UpdateSpawns(float dt)
         {
+            if (_arrivalGrace > 0 && _stressScenario == null)
+            {
+                _lastSpawnBlockReason = "arrival_grace";
+                return;
+            }
             if (_riftTransitionActive)
             {
                 _spawnTimer = Mathf.Max(_spawnTimer, 0.35f);
@@ -667,6 +672,7 @@ namespace VoidFall.Runtime
 
         private string ChooseAmbientEnemy()
         {
+            if (UsesSustainedDirector) return ChooseRestorationAmbient();
             // Bands are matched against the paced roster clock, not raw run time,
             // so the reveal order stays exactly as authored while the spacing
             // between reveals is reshaped. See DirectorRules.RosterRevealTime.
@@ -781,6 +787,10 @@ namespace VoidFall.Runtime
                 {
                     bodyguardOrbiting = false;
                 }
+                else if (UpdateLegacyEnemy(ref enemy, direction))
+                {
+                    // Legacy families use the same pooled movement/collision pass.
+                }
                 else if (bodyguardOrbiting)
                 {
                     enemy.Knockback = Vector2.zero;
@@ -856,7 +866,7 @@ namespace VoidFall.Runtime
                     // population out across the arena instead.
                     var wobble = Mathf.Sin(_time * 2.2f + enemy.Seed) *
                         (enemy.Id == "runner" ? 0.45f : 0.18f) +
-                        ApproachBias(enemy.Seed, distance);
+                        (_legacyRushIdentities[i] == enemy.SpawnId ? 0 : ApproachBias(enemy.Seed, distance));
                     var rotated = new Vector2(
                         direction.x * Mathf.Cos(wobble) - direction.y * Mathf.Sin(wobble),
                         direction.x * Mathf.Sin(wobble) + direction.y * Mathf.Cos(wobble));
@@ -916,7 +926,13 @@ namespace VoidFall.Runtime
             }
         }
 
-        private void UpdateDasher(ref EnemyState enemy, float dt, float distance, Vector2 direction) => _gameSim.UpdateDasher(ref enemy, dt, distance, direction);
+        private void UpdateDasher(ref EnemyState enemy, float dt, float distance, Vector2 direction)
+        {
+            if (enemy.View >= 0 && enemy.View < _legacyRushIdentities.Length &&
+                _legacyRushIdentities[enemy.View] == enemy.SpawnId)
+                UpdateLegacyRush(ref enemy, dt, distance, direction);
+            else _gameSim.UpdateDasher(ref enemy, dt, distance, direction);
+        }
 
         private bool TryUpdateMatriarchBodyguard(
             ref EnemyState enemy,
@@ -2379,7 +2395,7 @@ namespace VoidFall.Runtime
             var thirdRound = _pulseBurstShots == 1;
             var pulseAngles = CombatRules.ProjectileAngles(
                 angle,
-                stats.ProjectileCount + (_dealerExtraWeapon == 0 ? 1 : 0),
+                stats.ProjectileCount + SupportRank("split-pistol") + (_dealerExtraWeapon == 0 ? 1 : 0),
                 (float)stats.SpreadDegrees);
             for (var index = 0; index < pulseAngles.Length; index++)
             {
@@ -2439,7 +2455,7 @@ namespace VoidFall.Runtime
             var baseAngle = Mathf.Atan2(direction.y, direction.x);
             var evolved = _upgradeProgress.Evolved[weaponIndex];
             var spread = weapon.Id == "scattergun" && evolved ? 14 : (float)stats.SpreadDegrees;
-            var angles = CombatRules.ProjectileAngles(baseAngle, stats.ProjectileCount + (_dealerExtraWeapon == weaponIndex ? 1 : 0), spread);
+            var angles = CombatRules.ProjectileAngles(baseAngle, stats.ProjectileCount + SupportRank("split-" + weapon.Id) + (_dealerExtraWeapon == weaponIndex ? 1 : 0), spread);
             for (var index = 0; index < angles.Length; index++)
             {
                 // Browser fireWeapon breaks before calculating the next
@@ -2592,7 +2608,7 @@ namespace VoidFall.Runtime
                 Radius = radius,
                 WeaponIndex = weaponIndex,
                 Rank = rank,
-                PierceRemaining = pierceOverride ?? stats.Pierce,
+                PierceRemaining = (pierceOverride ?? stats.Pierce) + (LegacyRestorationRules.SupportsPiercing(weapon.Id) ? SupportRank("phaseRounds") : 0),
                 HitEnemy0 = excludedEnemyIndex,
                 HitEnemy1 = -1,
                 HitEnemy2 = -1,
@@ -3226,7 +3242,7 @@ namespace VoidFall.Runtime
                     ? EnemyRoster.One
                     : EnemyRosterRules.EnemyRosterForSpawn(
                         id,
-                        _encounterInitialized ? DirectorChallengeSeconds : _time,
+                        UsesSustainedDirector ? (RestorationFamilyAge(id) < 60 ? 0 : _time) : _encounterInitialized ? DirectorChallengeSeconds : _time,
                         EnemyRosterRules.RosterSpawnRoll(_runSeed, enemyId)));
             if (!AdmitDirectorSpawn(id, roster, eliteKind, elite)) return false;
             _nextEnemyId++;
@@ -3642,17 +3658,30 @@ namespace VoidFall.Runtime
         private void SpawnRarePickup(Vector2 position)
         {
             var roll = _gameSim.Rng.Next();
-            // TRACK SHIFT rides the rare pool at a modest band; the music
-            // switch is a delight, not a build-around.
-            var kind = roll < 0.08
+            // Scarce-heal tuning: health + song shift are emergency/delight,
+            // not staples. Magnet / Bomb / Overdrive carry the pool.
+            var kind = roll < 0.05
                 ? PickupKind.TrackShift
-                : roll < 0.36
-                    ? PickupKind.Magnet
-                    : roll < 0.67
-                        ? PickupKind.Repair
-                        : roll < 0.87
+                : roll < 0.12
+                    ? PickupKind.Repair
+                    : roll < 0.46
+                        ? PickupKind.Magnet
+                        : roll < 0.72
                             ? PickupKind.Bomb
                             : PickupKind.Overdrive;
+            // Track Shift cooldown so back-to-back rares can't skip songs
+            // every few seconds. Falls back to Magnet without extra RNG.
+            if (kind == PickupKind.TrackShift)
+            {
+                if (_time < _nextTrackShiftAllowedTime)
+                {
+                    kind = PickupKind.Magnet;
+                }
+                else
+                {
+                    _nextTrackShiftAllowedTime = _time + 45f;
+                }
+            }
             SpawnSpecialPickup(position, 1, kind);
         }
 
@@ -3798,6 +3827,7 @@ namespace VoidFall.Runtime
             // later effects in the same simulation step observe the reduced
             // health, pressure timer, and invulnerability window immediately.
             _gameSim.Player.Health -= appliedDamage;
+            TrySecondWind();
             RecordRunHistory("player_damage", sourceId: _factionControllerIdentity > 0 ? "enemy_controller" : "unattributed",
                 relatedInstanceId: _factionControllerIdentity, amount: appliedDamage,
                 hp: Mathf.Max(0, _gameSim.Player.Health), maxHp: _gameSim.Player.MaxHealth);
@@ -3863,7 +3893,7 @@ namespace VoidFall.Runtime
             var enemy = _gameSim.Enemies[index];
             if (!enemy.Active || enemy.Health <= 0 || !FactionRewardRules.Hostile(_damageFaction, FactionOf(enemy))) return;
             if (IsNullCityEnemy(enemy.Id) && _nullCityUnits[index].Identity == enemy.SpawnId && _nullCityUnits[index].Grace > 0f) return;
-            if (_damageFaction == CombatFaction.Player) damage *= PlayerDamageMultiplier();
+            if (_damageFaction == CombatFaction.Player) damage *= PlayerDamageMultiplier() * (enemy.Elite || enemy.EliteKind.HasValue ? (float)LegacyRestorationRules.GiantSlayerMultiplier(SupportRank("giantSlayer")) : 1);
             else critical = false;
             var appliedDamage = Mathf.Max(0, damage);
             appliedDamage *= HydraPopulationIncomingDamageMultiplier(enemy, direction);
@@ -3979,6 +4009,7 @@ namespace VoidFall.Runtime
                 _gameSim.Bosses[index] = boss;
                 return;
             }
+            if (_damageFaction == CombatFaction.Player) damage *= (float)LegacyRestorationRules.GiantSlayerMultiplier(SupportRank("giantSlayer"));
             if (IsCourtGrandmaster(boss.Id))
             {
                 if (_damageFaction == CombatFaction.Player) damage *= PlayerDamageMultiplier();
@@ -4234,6 +4265,7 @@ namespace VoidFall.Runtime
         {
             var enemy = _gameSim.Enemies[index];
             if (!enemy.Active) return;
+            QueueSpikyDeath(enemy);
             RecordEnemyRemoval(index, selfDetonated ? "self_detonated" : "killed");
             var rewardActor = _factionActors[index];
             var previousRewardSource = _telemetryRewardSource;
@@ -4466,7 +4498,7 @@ namespace VoidFall.Runtime
                 if (!SpawnSpecialPickup(enemy.Position, 1, PickupKind.Part) && escaping)
                     GrantPartPickup(1);
             }
-            var rareChance = enemy.EliteKind.HasValue ? 0.35 : 0.011;
+            var rareChance = enemy.EliteKind.HasValue ? 0.25 : LegacyRestorationRules.OrdinaryRareDropChance;
             if (rewardable && ((enemy.Elite && !enemy.EliteKind.HasValue) || _gameSim.Rng.Next() < rareChance))
             {
                 SpawnRarePickup(enemy.Position);

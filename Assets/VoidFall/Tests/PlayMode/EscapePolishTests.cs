@@ -104,12 +104,13 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
-        public void Escape_departs_after_fifteen_active_seconds()
+        public void Escape_departs_after_ten_active_seconds()
         {
             Call("OnVoidObjectiveCompleted");
-            Call("StepVoidCompletionDelay", 14.9f);
+            Call("StepVoidCompletionDelay", 9.9f);
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Rewards"));
             Call("StepVoidCompletionDelay", 0.2f);
+            for (var settle = 0; settle < 20 && _runtime.JourneyStatus == "Travel"; settle++) Call("UpdateJourneyFlow", .1f);
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Junction"));
         }
 
@@ -126,6 +127,7 @@ namespace VoidFall.Tests.PlayMode
             for (var i = 0; i < 155; i++) Call("UpdateJourneyFlow", 0.1f);
             Assert.That((float)Get("_xp"), Is.EqualTo(7f));
             Assert.That((int)Get("_partsEarned"), Is.EqualTo(9));
+            for (var settle = 0; settle < 20 && _runtime.JourneyStatus == "Travel"; settle++) Call("UpdateJourneyFlow", .1f);
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Junction"));
             for (var i = 0; i < 10; i++) Call("UpdateJourneyFlow", 0.1f);
             Assert.That((float)Get("_xp"), Is.EqualTo(7f));
@@ -329,10 +331,11 @@ namespace VoidFall.Tests.PlayMode
             Call("ToggleRouteMap");
             for (var i = 0; i < 100; i++) Call("UpdateJourneyFlow", 0.1f);
             Assert.That(((OverclockState)Get("_overclock")).RemainingSeconds, Is.EqualTo(15f));
-            Assert.That((float)Get("_voidCompletionDelayRemaining"), Is.EqualTo(15f));
+            Assert.That((float)Get("_voidCompletionDelayRemaining"), Is.EqualTo(10f));
             Call("CloseRouteMap");
             for (var i = 0; i < 155; i++) Call("UpdateJourneyFlow", 0.1f);
             Assert.That(((OverclockState)Get("_overclock")).RemainingSeconds, Is.EqualTo(15f));
+            for (var settle = 0; settle < 20 && _runtime.JourneyStatus == "Travel"; settle++) Call("UpdateJourneyFlow", .1f);
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Junction"));
         }
 

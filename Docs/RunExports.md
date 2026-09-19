@@ -1,5 +1,15 @@
 # Run exports — schema 4
 
+## Legacy restoration additions (September 19)
+
+Context adds `restorationVersion`, `escapeSeconds` (10), `arrivalGraceSeconds` (2.5), and Director I reports `directorVersion=5`. Missing fields identify older captures. Existing upgrade offers/applied progress include stable IDs `phaseRounds`, `giantSlayer`, `secondWind`, and `split-<weaponId>`; Split Shot recipients are encoded in the offer ID and description.
+
+`second_wind` records actual healed `amount`, resulting HP/maxHP, 180-second cooldown in `durationSeconds`, and level in `detail`. `spiky_chain_burst` joins the dying enemy by `instanceId`, with base damage and radius/player-safety details; `spiky_chain_rejected` reports queue overflow. `roster_introduction` identifies the family and admitted count; `director_circle_deployed` records its encounter owner, admitted count and composition/gap. `crossing_transition` records cover_begin/covered_swap/settled reasons. `arrival_grace` identifies the destination and duration. All use existing run/visit/time context and bounded history storage. Damage still aggregates through existing damage windows. The restoration capture flag marks runs diagnostic and isolates their profile.
+
+Context also records density-v3 tuning: `ordinaryRareDropChance` (1/300), `overclockMaximumBankedSeconds` (30), `xpMultiplierAfterLevelFive` (1.25), `boomerangSizeScale` (.675), `clockFaceOpacity` (.126), `spikyPhaseSeconds` (.5), `selectedMonitorIndex` (-1 AUTO) and `actualMonitorName`. The `overclock` history event now includes remaining duration and power tier. `display_monitor_changed` records requested index in amount, applied/auto/disconnected_fallback/move_failed reason and actual display name/count. Changes during menus appear in the next run's context.
+
+Signature `director_circle_deployed` events use `id=legacy-rush-circle`, a run-local sequence identity, admitted count, requested count, uniform composition and next due time. Separate mixed tactical rings use `mixed-green-circle` and the encounter owner identity. Existing individual spawn records report admission/rejection; no extra RNG is consumed by telemetry. `director_arrival_budget` records the actual multiplier, retaining 2.0 during boss/damage relief and 2.5 otherwise.
+
 ## Dealer and manual legendaries (September 12 additions)
 
 `dealer_stock` records fixed offer IDs plus price, run wallet, recipients,
@@ -253,3 +263,7 @@ Existing schema4 history fields remain compatible; these are additional kinds.
   lunge, blast, regeneration, repair drones and splits; queued/released/cancelled
   births retain parent/child identity and actual count. This observes outcomes
   without consuming additional combat RNG.
+
+### HUD/density tuning context (September 19)
+
+Director version 4 records `arrivalRateMultiplier`, `startingPressureHundredths`, `spikyBaseRadius`, `spikyExpandedScale`, `spikyPhaseSeconds`, `shurikenSpinRadians`, and `swarmIntervalSeconds` in run context. Arrival budget details include the multiplier. `director_circle_deployed` records full-ring/tier/composition and admitted count. Pressure samples use the actual 1x-start curve.

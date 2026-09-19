@@ -9,9 +9,9 @@ namespace VoidFall.Runtime
 {
     public sealed partial class VoidFallGameRuntime
     {
-        private const float EscapeDurationSeconds = 15f;
-        private const float EscapeEnemyClearSeconds = 9.5f;
-        private const float EscapeLootSweepSeconds = 11f;
+        private const float EscapeDurationSeconds = 10f;
+        private const float EscapeEnemyClearSeconds = 5f;
+        private const float EscapeLootSweepSeconds = 6f;
         private readonly int[] _escapeEnemySlots = new int[MaxEnemies];
         private readonly int[] _escapeEnemySpawnIds = new int[MaxEnemies];
         private readonly Text[] _escapeDots = new Text[3];

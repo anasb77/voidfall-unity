@@ -9,6 +9,7 @@ namespace VoidFall.Core
             foreach (var enemy in Enemies)
                 if (enemy.Id == "chaser") enemy.Name = "Regular";
             Weapons = ArsenalContent.AppendWeapons(Weapons);
+            Enemies = LegacyRestorationRules.AppendEnemies(Enemies);
             Evolutions = ArsenalContent.AppendEvolutions(Evolutions);
             foreach (var weapon in Weapons)
                 weapon.Summary = UpgradeRules.AddProjectileDefenseText(weapon.Id, weapon.Summary);

@@ -11,7 +11,7 @@ namespace VoidFall.Tests.Editor
         public void Removed_cards_are_absent_and_survivors_describe_both_effects()
         {
             var supports = ExtendedCatalog.AllSupports();
-            Assert.That(supports.Length, Is.EqualTo(13));
+            Assert.That(supports.Length, Is.EqualTo(20));
             Assert.That(Array.Exists(supports, s => s.Id == "fortune" || s.Id == "spatialAwareness"), Is.False);
             var options = UpgradeRules.RollProgressionOptions(new UpgradeProgress(), new Rng(7), 100);
             var scholar = Array.Find(options, o => o.TargetId == "scholar");

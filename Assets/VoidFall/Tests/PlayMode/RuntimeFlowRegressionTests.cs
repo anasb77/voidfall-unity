@@ -254,7 +254,7 @@ namespace VoidFall.Tests.PlayMode
             Invoke(runtime, "DestroyEnemiesForVoidTransition");
             Invoke(runtime, "OnVoidObjectiveCompleted");
             Invoke(runtime, "SpawnRouletteChest", Vector2.zero);
-            SetField(runtime, "_voidCompletionDelayRemaining", 11f);
+            SetField(runtime, "_voidCompletionDelayRemaining", 6f);
 
             Invoke(runtime, "StepVoidCompletionDelay", 0f);
 
@@ -279,10 +279,12 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(GetField(runtime, "_openRouteAfterRoulette"), Is.False);
             Assert.That(GetField(runtime, "_paused"), Is.False);
             Assert.That(runtime.JourneyStatus, Is.EqualTo("Rewards"));
-            Assert.That(GetField(runtime, "_voidCompletionDelayRemaining"), Is.EqualTo(11f));
-            Invoke(runtime, "StepVoidCompletionDelay", 11f);
+            Assert.That(GetField(runtime, "_voidCompletionDelayRemaining"), Is.EqualTo(6f));
+            Invoke(runtime, "StepVoidCompletionDelay", 6f);
             var ui = (UIManager)GetField(runtime, "_ui");
             Assert.That(ui.CurrentScreen, Is.EqualTo(UIScreen.None));
+            Assert.That(runtime.JourneyStatus, Is.EqualTo("Travel"));
+            for (var i = 0; i < 30; i++) Invoke(runtime, "UpdateJourneyFlow", .1f);
             Assert.That(runtime.JourneyStatus, Is.EqualTo("Junction"));
         }
 

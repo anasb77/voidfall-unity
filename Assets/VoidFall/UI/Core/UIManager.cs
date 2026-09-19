@@ -72,6 +72,7 @@ namespace VoidFall.UI
         /// <summary>VIDEO section. Resolution 0 x 0 means AUTO (native).</summary>
         public Action<int, int> SetResolution;
         public Action<int> SetDisplayMode;
+        public Action<int> SetMonitor;
         public Action<float> SetBloom;
         public Action<float> SetChromatic;
 
@@ -113,6 +114,7 @@ namespace VoidFall.UI
         public int ResolutionWidth;
         public int ResolutionHeight;
         public int FullscreenMode;
+        public int MonitorIndex;
         public float Bloom;
         public float Chromatic;
     }
@@ -366,6 +368,10 @@ namespace VoidFall.UI
             rect.anchorMax = new Vector2(1f, 0f);
             rect.pivot = new Vector2(1f, 0f);
             rect.anchoredPosition = new Vector2(-14f, 14f);
+            // Size the control itself: press feedback intentionally resets transform scale to one.
+            rect.sizeDelta *= .65f;
+            var glyph = _muteButton.transform.Find("Glyph");
+            if (glyph != null) glyph.localScale = Vector3.one * .65f;
 
             _muteGlyph = _muteButton.transform.Find("Glyph")?.GetComponent<TMPro.TextMeshProUGUI>();
         }
@@ -397,6 +403,7 @@ namespace VoidFall.UI
         public void SetScreen(UIScreen screen)
         {
             _screen = screen;
+            LayoutMuteControl();
 
             var menuVisible = screen == UIScreen.Home || screen == UIScreen.Workshop ||
                 screen == UIScreen.Records || screen == UIScreen.Settings || screen == UIScreen.DirectorSelection;
@@ -437,6 +444,16 @@ namespace VoidFall.UI
             // The quit confirmation is modal over the home screen only; any
             // navigation (Tab toggle, starting a run, pause) dismisses it.
             QuitConfirm?.SetVisible(false);
+        }
+
+        public void LayoutMuteControl()
+        {
+            if (_muteButton == null) return;
+            var rect = _muteButton.GetComponent<RectTransform>();
+            var gameplay = _screen == UIScreen.None;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(1, gameplay ? 1 : 0);
+            var unit = _root.rect.width * .01f * .66f;
+            rect.anchoredPosition = gameplay ? new Vector2(-6.1f * unit, -8.3f * unit) : new Vector2(-14, 14);
         }
 
         public UIScreen CurrentScreen => _screen;

@@ -25,6 +25,11 @@ namespace VoidFall.Editor
             EnsureFolderTree(SpriteRoot);
             EnsureFolderTree(ResourceRoot);
 
+            var existingPaths = new Dictionary<string, string>(StringComparer.Ordinal);
+            var existingCatalog = AssetDatabase.LoadAssetAtPath<ProceduralSpriteCatalog>(CatalogPath);
+            if (existingCatalog != null)
+                foreach (var entry in existingCatalog.Entries)
+                    if (entry.Sprite != null) existingPaths[entry.Key] = AssetDatabase.GetAssetPath(entry.Sprite);
             var snapshot = BuildCatalogSnapshot();
             try
             {
@@ -35,7 +40,6 @@ namespace VoidFall.Editor
                 var generatedPaths = new HashSet<string>(StringComparer.Ordinal);
                 var safeForAtlas = new List<Object>();
                 var importedEntries = new List<ProceduralSpriteCatalogEntry>(snapshot.Count);
-                var sourceIndex = 0;
 
                 for (var entryIndex = 0; entryIndex < snapshot.Entries.Count; entryIndex++)
                 {
@@ -43,21 +47,17 @@ namespace VoidFall.Editor
                     var source = entry.Sprite;
                     if (!importedBySource.TryGetValue(source, out var imported))
                     {
-                        // Append-only prepared art must not renumber every
-                        // existing generated filename and GUID.
-                        var appendOnlyExtra = entry.Key == "pickup|trackshift";
-                        var filename = appendOnlyExtra
-                            ? "Sprite_extra_" + SafeFilename(entry.Key) + ".png"
-                            : "Sprite_" + sourceIndex.ToString("D4") + "_" +
-                              SafeFilename(entry.Key) + ".png";
-                        var path = SpriteRoot + "/" + filename;
+                        // Reuse by catalogue identity, never by sorted ordinal: adding any
+                        // prepared sprite must not change previously shipped GUIDs.
+                        var path = existingPaths.TryGetValue(entry.Key, out var existingPath)
+                            ? existingPath : SpriteRoot + "/Sprite_extra_" + SafeFilename(entry.Key) + ".png";
                         generatedPaths.Add(path);
                         EditorUtility.DisplayProgressBar(
                             "VoidFall sprite bake",
                             "Importing " + entry.Key,
                             entryIndex / (float)snapshot.Entries.Count);
                         WriteSpritePng(path, source);
-                        var atlasSafe = !appendOnlyExtra && IsAtlasSafe(source);
+                        var atlasSafe = entry.Key != "pickup|trackshift" && IsAtlasSafe(source);
                         ImportSprite(path, source, atlasSafe);
                         imported = AssetDatabase.LoadAssetAtPath<Sprite>(path);
                         if (imported == null)
@@ -65,7 +65,6 @@ namespace VoidFall.Editor
 
                         importedBySource.Add(source, imported);
                         if (atlasSafe) safeForAtlas.Add(imported);
-                        if (!appendOnlyExtra) sourceIndex++;
                     }
 
                     importedEntries.Add(new ProceduralSpriteCatalogEntry(entry.Key, imported));

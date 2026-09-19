@@ -49,6 +49,9 @@ namespace VoidFall.UI
         private Image _resetSurface;
         private Text _resolutionLabel;
         private Text _displayModeLabel;
+        private Text _monitorLabel;
+        private readonly List<DisplayInfo> _monitors = new List<DisplayInfo>();
+        private int _monitorIndex = -1;
         private string _quality = "auto";
         private int _resolutionIndex;
         private int _displayModeIndex;
@@ -340,6 +343,10 @@ namespace VoidFall.UI
             var header = UIBuilder.CreateSectionLabel(_content, "VideoSectionLabel", "Video");
             UIBuilder.SetHeight(header.rectTransform, 22f);
 
+            Screen.GetDisplayLayout(_monitors);
+            CreateRow("monitor", "Monitor", "Choose the screen used now and at startup.", out var monitorControl);
+            _monitorLabel = CreateCycleControl(monitorControl, StepMonitor);
+            RefreshMonitorLabel();
             _resolutionSizes.AddRange(VideoSettingsRules.BuildResolutionSizes(Screen.resolutions));
 
             CreateRow(
@@ -404,6 +411,24 @@ namespace VoidFall.UI
             nextRect.pivot = new Vector2(1f, 0.5f);
             nextRect.anchoredPosition = Vector2.zero;
             return value;
+        }
+
+        private void StepMonitor(int delta)
+        {
+            if (_applying) return;
+            Screen.GetDisplayLayout(_monitors);
+            _monitorIndex = VideoSettingsRules.CycleIndex(_monitorIndex + 1, _monitors.Count + 1, delta) - 1;
+            RefreshMonitorLabel();
+            Callbacks?.SetMonitor?.Invoke(_monitorIndex);
+        }
+
+        private void RefreshMonitorLabel()
+        {
+            if (_monitorLabel == null) return;
+            if (_monitorIndex < 0) { _monitorLabel.text = "AUTO"; return; }
+            if (_monitorIndex >= _monitors.Count) { _monitorLabel.text = "DISCONNECTED · AUTO"; return; }
+            var display = _monitors[_monitorIndex];
+            _monitorLabel.text = "MONITOR " + (_monitorIndex + 1) + " · " + display.width + " × " + display.height;
         }
 
         private void StepResolution(int delta)
@@ -634,6 +659,9 @@ namespace VoidFall.UI
                 SetSlider("bloom", VideoSettingsRules.EffectiveBloom(state.Bloom));
                 SetSlider("chromatic", VideoSettingsRules.EffectiveChromatic(state.Chromatic));
 
+                Screen.GetDisplayLayout(_monitors);
+                _monitorIndex = state.MonitorIndex;
+                RefreshMonitorLabel();
                 _resolutionIndex = IndexOfResolution(state.ResolutionWidth, state.ResolutionHeight);
                 RefreshResolutionLabel();
                 _displayModeIndex = VideoSettingsRules.DisplayModeIndex(state.FullscreenMode);

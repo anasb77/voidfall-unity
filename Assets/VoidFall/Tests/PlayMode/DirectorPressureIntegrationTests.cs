@@ -72,7 +72,7 @@ namespace VoidFall.Tests.PlayMode
             Invoke(_runtime,"OpenLevelUp");Set(_runtime,"_levelUpTimer",.001f);
             Invoke(_runtime,"Simulate",1.0/60);
             Assert.That(Get(_runtime,"_levelUpActive"),Is.True);
-            Assert.That(Pressure.PressureHundredths,Is.EqualTo(50));
+            Assert.That(Pressure.PressureHundredths,Is.EqualTo(133));
             Assert.That(Pressure.CreditedProgressSeconds,Is.EqualTo(360));
         }
 
@@ -87,7 +87,7 @@ namespace VoidFall.Tests.PlayMode
             var player=Get(game,"Player");Set(player,"Health",0f);Set(player,"DyingTimer",.001f);Set(game,"Player",player);
             Set(_runtime,"_revivesRemaining",0);Invoke(_runtime,"Simulate",1.0/60);
             Assert.That(Get(_runtime,"_gameOver"),Is.True);
-            Assert.That(_runtime.TerminalRunScore.PressureHundredths,Is.EqualTo(46));
+            Assert.That(_runtime.TerminalRunScore.PressureHundredths,Is.EqualTo(130));
         }
 
         [Test]
@@ -99,12 +99,12 @@ namespace VoidFall.Tests.PlayMode
             var score = Invoke(_runtime, "CurrentEarnedBaseScore");
             Set(_runtime, "_time", 9000f);
             Invoke(_runtime, "StepRunPressure");
-            Assert.That(Pressure.PressureHundredths, Is.Zero);
+            Assert.That(Pressure.PressureHundredths, Is.EqualTo(100));
             Assert.That(Invoke(_runtime, "CurrentEarnedBaseScore"), Is.EqualTo(score));
             Tracker.Step((VoidProgressionRules.SurvivalSeconds - 1.5) / 2);
             Invoke(_runtime, "StepRunPressure");
             Assert.That(Pressure.CreditedProgressSeconds, Is.EqualTo(150).Within(.0001));
-            Assert.That(Pressure.PressureHundredths, Is.EqualTo(20));
+            Assert.That(Pressure.PressureHundredths, Is.EqualTo(113));
         }
 
         [TestCase("_paused")]
@@ -130,20 +130,20 @@ namespace VoidFall.Tests.PlayMode
         {
             Tracker.Step(VoidProgressionRules.SurvivalSeconds);
             Invoke(_runtime, "StepRunPressure");
-            Assert.That(Pressure.PressureHundredths, Is.EqualTo(40));
+            Assert.That(Pressure.PressureHundredths, Is.EqualTo(126));
             Set(_runtime, "_completedVoids", 1);
             Invoke(_runtime, "StepRunPressure");
-            Assert.That(Pressure.PressureHundredths, Is.EqualTo(40));
+            Assert.That(Pressure.PressureHundredths, Is.EqualTo(126));
             var stage = Get(_runtime, "_journeyStage");
             Set(_runtime, "_journeyStage", Enum.Parse(stage.GetType(), "Travel"));
             Invoke(_runtime, "BeginPressureArena");
             Tracker.Begin(VoidObjectives.ForArena("red-nebula"));
             Tracker.Step(VoidProgressionRules.SurvivalSeconds / 2);
             Invoke(_runtime, "StepRunPressure");
-            Assert.That(Pressure.PressureHundredths, Is.EqualTo(40));
+            Assert.That(Pressure.PressureHundredths, Is.EqualTo(126));
             Set(_runtime, "_journeyStage", stage);
             Invoke(_runtime, "StepRunPressure");
-            Assert.That(Pressure.PressureHundredths, Is.EqualTo(60));
+            Assert.That(Pressure.PressureHundredths, Is.EqualTo(140));
         }
 
         [Test]
@@ -155,10 +155,10 @@ namespace VoidFall.Tests.PlayMode
             Invoke(_runtime, "StepRunPressure");
             SetBoss(0, "herald", 0, 100, 101, false);
             Invoke(_runtime, "StepRunPressure");
-            Assert.That(Pressure.PressureHundredths, Is.EqualTo(45));
+            Assert.That(Pressure.PressureHundredths, Is.EqualTo(130));
             SetBoss(1, "warden", 50, 100, 102);
             Invoke(_runtime, "StepRunPressure");
-            Assert.That(Pressure.PressureHundredths, Is.EqualTo(47));
+            Assert.That(Pressure.PressureHundredths, Is.EqualTo(131));
             var credited = Pressure.CreditedProgressSeconds;
             SetBoss(1, "warden", 100, 100, 102);
             Invoke(_runtime, "StepRunPressure");
@@ -177,7 +177,7 @@ namespace VoidFall.Tests.PlayMode
             Set(_runtime, "_monochromeSharedHealth", 100f);
             Invoke(_runtime, "StepRunPressure");
             Assert.That(Get(_runtime, "_pressureBossCount"), Is.EqualTo(1));
-            Assert.That(Pressure.PressureHundredths, Is.EqualTo(45));
+            Assert.That(Pressure.PressureHundredths, Is.EqualTo(130));
             Assert.That(Pressure.CreditedProgressSeconds, Is.EqualTo(330));
         }
 
@@ -195,7 +195,7 @@ namespace VoidFall.Tests.PlayMode
             Invoke(_runtime, "StepRunPressure");
             Invoke(_runtime, "FreezePressureAndScore");
             Assert.That(_runtime.TerminalRunScore.FinalScore, Is.EqualTo(135));
-            Assert.That(_runtime.TerminalRunScore.PressureHundredths, Is.Zero);
+            Assert.That(_runtime.TerminalRunScore.PressureHundredths, Is.EqualTo(100));
         }
 
         [TestCase(false)]

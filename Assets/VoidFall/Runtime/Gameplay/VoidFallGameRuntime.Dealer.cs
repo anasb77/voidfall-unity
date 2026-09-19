@@ -149,7 +149,7 @@ namespace VoidFall.Runtime
         }
         private void RenderDealerCrossing()
         {
-            if (_journeyStage != JourneyStage.Junction || _dealerRoom == null) return;
+            if ((_journeyStage != JourneyStage.Junction && !(_journeyStage == JourneyStage.Travel && _junctionRoot != null && _junctionRoot.activeSelf)) || _dealerRoom == null) return;
             var reduced = _saveData?.settings?.reducedMotion == true;
             if (!reduced) _dealerRoomClock += Mathf.Min(Time.unscaledDeltaTime, .1f);
             var names = new string[_junctionDestinations.Length];

@@ -34,7 +34,7 @@ namespace VoidFall.Runtime
             _selectedDirectorProfile = DirectorProfiles.For((DirectorProfileId)(_saveData?.directorId ?? 0)).Id;
             _runDirectorProfile = _saveData?.directorOnboardingSeen == true
                 ? _selectedDirectorProfile : DirectorProfileId.Standard;
-            _runPressure.Reset(DirectorProfiles.For(_runDirectorProfile).PressureCeilingHundredths, 6);
+            _runPressure.Reset(DirectorProfiles.For(_runDirectorProfile).PressureCeilingHundredths, 6, LegacyRestorationRules.StartingPressureHundredths);
             _hasFrozenRunScore = false;
             _frozenRunScore = default;
             _directorResultNeedsAcknowledgement = false;
@@ -162,11 +162,11 @@ namespace VoidFall.Runtime
                 rect.anchorMax = new Vector2(.5f, 1);
                 rect.pivot = new Vector2(.5f, 1);
                 rect.sizeDelta = new Vector2(126, 14);
-                rect.anchoredPosition = new Vector2(0, -32);
+                rect.anchoredPosition = new Vector2(0, -71);
             }
             if (_lastPressureHudValue == PressureHundredths) return;
             _lastPressureHudValue = PressureHundredths;
-            _pressureText.text = "PRESSURE " + (PressureHundredths / 100.0).ToString("F2", CultureInfo.InvariantCulture) + "×";
+            _pressureText.text = "PRESSURE  <color=#f5d69e>" + (PressureHundredths / 100.0).ToString("F2", CultureInfo.InvariantCulture) + "×</color>";
         }
     }
 }

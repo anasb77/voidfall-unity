@@ -14,8 +14,8 @@ namespace VoidFall.Core
         public const double MineFreezeRecoverySeconds = 1.2;
         public const double SummonAcquisitionRange = 420;
         public const double ClockOpacity = 0.5;
-        public const double ClockFaceOpacity = 0.18;
-        public const double BoomerangSizeScale = 0.5;
+        public const double ClockFaceOpacity = 0.126;
+        public const double BoomerangSizeScale = 0.675;
         public const double MineRangeOpacity = 0.7;
         public const int ClockHandCapacity = 3;
 

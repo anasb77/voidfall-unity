@@ -84,6 +84,15 @@ namespace VoidFall.Runtime
         public int expandedWeaponSlots;
         public int maxedWeaponsForExtraSlot;
         public string arsenalBalanceVersion;
+        public string restorationVersion;
+        public float arrivalRateMultiplier;
+        public double ordinaryRareDropChance, overclockMaximumBankedSeconds, xpMultiplierAfterLevelFive, boomerangSizeScale, clockFaceOpacity;
+        public int selectedMonitorIndex;
+        public string actualMonitorName;
+        public int startingPressureHundredths;
+        public float spikyBaseRadius, spikyExpandedScale, spikyPhaseSeconds, shurikenSpinRadians, swarmIntervalSeconds;
+        public float escapeSeconds;
+        public float arrivalGraceSeconds;
         public int incidentBalanceVersion;
         public int enemyCapacity;
         public int initialPopulationLimit;

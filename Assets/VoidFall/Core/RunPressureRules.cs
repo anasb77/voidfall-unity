@@ -16,24 +16,28 @@ namespace VoidFall.Core
         private double[] _survivalHighWater;
         private double[] _bossHighWater;
         private int _ceilingHundredths;
+        private int _startingHundredths;
         private int _visitCount;
         private double _survivalProgress;
         private double _bossProgress;
 
         public int PressureHundredths { get; private set; }
+        public int ProgressionPressureHundredths => _visitCount <= 0 ? 0 : (int)Math.Floor(SnapNearInteger(
+            _ceilingHundredths * (_survivalProgress * .8 + _bossProgress * .2) / _visitCount));
         public double CreditedProgressSeconds => SnapNearInteger(
             _survivalProgress * 300 + _bossProgress * 60);
         public bool IsFrozen { get; private set; }
 
-        public void Reset(int ceilingHundredths, int visitCount)
+        public void Reset(int ceilingHundredths, int visitCount, int startingHundredths = 0)
         {
             _ceilingHundredths = Math.Max(0, ceilingHundredths);
+            _startingHundredths = Math.Min(_ceilingHundredths, Math.Max(0, startingHundredths));
             _visitCount = Math.Max(1, visitCount);
             _survivalHighWater = new double[_visitCount];
             _bossHighWater = new double[_visitCount];
             _survivalProgress = 0;
             _bossProgress = 0;
-            PressureHundredths = 0;
+            PressureHundredths = _startingHundredths;
             IsFrozen = false;
         }
 
@@ -62,7 +66,7 @@ namespace VoidFall.Core
             _bossProgress += bossIncrease;
 
             var weightedProgress = _survivalProgress * 0.8 + _bossProgress * 0.2;
-            var rawPressure = _ceilingHundredths * weightedProgress / _visitCount;
+            var rawPressure = _startingHundredths + (_ceilingHundredths - _startingHundredths) * weightedProgress / _visitCount;
             var nextPressure = (int)Math.Floor(SnapNearInteger(rawPressure));
             PressureHundredths = Math.Max(
                 PressureHundredths,

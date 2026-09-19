@@ -701,6 +701,7 @@ namespace VoidFall.Runtime
         private float _bossRecoveryUntil;
         private float _nextEliteTime;
         private float _nextEliteVariantTime;
+        private float _nextTrackShiftAllowedTime;
         private float _meteorSpawnTimer;
         private int _meteorTarget;
         // Scratch buffers for GameSim.AdvanceMeteors: fuse-expired and
@@ -1078,7 +1079,7 @@ namespace VoidFall.Runtime
             SetupFx();
             SetupHydraPresentation();
             WarmHydraPopulationVisuals();
-            _saveStore = new SaveStore(DealerIntegrationProbe.ProfilePath ?? StressBenchmarkProbe.ProfilePath ?? ArsenalValidationProbe.ProfilePath ?? OverclockHudProbe.ProfilePath ?? VisualDeliveryProbe.ProfilePath ?? DiagnosticProfilePath());
+            _saveStore = new SaveStore(LegacyRestorationProbe.ProfilePath ?? DealerIntegrationProbe.ProfilePath ?? StressBenchmarkProbe.ProfilePath ?? ArsenalValidationProbe.ProfilePath ?? OverclockHudProbe.ProfilePath ?? VisualDeliveryProbe.ProfilePath ?? DiagnosticProfilePath());
             _saveData = _saveStore.Load();
             _gameBridge = new RuntimeGameBridge(this);
             _settingsController = new SettingsController(_gameBridge);
@@ -1126,6 +1127,7 @@ namespace VoidFall.Runtime
                 SetResolution = (w, h) => ApplySettingFromUi(
                     s => { s.resolutionWidth = w; s.resolutionHeight = h; }, true),
                 SetDisplayMode = v => ApplySettingFromUi(s => s.fullscreenMode = v, true),
+                SetMonitor = v => ApplySettingFromUi(s => s.monitorIndex = v, true),
                 SetBloom = v => ApplySettingFromUi(s => s.bloom = v, false),
                 SetChromatic = v => ApplySettingFromUi(s => s.chromatic = v, false),
 
@@ -1950,6 +1952,7 @@ namespace VoidFall.Runtime
         {
             FinishRunExport(playStartCue ? "restarted" : "abandoned");
             ResetDealerRun();
+            ResetLegacyRestoration();
             ResetDirectorRunDiagnostics();
             // Anything the menu-time warm has not reached yet is finished here,
             // so a run never rasterizes a sprite on first sighting.
@@ -2157,6 +2160,7 @@ namespace VoidFall.Runtime
             _bossRecoveryUntil = 0;
             _nextEliteTime = (float)ContentCatalog.Elite.FirstAtSeconds;
             _nextEliteVariantTime = (float)EliteRules.EliteCadenceStartSeconds;
+            _nextTrackShiftAllowedTime = 0f;
             _meteorSpawnTimer = 3f;
             _meteorTarget = MeteorRules.MinOrdinaryMeteors;
             _gameSim.PendingMeteorDetonationCount = 0;
@@ -2286,6 +2290,12 @@ namespace VoidFall.Runtime
             _nextBossTime = float.PositiveInfinity;
             BeginObjectiveForCurrentArena();
             PrepareArenaNeighborhood();
+            if (playStartCue && _worldRoot != null)
+            {
+                EnsureJunctionVisuals();
+                EnsureDealerCrossingVisuals();
+                HideJunction();
+            }
             _arenaTransitionState = ArenaRules.CreateTransitionState(_runSeed);
             BeginRunExport(playStartCue || ensureSpritesWarmed, !playStartCue);
             _telemetry.RecordLevel(0, _level, _xpNeed, 0);
@@ -2622,6 +2632,7 @@ namespace VoidFall.Runtime
             StepHydraSurvival(dt);
             StepMonochromeSurvival(dt);
             StepNullCity(dt);
+            StepLegacyRestoration(dt);
             UpdateSpawns(dt);
             UpdateEnemies(dt);
             // Relax separation over several passes, rebuilding the grid between
@@ -4645,6 +4656,10 @@ namespace VoidFall.Runtime
 
         private static int BuildChipIconSlot(string id)
         {
+            if (id != null && id.StartsWith("split-", StringComparison.Ordinal)) return BuildChipIconSlot(id.Substring(6));
+            if (id == "phaseRounds") return 2;
+            if (id == "giantSlayer") return 11;
+            if (id == "secondWind") return 13;
             // Atlas order mirrors BuildChipIcons.svg and the browser Lucide map.
             switch (id)
             {
@@ -5689,7 +5704,7 @@ namespace VoidFall.Runtime
             image.rectTransform.anchorMax = new Vector2(0, 1);
             image.rectTransform.pivot = new Vector2(0, 1);
             image.rectTransform.anchoredPosition = position;
-            image.rectTransform.sizeDelta = new Vector2(220, 10);
+            image.rectTransform.sizeDelta = new Vector2(220, 15);
         }
 
         private static void Hide(SpriteRenderer renderer)

@@ -106,6 +106,7 @@ namespace VoidFall.Runtime
                 ResolutionWidth = settings.resolutionWidth,
                 ResolutionHeight = settings.resolutionHeight,
                 FullscreenMode = settings.fullscreenMode,
+                MonitorIndex = settings.monitorIndex,
                 Bloom = settings.bloom,
                 Chromatic = settings.chromatic
             });
@@ -2908,6 +2909,7 @@ namespace VoidFall.Runtime
                 resolutionWidth = value.resolutionWidth,
                 resolutionHeight = value.resolutionHeight,
                 fullscreenMode = value.fullscreenMode,
+                monitorIndex = value.monitorIndex,
                 bloom = value.bloom,
                 chromatic = value.chromatic,
             };

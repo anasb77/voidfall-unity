@@ -64,7 +64,14 @@ namespace VoidFall.Runtime
             var intensity = _phase == ArenaPhase.Collapse
                 ? 1f - Mathf.Clamp01(_phaseT / CollapseSeconds)
                 : Mathf.Clamp01(_phaseT / SettleSeconds);
-            var gap = Mathf.Max(3f, height * 0.58f * (1f - intensity));
+            if (_reducedMotion)
+            {
+                AddRect(vertexHelper, width, height, new Color(.006f, .009f, .03f, Mathf.SmoothStep(0, 1, intensity)));
+                return;
+            }
+            // Full coverage at the commit boundary hides camera/arena relocation.
+            AddRect(vertexHelper, width, height, new Color(.006f, .009f, .03f, Mathf.Clamp01((intensity - .7f) / .25f)));
+            var gap = Mathf.Max(0f, height * 0.58f * (1f - intensity));
             var centre = new Vector2(0, 0);
             for (var step = 0; step <= FoldSegments; step++)
             {

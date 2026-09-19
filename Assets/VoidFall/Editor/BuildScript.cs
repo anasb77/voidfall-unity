@@ -10,6 +10,7 @@ namespace VoidFall.EditorTools
     {
         public static void BuildWindows()
         {
+            ApprovedHudAssets.Configure();
             // Prefer DX11 on Windows: the owner hit a hard hang while leaving
             // DX12 exclusive fullscreen. DX12 remains an explicit diagnostic option.
             // This is a renderer workaround; the original hang has no captured stack.
@@ -64,11 +65,19 @@ namespace VoidFall.EditorTools
                     " (" + VoidFall.Core.ProgressionRules.ExpandedWeaponSlots + " after two rank-VI weapons)\n" +
                     "Clock face opacity: " + VoidFall.Core.ArsenalContent.ClockFaceOpacity.ToString("P0", System.Globalization.CultureInfo.InvariantCulture) + "\n" +
                     "Clock: rank III adds a small seconds attack hand\n" +
-                    "Boomerang: half-size projectile and contact radius\n" +
+                    "Boomerang: 35% larger projectile/contact radius (0.675 scale)\n" +
                     "Mines: slower placement, 0.9s floor, 1.2s freeze / 1.2s recovery\n" +
                     "Incidents: smaller stronger Black Hole and revised Destroyer opening\n" +
                     "Maps: approved Court / original Null City 4x / Hydra I populations and teleport\n" +
-                    "Hydra II: original Unity map and boss encounter preserved\n");
+                    "Hydra II: original Unity map and boss encounter preserved\n" +
+                    "Legacy restoration: " + VoidFall.Core.LegacyRestorationRules.Version + "\n" +
+                    "Director I v5: 2.5x ordinary arrivals; independent uniform V1 rings every 34s; early Exploder\n" +
+                    "HUD: approved study 02 at 66%, bundled Chakra Petch, custom arsenal/passive/manual slots\n" +
+                    "Pressure starts at 1x; Spiky 19.5/58.5 radius every 0.5s, 4x raster resolution; Shuriken spin 14 rad/s\n" +
+                    "Rewards: ordinary rare drops 1/300; Overclock bank capped at 30s; XP +25% from level 6\n" +
+                    "Video: saved monitor selection; smaller mute control below score\n" +
+                    "Cards: Phase Rounds, weapon-bound Split Shot, Giant Slayer, Second Wind\n" +
+                    "Escape: 10 active seconds, covered crossing, 2.5s arrival grace\n");
                 File.AppendAllText(Path.Combine(buildRoot, "BUILD_INFO.txt"),
                     "Dealer: safe crossing, one purchase per visit, 100 run Scraps per offer\n" +
                     "Dealer art: four same-face expressions, upper/lower encounters, animated hair\n" +

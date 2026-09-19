@@ -27,6 +27,7 @@ namespace VoidFall.Persistence
         public int resolutionWidth;
         public int resolutionHeight;
         public int fullscreenMode = 1;
+        public int monitorIndex = -1; // AUTO keeps the OS/launch display; older profiles retain this default.
         public float bloom = -1f;
         public float chromatic = -1f;
 
@@ -671,6 +672,7 @@ namespace VoidFall.Persistence
                 value.quality = "high";
             // 0 x 0 is the cycler's AUTO (native) entry, so a half-written pair
             // collapses to auto rather than an unusable size.
+            value.monitorIndex = ClampInt(value.monitorIndex, -1, 63);
             value.resolutionWidth = ClampInt(value.resolutionWidth, 0, (int)MaxCounter);
             value.resolutionHeight = ClampInt(value.resolutionHeight, 0, (int)MaxCounter);
             if (value.resolutionWidth == 0 || value.resolutionHeight == 0)

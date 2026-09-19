@@ -78,6 +78,8 @@ namespace VoidFall.Runtime
         private void ClearCombatForJourney()
         {
             CancelEncounterDirector();
+            _spikyBurstHead = _spikyBurstCount = 0;
+            _circleBeat = false;
             StopMajorIncident();
             if (_journeyStage == JourneyStage.Rewards)
             {
@@ -111,10 +113,10 @@ namespace VoidFall.Runtime
 
         private void UpdateEscapeStatus()
         {
-            _escapeStatusLine = "Escaping...";
-            if (_objectiveLine != _escapeStatusLine)
+            _escapeStatusLine = "Escaping";
+            if (!string.IsNullOrEmpty(_objectiveLine))
             {
-                _objectiveLine = _escapeStatusLine;
+                _objectiveLine = string.Empty;
                 _lastObjectiveLine = null;
             }
             RefreshEscapeNotice();
@@ -139,7 +141,7 @@ namespace VoidFall.Runtime
             }
             if (_escapeStatusText == null) return;
             _escapeStatusText.gameObject.SetActive(show);
-            if (show && _escapeStatusText.text != "Escaping") _escapeStatusText.text = "Escaping";
+            if (show && _escapeStatusText.text != _escapeStatusLine) _escapeStatusText.text = _escapeStatusLine;
             RefreshEscapeDots(show);
         }
 
@@ -206,8 +208,18 @@ namespace VoidFall.Runtime
                 StepRiftTransition(dt);
                 if (!_riftTransitionActive)
                 {
+                    if (_junctionTransition)
+                    {
+                        _junctionTransition = false;
+                        _journeyStage = JourneyStage.Junction;
+                        RecordRunHistory("crossing_transition", "dealer", reason: "settled");
+                        return;
+                    }
                     _journeyStage = JourneyStage.Combat;
-                    _gameSim.Player.Iframes = Mathf.Max(_gameSim.Player.Iframes, 1.5f);
+                    _arrivalGrace = 2.5f;
+                    _meteorSpawnTimer = Mathf.Max(_meteorSpawnTimer, 2.5f);
+                    _gameSim.Player.Iframes = Mathf.Max(_gameSim.Player.Iframes, 2.5f);
+                    RecordRunHistory("arrival_grace", CurrentVoidId, durationSeconds: 2.5f);
                     Debug.Log($"VOIDFLOW travel-complete void={CurrentVoidId} t={_time:F1}");
                 }
             }
@@ -329,7 +341,7 @@ namespace VoidFall.Runtime
 
         private void RenderJunction()
         {
-            if (_journeyStage != JourneyStage.Junction || _junctionRoot == null) return;
+            if ((_journeyStage != JourneyStage.Junction && !(_journeyStage == JourneyStage.Travel && _junctionRoot != null && _junctionRoot.activeSelf)) || _junctionRoot == null) return;
             var frame = _riftPortalFrames.Length == 0 ? 0 : (int)(_junctionAge / RiftPortalFrameSeconds) % _riftPortalFrames.Length;
             var root = (RectTransform)_junctionCanvas.transform;
             for (var index = 0; index < _junctionDestinations.Length; index++)

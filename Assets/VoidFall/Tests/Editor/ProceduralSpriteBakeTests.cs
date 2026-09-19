@@ -30,6 +30,16 @@ namespace VoidFall.Tests.Editor
             Assert.That(byKey, Does.ContainKey("arena-vignette|2"));
             Assert.That(byKey, Does.ContainKey("workshop-layer|protocol/1"));
             Assert.That(byKey, Does.ContainKey("projectile-frame|pistol|31"));
+            Assert.That(byKey, Does.ContainKey("projectile-frame|pulse|31"));
+            Assert.That(byKey, Does.ContainKey("projectile-frame|pulse-bright|31"));
+            foreach (var id in new[] { "swarmer", "spiky", "shuriken" })
+                Assert.That(byKey.Keys.Any(k => k.StartsWith("enemy|" + id + "|")), Is.True, id + " needs baked art");
+
+            foreach (var spiky in byKey.Where(p => p.Key.StartsWith("enemy|spiky|")))
+            {
+                Assert.That(spiky.Value.rect.width, Is.GreaterThanOrEqualTo(330), "Giant Spiky needs its supersampled raster.");
+                Assert.That(spiky.Value.bounds.size.x, Is.EqualTo(1).Within(.001), "Raster quality must not change world size.");
+            }
 
             foreach (var pair in byKey)
             {

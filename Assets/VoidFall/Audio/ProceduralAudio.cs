@@ -782,14 +782,15 @@ namespace VoidFall.Runtime
                 new[] { new SequenceNoise(6000f, 0.4f, 0.04f, 0f, 2f) });
             _clips[(int)Cue.PartsPickup] = BuildSequence(
                 "vf_parts_silverrain",
-                0.4f,
+                0.45f,
                 new[]
                 {
-                    new SequenceNote(1047f, 1047f, 0.15f, 0f, 0.08f, Waveform.Triangle),
-                    new SequenceNote(1175f, 1175f, 0.15f, 0.06f, 0.08f, Waveform.Triangle),
-                    new SequenceNote(1319f, 1319f, 0.15f, 0.12f, 0.08f, Waveform.Triangle),
+                    new SequenceNote(1047f, 1047f, 0.15f, 0f, 0.11f, Waveform.Triangle),
+                    new SequenceNote(1175f, 1175f, 0.15f, 0.06f, 0.11f, Waveform.Triangle),
+                    new SequenceNote(1319f, 1319f, 0.15f, 0.12f, 0.11f, Waveform.Triangle),
+                    new SequenceNote(1568f, 1568f, 0.18f, 0.18f, 0.11f, Waveform.Triangle),
                 },
-                new[] { new SequenceNoise(7000f, 0.3f, 0.04f, 0f, 2f) });
+                new[] { new SequenceNoise(7000f, 0.3f, 0.05f, 0f, 2f) });
             _clips[(int)Cue.TrackShift] = BuildSequence(
                 "vf_trackshift_warpjump",
                 0.6f,

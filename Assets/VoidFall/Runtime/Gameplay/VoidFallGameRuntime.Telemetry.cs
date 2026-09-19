@@ -40,7 +40,8 @@ namespace VoidFall.Runtime
             foreach (var argument in Environment.GetCommandLineArgs())
             {
                 if (argument.Equals("-runTests", StringComparison.OrdinalIgnoreCase)) testRunner = true;
-                if (argument.StartsWith("-vfprofile=", StringComparison.OrdinalIgnoreCase)) diagnostic = true;
+                if (argument.StartsWith("-vfprofile=", StringComparison.OrdinalIgnoreCase) ||
+                    argument.StartsWith("-vfrestoration-check=", StringComparison.OrdinalIgnoreCase)) diagnostic = true;
                 if (argument.StartsWith("-vfrunexports=", StringComparison.OrdinalIgnoreCase))
                     directory = argument.Substring("-vfrunexports=".Length);
             }
@@ -74,6 +75,23 @@ namespace VoidFall.Runtime
                 expandedWeaponSlots = ProgressionRules.ExpandedWeaponSlots,
                 maxedWeaponsForExtraSlot = ProgressionRules.MaxedWeaponsForExtraSlot,
                 arsenalBalanceVersion = "2026-09-08-mine-control-v2",
+                restorationVersion = LegacyRestorationRules.Version,
+                arrivalRateMultiplier = LegacyRestorationRules.ArrivalRateMultiplier,
+                ordinaryRareDropChance = LegacyRestorationRules.OrdinaryRareDropChance,
+                overclockMaximumBankedSeconds = OverclockRules.MaximumBankedSeconds,
+                xpMultiplierAfterLevelFive = 1.25,
+                boomerangSizeScale = ArsenalContent.BoomerangSizeScale,
+                clockFaceOpacity = ArsenalContent.ClockFaceOpacity,
+                selectedMonitorIndex = _saveData?.settings?.monitorIndex ?? -1,
+                actualMonitorName = Screen.mainWindowDisplayInfo.name,
+                startingPressureHundredths = LegacyRestorationRules.StartingPressureHundredths,
+                spikyBaseRadius = LegacyRestorationRules.SpikyBaseRadius,
+                spikyExpandedScale = LegacyRestorationRules.SpikyExpandedScale,
+                spikyPhaseSeconds = LegacyRestorationRules.SpikyPhaseSeconds,
+                shurikenSpinRadians = LegacyRestorationRules.ShurikenSpinRadians,
+                swarmIntervalSeconds = LegacyRestorationRules.SwarmIntervalSeconds,
+                escapeSeconds = EscapeDurationSeconds,
+                arrivalGraceSeconds = 2.5f,
                 incidentBalanceVersion = 2,
                 enemyCapacity = MaxEnemies,
                 initialPopulationLimit = DirectorBodyLimit(),
@@ -182,7 +200,8 @@ namespace VoidFall.Runtime
             }
             if (_telemetryLastOverclock != _overclock.Streak)
             {
-                RecordRunHistory("overclock", amount: _overclock.Streak);
+                RecordRunHistory("overclock", amount: _overclock.Streak, durationSeconds: _overclock.RemainingSeconds,
+                    detail: "powerTier=" + _overclock.PowerTier + ";bankLimit=" + OverclockRules.MaximumBankedSeconds);
                 _telemetryLastOverclock = _overclock.Streak;
             }
         }

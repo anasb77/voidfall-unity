@@ -71,21 +71,22 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(PlayerPosition(), Is.EqualTo(position));
             Assert.That(FarXpValue(), Is.EqualTo(3f));
             Assert.That(Get("_xp"), Is.EqualTo(0f));
-            Assert.That(Get("_objectiveLine"), Does.Contain("Escaping"));
+            Assert.That(Get("_escapeStatusLine"), Does.Contain("Escaping"));
             Call("UpdateJourneyFlow", 0.1f);
             Assert.That(FarXpValue(), Is.EqualTo(3f), "The grace period must use normal pickup range.");
         }
 
         [Test]
-        public void Escape_keeps_collection_available_until_the_fifteen_second_departure()
+        public void Escape_keeps_collection_available_until_the_ten_second_departure()
         {
             Call("OnVoidObjectiveCompleted");
-            Call("StepVoidCompletionDelay", 10f);
+            Call("StepVoidCompletionDelay", 5f);
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Rewards"));
-            Assert.That(Get("_objectiveLine"), Does.Contain("Escaping"));
+            Assert.That(Get("_escapeStatusLine"), Does.Contain("Escaping"));
             Call("StepVoidCompletionDelay", 4f);
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Rewards"));
             Call("StepVoidCompletionDelay", 1f);
+            SettleCrossing();
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Junction"));
             Assert.That(((string[])Get("_junctionDestinations")).Length, Is.EqualTo(2));
         }
@@ -95,13 +96,14 @@ namespace VoidFall.Tests.PlayMode
         {
             Call("OnVoidObjectiveCompleted");
             for (var frame = 0; frame < 10; frame++) Call("UpdateJourneyFlow", 0.5f);
-            Assert.That((float)Get("_voidCompletionDelayRemaining"), Is.EqualTo(10f).Within(0.01f));
-            Assert.That(Get("_objectiveLine"), Does.Contain("Escaping"));
+            Assert.That((float)Get("_voidCompletionDelayRemaining"), Is.EqualTo(5f).Within(0.01f));
+            Assert.That(Get("_escapeStatusLine"), Does.Contain("Escaping"));
             Set("_paused", true);
             Call("UpdateJourneyFlow", 2f);
-            Assert.That((float)Get("_voidCompletionDelayRemaining"), Is.EqualTo(10f).Within(0.01f));
+            Assert.That((float)Get("_voidCompletionDelayRemaining"), Is.EqualTo(5f).Within(0.01f));
             Set("_paused", false);
             for (var frame = 0; frame < 20; frame++) Call("UpdateJourneyFlow", 0.5f);
+            SettleCrossing();
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Junction"));
         }
 
@@ -115,7 +117,7 @@ namespace VoidFall.Tests.PlayMode
             Call("CollectRouletteChest");
             FinishRoulette();
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Rewards"));
-            Assert.That((float)Get("_voidCompletionDelayRemaining"), Is.EqualTo(11f).Within(0.01f));
+            Assert.That((float)Get("_voidCompletionDelayRemaining"), Is.EqualTo(6f).Within(0.01f));
         }
 
         [Test]
@@ -124,13 +126,13 @@ namespace VoidFall.Tests.PlayMode
             Call("OnVoidObjectiveCompleted");
             Call("SpawnRouletteChest", PlayerPosition() + Vector2.right * 800f);
             Set("_rouletteChestPulse", 2f);
-            Call("StepVoidCompletionDelay", 10f);
+            Call("StepVoidCompletionDelay", 5f);
             Assert.That(Get("_rouletteActive"), Is.True);
             Assert.That(Get("_rouletteChestActive"), Is.False);
             FinishRoulette();
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Rewards"));
             Assert.That((float)Get("_voidCompletionDelayRemaining"), Is.EqualTo(5f).Within(0.01f));
-            Assert.That(Get("_objectiveLine"), Does.Contain("Escaping"));
+            Assert.That(Get("_escapeStatusLine"), Does.Contain("Escaping"));
         }
 
         [Test]
@@ -162,7 +164,7 @@ namespace VoidFall.Tests.PlayMode
             Call("KillBoss", 0);
             Call("StepObjectiveTracker", 0.5d);
             Call("UpdateJourneyFlow", 0.1f);
-            Assert.That(Get("_objectiveLine"), Does.Contain("Escaping"));
+            Assert.That(Get("_escapeStatusLine"), Does.Contain("Escaping"));
         }
 
         [Test]
@@ -191,6 +193,7 @@ namespace VoidFall.Tests.PlayMode
             Call("SpawnPickup", new Vector2(2000f, 0f), 3f);
             Call("OnVoidObjectiveCompleted");
             Call("StepVoidCompletionDelay", 15f);
+            SettleCrossing();
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Junction"));
             Assert.That(_runtime.ActivePickupsCount, Is.Zero);
             Assert.That(Get("_xp"), Is.EqualTo(3f));
@@ -206,7 +209,7 @@ namespace VoidFall.Tests.PlayMode
             }, "abyss");
             Set("_voidRoute", route);
             Call("OnVoidObjectiveCompleted");
-            Call("StepVoidCompletionDelay", 14.9f);
+            Call("StepVoidCompletionDelay", 9.9f);
             Assert.That(route.CurrentVoidId, Is.EqualTo("abyss"));
             Call("StepVoidCompletionDelay", 0.2f);
             Assert.That(route.CurrentVoidId, Is.EqualTo("hydra"));
@@ -223,6 +226,10 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(Get("_voidCompletionDelayRemaining"), Is.EqualTo(before));
         }
 
+        private void SettleCrossing()
+        {
+            for (var i = 0; i < 20 && _runtime.JourneyStatus == "Travel"; i++) Call("UpdateJourneyFlow", .1f);
+        }
         private void FinishRoulette()
         {
             var session = (RouletteSession)Get("_rouletteSession");

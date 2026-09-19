@@ -69,7 +69,7 @@ namespace VoidFall.Core
             var merged = new SupportDefinition[baseSupports.Length + ExtraSupports.Length];
             Array.Copy(baseSupports, merged, baseSupports.Length);
             Array.Copy(ExtraSupports, 0, merged, baseSupports.Length, ExtraSupports.Length);
-            _all = merged;
+            _all = LegacyRestorationRules.AppendSupports(merged);
             return _all;
         }
 

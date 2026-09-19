@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -13,7 +15,7 @@ namespace VoidFall.Runtime
     /// VoidFallDefaultVolumeProfile.asset so the shipped asset stays the
     /// render identity of record; a priority-10 global volume with its own
     /// profile simply overrides the two intensities the sliders own, defaulting
-    /// to the asset's values (bloom 1.2, chromatic 0.12) when the save holds
+    /// to the asset's values (bloom 1.2, chromatic disabled) when the save holds
     /// the -1 sentinel.
     ///
     /// Everything here is render/system side: none of it touches the sim or
@@ -29,6 +31,9 @@ namespace VoidFall.Runtime
         private int _appliedResolutionWidth = -1;
         private int _appliedResolutionHeight = -1;
         private int _appliedFullscreenMode = -1;
+        private Coroutine _monitorMove;
+        private int _appliedMonitorIndex = -2;
+        private readonly List<DisplayInfo> _displayLayout = new List<DisplayInfo>();
 
         /// <summary>
         /// Attaches the runtime video volume to the gameplay camera. Called
@@ -92,7 +97,12 @@ namespace VoidFall.Runtime
         {
             var settings = _saveData?.settings;
             if (settings == null) return;
-            ApplyResolution(settings.resolutionWidth, settings.resolutionHeight, settings.fullscreenMode);
+            if (!Application.isEditor && settings.monitorIndex != _appliedMonitorIndex)
+            {
+                if (_monitorMove == null) _monitorMove = StartCoroutine(ApplyMonitorPreference());
+            }
+            else if (_monitorMove == null)
+                ApplyResolution(settings.resolutionWidth, settings.resolutionHeight, settings.fullscreenMode);
             ApplyVideoEffects();
         }
 
@@ -110,6 +120,41 @@ namespace VoidFall.Runtime
                 _videoBloom.intensity.value = VideoSettingsRules.EffectiveBloom(settings.bloom);
             if (_videoChromatic != null)
                 _videoChromatic.intensity.value = VideoSettingsRules.EffectiveChromatic(settings.chromatic);
+        }
+
+        private IEnumerator ApplyMonitorPreference()
+        {
+            // Yield before starting so the coroutine handle is valid even for AUTO.
+            yield return null;
+            while (_saveData?.settings != null && _appliedMonitorIndex != _saveData.settings.monitorIndex)
+            {
+                var requested = _saveData.settings.monitorIndex;
+                Screen.GetDisplayLayout(_displayLayout);
+                var reason = "auto";
+                if (requested >= 0 && requested < _displayLayout.Count)
+                {
+                    var target = _displayLayout[requested];
+                    // Reapply once per explicit choice/startup, even if the OS already chose this screen.
+                    if (_appliedMonitorIndex != requested || !Screen.mainWindowDisplayInfo.Equals(target))
+                    {
+                        var position = new Vector2Int(Mathf.Max(0, (target.width - Screen.width) / 2),
+                            Mathf.Max(0, (target.height - Screen.height) / 2));
+                        AsyncOperation move = null;
+                        try { move = Screen.MoveMainWindowTo(in target, position); }
+                        catch (System.Exception error) { Debug.LogWarning("Monitor move failed: " + error.Message); }
+                        if (move != null) yield return move;
+                    }
+                    reason = Screen.mainWindowDisplayInfo.Equals(target) ? "applied" : "move_failed";
+                }
+                else if (requested >= 0) reason = "disconnected_fallback";
+                _appliedMonitorIndex = requested;
+                RecordRunHistory("display_monitor_changed", reason: reason, amount: requested,
+                    detail: "actual=" + Screen.mainWindowDisplayInfo.name + ";connected=" + _displayLayout.Count);
+            }
+            _monitorMove = null;
+            _appliedResolutionWidth = _appliedResolutionHeight = -1;
+            var settings = _saveData?.settings;
+            if (settings != null) ApplyResolution(settings.resolutionWidth, settings.resolutionHeight, settings.fullscreenMode);
         }
 
         private void ApplyResolution(int width, int height, int fullscreenMode)

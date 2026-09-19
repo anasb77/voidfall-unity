@@ -33,7 +33,7 @@ namespace VoidFall.Tests.Editor
         {
             var visuals = AssetDatabase.LoadAssetAtPath<RosterProgressionVisualAsset>("Assets/VoidFall/Resources/VoidFall/RosterProgressionVisuals.asset");
             Assert.That(visuals.Count, Is.EqualTo(68));
-            foreach (var enemy in ContentCatalog.Enemies) for (var tier = 1; tier <= 4; tier++) Assert.That(visuals.Find(enemy.Id, tier, false), Is.Not.Null, enemy.Id + tier);
+            foreach (var enemy in ContentCatalog.Enemies) if (EnemyRosterRules.RosterTwoEligible(enemy.Id)) for (var tier = 1; tier <= 4; tier++) Assert.That(visuals.Find(enemy.Id, tier, false), Is.Not.Null, enemy.Id + tier);
             foreach (var kind in EliteRules.EliteVariantOrder) for (var tier = 1; tier <= 4; tier++) Assert.That(visuals.Find(EliteRules.EliteVariantDef(kind).BaseId, tier, true), Is.Not.Null);
         }
     }

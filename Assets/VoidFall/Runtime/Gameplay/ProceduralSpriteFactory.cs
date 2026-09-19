@@ -899,7 +899,7 @@ namespace VoidFall.Runtime
                 15f,
                 new Color(0.055f, 0.455f, 0.565f, 1),
                 Vector2.zero,
-                15f);
+                15f, ParseColor("#67e8f9"), .45f);
             canvas.StrokeCircle(Vector2.zero, 15f, new Color(0.647f, 0.953f, 0.988f, 1), 2.5f);
             canvas.FillCircle(Vector2.zero, 6.75f, new Color(0.02f, 0.024f, 0.06f, 1));
             // Browser playerSprite(): the small light core shares the exact
@@ -1912,7 +1912,7 @@ namespace VoidFall.Runtime
 
         public static void WarmProjectileFrames()
         {
-            foreach (var kind in new[] { "pistol", "scattergun", "railgun", "seeker", "gunner" })
+            foreach (var kind in new[] { "pistol", "scattergun", "railgun", "seeker", "gunner", "pulse", "pulse-warm", "pulse-bright" })
                 ProjectileFrame(kind, 0);
         }
 
@@ -1957,7 +1957,7 @@ namespace VoidFall.Runtime
         {
             // Each call builds all ProjectileFrameCount frames for the kind, so
             // this is five large steps rather than one enormous one.
-            foreach (var kind in new[] { "pistol", "scattergun", "railgun", "seeker", "gunner" })
+            foreach (var kind in new[] { "pistol", "scattergun", "railgun", "seeker", "gunner", "pulse", "pulse-warm", "pulse-bright" })
             {
                 ProjectileFrame(kind, 0);
                 yield return ProjectileFrameCount;
@@ -2063,6 +2063,9 @@ namespace VoidFall.Runtime
         {
             switch (kind)
             {
+                case "pulse":
+                case "pulse-warm":
+                case "pulse-bright": return 42f;
                 case "hydra-rib": return 30f;
                 case "pistol": return 33f;
                 case "scattergun": return 26f;
@@ -2375,13 +2378,21 @@ namespace VoidFall.Runtime
             var canvas = new RasterCanvas(
                 radius,
                 radius * 1.1f + 14f,
-                Mathf.CeilToInt(EnemyCanvasSize(sourceId)));
-            if (!hit) canvas.Glow(EnemyGlowRadius(id), accent, 0.3f);
+                Mathf.CeilToInt(EnemyCanvasSize(sourceId) * (sourceId == "spiky" ? 4f : 1f)));
+            if (!hit) canvas.Glow(EnemyGlowRadius(id), accent, 0.18f);
 
             // Browser enemySprite(): hit #f8fafc, normal #080c18.
             var body = hit ? ParseColor("#f8fafc") : whiteCourt ? ParseColor("#f1f0ea") : ParseColor("#080c18");
             var outline = hit ? Color.white : whiteCourt ? ParseColor("#080c18") : accent;
             FillEnemyShape(canvas, sourceId, radius, body);
+            if (sourceId == "chaser" && !hit && !whiteCourt)
+            {
+                canvas.BeginClip(EnemyPoints(sourceId, radius));
+                canvas.RadialTwoPointColorGradient(new Vector2(-radius * .3f, radius * .3f), radius * .1f,
+                    ParseColor("#131735"), Vector2.zero, radius * 1.2f, accent, Vector2.zero, radius * 1.3f,
+                    ParseColor("#0a0d22"), .72f);
+                canvas.EndClip();
+            }
             StrokeEnemyShape(canvas, sourceId, radius, outline, Mathf.Max(2f, radius * 0.14f));
             canvas.FillCircle(new Vector2(-radius * 0.08f, radius * 0.04f), radius * 0.52f,
                 hit ? ParseColor("#dbeafe") : whiteCourt ? ParseColor("#d5d4ce") : ParseColor("#111827"));
@@ -2407,7 +2418,7 @@ namespace VoidFall.Runtime
                 radius,
                 radius * 1.1f + 14f,
                 Mathf.CeilToInt(RosterTwoEnemyCanvasSize(id)));
-            if (!hit) canvas.Glow(RosterTwoEnemyGlowRadius(id), accent, 0.3f);
+            if (!hit) canvas.Glow(RosterTwoEnemyGlowRadius(id), accent, 0.18f);
 
             Vector2[] points;
             switch (id)
@@ -2554,6 +2565,9 @@ namespace VoidFall.Runtime
             id = CourtBaseEnemyId(id);
             switch (id)
             {
+                case "swarmer": return 6;
+                case "shuriken": return 12;
+                case "spiky": return 13;
                 case "runner": return 10;
                 case "dasher": return 12;
                 case "brute": return 24;
@@ -2612,6 +2626,9 @@ namespace VoidFall.Runtime
             id = CourtBaseEnemyId(id);
             switch (id)
             {
+                case "swarmer": return ParseColor("#86efac");
+                case "shuriken": return ParseColor("#f59e0b");
+                case "spiky": return ParseColor("#c084fc");
                 case "chaser": return EnemyColorChaser;
                 case "runner": return EnemyColorRunner;
                 case "dasher": return EnemyColorDasher;
@@ -2638,6 +2655,7 @@ namespace VoidFall.Runtime
 
         private static void FillEnemyShape(RasterCanvas canvas, string id, float r, Color color)
         {
+            if (id == "spiky") { canvas.FillCircle(Vector2.zero, r * .55f, color); return; }
             if (id == "exploder")
             {
                 canvas.FillCircle(new Vector2(0, r * 0.08f), r * 0.92f, color);
@@ -2648,6 +2666,17 @@ namespace VoidFall.Runtime
 
         private static void StrokeEnemyShape(RasterCanvas canvas, string id, float r, Color color, float width)
         {
+            if (id == "spiky")
+            {
+                canvas.StrokeCircle(Vector2.zero, r * .55f, color, 1.5f);
+                for (var i = 0; i < 8; i++)
+                {
+                    var a = i * Mathf.PI / 4;
+                    var direction = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+                    canvas.DrawLine(direction * r * .7f, direction * r, 1.5f, color);
+                }
+                return;
+            }
             if (id == "exploder")
             {
                 canvas.StrokeCircle(new Vector2(0, r * 0.08f), r * 0.92f, color, width);
@@ -2658,6 +2687,17 @@ namespace VoidFall.Runtime
 
         private static Vector2[] EnemyPoints(string id, float r)
         {
+            if (id == "swarmer" || id == "shuriken" || id == "spiky")
+            {
+                var spikes = id == "swarmer" ? 5 : id == "shuriken" ? 4 : 8;
+                var points = new Vector2[spikes * 2];
+                for (var i = 0; i < points.Length; i++)
+                {
+                    var angle = i * Mathf.PI / spikes;
+                    points[i] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * r * (i % 2 == 0 ? 1 : id == "spiky" ? .48f : .5f);
+                }
+                return points;
+            }
             switch (id)
             {
                 case "chaser":
@@ -2831,6 +2871,11 @@ namespace VoidFall.Runtime
             var bright = hit ? Color.white : accent;
             switch (id)
             {
+                case "swarmer":
+                case "shuriken":
+                case "spiky":
+                    DrawCore(canvas, 0, 0, r * .3f, accent, hit);
+                    break;
                 case "chaser":
                     DrawCore(canvas, r * 0.06f, -r * 0.04f, r * 0.3f, accent, hit);
                     break;
@@ -3409,8 +3454,8 @@ namespace VoidFall.Runtime
             float rotation = 0f,
             string nameSuffix = "")
         {
-            var radius = kind == "railgun" ? 30f : kind == "seeker" ? 20f : kind == "pistol" ? 13f : kind == "scattergun" ? 9f : kind == "curved" ? 10f : kind == "hydra-rib" ? 13f : 14f;
-            var padding = kind == "pistol" ? 3.5f
+            var radius = kind.StartsWith("pulse", StringComparison.Ordinal) ? 17f : kind == "railgun" ? 30f : kind == "seeker" ? 20f : kind == "pistol" ? 13f : kind == "scattergun" ? 9f : kind == "curved" ? 10f : kind == "hydra-rib" ? 13f : 14f;
+            var padding = kind.StartsWith("pulse", StringComparison.Ordinal) ? 4f : kind == "pistol" ? 3.5f
                 : kind == "scattergun" ? 4f
                 : kind == "railgun" ? 2f
                 : kind == "seeker" ? 4f
@@ -3427,7 +3472,16 @@ namespace VoidFall.Runtime
                 padding,
                 Mathf.RoundToInt(ProjectileCanvasSize(kind)));
             canvas.SetRotation(rotation);
-            if (kind == "hydra-rib")
+            if (kind.StartsWith("pulse", StringComparison.Ordinal))
+            {
+                // Original pulse silhouette, baked in each travel orientation.
+                var warm = kind != "pulse";
+                canvas.FillPolygon(EllipsePoints(Vector2.zero, 17, 9, 0, 40), new Color(.13f, .83f, .93f, .18f));
+                canvas.FillPolygon(EllipsePoints(Vector2.zero, 12, 5, 0, 32), new Color(.13f, .83f, .93f, .4f));
+                canvas.FillPolygon(EllipsePoints(Vector2.zero, 8, 3, 0, 32), warm ? ParseColor("#fde68a") : ParseColor("#67e8f9"));
+                canvas.FillPolygon(EllipsePoints(Vector2.right * 2, kind == "pulse-bright" ? 6 : 5, 1.5f, 0, 24), ParseColor("#ffffff"));
+            }
+            else if (kind == "hydra-rib")
             {
                 var shard = new[]
                 {
@@ -4184,7 +4238,7 @@ namespace VoidFall.Runtime
                 float endRadius,
                 Color endColor,
                 Vector2 clipCenter,
-                float clipRadius)
+                float clipRadius, Color? middleColor = null, float middleStop = .5f)
             {
                 var clip = Mathf.Max(0f, clipRadius);
                 var minX = Mathf.Max(0, Mathf.FloorToInt(_center + (clipCenter.x - clip) * _scale - 1));
@@ -4213,11 +4267,16 @@ namespace VoidFall.Runtime
                                     Mathf.Max(0f, startRadius),
                                     endCenter,
                                     Mathf.Max(0f, endRadius));
-                                var color = Color.Lerp(startColor, endColor, t);
+                                var color = middleColor.HasValue
+                                    ? t < middleStop ? Color.Lerp(startColor, middleColor.Value, t / middleStop)
+                                        : Color.Lerp(middleColor.Value, endColor, (t - middleStop) / (1 - middleStop))
+                                    : Color.Lerp(startColor, endColor, t);
                                 AccumulateSample(color, ref sourceAlpha, ref sourceRed, ref sourceGreen, ref sourceBlue);
                             }
                         }
-                        BlendAccumulated(x, y, sourceAlpha, sourceRed, sourceGreen, sourceBlue);
+                        // Respect the authored shape, including its antialiased edge.
+                        var coverage = _clipPolygon == null ? 1f : PolygonCoverage(_clipPolygon, x, y);
+                        BlendAccumulated(x, y, sourceAlpha * coverage, sourceRed * coverage, sourceGreen * coverage, sourceBlue * coverage);
                     }
                 }
             }

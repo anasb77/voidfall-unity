@@ -7,6 +7,20 @@ namespace VoidFall.Tests.Editor
     public sealed class RunPressureRulesTests
     {
         [Test]
+        public void One_x_start_progresses_smoothly_to_existing_ceiling_without_free_stat_credit()
+        {
+            var pressure = new RunPressureState();
+            pressure.Reset(300, 6, 100);
+            Assert.That(pressure.PressureHundredths, Is.EqualTo(100));
+            Assert.That(pressure.ProgressionPressureHundredths, Is.Zero);
+            pressure.ObserveStage(0, 1, 1);
+            Assert.That(pressure.PressureHundredths, Is.EqualTo(133));
+            Assert.That(pressure.ProgressionPressureHundredths, Is.EqualTo(50));
+            for (var i = 1; i < 6; i++) pressure.ObserveStage(i, 1, 1);
+            Assert.That(pressure.PressureHundredths, Is.EqualTo(300));
+        }
+
+        [Test]
         public void New_pressure_state_starts_empty_and_unfrozen()
         {
             var pressure = new RunPressureState();

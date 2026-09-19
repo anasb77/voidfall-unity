@@ -31,7 +31,7 @@ namespace VoidFall.Runtime
         public string CurrentEncounterPhase => _encounter.Phase.ToString();
         public string LastSpawnBlockReason => _lastSpawnBlockReason;
         private float DirectorChallengeSeconds => _runPressure.CreditedProgressSeconds <= 0
-            ? 0 : Mathf.Clamp01(PressureHundredths / (float)DirectorProfiles.For(_runDirectorProfile).PressureCeilingHundredths) * 2400f;
+            ? 0 : Mathf.Clamp01(_runPressure.ProgressionPressureHundredths / (float)DirectorProfiles.For(_runDirectorProfile).PressureCeilingHundredths) * 2400f;
         private float LocalDirectorSurvivalSeconds => _objectives?.Objective is MultiPhaseObjective phases
             ? (float)(VoidProgressionRules.SurvivalSeconds * (phases.PhaseIndex > 0 ? 1 : phases.CurrentPhase.Progress01)) : 0;
         private float DirectorSurvivalSecondsRemaining => Mathf.Max(0, (float)VoidProgressionRules.SurvivalSeconds - LocalDirectorSurvivalSeconds);
@@ -63,7 +63,7 @@ namespace VoidFall.Runtime
             _bossReinforcementWaves = 0;
             _lastSpawnBlockReason = "opening";
             ResetSustainedDirector();
-            if (UsesSustainedDirector) _nextEncounterTime = _time + 24;
+            if (UsesSustainedDirector) _nextEncounterTime = _time + 30;
             HideEncounterWarnings();
         }
 

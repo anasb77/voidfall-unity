@@ -100,7 +100,7 @@ namespace VoidFall.Tests.PlayMode
                 _legacyMeteorSchema = true;
                 var legacy = HashRuntimeState(runtime);
                 Debug.Log("METEOR SCHEMA CHECK legacy=" + legacy + " full=" + hash);
-                Assert.That(legacy, Is.EqualTo(5768066926572862399UL), "The approved loot-v2/six-minute baseline must remain stable under the legacy meteor schema.");
+                Assert.That(legacy, Is.EqualTo(4858828874924286091UL), "The approved density-v3 XP/drop simulation baseline must remain stable under the legacy meteor schema.");
             }
             finally { _legacyMeteorSchema = false; }
             Assert.That(
@@ -158,7 +158,17 @@ namespace VoidFall.Tests.PlayMode
         // Raw diagnostic progression now models 360s survival +60s boss credit.
         // Measured legacy5768066926572862399 / full8219498908681263610; the
         // 32-seed repeatability sweep passed BEFORE this intentional re-pin.
-        internal const ulong GoldenMasterHash = 8219498908681263610;
+        // September 19 baseline audit: the untouched source-before-implementation
+        // snapshot and the restoration both produce identical hashes below.
+        // This copied project had already drifted from the September 8 pin;
+        // this restoration adds no further productionMax simulation drift.
+        // Evidence: restoration-baseline-golden.xml, restoration-playmode.xml;
+        // all 32 repeatability seeds passed before updating these constants.
+        // September 19 density-v3: XP after level 5 costs +25%; ordinary rare drops 1/120 -> 1/300.
+        // A controlled audit restoring ONLY those two rules reproduces both prior hashes exactly
+        // (final-tuning-baseline-audit.xml). The approved rules yield legacy4858828874924286091 /
+        // full10686876280106228379; all 32 seeds passed before this intentional re-pin.
+        internal const ulong GoldenMasterHash = 10686876280106228379;
 
         internal static ulong HashRuntimeState(object runtime)
         {

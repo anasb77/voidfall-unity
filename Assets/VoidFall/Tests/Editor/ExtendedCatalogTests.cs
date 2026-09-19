@@ -53,7 +53,7 @@ namespace VoidFall.Tests.Editor
         public void Parity_supports_keep_their_indices_and_extras_append()
         {
             var all = ExtendedCatalog.AllSupports();
-            Assert.That(all.Length, Is.EqualTo(ContentCatalog.Supports.Length + 3));
+            Assert.That(all.Length, Is.EqualTo(ContentCatalog.Supports.Length + 10));
             for (var index = 0; index < ContentCatalog.Supports.Length; index++)
             {
                 Assert.That(all[index], Is.SameAs(ContentCatalog.Supports[index]),

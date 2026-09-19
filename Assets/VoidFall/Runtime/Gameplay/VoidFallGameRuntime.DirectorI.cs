@@ -6,7 +6,7 @@ namespace VoidFall.Runtime
 {
     public sealed partial class VoidFallGameRuntime
     {
-        private const int SustainedDirectorVersion = 2;
+        private const int SustainedDirectorVersion = 5;
         // Reach the existing arrival rate by five minutes, then sustain it through the added minute.
         private const float SustainedArrivalRampSeconds = 300f;
         private CombatEncounterKind? _lastSustainedBeat, _previousSustainedBeat;
@@ -46,7 +46,7 @@ namespace VoidFall.Runtime
         }
 
         private int SustainedAttackLimit() => ActiveBosses() > 0 || _pressureReliefTimer > 0 || _encounter.Phase == CombatEncounterPhase.Recovery ||
-            _majorIncident.Kind != MajorIncidentKind.None ? 1 : PressureHundredths < 100 ? 2 : PressureHundredths < 200 ? 3 : 4;
+            _majorIncident.Kind != MajorIncidentKind.None ? 1 : _runPressure.ProgressionPressureHundredths < 100 ? 2 : _runPressure.ProgressionPressureHundredths < 200 ? 3 : 4;
 
         private void PrepareDirectorAttackBudget()
         {
@@ -113,6 +113,7 @@ namespace VoidFall.Runtime
         {
             _directorActive = _directorWarned = false;
             if (_time < RunOpeningSeconds) { _spawnTimer = RunOpeningSeconds - _time; _lastSpawnBlockReason = "opening"; return; }
+            if (_arrivalGrace > 0) { _lastSpawnBlockReason = "arrival_grace"; return; }
             var local = LocalDirectorSurvivalSeconds;
             var boss = ActiveBosses() > 0;
             if (boss && !_bossWindowStarted)
@@ -122,6 +123,8 @@ namespace VoidFall.Runtime
                 _spawnTimer = 4;
                 RecordRunHistory("director_boss_window", reason: "existing_combat_retained");
             }
+            if (!boss) TryDeployLegacySwarm();
+            if (!boss && TryIntroduceRestorationEnemy()) return;
             if (!boss)
             {
                 var previous = _encounter.Phase;
@@ -129,7 +132,7 @@ namespace VoidFall.Runtime
                 if (previous != _encounter.Phase)
                     RecordRunHistory("director_beat_phase", _encounter.Kind.ToString(), _encounter.Phase.ToString(), instanceId: _encounterOwner);
                 if (previous == CombatEncounterPhase.Recovery && _encounter.Phase == CombatEncounterPhase.Flow)
-                    _nextEncounterTime = _time + 16 + (_runSeed + (uint)_encounterSequence * 31) % 13;
+                    _nextEncounterTime = _time + 7f + (float)(_gameSim.Rng.Next() * 7.0);
                 if (_encounter.Phase == CombatEncounterPhase.Deployment) DeploySustainedBeat();
                 if (_encounter.Phase == CombatEncounterPhase.Flow && _time >= _nextEncounterTime && DirectorSurvivalSecondsRemaining > 30 &&
                     _majorIncident.Kind == MajorIncidentKind.None)
@@ -140,24 +143,26 @@ namespace VoidFall.Runtime
                     else BeginSustainedBeat(ChooseSustainedBeat(local));
                 }
             }
-            var recovery = _encounter.Phase == CombatEncounterPhase.Recovery || _pressureReliefTimer > 0;
-            var target = boss ? 64 : Mathf.Min(650, 90 + Mathf.FloorToInt(local * .65f) + _pressureStageIndex * 60);
+            var recovery = _pressureReliefTimer > 0;
+            var target = boss ? 64 : Mathf.Min(700, 200 + Mathf.FloorToInt(local * 1.44f) + _pressureStageIndex * 80);
             if (_encounter.Phase == CombatEncounterPhase.ActiveThreat) target = Mathf.Min(700, target + 45);
             if (_gameSim.EnemyOrderCount >= target)
             { _spawnTimer = .5f; _lastSpawnBlockReason = "arrival_target"; return; }
             _spawnTimer = Mathf.Max(0, _spawnTimer - dt);
             if (_spawnTimer > 0) return;
-            _spawnTimer = boss ? 3.5f : recovery ? .65f : Mathf.Lerp(.55f, .36f, Mathf.Clamp01(local / SustainedArrivalRampSeconds));
+            var arrivalMultiplier = boss || recovery ? 2f : LegacyRestorationRules.ArrivalRateMultiplier;
+            _spawnTimer = (boss ? 3.5f : recovery ? .65f : Mathf.Lerp(.50f, .32f, Mathf.Clamp01(local / SustainedArrivalRampSeconds))) / arrivalMultiplier;
             var batch = boss ? 2 : recovery ? 2 : 2 + Mathf.FloorToInt(Mathf.Clamp(local / 65, 0, 4));
             if (!boss && _majorIncident.Kind != MajorIncidentKind.None) batch = Mathf.Max(2, batch / 2);
-            if (!boss && DirectorSurvivalSecondsRemaining <= 15) { batch = 1; _spawnTimer = 1f; }
+            if (!boss && DirectorSurvivalSecondsRemaining <= 15) { batch = 1; _spawnTimer = .5f; }
             _lastSpawnBlockReason = null;
-            RecordRunHistory("director_arrival_budget", reason: boss ? "boss" : recovery ? "recovery" : "sustained",
-                amount: batch, detail: "target=" + target + ";version=" + SustainedDirectorVersion);
+            RecordRunHistory("director_arrival_budget", reason: boss ? "boss" : recovery ? "damage_relief" : "sustained",
+                amount: batch, detail: "target=" + target + ";version=" + SustainedDirectorVersion + ";rateMultiplier=" + arrivalMultiplier);
             for (var i = 0; i < batch && _gameSim.EnemyOrderCount < target; i++)
             {
                 var id = boss || recovery ? (i % 2 == 0 ? "chaser" : "runner") : ChooseAmbientEnemy();
-                if (!AmbientTypeAllowed(id)) id = "chaser";
+                id = EligibleDirectorType(id);
+                if (!RestorationTypeIntroduced(id) || !AmbientTypeAllowed(id)) id = "chaser";
                 RecordRunHistory("director_choice", id, "sustained_ambient");
                 if (!SpawnEnemy(id, SustainedSpawnPosition(-1))) break;
             }
@@ -200,7 +205,10 @@ namespace VoidFall.Runtime
         {
             _previousSustainedBeat = _lastSustainedBeat; _lastSustainedBeat = kind;
             _encounterSequence++; _encounterOwner++;
-            _encounter.BeginSustained(kind);
+            // Mixed green rings are tactical events; the uniform legacy rush has its own clock.
+            _circleBeat = _encounterSequence % 3 == 0 && RestorationTypeIntroduced("swarmer");
+            if (_circleBeat) ShowArenaToast("SWARM INCOMING", 2f, ToastKind.Danger);
+            _encounter.BeginSustained(kind, 3.5 + _gameSim.Rng.Next() * 3.0);
             RecordRunHistory("encounter_selected", kind.ToString(), "sustained", instanceId: _encounterOwner);
         }
 
@@ -222,6 +230,7 @@ namespace VoidFall.Runtime
 
         private void DeploySustainedBeat()
         {
+            if (DeployRestorationCircle()) return;
             var edge = (int)((_runSeed + (uint)_encounterSequence * 17) % 4);
             var admitted = 0;
             for (var i = 0; i < 10; i++)
@@ -229,6 +238,8 @@ namespace VoidFall.Runtime
                 var id = _encounter.Kind == CombatEncounterKind.Pursuit ? (i < 6 ? "runner" : "chaser") :
                     _encounter.Kind == CombatEncounterKind.Flank ? (i < 2 ? "dasher" : "runner") :
                     _encounter.Kind == CombatEncounterKind.Hunt ? (i < 2 ? "gunner" : "chaser") : (i < 2 ? "brute" : "chaser");
+                id = EligibleDirectorType(id);
+                if (!RestorationTypeIntroduced(id)) id = "chaser";
                 var slot = FindInactive(_gameSim.Enemies);
                 if (slot < 0 || !SpawnEnemy(id, SustainedSpawnPosition(_encounter.Kind == CombatEncounterKind.Flank ? (edge + (i % 2) * 2) % 4 : edge))) continue;
                 _encounterMembers[slot] = new EncounterMember { SpawnId = _gameSim.Enemies[slot].SpawnId,
@@ -259,7 +270,7 @@ namespace VoidFall.Runtime
             _diagnosticRunSeedOverride = seed == 0 ? FixtureRunSeed : seed;
             StartRunInternal(false);
             _directorPlaytestActive = true;
-            RecordRunHistory("director_playtest", "scripted_input", detail: "normal_health;fresh_profile;first_offered_upgrade;director_version=2");
+            RecordRunHistory("director_playtest", "scripted_input", detail: "normal_health;fresh_profile;first_offered_upgrade;director_version=5");
             return true;
         }
 

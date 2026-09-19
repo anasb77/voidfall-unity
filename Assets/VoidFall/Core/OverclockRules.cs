@@ -5,6 +5,7 @@ namespace VoidFall.Core
     public static class OverclockRules
     {
         public const float StackDurationSeconds = 15f;
+        public const float MaximumBankedSeconds = 30f;
         public const int MaximumPowerTier = 3;
 
         private static readonly double[] Movement = { 1.00, 2.00, 2.30, 2.60 };
@@ -38,7 +39,7 @@ namespace VoidFall.Core
 
             PowerTier = Math.Min(OverclockRules.MaximumPowerTier, PowerTier + 1);
             Streak++;
-            RemainingSeconds += OverclockRules.StackDurationSeconds;
+            RemainingSeconds = Math.Min(OverclockRules.MaximumBankedSeconds, RemainingSeconds + OverclockRules.StackDurationSeconds);
         }
 
         public void Step(float simulationSeconds)

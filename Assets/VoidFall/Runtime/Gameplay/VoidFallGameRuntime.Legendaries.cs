@@ -49,6 +49,7 @@ namespace VoidFall.Runtime
             Array.Clear(_legendaryEnemyIds, 0, _legendaryEnemyIds.Length); Array.Clear(_legendaryBossIds, 0, _legendaryBossIds.Length);
             ClearLegendaryHitTimes();
             EnsureLegendaryVisuals();
+            RefreshApprovedBuildHud();
             RecordRunHistory("legendary_equipped", LegendaryRules.Id(weapon), previous == LegendaryRules.Id(weapon) ? "upgrade" : "equip",
                 sourceId: "dealer", instanceId: _completedVoids, amount: _legendaryRank,
                 detail: "previous=" + previous + ";previousRank=" + previousRank, progress: BuildTelemetryProgress());

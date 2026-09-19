@@ -97,7 +97,7 @@ namespace VoidFall.Core
             if (owned < WeaponSlotLimit(progress)) return false;
             for (var index = 0; index < ExtendedCatalog.SupportCount; index++)
             {
-                if (progress.SupportRanks[index] < ExtendedCatalog.AllSupports()[index].MaxRank) return false;
+                if (LegacyRestorationRules.SupportEligible(ExtendedCatalog.AllSupports()[index].Id, progress) && progress.SupportRanks[index] < ExtendedCatalog.AllSupports()[index].MaxRank) return false;
             }
 
             return true;
@@ -144,10 +144,13 @@ namespace VoidFall.Core
             for (var index = 0; index < ExtendedCatalog.SupportCount; index++)
             {
                 var support = ExtendedCatalog.AllSupports()[index];
+                if (!LegacyRestorationRules.SupportEligible(support.Id, progress)) continue;
                 var current = progress.SupportRanks[index];
                 if (current >= support.MaxRank) continue;
                 var next = current + 1;
                 var description = SupportUpgradeDescription(support, current, next);
+                if (support.Id == "phaseRounds") description = "Pierce " + current + " → " + next + " additional enemies\nAffects: " + LegacyRestorationRules.EligibleWeaponNames(progress);
+                if (support.Id.StartsWith("split-", StringComparison.Ordinal)) description = "Extra projectiles " + current + " → " + next + " per attack\nAffects only " + WeaponDisplayName(support.Id.Substring(6));
                 pool.Add(new UpgradeOptionDefinition
                 {
                     Id = "support:" + support.Id,
@@ -296,6 +299,7 @@ namespace VoidFall.Core
             var after = Math.Max(before, nextRank);
             switch (support.Id)
             {
+                case "giantSlayer": return BonusPercentLine("Damage to bosses and elites", 15, before, after);
                 case "calibration": return MultiplierLine("Weapon damage", 1.12, before, after);
                 case "cycling": return MultiplierLine("Weapon fire delay", 0.92, before, after) + "\nAlso speeds up blade and clock rotation";
                 case "plating": return BonusLine("Maximum integrity", 20, before, after) + "\nRepair 20";
@@ -400,7 +404,9 @@ namespace VoidFall.Core
             if (option.Kind == UpgradeOptionKind.Support)
             {
                 var supportIndex = SupportIndex(option.TargetId);
-                if (supportIndex < 0 || progress.SupportRanks[supportIndex] != option.CurrentRank) return false;
+                if (supportIndex < 0 || progress.SupportRanks[supportIndex] != option.CurrentRank ||
+                    option.NextRank != option.CurrentRank + 1 || option.NextRank > ExtendedCatalog.AllSupports()[supportIndex].MaxRank ||
+                    !LegacyRestorationRules.SupportEligible(option.TargetId, progress)) return false;
                 progress.SupportRanks[supportIndex] = option.NextRank;
                 return true;
             }

@@ -16,9 +16,9 @@ namespace VoidFall.Core
         private double _recoverySeconds;
         private bool _sustained;
 
-        public void BeginSustained(CombatEncounterKind kind)
+        public void BeginSustained(CombatEncounterKind kind, double recoverySeconds = 5)
         {
-            Begin(kind, 5);
+            Begin(kind, recoverySeconds);
             _sustained = true;
         }
 

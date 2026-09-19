@@ -15,6 +15,7 @@ namespace VoidFall.Runtime
         private float _overclockEntryAge, _overclockRefillAge, _overclockDisplayedFraction = 1f;
         private float _overclockHudBottom, _bossHudBottom, _bossGhostFraction = 1f, _lastBossFraction = -1f;
         private int _overclockShownStack;
+        private Text _boostEffectText;
         private float _overclockGlyphWidth = 336f;
         private bool _overclockWasActive, _overclockPickupPending, _overclockNewActivationPending;
 
@@ -90,6 +91,29 @@ namespace VoidFall.Runtime
             _boostBar.type = Image.Type.Filled;
             _boostBar.fillMethod = Image.FillMethod.Horizontal;
             _boostBar.fillOrigin = 0;
+            // Seconds sit centred over the thin countdown bar; dark outline
+            // keeps them readable on any phase colour without restyling it.
+            _boostSecondsText.transform.SetParent(_overclockHudRoot, false);
+            PositionTop(_boostSecondsText.rectTransform, 0, 36, 336, 16);
+            _boostSecondsText.alignment = TextAnchor.MiddleCenter;
+            _boostSecondsText.fontSize = 12;
+            _boostSecondsText.fontStyle = FontStyle.Bold;
+            _boostSecondsText.color = Color.white;
+            _boostSecondsText.raycastTarget = false;
+            var secondsOutline = _boostSecondsText.gameObject.GetComponent<Outline>();
+            if (secondsOutline == null) secondsOutline = _boostSecondsText.gameObject.AddComponent<Outline>();
+            secondsOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
+            secondsOutline.effectDistance = new Vector2(.5f, .5f);
+            _boostSecondsText.enabled = false;
+            // One small buff line under the bar; word, track and glow untouched.
+            _boostEffectText = CreateText(_overclockHudRoot, Vector2.zero, new Vector2(.5f, 1), 11,
+                new Color(.78f, .84f, .90f));
+            _boostEffectText.name = "Overclock Effect";
+            PositionTop(_boostEffectText.rectTransform, 0, 54, 336, 14);
+            _boostEffectText.alignment = TextAnchor.MiddleCenter;
+            _boostEffectText.fontStyle = FontStyle.Bold;
+            _boostEffectText.raycastTarget = false;
+            _boostEffectText.enabled = false;
             _overclockHudRoot.gameObject.SetActive(false);
             _bossHudPanel.enabled = _bossHudGhost.enabled = false;
         }
@@ -140,7 +164,7 @@ namespace VoidFall.Runtime
             _bossHudGhost.enabled = visible;
             _bossHudBottom = 0;
             if (!visible) { _lastBossFraction = -1; return; }
-            var top = _arenaBannerPanel != null && _arenaBannerPanel.enabled ? 162f : 118f;
+            var top = _arenaBannerPanel != null && _arenaBannerPanel.enabled ? 174f : 138f;
             const float width = 432f;
             PositionTop(_bossNameText.rectTransform, 0, top, width, 16);
             PositionTop(_bossBarBackground.rectTransform, 0, top + 18, width, 14);
@@ -168,7 +192,7 @@ namespace VoidFall.Runtime
         {
             if (_overclockHudRoot == null) return;
             var active = _overclock.Active && !_gameOver && !_mainMenuBrowsing;
-            var visible = active && !_revivePending && !_rouletteActive && !_prizeRevealActive && _menuPage == MenuPage.None;
+            var visible = active && !JourneyStopsCombat && !_revivePending && !_rouletteActive && !_prizeRevealActive && _menuPage == MenuPage.None;
             _overclockHudRoot.gameObject.SetActive(visible);
             _overclockHudBottom = 0;
             if (!active)
@@ -176,6 +200,8 @@ namespace VoidFall.Runtime
                 _overclockWasActive = false;
                 _overclockShownStack = 0;
                 _overclockPickupPending = _overclockNewActivationPending = false;
+                _boostSecondsText.enabled = false;
+                if (_boostEffectText != null) _boostEffectText.enabled = false;
                 return;
             }
             var stack = _overclock.Streak;
@@ -187,6 +213,9 @@ namespace VoidFall.Runtime
             {
                 var text = "OVERCLOCKED ×" + stack;
                 _boostText.text = _boostGhostA.text = _boostGhostB.text = text;
+                _boostEffectText.text = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "{0:0.##}x SPEED · {1:0.##}x FIRE",
+                    OverclockRules.MovementMultiplier(stack), OverclockRules.FireRateMultiplier(stack));
                 _overclockGlyphWidth = Mathf.Min(336, _boostText.preferredWidth * OverclockFontRenderScale);
                 _overclockShownStack = stack;
             }
@@ -207,6 +236,8 @@ namespace VoidFall.Runtime
             var beat = rawBeat * OverclockPresentationRules.PulseGain(stack);
             var core = Color.Lerp(phase, Color.white, Mathf.Min(.78f, .12f + stack * .06f + beat * .12f));
             _boostText.enabled = _boostGhostA.enabled = _boostGhostB.enabled = _boostBar.enabled = true;
+            _boostSecondsText.enabled = _boostEffectText.enabled = true;
+            _boostSecondsText.text = Mathf.Max(1, Mathf.CeilToInt(_overclock.RemainingSeconds)) + "s";
             _boostGhostA.color = new Color(.40f, .52f, .58f);
             _boostText.color = core;
             _boostGhostB.color = new Color(phase.r, phase.g, phase.b, Mathf.Min(.65f, .18f + stack * .05f + beat * .15f));
@@ -237,7 +268,7 @@ namespace VoidFall.Runtime
             var pulse = OverclockPresentationRules.PulseScale(stack, rawBeat);
             _overclockWordRow.localScale = Vector3.one * Mathf.Min(1.13f, pulse + refill * .04f);
             _overclockHudGroup.alpha = Mathf.Clamp01(_overclockEntryAge / .12f);
-            _overclockHudBottom = visible ? top + 65 * scale : 0;
+            _overclockHudBottom = visible ? top + 72 * scale : 0;
         }
 
         private static Color OverclockCountdownColor(float fraction)

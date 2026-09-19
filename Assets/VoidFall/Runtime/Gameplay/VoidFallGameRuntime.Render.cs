@@ -478,6 +478,12 @@ namespace VoidFall.Runtime
                     _gameSim.Bullets[i].Radius,
                     _gameSim.Bullets[i].Rank);
                 var projectileId = ContentCatalog.Weapons[_gameSim.Bullets[i].WeaponIndex].Id;
+                if (projectileId == "pistol" && _gameSim.Bullets[i].Rank >= 2)
+                {
+                    var rank = _gameSim.Bullets[i].Rank;
+                    projectileId = rank >= 6 ? "pulse-bright" : rank >= 4 ? "pulse-warm" : "pulse";
+                    visualScale = Mathf.Clamp(_gameSim.Bullets[i].Radius / 3f, .58f, 1.72f) * (rank == 2 ? .6f : 1f);
+                }
                 var projectileFrame = ProceduralSpriteFactory.ProjectileFrame(
                     projectileId,
                     SourceProjectileFrameIndex(_gameSim.Bullets[i].Velocity));
@@ -488,20 +494,21 @@ namespace VoidFall.Runtime
                 var isRailgun = _gameSim.Bullets[i].WeaponIndex >= 0 &&
                     _gameSim.Bullets[i].WeaponIndex < ContentCatalog.Weapons.Length &&
                     ContentCatalog.Weapons[_gameSim.Bullets[i].WeaponIndex].Id == "railgun";
-                if (isRailgun)
+                var brightPulse = projectileId == "pulse-bright";
+                if (isRailgun || brightPulse)
                 {
                     var direction = SourceVisualDirection(_gameSim.Bullets[i].Velocity);
                     var scale = Vector3.one * (projectileFrameSize * visualScale);
                     var far = EnsureRailAfterimageView(i, false);
                     far.sprite = projectileFrame;
-                    far.transform.position = _gameSim.Bullets[i].Position - direction * 34f;
+                    far.transform.position = _gameSim.Bullets[i].Position - direction * (brightPulse ? 12f : 34f);
                     far.transform.rotation = Quaternion.identity;
                     far.transform.localScale = scale;
                     far.color = new Color(1f, 1f, 1f, 0.1f);
                     far.enabled = true;
                     var near = EnsureRailAfterimageView(i, true);
                     near.sprite = projectileFrame;
-                    near.transform.position = _gameSim.Bullets[i].Position - direction * 19f;
+                    near.transform.position = _gameSim.Bullets[i].Position - direction * (brightPulse ? 6f : 19f);
                     near.transform.rotation = Quaternion.identity;
                     near.transform.localScale = scale;
                     near.color = new Color(1f, 1f, 1f, 0.22f);

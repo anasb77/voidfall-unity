@@ -175,7 +175,7 @@ namespace VoidFall.Tests.PlayMode
             bosses.SetValue(boss, 0); ((int[])Field(_sim, "BossOrder"))[0] = 0; FieldSet(_sim, "BossOrderCount", 1);
             Step(.05f); Assert.That((float)Field(bosses.GetValue(0), "Health"), Is.LessThan(1000));
             Call("RenderArsenalWeapons");
-            Assert.That(((SpriteRenderer)Get("_arsenalClockFace")).color.a, Is.EqualTo(.18f));
+            Assert.That(((SpriteRenderer)Get("_arsenalClockFace")).color.a, Is.EqualTo(.126f));
             var hands = (SpriteRenderer[])Get("_arsenalClockHands");
             Assert.That(hands[0].enabled && hands[1].enabled, Is.True);
             Assert.That(hands[0].color.a, Is.EqualTo(.5f));
@@ -222,13 +222,13 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
-        public void Boomerang_visual_and_contact_radius_are_halved()
+        public void Boomerang_visual_and_contact_radius_grow_thirty_five_percent()
         {
             Equip(9); Enemy(0, new Vector2(300, 0)); Step(.01f);
             Call("RenderArsenalWeapons");
             var views = (SpriteRenderer[])Get("_arsenalBoomerangViews");
-            Assert.That(views[0].transform.localScale.x, Is.EqualTo(24));
-            Assert.That(ContentCatalog.Weapons[9].Ranks[0].Stats.ProjectileRadius, Is.EqualTo(4.5));
+            Assert.That(views[0].transform.localScale.x, Is.EqualTo(32.4f).Within(.0001));
+            Assert.That(ContentCatalog.Weapons[9].Ranks[0].Stats.ProjectileRadius, Is.EqualTo(6.075).Within(.0001));
         }
 
         [Test]

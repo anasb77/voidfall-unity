@@ -37,6 +37,7 @@ namespace VoidFall.Runtime
         private float _voidCompletionDelayRemaining;
         private bool _riftTransitionActive;
         private bool _riftTransitionSwapped;
+        private bool _junctionTransition;
         private string _riftTransitionVoidId;
         private bool _openRouteAfterRoulette;
         // True while the route-choice overlay owns the run: pause toggles
@@ -66,6 +67,7 @@ namespace VoidFall.Runtime
             _voidCompletionPending = false;
             _voidCompletionDelayRemaining = 0f;
             _riftTransitionActive = false;
+            _junctionTransition = false;
             _riftTransitionSwapped = false;
             _riftTransitionVoidId = null;
             _openRouteAfterRoulette = false;
@@ -154,7 +156,13 @@ namespace VoidFall.Runtime
             BurstFx(
                 _gameSim.Player.Position, SourceDotColor("cyan"),
                 16, 300, 0.55f, 0.9f);
-            BeginPortalJunction();
+            _junctionTransition = true;
+            _riftTransitionActive = true;
+            _riftTransitionSwapped = false;
+            _journeyStage = JourneyStage.Travel;
+            _gameSim.Player.Velocity = Vector2.zero;
+            _arenaTransitionState = new ArenaTransitionState(_completedVoids, _time, ArenaPhase.Collapse, RiftCollapseSeconds, _arenaId);
+            RecordRunHistory("crossing_transition", "dealer", reason: "cover_begin");
         }
 
         private void SyncVoidBossEncounterWithObjective()
@@ -262,14 +270,11 @@ namespace VoidFall.Runtime
         {
             if (_riftTransitionActive) return;
             DiscardUncollectedJourneyPickups();
-            HideJunction();
             _journeyStage = JourneyStage.Travel;
             _routeMapOpen = false;
             if (_plannedRouteId == voidId || _voidRoute.PlannedPathThrough(_plannedRouteId).Count == 0)
                 _plannedRouteId = null;
             _gameSim.Player.Velocity = Vector2.zero;
-            _gameSim.Player.Position = Vector2.zero;
-            _cameraFollowPosition = Vector2.zero;
             _telemetry.RecordArenaWarning(_completedVoids - 1,
                 ArenaIdName(_arenaId), ArenaIdName(ArenaIdForRouteNode(voidId)), (float)_time);
             Debug.Log($"VOIDFLOW choice void={voidId} t={_time:F1}");
@@ -326,7 +331,7 @@ namespace VoidFall.Runtime
                 }
 
                 var incoming = _arenaTransitionState.Incoming ?? _arenaId;
-                if (_arenaResidency != null && !TryInstallPreparedArenaPlate(incoming))
+                if (!_junctionTransition && _arenaResidency != null && !TryInstallPreparedArenaPlate(incoming))
                 {
                     if (_arenaResidency.Status(ArenaPackageFor(incoming)) == ArenaPackageLoadStatus.Failed && !_journeyLoadFailed)
                     {
@@ -338,7 +343,14 @@ namespace VoidFall.Runtime
                     else _objectiveLine = "ENTERING VOID — LOADING ARENA";
                     return;
                 }
-                CommitRiftTransitionSwap();
+                if (_junctionTransition)
+                {
+                    BeginPortalJunction();
+                    _journeyStage = JourneyStage.Travel;
+                    _riftTransitionSwapped = true;
+                    RecordRunHistory("crossing_transition", "dealer", reason: "covered_swap");
+                }
+                else CommitRiftTransitionSwap();
                 _arenaTransitionState = new ArenaTransitionState(
                     _arenaTransitionState.Index,
                     _arenaTransitionState.DueAt,
@@ -373,7 +385,7 @@ namespace VoidFall.Runtime
                 _hydraPhaseTransition = false;
                 RecordRunHistory("hydra_phase", "hydra-ii", reason: "teleport_settled", sourceId: "hydra-i");
             }
-            else _telemetry.RecordArenaComplete(Mathf.Max(0, _completedVoids - 1), (float)_time);
+            else if (!_junctionTransition) _telemetry.RecordArenaComplete(Mathf.Max(0, _completedVoids - 1), (float)_time);
         }
 
         private void CommitRiftTransitionSwap()
@@ -386,6 +398,9 @@ namespace VoidFall.Runtime
                 CommitHydraPhaseTransitionSwap();
                 return;
             }
+            HideJunction();
+            _gameSim.Player.Position = Vector2.zero;
+            _cameraFollowPosition = Vector2.zero;
             DestroyEnemiesForVoidTransition();
             ClearTransitionProjectiles();
             ClearMeteors();

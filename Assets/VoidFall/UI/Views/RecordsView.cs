@@ -221,7 +221,7 @@ namespace VoidFall.UI
             var values = new[]
             {
                 (index + 1).ToString(),
-                FormatNumber(score.Score) + (score.ScoringVersion > 0 ? " · v" + score.ScoringVersion : " · legacy"),
+                FormatNumber(score.Score) + (score.ScoringVersion > 0 ? " ï¿½ v" + score.ScoringVersion : " ï¿½ legacy"),
                 FormatNumber(score.Kills),
                 FormatTime(score.Time),
                 FormatNumber(score.BossKills)

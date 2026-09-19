@@ -40,6 +40,12 @@ MonoBehaviour:
     _sprite: {fileID: 21300000, guid: 1e11a214698836e47a79288b467636ee, type: 3}
   - _key: arena-vignette|4
     _sprite: {fileID: 21300000, guid: 08d3ad2914a4f684985fab5a675be6a2, type: 3}
+  - _key: arena-vignette|5
+    _sprite: {fileID: 21300000, guid: 12c6d7218c1c54f4581a9b8f3e32062f, type: 3}
+  - _key: arena-vignette|6
+    _sprite: {fileID: 21300000, guid: 722822e91bc42094cb8512aabdcd6bea, type: 3}
+  - _key: arena-vignette|7
+    _sprite: {fileID: 21300000, guid: d84b45a359f43f846ba2c7c17ce98b8d, type: 3}
   - _key: boss|court-grandmaster-black|17|24|39|255|0
     _sprite: {fileID: 21300000, guid: 5d298a42649fe0a47b5f446a03563b9a, type: 3}
   - _key: boss|court-grandmaster-black|17|24|39|255|1
@@ -156,10 +162,22 @@ MonoBehaviour:
     _sprite: {fileID: 21300000, guid: 1ebfdd651fa449f45b53c448f925d0a2, type: 3}
   - _key: enemy|runner|167|139|250|255|1
     _sprite: {fileID: 21300000, guid: 67f91476c9820774892a77b715bf342a, type: 3}
+  - _key: enemy|shuriken|245|158|11|255|0
+    _sprite: {fileID: 21300000, guid: 96969927e87351b478fcbae95e9bef77, type: 3}
+  - _key: enemy|shuriken|245|158|11|255|1
+    _sprite: {fileID: 21300000, guid: 161b66724b6e265478f113421d9ddc42, type: 3}
+  - _key: enemy|spiky|192|132|252|255|0
+    _sprite: {fileID: 21300000, guid: 364f94a6d1942bd43892b280c5f0e166, type: 3}
+  - _key: enemy|spiky|192|132|252|255|1
+    _sprite: {fileID: 21300000, guid: d03acc0cd3d1e654c91dd7f9fc5e6817, type: 3}
   - _key: enemy|splitter|244|114|182|255|0
     _sprite: {fileID: 21300000, guid: 0a76f6b9e54afde40a63e969001af3a2, type: 3}
   - _key: enemy|splitter|244|114|182|255|1
     _sprite: {fileID: 21300000, guid: 5813c5f326061734c85a496d020cfcfd, type: 3}
+  - _key: enemy|swarmer|134|239|172|255|0
+    _sprite: {fileID: 21300000, guid: b8dbf309aeedeed4f943b1e865758de1, type: 3}
+  - _key: enemy|swarmer|134|239|172|255|1
+    _sprite: {fileID: 21300000, guid: 82c48fcbe02ce3a4e92737ee392b78d1, type: 3}
   - _key: enemy|technician|45|212|191|255|0
     _sprite: {fileID: 21300000, guid: 752eeecd8c31b134a8d76ade303aa204, type: 3}
   - _key: enemy|technician|45|212|191|255|1
@@ -394,6 +412,198 @@ MonoBehaviour:
     _sprite: {fileID: 21300000, guid: ae51ebab5c5cf2749b87aa919dd1b595, type: 3}
   - _key: projectile-frame|pistol|9
     _sprite: {fileID: 21300000, guid: b525a7c1f07ec2a4b91c454805043a22, type: 3}
+  - _key: projectile-frame|pulse-bright|0
+    _sprite: {fileID: 21300000, guid: 663d9b1190d1f634da12983aed34afae, type: 3}
+  - _key: projectile-frame|pulse-bright|1
+    _sprite: {fileID: 21300000, guid: dc7dc1ee8a4ed1d4c8d3412d6e5ae5e8, type: 3}
+  - _key: projectile-frame|pulse-bright|10
+    _sprite: {fileID: 21300000, guid: 9a0eab11dea302e4b91383d915f26d50, type: 3}
+  - _key: projectile-frame|pulse-bright|11
+    _sprite: {fileID: 21300000, guid: 8b6eb5f860dd57d41ade553e8f54055f, type: 3}
+  - _key: projectile-frame|pulse-bright|12
+    _sprite: {fileID: 21300000, guid: 9b7825cc7545e5d42a4584555a711288, type: 3}
+  - _key: projectile-frame|pulse-bright|13
+    _sprite: {fileID: 21300000, guid: 6a544d123d825514b8dc03d54edc16c1, type: 3}
+  - _key: projectile-frame|pulse-bright|14
+    _sprite: {fileID: 21300000, guid: cdcc9d85c29716348a3a50fd88219dfe, type: 3}
+  - _key: projectile-frame|pulse-bright|15
+    _sprite: {fileID: 21300000, guid: 0727acc454d19ed43a61915beb0aae55, type: 3}
+  - _key: projectile-frame|pulse-bright|16
+    _sprite: {fileID: 21300000, guid: 24f488fa19f4af2438761f03007c43e9, type: 3}
+  - _key: projectile-frame|pulse-bright|17
+    _sprite: {fileID: 21300000, guid: 450c11ca644c9214898c7d4483a4ac28, type: 3}
+  - _key: projectile-frame|pulse-bright|18
+    _sprite: {fileID: 21300000, guid: 747765727abb3da458f55b9c4047c699, type: 3}
+  - _key: projectile-frame|pulse-bright|19
+    _sprite: {fileID: 21300000, guid: cf168ce321307524c807b3076f2aa610, type: 3}
+  - _key: projectile-frame|pulse-bright|2
+    _sprite: {fileID: 21300000, guid: c0e086ca5605ece40abffa0c9f65b44b, type: 3}
+  - _key: projectile-frame|pulse-bright|20
+    _sprite: {fileID: 21300000, guid: 795d5e4f8d4f82045bf72263c917a7a4, type: 3}
+  - _key: projectile-frame|pulse-bright|21
+    _sprite: {fileID: 21300000, guid: db1e1506eda0f38439050753a312f0e4, type: 3}
+  - _key: projectile-frame|pulse-bright|22
+    _sprite: {fileID: 21300000, guid: af56a599df453f6458f4ebd258d40cb6, type: 3}
+  - _key: projectile-frame|pulse-bright|23
+    _sprite: {fileID: 21300000, guid: fe7572552441652438d1f194db7552a1, type: 3}
+  - _key: projectile-frame|pulse-bright|24
+    _sprite: {fileID: 21300000, guid: 4918e4775a69e5f4b9d3237d92e4e4b4, type: 3}
+  - _key: projectile-frame|pulse-bright|25
+    _sprite: {fileID: 21300000, guid: 568b1d7b60661e444a3c9c5d266216ee, type: 3}
+  - _key: projectile-frame|pulse-bright|26
+    _sprite: {fileID: 21300000, guid: 87770a14f403d204290613bc44599ea1, type: 3}
+  - _key: projectile-frame|pulse-bright|27
+    _sprite: {fileID: 21300000, guid: 9a7eb2ad581a3014bade64536d8941e8, type: 3}
+  - _key: projectile-frame|pulse-bright|28
+    _sprite: {fileID: 21300000, guid: 512a87da023614c4cbfc4e9c15b0f154, type: 3}
+  - _key: projectile-frame|pulse-bright|29
+    _sprite: {fileID: 21300000, guid: 6acb95143e15dd34e8d9500adfb56b8e, type: 3}
+  - _key: projectile-frame|pulse-bright|3
+    _sprite: {fileID: 21300000, guid: ada7418aa62116143ac96427cf1235b0, type: 3}
+  - _key: projectile-frame|pulse-bright|30
+    _sprite: {fileID: 21300000, guid: db8d326eac40cdd4ab25ca37e00467b8, type: 3}
+  - _key: projectile-frame|pulse-bright|31
+    _sprite: {fileID: 21300000, guid: 287fb61c3735a664fa5b38cbfe2e058b, type: 3}
+  - _key: projectile-frame|pulse-bright|4
+    _sprite: {fileID: 21300000, guid: c1e706f831164504ba369a5d8aef51db, type: 3}
+  - _key: projectile-frame|pulse-bright|5
+    _sprite: {fileID: 21300000, guid: 0e6ebc3ca6864804ba3246aff4cf729e, type: 3}
+  - _key: projectile-frame|pulse-bright|6
+    _sprite: {fileID: 21300000, guid: 8fd1d8b893b03404da6193981c7a11f8, type: 3}
+  - _key: projectile-frame|pulse-bright|7
+    _sprite: {fileID: 21300000, guid: 207af064fbc5e814f9c337564d75d672, type: 3}
+  - _key: projectile-frame|pulse-bright|8
+    _sprite: {fileID: 21300000, guid: 247d5d65dff1c3a4a82ff5d0679510d2, type: 3}
+  - _key: projectile-frame|pulse-bright|9
+    _sprite: {fileID: 21300000, guid: 0b9a2eb84e1038d4ba356f4a6431b8e3, type: 3}
+  - _key: projectile-frame|pulse-warm|0
+    _sprite: {fileID: 21300000, guid: f7dc86564e4ba5647bb9a8b2cd8da49e, type: 3}
+  - _key: projectile-frame|pulse-warm|1
+    _sprite: {fileID: 21300000, guid: 624769e083fd86f4a9054bada50b5326, type: 3}
+  - _key: projectile-frame|pulse-warm|10
+    _sprite: {fileID: 21300000, guid: 47337d69ceae6d94aac4d53190686e73, type: 3}
+  - _key: projectile-frame|pulse-warm|11
+    _sprite: {fileID: 21300000, guid: f5dc6f8789226f24583315f3ac914226, type: 3}
+  - _key: projectile-frame|pulse-warm|12
+    _sprite: {fileID: 21300000, guid: 61fa2048d20abe94f8f740f764857359, type: 3}
+  - _key: projectile-frame|pulse-warm|13
+    _sprite: {fileID: 21300000, guid: e2fb025148bd9314d9a94ee1a79f571e, type: 3}
+  - _key: projectile-frame|pulse-warm|14
+    _sprite: {fileID: 21300000, guid: ad0a974b133de484fbc7e3720ceb4a7e, type: 3}
+  - _key: projectile-frame|pulse-warm|15
+    _sprite: {fileID: 21300000, guid: f669e30a476d45b47b15f2cc3ad42132, type: 3}
+  - _key: projectile-frame|pulse-warm|16
+    _sprite: {fileID: 21300000, guid: 09ec4f902a3a7634ca7ffdc12ca3aa8e, type: 3}
+  - _key: projectile-frame|pulse-warm|17
+    _sprite: {fileID: 21300000, guid: 331a622d39034c0499b4e5a3fe609d2f, type: 3}
+  - _key: projectile-frame|pulse-warm|18
+    _sprite: {fileID: 21300000, guid: af5635e42e2aed845a4226829ac13d06, type: 3}
+  - _key: projectile-frame|pulse-warm|19
+    _sprite: {fileID: 21300000, guid: 1be11df95cfcbca42a74fd96825d686c, type: 3}
+  - _key: projectile-frame|pulse-warm|2
+    _sprite: {fileID: 21300000, guid: eb76905b94717a0489134709f4e55919, type: 3}
+  - _key: projectile-frame|pulse-warm|20
+    _sprite: {fileID: 21300000, guid: 0774f3e08c369d64cb1ae883b161c848, type: 3}
+  - _key: projectile-frame|pulse-warm|21
+    _sprite: {fileID: 21300000, guid: d9e8f66a4bef54043b18a360456007ff, type: 3}
+  - _key: projectile-frame|pulse-warm|22
+    _sprite: {fileID: 21300000, guid: 3e13cfd17aded514d8b9b8590927bcb7, type: 3}
+  - _key: projectile-frame|pulse-warm|23
+    _sprite: {fileID: 21300000, guid: 2ed68d5b8aae82945ba5793eb0a821f9, type: 3}
+  - _key: projectile-frame|pulse-warm|24
+    _sprite: {fileID: 21300000, guid: f1842727579b986498d30bd45814b399, type: 3}
+  - _key: projectile-frame|pulse-warm|25
+    _sprite: {fileID: 21300000, guid: 1d220a86613a3b54092b6b174ba7da81, type: 3}
+  - _key: projectile-frame|pulse-warm|26
+    _sprite: {fileID: 21300000, guid: 24e9d1df1defd714e9032bd78ef433ad, type: 3}
+  - _key: projectile-frame|pulse-warm|27
+    _sprite: {fileID: 21300000, guid: ad433a80043f587499a926012dbf9cd8, type: 3}
+  - _key: projectile-frame|pulse-warm|28
+    _sprite: {fileID: 21300000, guid: 483d730a3e57dc74d9f3dbd9eafaf521, type: 3}
+  - _key: projectile-frame|pulse-warm|29
+    _sprite: {fileID: 21300000, guid: 9ca2c11b2ff5a4448b53e764e3bb1e31, type: 3}
+  - _key: projectile-frame|pulse-warm|3
+    _sprite: {fileID: 21300000, guid: f03703332784dda4fa8dfb250588337b, type: 3}
+  - _key: projectile-frame|pulse-warm|30
+    _sprite: {fileID: 21300000, guid: 7ff3ccddb3e7cf14da8af893757b24c2, type: 3}
+  - _key: projectile-frame|pulse-warm|31
+    _sprite: {fileID: 21300000, guid: 2b3cc144dc77ea4478158ac31ecce7b5, type: 3}
+  - _key: projectile-frame|pulse-warm|4
+    _sprite: {fileID: 21300000, guid: a169307c07101024095e2481f32b40b5, type: 3}
+  - _key: projectile-frame|pulse-warm|5
+    _sprite: {fileID: 21300000, guid: 0bf536260ef638745b29096d4e2c3ccf, type: 3}
+  - _key: projectile-frame|pulse-warm|6
+    _sprite: {fileID: 21300000, guid: 991c32d4b92530848a44df07dcf85358, type: 3}
+  - _key: projectile-frame|pulse-warm|7
+    _sprite: {fileID: 21300000, guid: 3a3c6c6e70aa37c4eb5dede22758a68a, type: 3}
+  - _key: projectile-frame|pulse-warm|8
+    _sprite: {fileID: 21300000, guid: 7ccc7edbe875a08498cdbd242992413b, type: 3}
+  - _key: projectile-frame|pulse-warm|9
+    _sprite: {fileID: 21300000, guid: 7d52f6a850b646a4db79b1963bee6d53, type: 3}
+  - _key: projectile-frame|pulse|0
+    _sprite: {fileID: 21300000, guid: c1ff993ca4d643b4d810e7b16a93b4bf, type: 3}
+  - _key: projectile-frame|pulse|1
+    _sprite: {fileID: 21300000, guid: d668dbb0fa9d188408886f9b9b8001f8, type: 3}
+  - _key: projectile-frame|pulse|10
+    _sprite: {fileID: 21300000, guid: e3476d5fc1ad22c4b9bc78008ef3ae99, type: 3}
+  - _key: projectile-frame|pulse|11
+    _sprite: {fileID: 21300000, guid: 7a0be56c85cee654a865c72f69bf524a, type: 3}
+  - _key: projectile-frame|pulse|12
+    _sprite: {fileID: 21300000, guid: 8b57e01d3eb76fb4e95031707b8f5693, type: 3}
+  - _key: projectile-frame|pulse|13
+    _sprite: {fileID: 21300000, guid: 978f06e0221027a47b37ea6303366da3, type: 3}
+  - _key: projectile-frame|pulse|14
+    _sprite: {fileID: 21300000, guid: e156e15cfd5f28c47bd125c459358da6, type: 3}
+  - _key: projectile-frame|pulse|15
+    _sprite: {fileID: 21300000, guid: c6377869bb58b3541b8274df1ba1bf35, type: 3}
+  - _key: projectile-frame|pulse|16
+    _sprite: {fileID: 21300000, guid: cbe86f4f6e93c464a9a28b225f21c85b, type: 3}
+  - _key: projectile-frame|pulse|17
+    _sprite: {fileID: 21300000, guid: 1250315ec7ab93349ac54acf4ad91f93, type: 3}
+  - _key: projectile-frame|pulse|18
+    _sprite: {fileID: 21300000, guid: e059648e9b7ae2b469c35e59bee13f05, type: 3}
+  - _key: projectile-frame|pulse|19
+    _sprite: {fileID: 21300000, guid: 14f0197d8416d1a42952590af2838309, type: 3}
+  - _key: projectile-frame|pulse|2
+    _sprite: {fileID: 21300000, guid: d276914b4379fb54e9b6e8bb5813d5af, type: 3}
+  - _key: projectile-frame|pulse|20
+    _sprite: {fileID: 21300000, guid: e269a34bffd3fbc4fad1db5f3ad8e8fd, type: 3}
+  - _key: projectile-frame|pulse|21
+    _sprite: {fileID: 21300000, guid: 495cc774d5e6e8d4095129cd6e7001f3, type: 3}
+  - _key: projectile-frame|pulse|22
+    _sprite: {fileID: 21300000, guid: 07dd48afcedddd7488e8bce37315f753, type: 3}
+  - _key: projectile-frame|pulse|23
+    _sprite: {fileID: 21300000, guid: f5ddf8f818cc1ae4b810912e563bf982, type: 3}
+  - _key: projectile-frame|pulse|24
+    _sprite: {fileID: 21300000, guid: cb0f85650d4d8aa46b9638910dd11b4c, type: 3}
+  - _key: projectile-frame|pulse|25
+    _sprite: {fileID: 21300000, guid: 6e7a4c9d79e74cf4485f766939c0565d, type: 3}
+  - _key: projectile-frame|pulse|26
+    _sprite: {fileID: 21300000, guid: 4689a242c9c3f6f469e2fc4a53e6e223, type: 3}
+  - _key: projectile-frame|pulse|27
+    _sprite: {fileID: 21300000, guid: 1ec2ba3d953520243b763c0c69cdeba9, type: 3}
+  - _key: projectile-frame|pulse|28
+    _sprite: {fileID: 21300000, guid: e03fe9c7eaaa1c54b8d06354b145b99c, type: 3}
+  - _key: projectile-frame|pulse|29
+    _sprite: {fileID: 21300000, guid: c3804b2191b4a8e489890d1189b78e9e, type: 3}
+  - _key: projectile-frame|pulse|3
+    _sprite: {fileID: 21300000, guid: fbd7a87098c28514ca07e883f553ca50, type: 3}
+  - _key: projectile-frame|pulse|30
+    _sprite: {fileID: 21300000, guid: ad5909d41f6035c4996ac67d0930fa31, type: 3}
+  - _key: projectile-frame|pulse|31
+    _sprite: {fileID: 21300000, guid: 79bb8e93033f4a24b85cecc4224448c8, type: 3}
+  - _key: projectile-frame|pulse|4
+    _sprite: {fileID: 21300000, guid: 681e7b966c4cac64a9af3ee001fe51cf, type: 3}
+  - _key: projectile-frame|pulse|5
+    _sprite: {fileID: 21300000, guid: 3848c75cb42d4ca4f936c7b6c7fb5ac1, type: 3}
+  - _key: projectile-frame|pulse|6
+    _sprite: {fileID: 21300000, guid: 4b1d3fe0057477a4f8dc4d8bfccb007d, type: 3}
+  - _key: projectile-frame|pulse|7
+    _sprite: {fileID: 21300000, guid: 2fbb13447fcbb8041af66a9d682fc7d6, type: 3}
+  - _key: projectile-frame|pulse|8
+    _sprite: {fileID: 21300000, guid: c1e1fb16129dea047b628d8adcb565c6, type: 3}
+  - _key: projectile-frame|pulse|9
+    _sprite: {fileID: 21300000, guid: e992cd13852681c4fa5cbdf1545a1111, type: 3}
   - _key: projectile-frame|railgun|0
     _sprite: {fileID: 21300000, guid: f0909209250931d498074327d6e07005, type: 3}
   - _key: projectile-frame|railgun|1
@@ -588,10 +798,26 @@ MonoBehaviour:
     _sprite: {fileID: 21300000, guid: 701c62b4345feff4ba27d3aad41d14b6, type: 3}
   - _key: projectile|curved
     _sprite: {fileID: 21300000, guid: 582a634f4c14da644b21787b91ac44c7, type: 3}
+  - _key: roster|brute|0
+    _sprite: {fileID: 21300000, guid: 4df6bbd0be57f1b49851b2606af3c564, type: 3}
+  - _key: roster|brute|1
+    _sprite: {fileID: 21300000, guid: 0897d45a7dd05934581c2d352160e6f0, type: 3}
+  - _key: roster|bulwark|0
+    _sprite: {fileID: 21300000, guid: 7e82c4f92546c38458a8e143d7305bc0, type: 3}
+  - _key: roster|bulwark|1
+    _sprite: {fileID: 21300000, guid: 1f650ca2baa855e4bb2b983ac1ff78e2, type: 3}
+  - _key: roster|carrier|0
+    _sprite: {fileID: 21300000, guid: 02010468c97302648bb1fd6bbbb39755, type: 3}
+  - _key: roster|carrier|1
+    _sprite: {fileID: 21300000, guid: 3ffea95fab86e444eb25fdbaf02a4f96, type: 3}
   - _key: roster|chaser|0
     _sprite: {fileID: 21300000, guid: b013c1723e6db9c46b04afbf5f16692c, type: 3}
   - _key: roster|chaser|1
     _sprite: {fileID: 21300000, guid: 47c794ec470769b4480468d4ea7deee5, type: 3}
+  - _key: roster|dasher|0
+    _sprite: {fileID: 21300000, guid: 20c55658260059a4c9fdbf7d651d6e80, type: 3}
+  - _key: roster|dasher|1
+    _sprite: {fileID: 21300000, guid: 914d0b88804206f40a23c26f8159b4a7, type: 3}
   - _key: roster|exploder|0
     _sprite: {fileID: 21300000, guid: 48d485dc3b0cb6c46985f48e0e87cdd8, type: 3}
   - _key: roster|exploder|1
@@ -604,6 +830,30 @@ MonoBehaviour:
     _sprite: {fileID: 21300000, guid: 6c82c7f7d7f8de549908756b4207b293, type: 3}
   - _key: roster|gunner|1
     _sprite: {fileID: 21300000, guid: 270479674c924be4a89d9c492d2ef85f, type: 3}
+  - _key: roster|harvester|0
+    _sprite: {fileID: 21300000, guid: 65940b15643c67244a7dda21e20d5083, type: 3}
+  - _key: roster|harvester|1
+    _sprite: {fileID: 21300000, guid: f2566f4e3e0f49b41aab6dd17b317fe8, type: 3}
+  - _key: roster|mortar|0
+    _sprite: {fileID: 21300000, guid: 2b517b0064ddf694f8bae4c2b20777f2, type: 3}
+  - _key: roster|mortar|1
+    _sprite: {fileID: 21300000, guid: 86ddffd2f7c1fac4fad92e0d7e6b7ea4, type: 3}
+  - _key: roster|runner|0
+    _sprite: {fileID: 21300000, guid: 2e62a14e6aa00994a9b877357e4b3b6d, type: 3}
+  - _key: roster|runner|1
+    _sprite: {fileID: 21300000, guid: 90dbdcdba9279fa4aa907ad02b55783c, type: 3}
+  - _key: roster|splitter|0
+    _sprite: {fileID: 21300000, guid: 4f3898b2ad44bbb479beda4d55f7eefb, type: 3}
+  - _key: roster|splitter|1
+    _sprite: {fileID: 21300000, guid: 444cb0c971976874d9e89a52e0a72069, type: 3}
+  - _key: roster|technician|0
+    _sprite: {fileID: 21300000, guid: 007f9f1a9b5937e4bb782c293dcb33db, type: 3}
+  - _key: roster|technician|1
+    _sprite: {fileID: 21300000, guid: 0645f3ea00a34794a958b702dbc6a644, type: 3}
+  - _key: roster|twinGunner|0
+    _sprite: {fileID: 21300000, guid: 3cad04aed22541f49b83dec5147823ab, type: 3}
+  - _key: roster|twinGunner|1
+    _sprite: {fileID: 21300000, guid: e635deaeee1183d428bafc0537544f61, type: 3}
   - _key: workshop-core|0
     _sprite: {fileID: 21300000, guid: 21fe16b274c402e4b873a581b134c9a8, type: 3}
   - _key: workshop-core|1
