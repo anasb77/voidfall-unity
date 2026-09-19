@@ -6,7 +6,7 @@ namespace VoidFall.Core
     // Authored additions; generated parity catalogues retain their stable ordering.
     public static class LegacyRestorationRules
     {
-        public const string Version = "2026-09-19-density-v3";
+        public const string Version = "2026-09-19-readability-v4";
         public const double SecondWindCooldown = 180;
         public const float SpikyBaseRadius = 19.5f;
         public const float SpikyExpandedScale = 3f;

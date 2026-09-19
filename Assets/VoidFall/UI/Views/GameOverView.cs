@@ -399,6 +399,9 @@ namespace VoidFall.UI
             PopulateKiller(summary);
             PopulateChips(summary.BuildChips);
             PopulateDamage(summary.Weapons);
+            UITheme.ApplyReadableContent(Root);
+            foreach (var button in Root.GetComponentsInChildren<Button>(true))
+                UITheme.ApplyReadableContent(button.transform, false);
 
             SetVisible(true);
         }

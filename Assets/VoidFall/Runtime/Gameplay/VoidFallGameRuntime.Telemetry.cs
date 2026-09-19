@@ -269,6 +269,7 @@ namespace VoidFall.Runtime
 
         private void RecordEnemyRemoval(int slot, string reason)
         {
+            FlushSpikyGrowth(slot);
             if (!_runExportActive || _telemetryEnemyIds[slot] == 0) return;
             var enemy = _gameSim.Enemies[slot];
             if (_telemetryEnemyIds[slot] != enemy.SpawnId) return;
@@ -296,6 +297,7 @@ namespace VoidFall.Runtime
                     detail: boss.ActiveAttack?.Id);
             }
             FlushLegendaryTelemetry();
+            for (var i = 0; i < _spikyGrowth.Length; i++) FlushSpikyGrowth(i);
             for (var i = 0; i < _weaponDamage.Length; i++)
             {
                 var delta = _weaponDamage[i] - _telemetryWeaponDamage[i];

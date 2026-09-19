@@ -587,7 +587,7 @@ namespace VoidFall.Runtime
         {
             if (_time < _nextEliteVariantTime) return false;
             var activeBossCount = ActiveBosses();
-            var budget = DirectorRules.ActiveThreatBudget(_time, activeBossCount);
+            var budget = UsesSustainedDirector ? DirectorBodyLimit() * 1.55 : DirectorRules.ActiveThreatBudget(_time, activeBossCount);
             var activeThreat = ActiveEnemyThreat();
             var replacedCost = DirectorRules.EnemyThreatCost(replacedType);
             var arena = FindArena(ArenaIdName(_arenaId));
@@ -603,7 +603,8 @@ namespace VoidFall.Runtime
             var allowedKinds = new List<EliteVariantId>();
             foreach (var candidate in EliteRules.EliteVariantOrder)
             {
-                if (AmbientTypeAllowed(EliteRules.EliteVariantDef(candidate).BaseId))
+                if (AmbientTypeAllowed(EliteRules.EliteVariantDef(candidate).BaseId) &&
+                    (!UsesSustainedDirector || RestorationTypeIntroduced(EliteRules.EliteVariantDef(candidate).BaseId)))
                     allowedKinds.Add(candidate);
             }
             context.AllowedKinds = allowedKinds.ToArray();
@@ -615,7 +616,7 @@ namespace VoidFall.Runtime
             if (!kind.HasValue) return false;
             var spawned = SpawnEnemy(
                 EliteRules.EliteVariantDef(kind.Value).BaseId,
-                null,
+                UsesSustainedDirector ? SustainedSpawnPosition(-1) : (Vector2?)null,
                 kind.Value);
             if (!spawned) return false;
             _nextEliteVariantTime = _time + (float)EliteRules.EliteCadenceIntervalSeconds(

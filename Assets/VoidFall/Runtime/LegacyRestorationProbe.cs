@@ -85,7 +85,7 @@ namespace VoidFall.Runtime
             foreach (var slot in new[] { 0, 1, 2, 3 }) _upgradeProgress.WeaponRanks[slot] = 4;
             for (var i = 0; i < _upgradeProgress.SupportRanks.Length; i++) _upgradeProgress.SupportRanks[i] = 1;
             for (var i = 0; i < _upgradeProgress.LateRanks.Length; i++) _upgradeProgress.LateRanks[i] = 1;
-            RecalculatePlayerStats(false); RefreshApprovedBuildHud(); UpdateHud();
+            RecalculatePlayerStats(false); ClearTransitionProjectiles(); Render(); RefreshApprovedBuildHud(); UpdateHud();
             yield return CaptureRestorationFrame(output, "hud-full-build.png");
             _gameSim.Player.Health = 9; _secondWindRemaining = 168; UpdateHud();
             yield return CaptureRestorationFrame(output, "hud-low-hp.png");
@@ -105,6 +105,22 @@ namespace VoidFall.Runtime
             yield return CaptureRestorationFrame(output, "cards.png");
             _levelUpActive = false; _paused = false; _levelOptions = null;
             SyncUiScreen();
+            _paused = true; SyncUiScreen();
+            yield return CaptureRestorationFrame(output, "pause-typography.png");
+            _paused = false; SyncUiScreen();
+            DestroyEnemiesForVoidTransition(); ClearTransitionProjectiles();
+            SpawnEnemy("spiky", new Vector2(0, 150));
+            _gameSim.Enemies[0].SpawnId = 17; _gameSim.Enemies[0].Age = .35f; _gameSim.Enemies[0].Speed = 0;
+            for (var i = 0; i < 12; i++)
+            {
+                var angle = i * Mathf.PI / 6;
+                SpawnEnemy(i % 3 == 0 ? "exploder" : "chaser", new Vector2(Mathf.Cos(angle) * 42, 150 + Mathf.Sin(angle) * 42));
+                _gameSim.Enemies[i + 1].Speed = 0;
+            }
+            UpdateEnemies(.01f); ApplySpikyGrowthPushes(); Render(); UpdateHud();
+            yield return CaptureRestorationFrame(output, "spiky-before-growth.png");
+            for (var i = 0; i < 18; i++) { UpdateEnemies(.016f); ApplySpikyGrowthPushes(); Render(); yield return null; }
+            yield return CaptureRestorationFrame(output, "spiky-after-growth.png");
             DestroyEnemiesForVoidTransition(); ClearTransitionProjectiles();
             _gameSim.Player.Position = new Vector2(900, 400); _cameraFollowPosition = _gameSim.Player.Position;
             OnVoidObjectiveCompleted();
@@ -137,6 +153,10 @@ namespace VoidFall.Runtime
             var scroll = _ui.Settings.GetComponentInChildren<UnityEngine.UI.ScrollRect>(true);
             if (scroll != null) scroll.verticalNormalizedPosition = .45f;
             yield return CaptureRestorationFrame(output, "graphics-monitor.png");
+            EndRun(); SyncUiScreen();
+            yield return CaptureRestorationFrame(output, "death-typography.png");
+            EnterMainMenu(); SyncUiScreen();
+            yield return CaptureRestorationFrame(output, "menu-typography.png");
             FinishRunExport("diagnostic_complete");
             File.WriteAllText(Path.Combine(output, "complete.txt"), "Restoration captures completed. Final flow: " + JourneyStatus);
             Debug.Log("RESTORATION CAPTURES COMPLETE " + JourneyStatus);

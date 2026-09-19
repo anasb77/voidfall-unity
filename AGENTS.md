@@ -158,7 +158,7 @@ network uploads, per-hit file writes or unbounded queues. Keep exports outside
 Assets, in `RunExports` beside the player; isolate automated tests. If capture
 is incomplete, report counters/errors explicitly rather than hiding losses.
 
-Director I version 5 is implemented with a 750-actor ceiling; owner difficulty
+Director I version 6 is implemented with a 750-actor ceiling; owner difficulty
 tuning remains a playtest decision. Its live path is `.DirectorI.cs`, not the
 legacy 64/128/192 profile bands. See the sustained-combat design and validation
 documents in `Docs/Design/`. Next owner priorities are map-size correction,

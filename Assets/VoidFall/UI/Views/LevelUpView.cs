@@ -85,6 +85,7 @@ namespace VoidFall.UI
 
             BuildRerollRow(content);
             BuildRewardActions(content);
+            UITheme.ApplyReadableContent(content);
         }
 
         private static float LevelUpContentWidth()
@@ -518,6 +519,8 @@ namespace VoidFall.UI
                 footnote.rectTransform.sizeDelta = new Vector2(-40f, 14f);
                 footnote.rectTransform.anchoredPosition = new Vector2(0f, 32f);
             }
+
+            UITheme.ApplyReadableContent(visual);
 
             if (data.MaxRank > 0)
             {

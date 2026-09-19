@@ -17,6 +17,24 @@ namespace VoidFall.UI
     /// </summary>
     public static class UITheme
     {
+        private static Font _readableRegular, _readableBold;
+
+        // Bundled Chakra Petch is shared with the HUD timer; headings retain their existing face.
+        public static void ApplyReadableContent(Transform root, bool preserveTitles = true)
+        {
+            _readableRegular ??= Resources.Load<Font>("VoidFall/ApprovedHud/ChakraPetch-Regular");
+            _readableBold ??= Resources.Load<Font>("VoidFall/ApprovedHud/ChakraPetch-Bold");
+            foreach (var text in root.GetComponentsInChildren<UnityEngine.UI.Text>(true))
+            {
+                if (text.name.Contains("Glyph") || (preserveTitles &&
+                    (text.name == "Title" || text.name == "Heading" || text.name == "Header"))) continue;
+                var bold = text.fontStyle == FontStyle.Bold || text.fontStyle == FontStyle.BoldAndItalic || text.font == _readableBold;
+                var italic = text.fontStyle == FontStyle.Italic || text.fontStyle == FontStyle.BoldAndItalic;
+                text.font = bold ? _readableBold : _readableRegular;
+                text.fontStyle = italic ? FontStyle.Italic : FontStyle.Normal;
+            }
+        }
+
         public const float ReferenceWidth = 1600f;
         public const float ReferenceHeight = 900f;
 

@@ -6,9 +6,11 @@ namespace VoidFall.Runtime
 {
     public sealed partial class VoidFallGameRuntime
     {
-        private const int SustainedDirectorVersion = 5;
+        private const int SustainedDirectorVersion = 6;
         // Reach the existing arrival rate by five minutes, then sustain it through the added minute.
         private const float SustainedArrivalRampSeconds = 300f;
+        private int _clearObservedPopulation, _clearObservedKills, _refillStage, _refillAdmitted;
+        private float _clearObserveAt, _clearCooldownUntil, _refillRemaining, _refillSpawnTimer, _eliteRetryAt;
         private CombatEncounterKind? _lastSustainedBeat, _previousSustainedBeat;
         private struct DirectorAttackReservation
         {
@@ -33,6 +35,8 @@ namespace VoidFall.Runtime
         private void ResetSustainedDirector()
         {
             _lastSustainedBeat = _previousSustainedBeat = null;
+            _clearObservedPopulation = _clearObservedKills = _refillStage = _refillAdmitted = 0;
+            _clearObserveAt = _clearCooldownUntil = _refillRemaining = _refillSpawnTimer = _eliteRetryAt = 0;
             Array.Clear(_directorAttacks, 0, _directorAttacks.Length);
             _directorAttackDenials = 0; _directorAttackReportAt = _time + 1;
         }
@@ -123,6 +127,8 @@ namespace VoidFall.Runtime
                 _spawnTimer = 4;
                 RecordRunHistory("director_boss_window", reason: "existing_combat_retained");
             }
+            if (UpdateSustainedRefill(dt, boss)) return;
+            UpdateSustainedElites(boss, local);
             if (!boss) TryDeployLegacySwarm();
             if (!boss && TryIntroduceRestorationEnemy()) return;
             if (!boss)
@@ -166,11 +172,99 @@ namespace VoidFall.Runtime
                 RecordRunHistory("director_choice", id, "sustained_ambient");
                 if (!SpawnEnemy(id, SustainedSpawnPosition(-1))) break;
             }
-            if (!boss && !recovery && _majorIncident.Kind == MajorIncidentKind.None && _time >= _nextEliteVariantTime && local >= 160)
+        }
+
+        private bool UpdateSustainedRefill(float dt, bool boss)
+        {
+            var population = _gameSim.EnemyOrderCount;
+            var safe = !boss && _arrivalGrace <= 0 && _pressureReliefTimer <= 0 &&
+                _majorIncident.Kind == MajorIncidentKind.None && DirectorSurvivalSecondsRemaining > 30;
+            // Observe actual kills over at most one second, so despawns/arena swaps cannot trigger a refill.
+            var killed = _kills - _clearObservedKills;
+            if (_refillStage == 0 && safe && _time >= _clearCooldownUntil && _clearObservedPopulation >= 35 &&
+                killed >= _clearObservedPopulation * .65f && population <= _clearObservedPopulation * .35f)
             {
-                TrySpawnEliteVariant("chaser");
-                _nextEliteVariantTime = _time + 60;
+                _refillStage = 1; _refillRemaining = 1.25f; _refillAdmitted = 0;
+                _clearCooldownUntil = _time + 10;
+                RecordRunHistory("director_repopulation", "horde_clear", "breather", amount: killed, durationSeconds: 1.25f,
+                    detail: "before=" + _clearObservedPopulation + ";remaining=" + population);
             }
+            if (_time >= _clearObserveAt || population > _clearObservedPopulation || _refillStage != 0)
+            { _clearObservedPopulation = population; _clearObservedKills = _kills; _clearObserveAt = _time + 1; }
+            if (_refillStage == 0) return false;
+            if (!safe)
+            {
+                RecordRunHistory("director_repopulation", "horde_clear", "cancelled_safety_window", amount: _refillAdmitted);
+                _refillStage = 0; return false;
+            }
+            _refillRemaining -= dt;
+            if (_refillStage == 1)
+            {
+                _lastSpawnBlockReason = "clear_breather";
+                if (_refillRemaining > 0) return true;
+                _refillStage = 2; _refillRemaining = 3; _refillSpawnTimer = 0;
+                RecordRunHistory("director_repopulation", "horde_clear", "reinforcing", durationSeconds: 3,
+                    detail: "maxArrivals=120;batch=8;interval=.12;offscreen=true");
+            }
+            if (_refillRemaining <= 0 || _refillAdmitted >= 120 || population >= 160)
+            {
+                RecordRunHistory("director_repopulation", "horde_clear", "complete", amount: _refillAdmitted);
+                _refillStage = 0; _spawnTimer = .12f; return false;
+            }
+            _refillSpawnTimer -= dt;
+            if (_refillSpawnTimer > 0) return true;
+            _refillSpawnTimer = .12f;
+            _lastSpawnBlockReason = null;
+            var admitted = 0;
+            for (var i = 0; i < 8 && _refillAdmitted < 120 && _gameSim.EnemyOrderCount < 160; i++)
+            {
+                // Familiar fodder only: fast refill does not dump a new special-attack wave on the player.
+                var id = _refillAdmitted % 3 == 0 && RestorationTypeIntroduced("runner") ? "runner" :
+                    _refillAdmitted % 3 == 1 && RestorationTypeIntroduced("swarmer") ? "swarmer" : "chaser";
+                if (!SpawnEnemy(id, SustainedSpawnPosition(_refillAdmitted % 4))) break;
+                _refillAdmitted++; admitted++;
+            }
+            RecordRunHistory("director_repopulation", "horde_clear", "batch", amount: admitted);
+            return true;
+        }
+
+        private void UpdateSustainedElites(bool boss, float local)
+        {
+            if (_time < _eliteRetryAt) return;
+            var standardDue = _time >= _nextEliteTime;
+            var variantDue = local >= 160 && _time >= _nextEliteVariantTime;
+            if (!standardDue && !variantDue) return;
+            _eliteRetryAt = _time + 3;
+            var block = boss ? "boss" : _pressureReliefTimer > 0 ? "damage_relief" :
+                _majorIncident.Kind != MajorIncidentKind.None ? "major_incident" :
+                DirectorSurvivalSecondsRemaining <= 30 ? "final_countdown" :
+                local < 25 || _arrivalGrace > 0 ? "arrival_grace" : null;
+            if (block != null)
+            { RecordRunHistory("director_elite_cadence", reason: block, detail: "deferred=true"); return; }
+            if (standardDue && ActiveEnemyTypeCount("elite") >= 2)
+            {
+                RecordRunHistory("director_elite_cadence", "elite", "active_cap");
+                standardDue = false;
+            }
+            if (standardDue)
+            {
+                var spawned = SpawnEnemy("elite", SustainedSpawnPosition(-1), null, false, false, 0,
+                    1f + Mathf.Min(2.5f, _time / 1200f), null);
+                if (spawned)
+                {
+                    _nextEliteTime = _time + Mathf.Max(55, (float)ContentCatalog.Elite.RepeatEverySeconds - _time / 90f);
+                    _rosterIntroductionReadyAt = Mathf.Max(_rosterIntroductionReadyAt, _time + 5);
+                    ShowArenaToast("Elite incoming", 2.5f, ToastKind.Danger);
+                    _audio?.Play(ProceduralAudio.Cue.Warning, .72f);
+                }
+                RecordRunHistory("director_elite_cadence", "elite", spawned ? "admitted" : "admission_blocked",
+                    amount: spawned ? 1 : 0, detail: "nextAt=" + _nextEliteTime);
+                return;
+            }
+            if (!variantDue) return;
+            var variantSpawned = TrySpawnEliteVariant("chaser");
+            RecordRunHistory("director_elite_cadence", "variant", variantSpawned ? "admitted" : "admission_blocked",
+                amount: variantSpawned ? 1 : 0, detail: "nextAt=" + _nextEliteVariantTime);
         }
 
         private CombatEncounterKind ChooseSustainedBeat(float local)
@@ -270,7 +364,7 @@ namespace VoidFall.Runtime
             _diagnosticRunSeedOverride = seed == 0 ? FixtureRunSeed : seed;
             StartRunInternal(false);
             _directorPlaytestActive = true;
-            RecordRunHistory("director_playtest", "scripted_input", detail: "normal_health;fresh_profile;first_offered_upgrade;director_version=5");
+            RecordRunHistory("director_playtest", "scripted_input", detail: "normal_health;fresh_profile;first_offered_upgrade;director_version=6");
             return true;
         }
 

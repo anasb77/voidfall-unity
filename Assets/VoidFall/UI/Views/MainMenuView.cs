@@ -66,6 +66,8 @@ namespace VoidFall.UI
                 () => Callbacks?.OpenDirectorSelection?.Invoke(), 36f);
             UIBuilder.Stretch(_directorButton.GetComponent<RectTransform>());
             directorSlot.gameObject.SetActive(false);
+            foreach (var button in Root.GetComponentsInChildren<Button>(true))
+                UITheme.ApplyReadableContent(button.transform, false);
             _homeContent = content;
             _expandedContentSize = content.sizeDelta;
             _expandedNavPosition = ((RectTransform)content.Find("NavGrid")).anchoredPosition;

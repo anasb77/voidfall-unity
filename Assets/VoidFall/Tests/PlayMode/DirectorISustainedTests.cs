@@ -40,6 +40,56 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(Get(pool.GetValue(749), "SpawnId"), Is.EqualTo(751));
         }
 
+        [Test] public void Standard_elites_spawn_on_their_own_clock_even_while_ambient_timer_is_waiting()
+        {
+            Set(_runtime, "_time", 60f);
+            ((VoidObjectiveTracker)Get(_runtime, "_objectives")).Step(60);
+            Set(_runtime, "_spawnTimer", 99f);
+            Invoke("UpdateSpawns", .016f);
+            var enemies = (Array)Get(Get(_runtime, "_gameSim"), "Enemies");
+            Assert.That(enemies.Cast<object>().Count(e => (bool)Get(e, "Active") && (string)Get(e, "Id") == "elite"), Is.EqualTo(1));
+            Assert.That((float)Get(_runtime, "_nextEliteTime"), Is.GreaterThan(140));
+            Invoke("UpdateSpawns", .016f);
+            Assert.That(enemies.Cast<object>().Count(e => (bool)Get(e, "Active") && (string)Get(e, "Id") == "elite"), Is.EqualTo(1));
+        }
+
+        [Test] public void Dense_fodder_does_not_use_the_legacy_budget_to_starve_variants()
+        {
+            Set(_runtime, "_time", 200f); Set(_runtime, "_nextEliteTime", 999f); Set(_runtime, "_nextEliteVariantTime", 0f);
+            ((VoidObjectiveTracker)Get(_runtime, "_objectives")).Step(200);
+            var introduced = (bool[])Get(_runtime, "_restorationIntroduced");
+            for (var i = 0; i < introduced.Length; i++) introduced[i] = true;
+            for (var i = 0; i < 200; i++) Invoke("SpawnEnemy", "chaser");
+            Invoke("UpdateSustainedElites", false, 200f);
+            var enemies = (Array)Get(Get(_runtime, "_gameSim"), "Enemies");
+            Assert.That(enemies.Cast<object>().Count(e => (bool)Get(e, "Active") && (bool)Get(e, "Elite")), Is.EqualTo(1));
+            Assert.That((float)Get(_runtime, "_nextEliteVariantTime"), Is.GreaterThan(200));
+        }
+
+        [Test] public void Horde_clear_gets_a_short_breather_then_bounded_offscreen_reinforcements()
+        {
+            Set(_runtime, "_time", 30f);
+            ((VoidObjectiveTracker)Get(_runtime, "_objectives")).Step(30);
+            for (var i = 0; i < 60; i++) Invoke("SpawnEnemy", "chaser");
+            Invoke("UpdateSustainedRefill", .01f, false);
+            for (var i = 0; i < 60; i++) Invoke("ApplyEnemyDamage", i, 100000f);
+            for (var i = 0; i < 100; i++) Invoke("UpdateSustainedRefill", .01f, false);
+            Assert.That(_runtime.ActiveEnemiesCount, Is.Zero, "A wipe buys a real breather.");
+            for (var i = 0; i < 250; i++) Invoke("UpdateSustainedRefill", .01f, false);
+            Assert.That(_runtime.ActiveEnemiesCount, Is.EqualTo(120));
+            Assert.That(Get(_runtime, "_refillStage"), Is.EqualTo(0));
+            var half = (Vector2)Invoke("GameplayViewportHalfExtent");
+            var enemies = (Array)Get(Get(_runtime, "_gameSim"), "Enemies");
+            foreach (var enemy in enemies.Cast<object>().Where(e => (bool)Get(e, "Active")))
+            {
+                var p = (Vector2)Get(enemy, "Position");
+                Assert.That(Mathf.Abs(p.x) > half.x || Mathf.Abs(p.y) > half.y, Is.True, "Never appear on-screen.");
+            }
+            Set(_runtime, "_refillStage", 2); Set(_runtime, "_refillRemaining", 3f);
+            Invoke("UpdateSustainedRefill", .1f, true);
+            Assert.That(Get(_runtime, "_refillStage"), Is.EqualTo(0), "Boss windows cancel refill.");
+        }
+
         [Test] public void Ordinary_arrivals_continue_during_a_tactical_encounter()
         {
             Set(_runtime, "_time", 60f);

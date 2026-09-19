@@ -45,6 +45,7 @@ namespace VoidFall.UI
 
             BuildSummary(content);
             BuildActions(content);
+            UITheme.ApplyReadableContent(content, false);
         }
 
         private void BuildSummary(RectTransform parent)

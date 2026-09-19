@@ -91,6 +91,32 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
+        public void Growth_shoves_and_director_repopulation_and_elite_admissions_are_exported()
+        {
+            Set(_runtime, "_time", 60f);
+            ((VoidObjectiveTracker)Get(_runtime, "_objectives")).Step(60);
+            Call("UpdateSustainedElites", false, 60f);
+            Call("SpawnEnemy", "spiky"); Call("SpawnEnemy", "exploder");
+            var enemies = (Array)Get(Get(_runtime, "_gameSim"), "Enemies");
+            var spiky = enemies.GetValue(1); Set(spiky, "Position", new Vector2(300, 0));
+            Set(spiky, "SpawnId", 17); Set(spiky, "Age", .51f); Set(spiky, "Speed", 0f); enemies.SetValue(spiky, 1);
+            var other = enemies.GetValue(2); Set(other, "Position", new Vector2(340, 0)); Set(other, "Speed", 0f); enemies.SetValue(other, 2);
+            Call("UpdateEnemies", .06f); Call("ApplySpikyGrowthPushes");
+            Call("UpdateEnemies", .04f); Call("ApplySpikyGrowthPushes");
+            Call("DestroyEnemiesForVoidTransition");
+            Set(_runtime, "_clearObservedPopulation", 60); Set(_runtime, "_clearObservedKills", 0); Set(_runtime, "_kills", 60);
+            Call("UpdateSustainedRefill", .01f, false); Call("UpdateSustainedRefill", 1.3f, false);
+            Call("FinishRunExport", "test_finished");
+            var history = ReadHistory();
+            Assert.That(history.Any(e => e.kind == "spiky_growth_push" && e.instanceId == 17 && e.amount > 0 && e.detail.Contains("contactSteps=")), Is.True);
+            Assert.That(history.Count(e => e.kind == "spiky_growth_push" && e.instanceId == 17), Is.GreaterThanOrEqualTo(2), "Arena removal flushes the unfinished shove window.");
+            Assert.That(history.Any(e => e.kind == "director_elite_cadence" && e.id == "elite" && e.reason == "admitted"), Is.True);
+            Assert.That(history.Any(e => e.kind == "director_repopulation" && e.reason == "breather"), Is.True);
+            Assert.That(history.Any(e => e.kind == "director_repopulation" && e.reason == "batch" && e.amount > 0), Is.True);
+            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(6));
+        }
+
+        [Test]
         public void Menu_abandonment_finishes_once_and_does_not_start_a_fake_run()
         {
             Call("EnterMainMenu");
@@ -141,7 +167,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(history.Any(e => e.kind == "upgrade_applied" && e.progress != null), Is.True);
             Assert.That(history.Any(e => e.kind == "encounter_selected"), Is.True);
             Assert.That(ReadReport().samples.Last().viewportWidth, Is.GreaterThan(0));
-            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(5));
+            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(6));
             Assert.That(ReadReport().samples.Last().specialAttackLimit, Is.EqualTo(2));
         }
 

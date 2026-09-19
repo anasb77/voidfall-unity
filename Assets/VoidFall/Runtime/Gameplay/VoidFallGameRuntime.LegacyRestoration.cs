@@ -6,6 +6,12 @@ namespace VoidFall.Runtime
 {
     public sealed partial class VoidFallGameRuntime
     {
+        private struct SpikyGrowth
+        {
+            public int Identity, Contacts;
+            public float Delta, Displacement, ReportAt;
+        }
+        private readonly SpikyGrowth[] _spikyGrowth = new SpikyGrowth[MaxEnemies];
         private struct SpikyBurst { public Vector2 Position; public float Damage, Delay; public int Identity; }
         private readonly SpikyBurst[] _spikyBursts = new SpikyBurst[MaxEnemies];
         private int _spikyBurstHead, _spikyBurstCount;
@@ -22,6 +28,7 @@ namespace VoidFall.Runtime
         {
             _secondWindRemaining = _arrivalGrace = _rosterIntroductionReadyAt = 0;
             _spikyBurstHead = _spikyBurstCount = 0;
+            Array.Clear(_spikyGrowth, 0, _spikyGrowth.Length);
             _circleBeat = false;
             _nextLegacySwarmAt = 30f;
             _legacySwarmSequence = 0;
@@ -71,7 +78,9 @@ namespace VoidFall.Runtime
         }
         private void QueueSpikyDeath(EnemyState enemy)
         {
-            if (enemy.Id != "spiky" || JourneyStopsCombat) return;
+            if (enemy.Id != "spiky") return;
+            FlushSpikyGrowth(enemy.View);
+            if (JourneyStopsCombat) return;
             EnqueueSpikyBurst(new SpikyBurst { Position = enemy.Position, Identity = enemy.SpawnId, Delay = .075f, Damage = enemy.MaxHealth * 1.05f });
         }
         private bool UpdateLegacyEnemy(ref EnemyState enemy, Vector2 direction)
@@ -91,11 +100,74 @@ namespace VoidFall.Runtime
                     var phase = Mathf.Repeat(enemy.Age + (enemy.SpawnId % 17) * .117f, LegacyRestorationRules.SpikyPhaseSeconds * 2);
                     var scale = phase < LegacyRestorationRules.SpikyPhaseSeconds ? Mathf.Lerp(LegacyRestorationRules.SpikyExpandedScale, 1, Mathf.SmoothStep(0, 1, phase / .12f))
                         : Mathf.Lerp(1, LegacyRestorationRules.SpikyExpandedScale, Mathf.SmoothStep(0, 1, (phase - LegacyRestorationRules.SpikyPhaseSeconds) / .12f));
-                    enemy.Radius = LegacyRestorationRules.SpikyBaseRadius * scale;
+                    var radius = LegacyRestorationRules.SpikyBaseRadius * scale;
+                    ref var growth = ref _spikyGrowth[enemy.View];
+                    if (growth.Identity != enemy.SpawnId)
+                        growth = new SpikyGrowth { Identity = enemy.SpawnId, ReportAt = _time };
+                    growth.Delta = Mathf.Max(0, radius - enemy.Radius);
+                    enemy.Radius = radius;
                 }
             }
             return true;
         }
+        // Expansion sweeps nearby bodies outward. Shrinking never pulls them back.
+        // Runs once after movement, before ordinary separation; fixed storage and no combat RNG.
+        private void ApplySpikyGrowthPushes()
+        {
+            var gridReady = false;
+            for (var order = 0; order < _gameSim.EnemyOrderCount; order++)
+            {
+                var slot = _gameSim.EnemyOrder[order];
+                var source = _gameSim.Enemies[slot];
+                if (!source.Active || source.Id != "spiky") continue;
+                ref var growth = ref _spikyGrowth[slot];
+                if (growth.Identity != source.SpawnId) continue;
+                var expansion = growth.Delta; growth.Delta = 0;
+                if (expansion > 0)
+                {
+                    if (!gridReady) { RebuildEnemyGrid(); gridReady = true; }
+                    var count = _gameSim.QueryEnemyNeighborhood(source.Position.x, source.Position.y, 2, _gameSim.EnemyGridSeparationCandidates);
+                    for (var candidate = 0; candidate < count; candidate++)
+                    {
+                        var otherSlot = _gameSim.EnemyGridSeparationCandidates[candidate];
+                        ref var other = ref _gameSim.Enemies[otherSlot];
+                        if (otherSlot == slot || !other.Active || other.MatriarchBodyguard || IsCourtSentinel(other) ||
+                            (_gameSim.EnemyAnchoredQuery != null && _gameSim.EnemyAnchoredQuery(other))) continue;
+                        var delta = other.Position - source.Position;
+                        var distance = delta.magnitude;
+                        var reach = source.Radius + other.Radius;
+                        if (distance >= reach) continue;
+                        var axis = unchecked(source.SpawnId * 73856093 ^ other.SpawnId * 19349663) & 3;
+                        var direction = distance > .001f ? delta / distance :
+                            axis == 0 ? Vector2.right : axis == 1 ? Vector2.up : axis == 2 ? Vector2.left : Vector2.down;
+                        var displacement = Mathf.Min(reach - distance, expansion * 1.5f);
+                        var oldPosition = other.Position;
+                        other.Position += direction * displacement;
+                        ConstrainNullCityEnemy(ref other); ConstrainCourtEnemy(ref other);
+                        ResolveEonSeaEnemyMovement(otherSlot, ref other, oldPosition);
+                        var moved = (other.Position - oldPosition).magnitude;
+                        if (moved <= .001f) continue;
+                        // Preserve stronger weapon knockback; cap only the added growth shove.
+                        var impulse = direction * Mathf.Min(120, displacement * 8);
+                        other.Knockback = Vector2.ClampMagnitude(other.Knockback + impulse, Mathf.Max(220, other.Knockback.magnitude));
+                        growth.Contacts++; growth.Displacement += moved;
+                    }
+                }
+                if (_time >= growth.ReportAt) FlushSpikyGrowth(slot);
+            }
+        }
+
+        private void FlushSpikyGrowth(int slot)
+        {
+            ref var growth = ref _spikyGrowth[slot];
+            var source = _gameSim.Enemies[slot];
+            if (growth.Identity != source.SpawnId || growth.Contacts <= 0) return;
+            RecordRunHistory("spiky_growth_push", "spiky", instanceId: source.SpawnId,
+                amount: growth.Displacement, position: source.Position,
+                detail: "contactSteps=" + growth.Contacts + ";outwardOnly=true;maxAddedSpeed=220");
+            growth.Contacts = 0; growth.Displacement = 0; growth.ReportAt = _time + 1;
+        }
+
         private string EligibleDirectorType(string id) => _time >= LegacyRestorationRules.RevealSeconds(id) ? id : "chaser";
         private bool TryIntroduceRestorationEnemy()
         {

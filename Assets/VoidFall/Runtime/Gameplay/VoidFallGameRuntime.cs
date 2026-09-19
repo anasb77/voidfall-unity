@@ -2635,6 +2635,7 @@ namespace VoidFall.Runtime
             StepLegacyRestoration(dt);
             UpdateSpawns(dt);
             UpdateEnemies(dt);
+            ApplySpikyGrowthPushes();
             // Relax separation over several passes, rebuilding the grid between
             // each so a body that moved cells is still paired correctly. One
             // pass (the browser behavior) cannot unpack a dense clump.

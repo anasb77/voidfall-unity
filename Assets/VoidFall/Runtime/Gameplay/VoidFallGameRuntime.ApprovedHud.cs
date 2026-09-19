@@ -157,9 +157,12 @@ namespace VoidFall.Runtime
             _pressureText.transform.SetParent(_canvas.transform, false);
             ApprovedText(_pressureText,tc,0,-7.7f,20,1.4f,.85f);
             _pressureText.color = new Color(.68f,.72f,.73f);
-            ApprovedText(_objectiveText,tl,1.8f,-7.4f,40,1.5f,.7f);
+            ApprovedText(_objectiveText,tl,1.8f,-6.2f,49,4.6f,1.45f,true);
+            _objectiveText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _objectiveText.alignment = TextAnchor.UpperLeft;
-            _objectiveText.color = new Color(.5f,.58f,.66f);
+            _objectiveText.color = new Color(.90f,.96f,1f);
+            var objectiveShadow = _objectiveText.GetComponent<Shadow>() ?? _objectiveText.gameObject.AddComponent<Shadow>();
+            objectiveShadow.effectColor = new Color(0,0,0,.85f); objectiveShadow.effectDistance = new Vector2(1,-1);
             ApprovedText(_approvedScoreLabel,tr,-6.1f,-1.7f,18,1f,.76f);
             _approvedScoreLabel.alignment = TextAnchor.UpperRight;
             ApprovedText(_metricValues[2],tr,-6.1f,-2.65f,24,3,2.4f,true);
@@ -262,9 +265,10 @@ namespace VoidFall.Runtime
                 StyleApprovedSlot(bg,icon,rank,null,Vector2.zero,1.8f+i*4.95f,1.7f,4.45f,4.9f,locked?"lock":"plus",
                     locked?"Fifth weapon slot":"Empty weapon slot",locked?"Reach rank VI on two weapons to unlock this slot.":"Choose an automatic weapon when you level up.",0,0,muted,true);
             }
-            ApprovedText(_approvedArsenalLabel,Vector2.zero,1.8f,7.22f,24.25f,.9f,.66f);
-            _approvedArsenalLabel.text="ARSENAL                         "+owned+" / "+limit;
-            ApprovedText(_approvedManualLabel,Vector2.zero,28.65f,7.22f,6,.9f,.66f);
+            ApprovedText(_approvedArsenalLabel,Vector2.zero,1.8f,7.25f,24.25f,1.5f,1.15f,true);
+            _approvedArsenalLabel.color = _approvedManualLabel.color = _approvedPassiveLabel.color = new Color(.82f,.91f,.98f);
+            _approvedArsenalLabel.text="ARSENAL    "+owned+" / "+limit;
+            ApprovedText(_approvedManualLabel,Vector2.zero,28.65f,7.25f,9,1.5f,1.15f,true);
             var manual=_legendaryWeapon!=LegendaryWeaponId.None; _approvedManualRank.text=manual?"":"FRAGMENTS";
             StyleApprovedSlot(_approvedManualSlot,_approvedManualIcon,_approvedManualRank,null,Vector2.zero,28.65f,1.7f,4.45f,4.9f,
                 manual?(_legendaryWeapon==LegendaryWeaponId.SoundBlade?"soundBlade":"chargedRifle"):"lock",
@@ -274,7 +278,7 @@ namespace VoidFall.Runtime
             foreach(var rank in _upgradeProgress.LateRanks) if(rank>0)total++;
             var dense=total>10; var columns=dense?10:Mathf.Max(1,total); var cw=dense?3f:3.5f; var ch=dense?3.45f:4.9f; var gap=dense?.3f:.45f;
             var rows=Mathf.Max(1,Mathf.CeilToInt(total/(float)columns)); var stripWidth=columns*(cw+gap)-gap;
-            ApprovedText(_approvedPassiveLabel,new Vector2(1,0),-1.8f,1.7f+rows*(ch+gap)+.3f,stripWidth,.9f,.66f);
+            ApprovedText(_approvedPassiveLabel,new Vector2(1,0),-1.8f,1.7f+rows*(ch+gap)+.3f,Mathf.Max(12,stripWidth),1.5f,1.15f,true);
             _approvedPassiveLabel.text="PASSIVES  "+total.ToString("00"); _approvedPassiveLabel.alignment=TextAnchor.LowerLeft;
             _approvedSecondWind=null; var ordinal=0;
             var supports=ExtendedCatalog.AllSupports();

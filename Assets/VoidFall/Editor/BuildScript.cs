@@ -71,7 +71,7 @@ namespace VoidFall.EditorTools
                     "Maps: approved Court / original Null City 4x / Hydra I populations and teleport\n" +
                     "Hydra II: original Unity map and boss encounter preserved\n" +
                     "Legacy restoration: " + VoidFall.Core.LegacyRestorationRules.Version + "\n" +
-                    "Director I v5: 2.5x ordinary arrivals; independent uniform V1 rings every 34s; early Exploder\n" +
+                    "Director I v6: restored elite cadence; short post-clear refill; growth shoves and readable HUD/menu content\n" +
                     "HUD: approved study 02 at 66%, bundled Chakra Petch, custom arsenal/passive/manual slots\n" +
                     "Pressure starts at 1x; Spiky 19.5/58.5 radius every 0.5s, 4x raster resolution; Shuriken spin 14 rad/s\n" +
                     "Rewards: ordinary rare drops 1/300; Overclock bank capped at 30s; XP +25% from level 6\n" +

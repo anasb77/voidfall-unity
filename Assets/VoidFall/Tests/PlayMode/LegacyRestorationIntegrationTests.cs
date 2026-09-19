@@ -68,6 +68,31 @@ namespace VoidFall.Tests.PlayMode
             Assert.That((float)Get(Enemies.GetValue(0), "Radius"), Is.EqualTo(19.5f).Within(.01f));
         }
 
+        [Test] public void Spiky_expansion_shoves_neighbors_outward_but_shrink_and_anchors_do_not_move_them()
+        {
+            Call("SpawnEnemy", "spiky"); Call("SpawnEnemy", "exploder"); Call("SpawnEnemy", "chaser"); Call("SpawnEnemy", "chaser");
+            Enemy(0, "SpawnId", 17); Enemy(0, "Position", new Vector2(300, 0)); Enemy(0, "Age", .51f); Enemy(0, "Speed", 0f);
+            Enemy(1, "Position", new Vector2(340, 0)); Enemy(1, "Speed", 0f);
+            Enemy(2, "Position", new Vector2(260, 0)); Enemy(2, "Speed", 0f);
+            Enemy(3, "Position", new Vector2(300, 30)); Enemy(3, "Speed", 0f);
+            Call("UpdateEnemies", .06f);
+            Enemy(3, "MatriarchBodyguard", true);
+            var anchor = (Vector2)Get(Enemies.GetValue(3), "Position");
+            var hp = Get(Get(Game, "Player"), "Health");
+            Call("ApplySpikyGrowthPushes");
+            Assert.That(((Vector2)Get(Enemies.GetValue(1), "Position")).x, Is.GreaterThan(340));
+            Assert.That(((Vector2)Get(Enemies.GetValue(2), "Position")).x, Is.LessThan(260));
+            Assert.That(((Vector2)Get(Enemies.GetValue(1), "Knockback")).magnitude, Is.InRange(1, 220));
+            Assert.That(Get(Enemies.GetValue(3), "Position"), Is.EqualTo(anchor));
+            Assert.That(Get(Get(Game, "Player"), "Health"), Is.EqualTo(hp));
+            var after = Get(Enemies.GetValue(1), "Position");
+            Call("ApplySpikyGrowthPushes");
+            Assert.That(Get(Enemies.GetValue(1), "Position"), Is.EqualTo(after), "A growth delta is consumed once.");
+            Enemy(0, "Age", 1.15f); Call("UpdateEnemies", .01f);
+            after = Get(Enemies.GetValue(1), "Position"); Call("ApplySpikyGrowthPushes");
+            Assert.That(Get(Enemies.GetValue(1), "Position"), Is.EqualTo(after), "Shrinking cannot pull neighbors inward.");
+        }
+
         [Test] public void Signature_ring_is_uniform_and_does_not_wait_for_a_tactical_event()
         {
             Set(_runtime, "_time", 30f);

@@ -74,7 +74,7 @@ Assembly definitions live at each subsystem root. `Core` and `Content` have
 
 ## Legacy restoration ownership
 
-`Content/LegacyRestorationRules.cs` appends the three enemy families and compatible support cards without changing generated IDs. Runtime `.LegacyRestoration.cs` owns Second Wind cooldown, delayed Spiky chains, shuriken/Spiky motion, roster introductions, the independent V1 ring clock and identity-keyed V1 dash controllers; `.DirectorI.cs` owns the sustained v5 schedule and budgets. The approved browser HUD is owned by runtime `.ApprovedHud.cs` and `ApprovedHudSlot.cs`; it reuses the original HUD bindings with bundled Chakra Petch fonts, live slots, and a 0.66 study scale. `LegacyHudGradient.cs` supplies the bar gradients. `.Journey.cs` / `.Rift.cs` / `.Escape.cs` retain covered swaps and the ten-second reward window. `LegacyRestorationProbe.cs` provides isolated native captures with `-vfrestoration-check=<directory>`. See `Docs/Design/2026-09-19-LegacyRestoration.md` for approved tuning and `LegacyRestoration*Tests` for regression coverage.
+`Content/LegacyRestorationRules.cs` appends the three enemy families and compatible support cards without changing generated IDs. Runtime `.LegacyRestoration.cs` owns Second Wind cooldown, delayed Spiky chains, shuriken/Spiky motion and expansion-only crowd shoves, roster introductions, the independent V1 ring clock and identity-keyed V1 dash controllers; `.DirectorI.cs` owns the sustained v6 schedule, independent standard/variant elite cadence, bounded post-clear refill and budgets. The approved browser HUD is owned by runtime `.ApprovedHud.cs` and `ApprovedHudSlot.cs`; it reuses the original HUD bindings with bundled Chakra Petch fonts, live slots, and a 0.66 study scale. `LegacyHudGradient.cs` supplies the bar gradients. `UITheme.ApplyReadableContent` applies the bundled timer-family font selectively to level-up content, main-menu buttons, pause and result bodies while preserving existing headings and symbol glyphs. `.Journey.cs` / `.Rift.cs` / `.Escape.cs` retain covered swaps and the ten-second reward window. `LegacyRestorationProbe.cs` provides isolated native captures with `-vfrestoration-check=<directory>`. See `Docs/Design/2026-09-19-LegacyRestoration.md` for approved tuning and `LegacyRestoration*Tests` for regression coverage.
 
 ## Locate a gameplay change
 
@@ -557,7 +557,7 @@ are different representations: use existing mapping helpers.
   extend that data. Legacy enums/counts are not necessarily the full live
   catalogue; consumers such as support selection use `ExtendedCatalog.AllSupports()`.
 
-## Director I sustained combat (version 3)
+## Director I sustained combat (version 6)
 
 Current duration is **360 seconds** for all eight voids (`Core/VoidProgressionRules`).
 `LocalDirectorSurvivalSeconds` reports actual seconds; beat cutoff330 and
