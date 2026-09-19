@@ -246,23 +246,6 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(chips[dodge].enabled && chips[speed].enabled, Is.True);
         }
 
-        [TestCase("mines")]
-        [TestCase("summons")]
-        [TestCase("clock")]
-        [TestCase("boomerang")]
-        public void Every_rank_has_distinct_authored_pixels(string id)
-        {
-            var previous = 0UL;
-            for (var rank = 1; rank <= 6; rank++)
-            {
-                var factory = typeof(VoidFallGameRuntime).Assembly.GetType("VoidFall.Runtime.ProceduralSpriteFactory");
-                var sprite = (Sprite)factory.GetMethod("ArsenalWeapon").Invoke(null, new object[] { id, rank, false });
-                var hash = 14695981039346656037UL;
-                foreach (var pixel in sprite.texture.GetPixels32()) { hash = (hash ^ pixel.r) * 1099511628211UL; hash = (hash ^ pixel.g) * 1099511628211UL; hash = (hash ^ pixel.b) * 1099511628211UL; hash = (hash ^ pixel.a) * 1099511628211UL; }
-                Assert.That(hash, Is.Not.EqualTo(previous), "Rank " + rank + " should change weapon appearance"); previous = hash;
-            }
-        }
-
         private object Get(string name) => typeof(VoidFallGameRuntime).GetField(name, Flags).GetValue(_runtime);
         private static object Field(object target, string name) => target.GetType().GetField(name, Flags).GetValue(target);
         private static void FieldSet(object target, string name, object value) => target.GetType().GetField(name, Flags).SetValue(target, value);

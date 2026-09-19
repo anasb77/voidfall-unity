@@ -213,9 +213,9 @@ namespace VoidFall.Runtime
             if (!CurrentVoidIsNullCity || _nullCityCleared || dt <= 0f) return;
             if (!_nullCityMapRecorded && _runExportActive)
             {
-                RecordRunHistory("arena_map_policy", "null-city-original-4x-v1", reason: "entered",
+                RecordRunHistory("arena_map_policy", "null-city-native-scale-v2", reason: "entered",
                     sourceId: "null-city", amount: NullCityRules.WorldScale,
-                    detail: "world=6400x3600;authoredBounds=180,220,1420,746;camera=player_follow;purgeDps=125");
+                    detail: "world=1600x900;authoredBounds=180,220,1420,746;camera=bounded_shared_follow;playerRenderScale=1;purgeDps=125");
                 _nullCityMapRecorded = true;
             }
             _nullCityElapsed += dt;

@@ -8,12 +8,12 @@ namespace VoidFall.Tests.Editor
     public sealed class NullCityRulesTests
     {
         [Test]
-        public void Authored_floor_expands_fourfold_and_coordinates_round_trip()
+        public void Authored_floor_retains_native_scale_and_coordinates_round_trip()
         {
-            Assert.That(NullCityRules.WorldWidth, Is.EqualTo(6400));
-            Assert.That(NullCityRules.WorldHeight, Is.EqualTo(3600));
-            Assert.That(NullCityRules.WorldX(NullCityRules.ArenaRight) - NullCityRules.WorldX(NullCityRules.ArenaLeft), Is.EqualTo(4960));
-            Assert.That(NullCityRules.WorldY(NullCityRules.ArenaTop) - NullCityRules.WorldY(NullCityRules.ArenaBottom), Is.EqualTo(2104));
+            Assert.That(NullCityRules.WorldWidth, Is.EqualTo(1600));
+            Assert.That(NullCityRules.WorldHeight, Is.EqualTo(900));
+            Assert.That(NullCityRules.WorldX(NullCityRules.ArenaRight) - NullCityRules.WorldX(NullCityRules.ArenaLeft), Is.EqualTo(1240));
+            Assert.That(NullCityRules.WorldY(NullCityRules.ArenaTop) - NullCityRules.WorldY(NullCityRules.ArenaBottom), Is.EqualTo(526));
             Assert.That(NullCityRules.CanvasX(NullCityRules.WorldX(1172.5)), Is.EqualTo(1172.5));
             Assert.That(NullCityRules.CanvasY(NullCityRules.WorldY(107.5)), Is.EqualTo(107.5));
         }

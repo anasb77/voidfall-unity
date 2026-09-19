@@ -21,6 +21,7 @@ namespace VoidFall.Runtime
             public float entryMilliseconds, meanFrameMilliseconds, maxFrameMilliseconds, meanRenderCpuMilliseconds;
             public float simulationSecondsBefore, simulationSecondsAfter;
             public int enemies, bosses, visibleSprites, width, height;
+            public float viewportWidth, viewportHeight, cameraX, cameraY, playerScale;
         }
         [Serializable] private sealed class Report
         {
@@ -105,7 +106,7 @@ namespace VoidFall.Runtime
             for (var i = 0; i < cooldowns.Length; i++) cooldowns[i] = 10000f;
 
             yield return EnterArena("null-city", ArenaId.NullCity);
-            _playerPosition = new Vector2(1200f, 900f); // Keep the authored LCD and first purge lane in the same follow-camera shot.
+            _playerPosition = new Vector2(300f, 100f); // A legal pose on the restored native-scale city floor.
             for (var i = 0; i < 9; i++)
                 Call("SpawnNullCityUnit", i, _playerPosition + new Vector2((i % 3 - 1) * 210f, (i / 3 - 1) * 170f));
             _pinnedNullClock = 6f;
@@ -116,6 +117,10 @@ namespace VoidFall.Runtime
             yield return EnterArena("monochrome-court", ArenaId.MonochromeCourt);
             Call("EnsureCourtField");
             yield return Capture("03-court-board-rooks");
+            _playerPosition = new Vector2(1750f, 1750f);
+            yield return Capture("03b-court-edge-framing");
+            _playerPosition = Vector2.zero;
+            PinPlayer(); // Restore the actual pose before the bosses choose their arena centre.
             var tracker = (VoidObjectiveTracker)Get("_objectives");
             tracker.Step(VoidProgressionRules.SurvivalSeconds);
             Call("SyncVoidBossEncounterWithObjective");
@@ -232,10 +237,18 @@ namespace VoidFall.Runtime
             phase.meanRenderCpuMilliseconds = (float)(render / 60);
             phase.simulationSecondsAfter = (float)Get("_time");
             phase.enemies = (int)Call("ActiveEnemies"); phase.bosses = (int)Call("ActiveBosses");
+            if (phase.bosses > 0 && ((SpriteRenderer[])Get("_bossViews"))
+                .Count(view => view != null && view.enabled && view.isVisible) < phase.bosses)
+                throw new InvalidOperationException(id + ": active bosses are outside the captured view.");
             phase.width = Screen.width; phase.height = Screen.height;
             var player = (SpriteRenderer)Get("_playerView");
             if (player == null || !player.enabled || player.sprite == null)
                 throw new InvalidOperationException(id + ": player presentation missing.");
+            var camera = (Camera)Get("_camera");
+            phase.viewportHeight = camera.orthographicSize * 2;
+            phase.viewportWidth = phase.viewportHeight * camera.aspect;
+            phase.cameraX = camera.transform.position.x; phase.cameraY = camera.transform.position.y;
+            phase.playerScale = player.transform.localScale.x;
             phase.visibleSprites = FindObjectsByType<SpriteRenderer>(FindObjectsSortMode.None)
                 .Count(s => s.enabled && s.gameObject.activeInHierarchy && s.sprite != null && s.isVisible);
             if (phase.visibleSprites < 4) throw new InvalidOperationException(id + ": no visible gameplay surface.");

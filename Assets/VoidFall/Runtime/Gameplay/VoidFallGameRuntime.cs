@@ -1493,7 +1493,9 @@ namespace VoidFall.Runtime
                 _clock.Consume(Time.unscaledDeltaTime, Simulate);
             }
             ApplyFxSimulationSpeed();
-            CourtPerformanceProbe.Observe("simulation", (Time.realtimeSinceStartupAsDouble - courtPerfSimStart) * 1000.0);
+            var simulationCpuMs = (Time.realtimeSinceStartupAsDouble - courtPerfSimStart) * 1000.0;
+            CourtPerformanceProbe.Observe("simulation", simulationCpuMs);
+            RecordPerformancePhase("simulation", simulationCpuMs);
 
             var frameDt = Time.unscaledDeltaTime;
             if ((_paused || _gameOver || JourneyStopsCombat) && !_mainMenuBrowsing)
@@ -1625,9 +1627,10 @@ namespace VoidFall.Runtime
 
         private void LogSlowStartupPhase(string phase, double started)
         {
-            CourtPerformanceProbe.Observe(phase, (Time.realtimeSinceStartupAsDouble - started) * 1000.0);
-            if (_startupMenuReportLogged || _startupMenuReadyRealtime <= 0) return;
             var milliseconds = (Time.realtimeSinceStartupAsDouble - started) * 1000.0;
+            CourtPerformanceProbe.Observe(phase, milliseconds);
+            RecordPerformancePhase(phase, milliseconds);
+            if (_startupMenuReportLogged || _startupMenuReadyRealtime <= 0) return;
             if (milliseconds < 20.0) return;
             Debug.Log(
                 "VOIDFALL_STARTUP_PHASE phase=" + phase +
@@ -5226,14 +5229,6 @@ namespace VoidFall.Runtime
         private Vector2 GameplayViewportHalfExtent()
         {
             if (_arenaId == ArenaId.NullCity) return NullCityViewportHalfExtent();
-            if (_arenaId == ArenaId.MonochromeCourt && !_mainMenuBrowsing)
-            {
-                var aspect = Mathf.Max(.5f, Screen.width / Mathf.Max(1f, Screen.height));
-                var halfHeight = Mathf.Max(1100f, 1300f / aspect) * _spatialZoomScale;
-                return new Vector2(halfHeight * aspect, halfHeight);
-            }
-            if (HydraSurvivalPresentationActive && !_mainMenuBrowsing)
-                return GameplayViewportHalfExtent(Screen.width, Screen.height) / .7f;
             if (Screen.width > 0 && Screen.height > 0)
                 return GameplayViewportHalfExtent(Screen.width, Screen.height);
             if (_camera != null && _camera.orthographic)
@@ -5755,7 +5750,7 @@ namespace VoidFall.Runtime
         private static int TelemetryFpsForFrame(float frameSeconds)
         {
             return frameSeconds > 0.0001f
-                ? SourceRound(1000f / frameSeconds)
+                ? SourceRound(1f / frameSeconds)
                 : 0;
         }
 

@@ -28,10 +28,56 @@ namespace VoidFall.Runtime
         private string _telemetryRewardSource;
         private int _telemetryRewardParent;
         private Action<int, float> _pickupAbsorbedTelemetryHook;
+        private double _cpuSimulationMs, _cpuRenderMs, _cpuHudMs;
+        private double _cpuSimulationSum, _cpuRenderSum, _cpuHudSum, _cpuUpdateSum, _cpuUpdateMax;
+        private int _cpuFrames, _cpuGen0Start;
+
+        private void RecordPerformancePhase(string phase, double milliseconds)
+        {
+            if (!_runExportActive || _paused || _mainMenuBrowsing || _gameOver || JourneyStopsCombat) return;
+            if (phase == "simulation") _cpuSimulationMs = milliseconds;
+            else if (phase == "render") _cpuRenderMs = milliseconds;
+            else if (phase == "hud") _cpuHudMs = milliseconds;
+            else if (phase == "update-total")
+            {
+                _cpuSimulationSum += _cpuSimulationMs;
+                _cpuRenderSum += _cpuRenderMs;
+                _cpuHudSum += _cpuHudMs;
+                _cpuUpdateSum += milliseconds;
+                _cpuUpdateMax = Math.Max(_cpuUpdateMax, milliseconds);
+                _cpuFrames++;
+            }
+        }
+
+        private void ResetPerformanceWindow()
+        {
+            _cpuSimulationSum = _cpuRenderSum = _cpuHudSum = _cpuUpdateSum = _cpuUpdateMax = 0;
+            _cpuFrames = 0;
+            _cpuGen0Start = GC.CollectionCount(0);
+        }
+
+        private UnityTelemetryCpuSample ConsumePerformanceWindow()
+        {
+            var divisor = Math.Max(1, _cpuFrames);
+            var sample = new UnityTelemetryCpuSample
+            {
+                frames = _cpuFrames,
+                simulationMeanMs = _cpuSimulationSum / divisor,
+                renderMeanMs = _cpuRenderSum / divisor,
+                hudMeanMs = _cpuHudSum / divisor,
+                updateMeanMs = _cpuUpdateSum / divisor,
+                updateMaxMs = _cpuUpdateMax,
+                gen0Collections = Math.Max(0, GC.CollectionCount(0) - _cpuGen0Start),
+                managedBytes = GC.GetTotalMemory(false)
+            };
+            ResetPerformanceWindow();
+            return sample;
+        }
 
         private void BeginRunExport(bool realRun, bool diagnostic)
         {
             _runExportActive = false;
+            ResetPerformanceWindow();
             _runExportStatus = null;
             _runExportLastError = null;
             if (!realRun) return;
@@ -53,6 +99,8 @@ namespace VoidFall.Runtime
                     if (entry != null) workshop.Add(new UnityTelemetryNamedValue { id = entry.id, value = entry.rank });
             _telemetry.ConfigureHistory(directory, new UnityTelemetryContext
             {
+                frameTimingVersion = 2,
+                mapPresentationVersion = 2,
                 buildVersion = Application.version,
                 buildGuid = Application.buildGUID,
                 unityVersion = Application.unityVersion,

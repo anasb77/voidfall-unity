@@ -70,6 +70,8 @@ namespace VoidFall.Tests.PlayMode
             Call("SyncVoidBossEncounterWithObjective");
             Assert.That(Get(_runtime, "_riftTransitionActive"), Is.False);
             Assert.That(Property("HydraSurvivalPresentationActive"), Is.True);
+            var survivalViewport = (Vector2)Call("GameplayViewportHalfExtent");
+            Assert.That(survivalViewport.y, Is.EqualTo(486f).Within(.001f));
             tracker.Step(1);
             var route = (VoidRouteRun)Get(_runtime, "_voidRoute");
             var historyBefore = route.History.ToArray();
@@ -94,6 +96,8 @@ namespace VoidFall.Tests.PlayMode
             Call("CommitRiftTransitionSwap");
             Assert.That(Get(_runtime, "_hydraBossEncounterActive"), Is.True);
             Assert.That(Property("HydraSurvivalPresentationActive"), Is.False);
+            Assert.That((Vector2)Call("GameplayViewportHalfExtent"), Is.EqualTo(survivalViewport),
+                "Entering the original boss arena must not change the gameplay zoom.");
             var game = Get(_runtime, "_gameSim");
             var bosses = ((Array)Get(game, "Bosses")).Cast<object>().Where(b => (bool)Get(b, "Active")).ToArray();
             Assert.That(bosses, Has.Length.EqualTo(1));

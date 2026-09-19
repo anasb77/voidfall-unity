@@ -25,6 +25,8 @@ namespace VoidFall.Runtime
 
         private static void ClearSpriteCachesForCatalogInstall()
         {
+            ArsenalSprites.Clear();
+            PreparedArsenalSprites.Clear();
             _circle = null;
             _touchJoystickBase = null;
             _blastWaveDisc = null;
@@ -80,6 +82,11 @@ namespace VoidFall.Runtime
 
             switch (parts[0])
             {
+                case "arsenal":
+                    if (!TryIndex(parts, 1, 49, out var arsenal)) return false;
+                    ArsenalSprites[arsenal] = sprite;
+                    PreparedArsenalSprites.Add(sprite);
+                    return true;
                 case "fixed":
                     return InstallFixedSprite(parts[1], sprite);
                 case "gem":
@@ -215,6 +222,8 @@ namespace VoidFall.Runtime
             finally { _retainBakePixels = false; }
 
             var entries = new List<ProceduralSpriteCatalogEntry>();
+            foreach (var pair in ArsenalSprites)
+                AddCatalogEntry(entries, "arsenal|" + pair.Key, pair.Value);
             AddFixedCatalogEntries(entries);
             AddArrayEntries(entries, "arena-rock", ArenaRockVariants);
             AddArrayEntries(entries, "meteor-shard", MeteorShardSprites);
@@ -290,6 +299,7 @@ namespace VoidFall.Runtime
 
         private static void WarmCatalogSprites()
         {
+            WarmArsenalCatalogSprites();
             Circle();
             TouchJoystickBase();
             BlastWaveDisc();

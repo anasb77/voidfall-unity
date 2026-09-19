@@ -68,11 +68,12 @@ namespace VoidFall.EditorTools
                     "Boomerang: 35% larger projectile/contact radius (0.675 scale)\n" +
                     "Mines: slower placement, 0.9s floor, 1.2s freeze / 1.2s recovery\n" +
                     "Incidents: smaller stronger Black Hole and revised Destroyer opening\n" +
-                    "Maps: approved Court / original Null City 4x / Hydra I populations and teleport\n" +
+                    "Maps: shared gameplay framing / native-scale Null City / bounded Court camera / Hydra I populations and teleport\n" +
                     "Hydra II: original Unity map and boss encounter preserved\n" +
                     "Legacy restoration: " + VoidFall.Core.LegacyRestorationRules.Version + "\n" +
                     "Director I v6: restored elite cadence; short post-clear refill; growth shoves and readable HUD/menu content\n" +
                     "HUD: approved study 02 at 66%, bundled Chakra Petch, custom arsenal/passive/manual slots\n" +
+                    "Damage numbers: Chakra Petch Bold; prepared arsenal sprites; frame timing telemetry v2\n" +
                     "Pressure starts at 1x; Spiky 19.5/58.5 radius every 0.5s, 4x raster resolution; Shuriken spin 14 rad/s\n" +
                     "Rewards: ordinary rare drops 1/300; Overclock bank capped at 30s; XP +25% from level 6\n" +
                     "Video: saved monitor selection; smaller mute control below score\n" +

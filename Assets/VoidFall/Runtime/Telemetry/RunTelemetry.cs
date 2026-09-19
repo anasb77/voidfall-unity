@@ -23,6 +23,7 @@ namespace VoidFall.Runtime
         public float xpHeldByHarvesters;
         public float fps;
         public float frameMs;
+        public UnityTelemetryCpuSample cpu;
         public float quality;
         public float hpMultiplier;
         public float speedMultiplier;
@@ -40,6 +41,8 @@ namespace VoidFall.Runtime
         public string spawnReason;
         public float playerX;
         public float playerY;
+        public float cameraX;
+        public float cameraY;
         public float viewportWidth;
         public float viewportHeight;
         public float arenaWidth;
@@ -60,8 +63,18 @@ namespace VoidFall.Runtime
     }
 
     [Serializable]
+    public sealed class UnityTelemetryCpuSample
+    {
+        public int frames, gen0Collections;
+        public long managedBytes;
+        public double simulationMeanMs, renderMeanMs, hudMeanMs, updateMeanMs, updateMaxMs;
+    }
+
+    [Serializable]
     public sealed class UnityTelemetryContext
     {
+        public int frameTimingVersion;
+        public int mapPresentationVersion;
         public string buildVersion;
         public string unityVersion;
         public string buildGuid;
@@ -995,6 +1008,7 @@ namespace VoidFall.Runtime
                 xpHeldByHarvesters = BrowserFloorNonNegative(sample.xpHeldByHarvesters),
                 fps = sample.fps,
                 frameMs = BrowserRounded(sample.frameMs),
+                cpu = sample.cpu,
                 quality = sample.quality,
                 hpMultiplier = BrowserRounded(sample.hpMultiplier, 3),
                 speedMultiplier = BrowserRounded(sample.speedMultiplier, 3),
@@ -1012,6 +1026,8 @@ namespace VoidFall.Runtime
                 spawnReason = sample.spawnReason,
                 playerX = BrowserRounded(sample.playerX),
                 playerY = BrowserRounded(sample.playerY),
+                cameraX = BrowserRounded(sample.cameraX),
+                cameraY = BrowserRounded(sample.cameraY),
                 viewportWidth = BrowserRounded(sample.viewportWidth),
                 viewportHeight = BrowserRounded(sample.viewportHeight),
                 arenaWidth = BrowserRounded(sample.arenaWidth),

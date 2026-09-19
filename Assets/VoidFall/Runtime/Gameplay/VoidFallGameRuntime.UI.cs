@@ -503,6 +503,7 @@ namespace VoidFall.Runtime
         {
             ObserveRunExportState();
             var viewport = GameplayViewportHalfExtent();
+            var cameraCentre = GameplayCameraCentre();
             var nearest = float.PositiveInfinity;
             var onScreen = 0;
             var xpPickups = 0; var specialPickups = 0; var distantLoot = 0;
@@ -519,7 +520,8 @@ namespace VoidFall.Runtime
                 if (!enemy.Active) continue;
                 var delta = enemy.Position - _gameSim.Player.Position;
                 nearest = Mathf.Min(nearest, delta.magnitude);
-                if (Mathf.Abs(delta.x) <= viewport.x && Mathf.Abs(delta.y) <= viewport.y) onScreen++;
+                var cameraDelta = enemy.Position - cameraCentre;
+                if (Mathf.Abs(cameraDelta.x) <= viewport.x && Mathf.Abs(cameraDelta.y) <= viewport.y) onScreen++;
             }
             _telemetry.RecordSample(new UnityTelemetrySample
             {
@@ -535,6 +537,7 @@ namespace VoidFall.Runtime
                 xpHeldByHarvesters = XpHeldByHarvesters(),
                 fps = TelemetryFpsForFrame(frameDt),
                 frameMs = frameDt * 1000f,
+                cpu = ConsumePerformanceWindow(),
                 quality = TelemetryQualityValue(),
                 hpMultiplier = EnemyHealthScaleAt((float)_time, _bossCycle, 1f),
                 speedMultiplier = EnemySpeedScaleAt((float)_time, _bossCycle),
@@ -552,6 +555,8 @@ namespace VoidFall.Runtime
                 spawnReason = _lastSpawnBlockReason,
                 playerX = _gameSim.Player.Position.x,
                 playerY = _gameSim.Player.Position.y,
+                cameraX = cameraCentre.x,
+                cameraY = cameraCentre.y,
                 viewportWidth = viewport.x * 2,
                 viewportHeight = viewport.y * 2,
                 // These arenas scroll; viewport size is not a finite map boundary.
@@ -4010,9 +4015,12 @@ namespace VoidFall.Runtime
 
         private void SetupHudFxViews()
         {
+            var damageFont = Resources.Load<Font>("VoidFall/ApprovedHud/ChakraPetch-Bold");
             for (var index = 0; index < _floaterViews.Length; index++)
             {
                 var text = CreateText(_canvas.transform, Vector2.zero, new Vector2(0.5f, 0.5f), 14, Color.white);
+                if (damageFont != null) text.font = damageFont;
+                text.fontStyle = FontStyle.Normal;
                 text.alignment = TextAnchor.MiddleCenter;
                 text.raycastTarget = false;
                 text.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);

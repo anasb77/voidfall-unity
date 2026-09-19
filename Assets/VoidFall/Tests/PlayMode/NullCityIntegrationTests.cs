@@ -280,7 +280,7 @@ namespace VoidFall.Tests.PlayMode
         {
             EnterNullCity();
             var origin = (Vector2)Get(_runtime, "_nullCityOrigin");
-            var nearRightEdge = origin + new Vector2(2475f, 0f);
+            var nearRightEdge = origin + new Vector2(615f, 0f);
             SetPlayer("Position", nearRightEdge);
             SetPlayer("Iframes", 0f);
             Set(_runtime, "_nullCityDashRequested", true);
@@ -289,18 +289,18 @@ namespace VoidFall.Tests.PlayMode
 
             var player = Get(GameSim, "Player");
             Assert.That(Get(player, "Iframes"), Is.EqualTo(0.25f));
-            Assert.That(Get(player, "Position"), Is.EqualTo(origin + new Vector2(2480f, 0f)));
+            Assert.That(Get(player, "Position"), Is.EqualTo(origin + new Vector2(620f, 0f)));
             Assert.That((float)Get(_runtime, "_nullCityDashCooldown"), Is.GreaterThan(0f));
             Assert.That(Get(_runtime, "_nullCityDashRemaining"), Is.EqualTo(0f));
             yield return null;
         }
 
         [Test]
-        public void Expanded_city_uses_one_coordinate_system_for_spawns_and_purge_damage()
+        public void Native_city_uses_one_coordinate_system_for_spawns_and_purge_damage()
         {
             EnterNullCity();
             var origin = (Vector2)Get(_runtime, "_nullCityOrigin");
-            Assert.That(Invoke(_runtime, "NullCityWorld", 1420f, 450f), Is.EqualTo(origin + new Vector2(2480f, 0)));
+            Assert.That(Invoke(_runtime, "NullCityWorld", 1420f, 450f), Is.EqualTo(origin + new Vector2(620f, 0)));
             var world = (Vector2)Invoke(_runtime, "NullCityWorld", 800f, 345f);
             Assert.That(Invoke(_runtime, "NullCityCanvas", world), Is.EqualTo(new Vector2(800f, 345f)));
             for (var i = 0; i < 12; i++)
@@ -309,7 +309,7 @@ namespace VoidFall.Tests.PlayMode
                 var canvas = (Vector2)Invoke(_runtime, "NullCityCanvas", edge);
                 Assert.That(canvas.x, Is.InRange(180f, 1420f));
                 Assert.That(canvas.y, Is.InRange(220f, 746f));
-                Assert.That((edge - origin).magnitude, Is.GreaterThan(800f));
+                Assert.That((edge - origin).magnitude, Is.GreaterThan(200f));
             }
             Assert.That(Invoke(_runtime, "SpawnNullCityUnit", 6, world, false, false), Is.EqualTo(true));
             var slot = FindActiveEnemySlot("null-mech");
@@ -333,12 +333,29 @@ namespace VoidFall.Tests.PlayMode
             var rows = File.ReadAllLines(Directory.GetFiles(_temporaryDirectory, "*.jsonl").Single())
                 .Select(JsonUtility.FromJson<UnityTelemetryHistoryEvent>).Where(e => e.kind == "arena_map_policy").ToArray();
             Assert.That(rows, Has.Length.EqualTo(1));
-            Assert.That(rows[0].id, Is.EqualTo("null-city-original-4x-v1"));
+            Assert.That(rows[0].id, Is.EqualTo("null-city-native-scale-v2"));
             Assert.That(rows[0].sourceId, Is.EqualTo("null-city"));
-            Assert.That(rows[0].amount, Is.EqualTo(4));
-            Assert.That(rows[0].detail, Does.Contain("world=6400x3600"));
+            Assert.That(rows[0].amount, Is.EqualTo(1));
+            Assert.That(rows[0].detail, Does.Contain("world=1600x900"));
             Assert.That(rows[0].arenaId, Is.Not.Empty);
             Assert.That(rows[0].visitIndex, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void Live_sign_matches_the_native_artwork_screen_in_both_states()
+        {
+            EnterNullCity();
+            foreach (var lockdown in new[] { false, true })
+            {
+                Invoke(_runtime, "RenderNullCitySign", lockdown);
+                var canvas = (Canvas)Get(_runtime, "_nullCitySignCanvas");
+                var rect = (RectTransform)canvas.transform;
+                var worldSize = Vector2.Scale(rect.rect.size, rect.lossyScale);
+                Assert.That(worldSize, Is.EqualTo(new Vector2(265f, 45f)));
+                Assert.That((Vector2)rect.position, Is.EqualTo(Invoke(_runtime, "NullCityWorld", 1172.5f, 107.5f)));
+                Assert.That(((UnityEngine.UI.Text)Get(_runtime, "_nullCitySignText")).text,
+                    Is.EqualTo(NullCityRules.SignText(lockdown)));
+            }
         }
 
         private void EnterNullCity(bool withRoute = false)

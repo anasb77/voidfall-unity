@@ -260,7 +260,7 @@ namespace VoidFall.Runtime
                 _camera.orthographicSize = half.y;
                 _camera.aspect = half.x / half.y;
                 var shake = CameraShakeOffset();
-                var center = _mainMenuBrowsing ? _nullCityOrigin : _gameSim.Player.Position;
+                var center = GameplayCameraCentre();
                 _camera.transform.position = new Vector3(center.x + shake.x, center.y + shake.y, -10f);
             }
             UpdateTransitionOverlay();
@@ -268,10 +268,9 @@ namespace VoidFall.Runtime
 
         private Vector2 NullCityViewportHalfExtent()
         {
+            if (!_mainMenuBrowsing) return GameplayViewportHalfExtent(Screen.width, Screen.height);
             var aspect = Screen.height > 0 ? Mathf.Max(.5f, (float)Screen.width / Screen.height) : 16f / 9f;
-            var halfHeight = _mainMenuBrowsing
-                ? Mathf.Max(NullCityRules.WorldHeight * .5f, NullCityRules.WorldWidth * .5f / aspect)
-                : Mathf.Max(309.375f, 550f / aspect) * NullCityRules.FollowViewMultiplier * _spatialZoomScale;
+            var halfHeight = Mathf.Max(NullCityRules.WorldHeight * .5f, NullCityRules.WorldWidth * .5f / aspect);
             return new Vector2(halfHeight * aspect, halfHeight);
         }
 

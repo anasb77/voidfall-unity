@@ -6,6 +6,42 @@ namespace VoidFall.Runtime
     internal static partial class ProceduralSpriteFactory
     {
         private static readonly Dictionary<int, Sprite> ArsenalSprites = new Dictionary<int, Sprite>();
+        // Prepared assets belong to Resources, not to this runtime's generated cache.
+        private static readonly HashSet<Sprite> PreparedArsenalSprites = new HashSet<Sprite>();
+
+        private static void WarmArsenalCatalogSprites()
+        {
+            foreach (var id in new[] { "mines", "summons", "clock", "boomerang" })
+                for (var rank = 1; rank <= 6; rank++)
+                {
+                    ArsenalWeapon(id, rank, false);
+                    ArsenalWeapon(id, rank, true);
+                }
+            ArsenalClockFace();
+        }
+
+#if UNITY_EDITOR
+        public static ProceduralSpriteCatalog BuildArsenalCatalogSnapshot()
+        {
+            DestroyArsenalSprites();
+            foreach (var id in new[] { "mines", "summons", "clock", "boomerang" })
+                for (var rank = 1; rank <= 6; rank++)
+                {
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    ArsenalWeapon(id, rank, false);
+                    if (id == "clock") Debug.Log("VOIDFALL_ARSENAL clock-rank=" + rank + " cold-raster-ms=" + watch.Elapsed.TotalMilliseconds.ToString("F3"));
+                    ArsenalWeapon(id, rank, true);
+                }
+            ArsenalClockFace();
+            var entries = new List<ProceduralSpriteCatalogEntry>();
+            foreach (var pair in ArsenalSprites)
+                entries.Add(new ProceduralSpriteCatalogEntry("arsenal|" + pair.Key, pair.Value));
+            entries.Sort((left, right) => string.CompareOrdinal(left.Key, right.Key));
+            var catalog = ScriptableObject.CreateInstance<ProceduralSpriteCatalog>();
+            catalog.ReplaceEntries(entries);
+            return catalog;
+        }
+#endif
 
         public static Sprite ArsenalWeapon(string id, int rank, bool evolved)
         {
@@ -164,7 +200,7 @@ namespace VoidFall.Runtime
         {
             foreach (var sprite in ArsenalSprites.Values)
             {
-                if (sprite == null) continue;
+                if (sprite == null || PreparedArsenalSprites.Contains(sprite)) continue;
                 var texture = sprite.texture;
                 if (Application.isPlaying) { Object.Destroy(sprite); Object.Destroy(texture); }
                 else { Object.DestroyImmediate(sprite); Object.DestroyImmediate(texture); }

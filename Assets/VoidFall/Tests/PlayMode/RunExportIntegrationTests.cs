@@ -117,6 +117,37 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
+        public void Cpu_windows_are_exported_and_reset_without_per_frame_history()
+        {
+            Call("ResetPerformanceWindow");
+            Call("RecordPerformancePhase", "simulation", 3d);
+            Call("RecordPerformancePhase", "render", 2d);
+            Call("RecordPerformancePhase", "hud", 1d);
+            Call("RecordPerformancePhase", "update-total", 10d);
+            Call("RecordPerformancePhase", "simulation", 5d);
+            Call("RecordPerformancePhase", "update-total", 20d);
+            Assert.That(Get(_runtime, "_cpuFrames"), Is.EqualTo(2));
+            Set(_runtime, "_paused", true);
+            Call("RecordPerformancePhase", "update-total", 100d);
+            Set(_runtime, "_paused", false);
+            Call("RecordTelemetrySample", .02f);
+            Call("RecordTelemetrySample", .02f);
+            Call("FinishRunExport", "test_finished");
+            var report = ReadReport();
+            var window = report.samples.Single(s => s.cpu != null && s.cpu.frames == 2).cpu;
+            Assert.That(window.frames, Is.EqualTo(2));
+            Assert.That(window.simulationMeanMs, Is.EqualTo(4));
+            Assert.That(window.renderMeanMs, Is.EqualTo(2));
+            Assert.That(window.hudMeanMs, Is.EqualTo(1));
+            Assert.That(window.updateMeanMs, Is.EqualTo(15));
+            Assert.That(window.updateMaxMs, Is.EqualTo(20));
+            Assert.That(window.managedBytes, Is.GreaterThan(0));
+            Assert.That(report.samples.Last().cpu.frames, Is.Zero);
+            Assert.That(report.context.frameTimingVersion, Is.EqualTo(2));
+            Assert.That(ReadHistory().Any(e => e.kind == "sample" && e.sample != null && e.sample.cpu.frames == 2), Is.True);
+        }
+
+        [Test]
         public void Menu_abandonment_finishes_once_and_does_not_start_a_fake_run()
         {
             Call("EnterMainMenu");
@@ -167,6 +198,8 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(history.Any(e => e.kind == "upgrade_applied" && e.progress != null), Is.True);
             Assert.That(history.Any(e => e.kind == "encounter_selected"), Is.True);
             Assert.That(ReadReport().samples.Last().viewportWidth, Is.GreaterThan(0));
+            Assert.That(ReadReport().samples.Any(s => Math.Abs(s.frameMs - 20) < .001 && s.fps == 50), Is.True,
+                "The explicit 0.02 second sample must export 50 FPS; finalization also appends an EMA sample.");
             Assert.That(ReadReport().context.directorVersion, Is.EqualTo(6));
             Assert.That(ReadReport().samples.Last().specialAttackLimit, Is.EqualTo(2));
         }
@@ -382,6 +415,60 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(warning.transitionIndex, Is.Zero);
             Assert.That(warning.visitIndex, Is.EqualTo(1));
         }
+        [TestCase(ArenaId.MonochromeCourt, "monochrome-court", 1f)]
+        [TestCase(ArenaId.MonochromeCourt, "monochrome-court", 1.15f)]
+        [TestCase(ArenaId.Hydra, "hydra", 1f)]
+        [TestCase(ArenaId.Hydra, "hydra", 1.15f)]
+        [TestCase(ArenaId.NullCity, "null-city", 1f)]
+        [TestCase(ArenaId.NullCity, "null-city", 1.15f)]
+        public void Maps_share_gameplay_framing_player_size_and_export_camera_context(ArenaId arena, string id, float zoom)
+        {
+            var normalPlayerScale = ((SpriteRenderer)Get(_runtime, "_playerView")).transform.localScale;
+            Set(_runtime, "_voidRoute", new VoidRouteRun(new[] { new VoidRouteNode(id, id, 0, 1, "", "", "", "") }, id));
+            Set(_runtime, "_arenaId", arena);
+            Call("BeginObjectiveForCurrentArena");
+            if (arena == ArenaId.MonochromeCourt) Call("EnsureCourtField");
+            var zoomField = typeof(VoidFallGameRuntime).GetField("_spatialZoomScale", BindingFlags.Static | BindingFlags.NonPublic);
+            var previousZoom = zoomField.GetValue(null);
+            try
+            {
+                zoomField.SetValue(null, zoom);
+                Call("UpdateGameplayCameraViewport");
+                var camera = (Camera)Get(_runtime, "_camera");
+                Assert.That(camera.orthographicSize, Is.EqualTo(486f * zoom).Within(.001f));
+                Call("Render");
+                Assert.That(((SpriteRenderer)Get(_runtime, "_playerView")).transform.localScale, Is.EqualTo(normalPlayerScale));
+                Set(_runtime, "_cameraFollowPosition", new Vector2(9000f, -9000f));
+                var centre = (Vector2)Call("GameplayCameraCentre");
+                var half = (Vector2)Call("GameplayViewportHalfExtent");
+                var map = (Vector2)Call("ApprovedMapSizeWorld");
+                if (arena == ArenaId.MonochromeCourt)
+                {
+                    var travel = Vector2.Max(Vector2.zero, map * .5f - half);
+                    Assert.That(centre.x, Is.EqualTo(travel.x).Within(.001f));
+                    Assert.That(centre.y, Is.EqualTo(-travel.y).Within(.001f));
+                }
+                if (arena == ArenaId.NullCity)
+                {
+                    var travel = Vector2.Max(Vector2.zero, new Vector2(800, 450) - half);
+                    Assert.That(centre.x, Is.EqualTo(travel.x).Within(.001f));
+                    Assert.That(centre.y, Is.EqualTo(-travel.y).Within(.001f));
+                    Assert.That(map, Is.EqualTo(new Vector2(1240, 526)));
+                }
+                Call("RecordTelemetrySample", .02f);
+                Call("FinishRunExport", "test_finished");
+                var report = ReadReport();
+                Assert.That(report.context.mapPresentationVersion, Is.EqualTo(2));
+                var sample = report.samples.Last();
+                Assert.That(sample.viewportHeight, Is.EqualTo(972f * zoom).Within(.01f));
+                Assert.That(sample.cameraX, Is.EqualTo(centre.x).Within(.01f));
+                Assert.That(sample.cameraY, Is.EqualTo(centre.y).Within(.01f));
+                Assert.That(sample.arenaWidth, Is.EqualTo(map.x).Within(.01f));
+                Assert.That(ReadHistory().Last(e => e.kind == "sample").sample.cameraX, Is.EqualTo(sample.cameraX));
+            }
+            finally { zoomField.SetValue(null, previousZoom); }
+        }
+
         private UnityTelemetryReport ReadReport() => JsonUtility.FromJson<UnityTelemetryReport>(
             File.ReadAllText(Directory.GetFiles(ExportDirectory, "*.json").Single()));
         private UnityTelemetryHistoryEvent[] ReadHistory() => File.ReadAllLines(

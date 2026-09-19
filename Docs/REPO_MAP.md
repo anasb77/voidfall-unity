@@ -128,7 +128,13 @@ The four appended weapons (Mines, Summons, Clock, Boomerang) are authored in
 their evolutions after generated initialization, preserving the first six IDs.
 Runtime `.Arsenal.cs` owns fixed-capacity entity pools and spawn-identity-keyed
 freeze/clock hit timers. `.Arsenal.Render.cs` draws cached rank-specific art from
-`ProceduralSpriteFactory.Arsenal.cs`. Clock's face uses 18% opacity; its moving
+`ProceduralSpriteFactory.Arsenal.cs`. All 49 rank/evolution/face sprite variants
+are prepared as `arsenal|0` through `arsenal|48` in the existing sprite catalog,
+so upgrade commits do not rasterize them. `ProceduralSpriteBaker.BakeArsenal`
+updates this family while preserving other assets and GUIDs; the full bake
+includes the same family. Keep their standalone textures for HUD RawImage use,
+and never destroy Resources-owned sprites when clearing the runtime cache.
+Clock's face uses 12.6% opacity; its moving
 hands retain their previous 50% opacity and authored shape. Rank III adds a
 seconds attack hand with half the main hand's reach, width and damage, rotating
 twice as fast. Evolution retains its full-size counterclockwise hand.
@@ -239,7 +245,9 @@ Its horizons are tessellated as adjacent strips rather than a crossing fan.
 - Hydra: `Content/HydraContent.cs`, `Core/HydraEncounterRules.cs`,
   `Runtime/Gameplay/HydraRuntimeRules.cs`, `.Hydra.cs` and `.HydraTravel.cs`.
   HydraI360s survival is base-only with downward glyph drift; `.MapPresentation`
-  owns its rendering/POV. HydraTravel reuses Rift collapse/swap/settle inside
+  owns its rendering and bounded-map camera helpers. Hydra I now shares the
+  standard gameplay zoom with II, without the browser-derived extra dezoom.
+  HydraTravel reuses Rift collapse/swap/settle inside
   one route visit without resetting objectives/pressure. HydraII retains the
   original bone surface, boss/art/geometry/health and solo-boss suppression.
   `Core/HydraPopulationRules.cs`, runtime `.HydraPopulation.cs` and
@@ -249,6 +257,7 @@ Its horizons are tessellated as adjacent strips rather than a crossing fan.
   shields, split, warnings and actual outcomes use the existing exporter.
 - Court: `MonochromeContent`, `MonochromeEncounterRules`, `MonochromeRuntimeRules`,
   `.Monochrome.cs` and `.CourtField.cs`. One fixed28×28 board of129.6-unit tiles,
+  standard gameplay zoom and player size, camera constrained at board edges,
   clamped playable bounds, seeded spaced sentinel/fallen rooks. Sentinels use
   state90 on pooled court-rook,100k–150kHP,stationary contact damage, no shots.
   Native player weapons target them; death queues5–6 roster-one chasers and
@@ -259,9 +268,11 @@ Its horizons are tessellated as adjacent strips rather than a crossing fan.
   initialized during setup, never in MonoBehaviour field constructors.
 - Null City: `NullCityContent`, `Core/NullCityRules`, `.NullCity.cs`,
   `.NullCity.Render.cs` and `.NullCity.MapPresentation.cs`. Authored1600×900
-  coordinates map to6400×3600world; World/Canvas helpers are reciprocal. Its
-  original artwork/roster/nativeboss remain. Followcamera and rendering-only
-  Zack scale live in shared `.MapPresentation`; local energized-road shake
+  coordinates map to1600×900world at the owner's restored1× scale; World/Canvas
+  helpers are reciprocal. The playable floor is1240×526. Its original artwork,
+  roster and native boss remain. Standard gameplay zoom and Zack size replace
+  browser multipliers. `.MapPresentation` constrains the shared smooth camera
+  to the surface, centring axes smaller than the viewport; local energized-road shake
   preserves collision and purge timing. The original LCD anchor has a cached
   world-space text overlay for welcome/lockdown state. Native projectile,
   tractor,bomb,purge and XP clamps convert world radii before authored tests.
@@ -615,9 +626,11 @@ without mutating the pool before Claim. No physical map resize was made.
 `Runtime/Telemetry/RunTelemetry.cs` owns the existing schema-4 JSON summary and
 bounded asynchronous JSONL journal. `Runtime/Gameplay/VoidFallGameRuntime.Telemetry.cs`
 owns run identity/context, event helpers, one-second combat/sample observations,
-thirty-second summary checkpoints, and finalization. `.Persist.cs` retains the
-silent manual export entry point; gameplay terminal export is independent of
-profile-save success. Main runtime startup distinguishes menu initialization
+thirty-second summary checkpoints, and finalization. Frame timing version 2
+corrects FPS units and adds bounded script CPU/GC windows to existing samples;
+see `Docs/RunExports.md` for timing coverage and exclusions. `.Persist.cs`
+retains the silent manual export entry point; gameplay terminal export is
+independent of profile-save success. Main runtime startup distinguishes menu initialization
 from actual play, and finalizes before restart/menu resets and on quit/destruction.
 
 `RunExports` lives beside the built executable (project root in Editor).

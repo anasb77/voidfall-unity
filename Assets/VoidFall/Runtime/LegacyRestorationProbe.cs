@@ -72,6 +72,16 @@ namespace VoidFall.Runtime
                 }
                 yield return CaptureRestorationFrame(output, "pulse-rank-" + rank + ".png");
             }
+            // Pin normal/critical values long enough to inspect the actual pooled text.
+            Array.Clear(_floaters, 0, _floaters.Length); ResetFloaterOrder();
+            SpawnFloater(_gameSim.Player.Position + new Vector2(-95, 65), "128", new Color(.886f, .91f, .941f, 1), 12.5f);
+            SpawnFloater(_gameSim.Player.Position + new Vector2(95, 65), "2048", new Color(.969f, .443f, .443f, 1), 17f, critical: true);
+            _paused = false; _applicationInactive = false;
+            Render(); UpdateHud(); SyncUiScreen();
+            var fontPassed = _floaterViews.All(view => view != null && view.font == _approvedHudBold);
+            File.WriteAllText(Path.Combine(output, "damage-number-font.txt"), "passed=" + fontPassed + ";font=" + _floaterViews[0].font.name);
+            if (!fontPassed) { Debug.LogError("DAMAGE FONT CHECK FAILED"); Application.Quit(1); yield break; }
+            yield return CaptureRestorationFrame(output, "damage-number-font.png");
             // Exercise the live Clock/Boomerang renderers and both Spiky sizes.
             Array.Clear(_upgradeProgress.WeaponRanks, 0, _upgradeProgress.WeaponRanks.Length);
             _upgradeProgress.WeaponRanks[8] = 4; _upgradeProgress.WeaponRanks[9] = 4;

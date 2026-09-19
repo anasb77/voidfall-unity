@@ -175,10 +175,13 @@ generation snapshots must prevent same-tick collection of newborn rewards.
 
 ## Approved map integration (September12)
 
-Preserve the existing Null City artwork. Its authored coordinates convert to
-world space at4× scale; scale geometry/props/hazard radii consistently rather
-than changing enemy combat speeds or general health balance. Player size
-adjustments are rendering-only. The city follows Zack and its existing sign
+September19 owner correction supersedes the browser-derived sizing below:
+Court, Hydra I and Null City use the shared gameplay camera and normal Zack
+rendering size. Preserve the existing Null City artwork at its original1×
+world scale (1600×900 art,1240×526 playable floor); geometry/props/hazard radii
+share that conversion. Do not compensate by changing combat speeds or health.
+Court and City camera framing stays inside the authored surface where possible;
+a surface smaller than the viewport stays centred. The existing city sign
 switches WELCOME TO NULL CITY / INTRUDER DETECTED. Active laser roads shake,
 not the camera; reduced motion disables that shake.
 

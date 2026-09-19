@@ -35,33 +35,27 @@ namespace VoidFall.Runtime
             enemy.Position = MonochromeRuntimeRules.ClampToBoard(enemy.Position, _monochromeBoardOrigin,
                 new Vector2(CourtBoardColumns, CourtBoardRows) * (float)MonochromeEncounterRules.TileSize, enemy.Radius);
         }
-        private float ApprovedMapPlayerVisualScale()
+        private Vector2 GameplayCameraCentre()
         {
-            if (_mainMenuBrowsing) return 1f;
-            if (CurrentVoidIsNullCity) return NullCityRules.PlayerRenderMultiplier;
-            if (_arenaId == ArenaId.MonochromeCourt && _camera != null)
-                return Mathf.Max(1f, 10f * _camera.orthographicSize * 2f /
-                    Mathf.Max(1f, Screen.height) / Mathf.Max(1f, PlayerRadius));
-            return 1f;
-        }
-        private void ApplyApprovedMapPlayerPresentation()
-        {
-            var scale = ApprovedMapPlayerVisualScale();
-            if (_playerView != null) _playerView.transform.localScale = Vector3.one * ProceduralSpriteFactory.OperativeCanvasSize() * scale;
-            if (_playerAuraView != null) _playerAuraView.transform.localScale *= scale;
-            if (_playerRingView != null) _playerRingView.transform.localScale *= scale;
-            ScaleMapCosmetics(_playerCosmeticViews, scale);
-            ScaleMapCosmetics(_playerTrailViews, scale);
-        }
-        private void ScaleMapCosmetics(SpriteRenderer[] views, float scale)
-        {
-            if (views == null || Mathf.Approximately(scale, 1)) return;
-            foreach (var view in views)
+            if (_mainMenuBrowsing) return _arenaId == ArenaId.NullCity ? _nullCityOrigin : _cameraFollowPosition;
+            Vector2 centre, size;
+            if (_arenaId == ArenaId.NullCity)
             {
-                if (view == null || !view.enabled) continue;
-                view.transform.position = (Vector3)_gameSim.Player.Position + (view.transform.position - (Vector3)_gameSim.Player.Position) * scale;
-                view.transform.localScale *= scale;
+                centre = _nullCityOrigin;
+                size = new Vector2(NullCityRules.WorldWidth, NullCityRules.WorldHeight);
             }
+            else if (_arenaId == ArenaId.MonochromeCourt && _courtFieldReady)
+            {
+                size = new Vector2(CourtBoardColumns, CourtBoardRows) * (float)MonochromeEncounterRules.TileSize;
+                centre = _monochromeBoardOrigin + size * .5f;
+            }
+            else return _cameraFollowPosition;
+            // A finite map smaller than the viewport stays centred. Larger maps
+            // retain the shared smooth follow until the viewport reaches an edge.
+            var travel = Vector2.Max(Vector2.zero, size * .5f - GameplayViewportHalfExtent());
+            return new Vector2(
+                Mathf.Clamp(_cameraFollowPosition.x, centre.x - travel.x, centre.x + travel.x),
+                Mathf.Clamp(_cameraFollowPosition.y, centre.y - travel.y, centre.y + travel.y));
         }
         private bool RenderApprovedMapSurface()
         {

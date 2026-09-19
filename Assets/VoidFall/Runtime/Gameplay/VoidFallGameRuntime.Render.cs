@@ -337,7 +337,6 @@ namespace VoidFall.Runtime
             // Workshop frame cosmetics track the player the same way (and share
             // the exact sprites with the Workshop preview).
             UpdatePlayerCosmetics(playerVisible);
-            ApplyApprovedMapPlayerPresentation();
 
             // The browser draws its compact enemy array forward. Pooled Unity
             // slots are not that array after swap-removal, so keep the visual
@@ -789,9 +788,10 @@ namespace VoidFall.Runtime
             if (_camera != null)
             {
                 var shake = CameraShakeOffset();
+                var centre = GameplayCameraCentre();
                 _camera.transform.position = new Vector3(
-                    _cameraFollowPosition.x + shake.x,
-                    _cameraFollowPosition.y + shake.y,
+                    centre.x + shake.x,
+                    centre.y + shake.y,
                     -10);
             }
 

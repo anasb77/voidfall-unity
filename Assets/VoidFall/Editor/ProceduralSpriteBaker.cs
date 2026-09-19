@@ -109,6 +109,46 @@ namespace VoidFall.Editor
             }
         }
 
+        [MenuItem("Tools/VoidFall/Bake Arsenal Sprites")]
+        public static void BakeArsenal()
+        {
+            EnsureFolderTree(SpriteRoot);
+            var catalog = AssetDatabase.LoadAssetAtPath<ProceduralSpriteCatalog>(CatalogPath);
+            if (catalog == null) throw new InvalidOperationException("Bake the base sprite catalog first.");
+            var entries = new List<ProceduralSpriteCatalogEntry>();
+            var paths = new Dictionary<string, string>();
+            foreach (var entry in catalog.Entries)
+            {
+                if (entry.Key.StartsWith("arsenal|", StringComparison.Ordinal))
+                    paths[entry.Key] = AssetDatabase.GetAssetPath(entry.Sprite);
+                else entries.Add(entry);
+            }
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var snapshot = (ProceduralSpriteCatalog)InvokeFactory("BuildArsenalCatalogSnapshot", null);
+            Debug.Log("VOIDFALL_ARSENAL cold-raster-ms=" + watch.Elapsed.TotalMilliseconds.ToString("F3"));
+            try
+            {
+                foreach (var entry in snapshot.Entries)
+                {
+                    var path = paths.TryGetValue(entry.Key, out var existing) ? existing :
+                        SpriteRoot + "/Sprite_extra_" + SafeFilename(entry.Key) + ".png";
+                    WriteSpritePng(path, entry.Sprite);
+                    ImportSprite(path, entry.Sprite, false);
+                    entries.Add(new ProceduralSpriteCatalogEntry(entry.Key, AssetDatabase.LoadAssetAtPath<Sprite>(path)));
+                }
+                WriteCatalog(entries);
+                AssetDatabase.SaveAssets();
+                Debug.Log("VOIDFALL_ARSENAL prepared=" + snapshot.Count);
+            }
+            finally { ReleaseCatalogSnapshot(snapshot); }
+        }
+
+        public static void BakeArsenalBatch()
+        {
+            try { BakeArsenal(); EditorApplication.Exit(0); }
+            catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
+        }
+
         public static List<string> ValidatePreparedAssets()
         {
             var errors = new List<string>();
@@ -141,6 +181,9 @@ namespace VoidFall.Editor
                          "arena-vignette|2",
                          "workshop-layer|protocol/1",
                          "projectile-frame|pistol|31",
+                         "arsenal|0",
+                         "arsenal|47",
+                         "arsenal|48",
                      })
             {
                 if (!keys.Contains(required)) errors.Add("Missing prepared sprite key: " + required);

@@ -75,6 +75,9 @@ namespace VoidFall.Runtime
                 _nullCitySignText.raycastTarget = false;
             }
             _nullCitySignCanvas.gameObject.SetActive(true);
+            // Keep high-resolution text metrics, but place its 265x45 authored
+            // screen in the same coordinate scale as the city artwork.
+            _nullCitySignCanvas.transform.localScale = Vector3.one * (.25f * NullCityRules.WorldScale);
             _nullCitySignCanvas.transform.position = NullCityWorld(1172.5f, 107.5f);
             _nullCitySignText.text = NullCityRules.SignText(lockdown);
             _nullCitySignText.color = lockdown ? new Color(.95f, .58f, .55f) : new Color(.53f, .84f, .81f);

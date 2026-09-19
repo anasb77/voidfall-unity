@@ -52,11 +52,9 @@ namespace VoidFall.Core
     public static class NullCityRules
     {
         // Map geometry is authored in canvas pixels; combat distances remain world units.
-        public const float WorldScale = 4f;
+        public const float WorldScale = 1f;
         public const float WorldWidth = 1600f * WorldScale;
         public const float WorldHeight = 900f * WorldScale;
-        public const float FollowViewMultiplier = 1.5f * 1.15f * 1.26f;
-        public const float PlayerRenderMultiplier = 1.3f * 1.15f * 1.26f;
         public static double WorldX(double canvasX) => (canvasX - 800) * WorldScale;
         public static double WorldY(double canvasY) => (450 - canvasY) * WorldScale;
         public static double CanvasX(double worldX) => worldX / WorldScale + 800;
