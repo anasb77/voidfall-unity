@@ -41,6 +41,35 @@ namespace VoidFall.Runtime
             _gameSim.Player.Iframes = 9999;
             _hudGroup.alpha = 1;
             DestroyEnemiesForVoidTransition(); ClearMeteors();
+            if (ArsenalValidationProbe.Argument("-vfloot-check=") == "1")
+            {
+                ClearToasts(); ForceMajorIncidentForDiagnostics("black-hole");
+                UpdateToastTimers(.5f); Render(); UpdateHud(); SyncUiScreen();
+                yield return CaptureRestorationFrame(output, "black-hole-hint.png");
+                UpdateToastTimers(5f); Render(); UpdateHud();
+                yield return CaptureRestorationFrame(output, "notice-at-5.5-seconds.png");
+                StopMajorIncident(); ClearToasts();
+                for (var i = 0; i < 300; i++) SpawnPickup(new Vector2(300 + (i % 25) * 13, -150 + (i / 25) * 25), 1);
+                for (var i = 0; i < _gameSim.Pickups.Length; i++) _gameSim.Pickups[i].Velocity = Vector2.zero;
+                Render(); UpdateHud();
+                yield return CaptureRestorationFrame(output, "gems-newborn.png");
+                UpdatePickups(1.9f); Render(); UpdateHud();
+                var freshCount = _gameSim.Pickups.Count(p => p.Active && p.Kind == PickupKind.Xp);
+                yield return CaptureRestorationFrame(output, "gems-at-1.9-seconds.png");
+                for (var i = 0; i < 12; i++) UpdatePickups(.02f);
+                Render(); UpdateHud();
+                var mergedCount = _gameSim.Pickups.Count(p => p.Active && p.Kind == PickupKind.Xp);
+                var totalXp = _gameSim.Pickups.Where(p => p.Active && p.Kind == PickupKind.Xp).Sum(p => p.Value);
+                yield return CaptureRestorationFrame(output, "gems-after-two-seconds.png");
+                File.WriteAllText(Path.Combine(output, "gem-counts.txt"), $"before=300;at1.9={freshCount};after2={mergedCount};xp={totalXp}");
+                OnVoidObjectiveCompleted(); BeginPortalJunction();
+                _paused = false; _applicationInactive = false; Render(); UpdateHud(); RenderJunction(); SyncUiScreen();
+                yield return CaptureRestorationFrame(output, "merchant-upper.png");
+                FinishRunExport("diagnostic_complete");
+                File.WriteAllText(Path.Combine(output, "complete.txt"), "Hint, notices, delayed XP merge and upper merchant captures complete.");
+                Application.Quit(freshCount == 300 && mergedCount < freshCount && totalXp == 300 && _dealerPosition.y > 0 ? 0 : 1);
+                yield break;
+            }
             if (ArsenalValidationProbe.Argument("-vfnotice-check=") == "1")
             {
                 foreach (var incident in new[] { "raid", "eclipse", "black-hole" })

@@ -45,6 +45,43 @@ namespace VoidFall.Tests.PlayMode
         private bool SpawnSpecial(string kind, Vector2 position, float amount = 1) => (bool)Call("SpawnSpecialPickup", position, amount, Kind(kind));
         private float Total(string kind) => Pickups.Cast<object>().Where(p => (bool)Get(p,"Active") && Get(p,"Kind").ToString()==kind).Sum(p => (float)Get(p,"Value"));
 
+        [Test] public void Fresh_gems_remain_separate_for_two_seconds_then_merge_without_losing_xp()
+        {
+            for (var i = 0; i < 300; i++) Call("SpawnPickup", new Vector2(300 + i % 12, 0), 1f);
+            Assert.That(Pickups.Cast<object>().Count(p => (bool)Get(p,"Active")), Is.EqualTo(300));
+            Call("UpdatePickups", 1.9f);
+            Assert.That(Pickups.Cast<object>().Count(p => (bool)Get(p,"Active")), Is.EqualTo(300));
+            Call("UpdatePickups", .11f);
+            Assert.That(Pickups.Cast<object>().Count(p => (bool)Get(p,"Active")), Is.LessThan(300));
+            Assert.That(Total("Xp"), Is.EqualTo(300));
+            Assert.That((float)Get(_runtime,"_xp"), Is.Zero);
+            Call("FinishRunExport", "test_finished");
+            var history = File.ReadAllLines(Directory.GetFiles(_directory,"*.jsonl").Single()).Select(JsonUtility.FromJson<UnityTelemetryHistoryEvent>).ToArray();
+            Assert.That(history.Any(e => e.kind == "drop_consolidated" && e.reason == "merge_delay_elapsed"), Is.True);
+            Assert.That(history.Any(e => e.kind == "drop_merged"), Is.False);
+            var report = JsonUtility.FromJson<UnityTelemetryReport>(File.ReadAllText(Directory.GetFiles(_directory,"*.json").Single()));
+            Assert.That(report.context.xpMergeDelaySeconds, Is.EqualTo(2));
+            Assert.That(report.context.freshXpPickupSlots, Is.EqualTo(1024));
+        }
+
+        [Test] public void A_fresh_gem_can_be_collected_during_the_merge_delay()
+        {
+            Call("SpawnPickup", Vector2.zero, 1f); Call("UpdatePickups", .016f);
+            Assert.That((float)Get(_runtime,"_xp"), Is.GreaterThan(0));
+            Assert.That(Total("Xp"), Is.Zero);
+        }
+
+        [Test] public void A_full_horde_clear_has_visible_fresh_rewards_and_keeps_special_space()
+        {
+            for (var i = 0; i < 750; i++) Call("SpawnPickup", new Vector2(300 + i % 40, i % 17), 8f);
+            Assert.That(Total("Xp"), Is.EqualTo(6000));
+            Assert.That(Pickups.Cast<object>().Count(p => (bool)Get(p,"Active") && (float)Get(p,"MergeDelay") > 0), Is.GreaterThanOrEqualTo(750));
+            Assert.That(SpawnSpecial("Repair", Vector2.right * 400), Is.True);
+            Call("FinishRunExport", "test_finished");
+            var history = File.ReadAllText(Directory.GetFiles(_directory,"*.jsonl").Single());
+            Assert.That(history, Does.Not.Contain("fresh_reserve_exhausted"));
+        }
+
         [Test] public void Full_xp_pool_keeps_new_rewards_near_the_kill_without_losing_value()
         {
             FillXp(); var before = Total("Xp");
@@ -66,7 +103,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(history.Any(e=>e.kind=="drop_spawn" && e.id=="repair"), Is.True);
             Assert.That(history.Any(e=>e.kind=="drop_rejected" && (e.id=="repair" || e.id=="magnet")), Is.False);
             var report=JsonUtility.FromJson<UnityTelemetryReport>(File.ReadAllText(Directory.GetFiles(_directory,"*.json").Single()));
-            Assert.That(report.context.lootPolicyVersion,Is.EqualTo(2));
+            Assert.That(report.context.lootPolicyVersion,Is.EqualTo(3));
             Assert.That(report.context.survivalSeconds,Is.EqualTo(360));
         }
 

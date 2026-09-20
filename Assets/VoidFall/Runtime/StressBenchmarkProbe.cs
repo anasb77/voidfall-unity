@@ -37,6 +37,7 @@ namespace VoidFall.Runtime
             public long simulationTicksAdvanced, gcBytes;
             public bool gcRecorderAvailable;
             public bool hold750Requested;
+            public bool farGridRequested;
             public int directorCapacityTarget, directorCapacitySteps;
             public int directorCapacityMinimum, directorCapacityMaximum;
             public int directorCapacityMinimumBeforeRefill, directorCapacityFailures;
@@ -233,6 +234,7 @@ namespace VoidFall.Runtime
                 frameCount = _frameCount, timingFrames = _timingFrames,
                 gcBytes = _gcBytes, gcRecorderAvailable = _gcRecorder.Valid,
                 hold750Requested = _hold750Requested,
+                farGridRequested = HasArgument("-vffargrid"),
                 directorCapacityTarget = _runtime != null ? _runtime.DirectorCapacityTarget : 0,
                 directorCapacitySteps = _runtime != null ? _runtime.DirectorCapacitySteps : 0,
                 directorCapacityMinimum = _runtime != null ? _runtime.DirectorCapacityMinimum : 0,

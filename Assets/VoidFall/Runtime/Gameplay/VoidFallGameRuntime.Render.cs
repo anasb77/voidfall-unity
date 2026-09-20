@@ -826,17 +826,9 @@ namespace VoidFall.Runtime
         private Vector2 CameraShakeOffset()
         {
             if (_journeyStage == JourneyStage.Rewards) return EscapeCameraShakeOffset();
-            if (_cameraTrauma <= 0) return Vector2.zero;
-            var magnitude = CameraShakeAmplitude(_cameraTrauma);
-            return new Vector2(
-                ((float)_fxSim.FxRng.Next() * 2f - 1f) * magnitude,
-                ((float)_fxSim.FxRng.Next() * 2f - 1f) * magnitude);
-        }
-
-        private static float CameraShakeAmplitude(float trauma)
-        {
-            var clamped = Mathf.Clamp01(trauma);
-            return clamped * clamped * 14f;
+            if (_paused || _saveData?.settings == null || _saveData.settings.reducedMotion) return Vector2.zero;
+            _cameraImpulse.Offset(out var x, out var y);
+            return new Vector2((float)x, (float)y) * Mathf.Clamp01(_saveData.settings.shake);
         }
 
         /// <summary>

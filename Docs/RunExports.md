@@ -1,5 +1,26 @@
 # Run exports — schema 4
 
+## World grid and camera impulses (September 20)
+
+Context adds `spatialGridVersion=2`, `cameraShakeVersion=2`, and
+`frameTimingVersion=3`. Existing sample `cpu` windows now include
+`simulationSteps` and `frozenSteps`; `setupMeanMs`, `enemiesMeanMs`,
+`separationMeanMs`, `weaponsMeanMs`, and `lootFxMeanMs` are milliseconds per
+rendered gameplay frame, including all fixed steps in that frame. Setup
+includes director/arena/initial grid/weapon emission; separation includes
+Spiky pushes and grid rebuilds; weapons includes projectiles, hazards and
+bosses. These scopes do not include every simulation-tail operation and do
+not measure GPU cost. Existing simulationMeanMs remains the whole envelope.
+
+`ordinaryShakeRequests`/`majorShakeRequests` count admitted source requests
+before coalescing, not emitted pulses. `shakePeakWorldUnits` is the peak
+sampled amplitude envelope after the user's slider, bounded to14;
+`shakeActiveFraction` is the time-weighted proportion of observed gameplay
+frames above0.1 world units. Pause/menu/escape windows are excluded. All
+fields reset with the existing sample window; there is no per-hit history
+stream. `-vfbench -vffargrid` places an isolated stress fixture at
+(-3600,-5040) to exercise far-world collision behavior.
+
 ## Approved weapon iteration (September 20)
 
 `mine_chain` with reason `scheduled` joins the receiving mine `instanceId` to
@@ -170,7 +191,7 @@ survivors with defeated/release/cancelled reason. Compare attack opportunities
 and exposure alongside damage, not just final kill counts.
 
 Incident policy 3 admits eight raiders (two Maw, two Razor, one Husk, one Grasp,
-two Spite). `incident_notification` records the queued five-second priority
+two Spite). `incident_notification` records the queued eight-second priority
 announcement and its dedicated audio cue in `detail`, joined through incident
 sequence in `instanceId`; this records dispatch, not proof the player heard it.
 `destroyer_raid_deployed` records actual admitted bodies in `amount`, requested
@@ -309,10 +330,18 @@ player-facing refill rule. `director_playtest` marks scripted input with normal
 health and real first-offered upgrades. Both must be filtered out of owner-run
 difficulty statistics. A 750 technical capacity does not imply750 on screen.
 
-### Loot policy v2 / six-minute run metadata
+### Loot policy v3 / six-minute run metadata
 
-`context.lootPolicyVersion=2`, `survivalSeconds=360`, `pickupCapacity=281`,
-`reservedSpecialPickupSlots=24` identify the new rules. Samples include
+`context.lootPolicyVersion=3`, `survivalSeconds=360`, `pickupCapacity=1305`,
+`reservedSpecialPickupSlots=24`, `xpMergeDelaySeconds=2` and
+`freshXpPickupSlots=1024` identify the current rules. Newborn XP remains visible
+and collectable for two simulation seconds before capacity consolidation.
+`drop_consolidated` reason `merge_delay_elapsed` records mature overflow merges.
+At absolute reserve exhaustion only, `drop_merged` reason
+`fresh_reserve_exhausted` explicitly records emergency value conservation;
+normal drops and a full750-enemy clear do not require this fallback. Under
+pressure the remainder of one enemy's XP reward is one fresh gem, retaining
+its full value. Samples include
 `xpPickupCount`, `specialPickupCount`, `distantLootCount`, `localSurvivalSeconds`,
 `survivalRemainingSeconds`, and `bossDifficultySeconds`. Boss-difficulty time is
 an adapted stat clock, not the elapsed run clock. Existing scoring weights and

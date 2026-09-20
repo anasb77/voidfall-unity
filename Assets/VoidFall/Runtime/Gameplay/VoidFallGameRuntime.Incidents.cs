@@ -158,14 +158,14 @@ namespace VoidFall.Runtime
             _incidentCount++;
             _lastIncidentKind = kind;
             _spawnTimer = .65f;
-            var title = kind == MajorIncidentKind.BlackHole ? "BLACK HOLE · MOVE BEYOND THE RING" :
+            var title = kind == MajorIncidentKind.BlackHole ? "BLACK HOLE" :
                 kind == MajorIncidentKind.DestroyerRaid ? "DESTROYER RAID INCOMING" : "ECLIPSE INCOMING";
             var cue = kind == MajorIncidentKind.BlackHole ? ProceduralAudio.Cue.BlackHoleNotice :
                 kind == MajorIncidentKind.DestroyerRaid ? ProceduralAudio.Cue.RaidNotice : ProceduralAudio.Cue.EclipseNotice;
-            EnqueueToastCore(title, null, 5f, ToastKind.Danger, true);
+            EnqueueToastCore(title, null, 8f, ToastKind.Danger, true);
             _audio?.Play(cue, .85f);
             RecordRunHistory("incident_notification", kind.ToString(), "announced", instanceId: _incidentSequence,
-                durationSeconds: 5, detail: "priority=true;cue=" + cue);
+                durationSeconds: 8, detail: "priority=true;cue=" + cue);
         }
 
         public bool ForceMajorIncidentForDiagnostics(string name)

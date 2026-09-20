@@ -36,7 +36,8 @@ namespace VoidFall.Runtime
         private const int MaxPickups = SimulationRules.MaxPickups;
         // The browser permits one XP gem beyond the normal cap when a full
         // pickup set contains no XP gem that can absorb the drop.
-        private const int MaxPickupSlots = MaxPickups + 1;
+        private const int FreshXpPickupSlots = 1024;
+        private const int MaxPickupSlots = MaxPickups + 1 + FreshXpPickupSlots;
         private const int MaxMeteors = MeteorRules.MaxOrdinaryMeteors + MeteorRules.MaxExplosiveMeteors;
         private const int MaxMeteorShards = MaxMeteors * 6;
         private const int MaxBosses = 3;
@@ -529,7 +530,7 @@ namespace VoidFall.Runtime
         private SpriteRenderer _playerRingView;
         private Camera _camera;
         private Vector2 _cameraFollowPosition;
-        private float _cameraTrauma;
+        private readonly CameraImpulse _cameraImpulse = new CameraImpulse();
         private float _redFlash;
         private float _cyanFlash;
         private float _amberFlash;
@@ -1397,6 +1398,7 @@ namespace VoidFall.Runtime
 
         private void Update()
         {
+            _cameraImpulse.Advance(Time.unscaledDeltaTime);
             RecordStartupMenuFrame();
             ReadNullCityDashInput();
             ReadDealerInput();
@@ -1520,7 +1522,7 @@ namespace VoidFall.Runtime
             {
                 ApplyRenderResolution();
             }
-            _cameraTrauma = Mathf.Max(0, _cameraTrauma - frameDt * 1.7f);
+            ObserveCameraImpulse(frameDt);
             _redFlash = Mathf.Max(0, _redFlash - frameDt * 2.4f);
             _cyanFlash = Mathf.Max(0, _cyanFlash - frameDt * 2.2f);
             _amberFlash = Mathf.Max(0, _amberFlash - frameDt * 3.1f);
@@ -2236,7 +2238,7 @@ namespace VoidFall.Runtime
             _killMilestoneIndex = 0;
             _scoreMilestoneIndex = 0;
             ClearToasts();
-            _cameraTrauma = 0;
+            _cameraImpulse.Reset();
             _redFlash = 0;
             _cyanFlash = 0;
             _amberFlash = 0;
@@ -2354,6 +2356,11 @@ namespace VoidFall.Runtime
                 _meteorSpawnTimer = 2.2f;
                 _meteorTarget = MeteorRules.MinOrdinaryMeteors;
             }
+
+            // Explicit stress-only reproduction of the former far-world grid collapse.
+            foreach (var argument in Environment.GetCommandLineArgs())
+                if (argument.Equals("-vffargrid", StringComparison.OrdinalIgnoreCase))
+                    _gameSim.Player.Position = _cameraFollowPosition = new Vector2(-3600, -5040);
 
             for (var round = 0; round < scenario.EliteVariantRounds; round++)
             {
@@ -2532,6 +2539,8 @@ namespace VoidFall.Runtime
             if (_mainMenuBrowsing || JourneyStopsCombat || _gameOver || (_paused && _stressScenario == null)) return;
             var realDt = (float)fixedDt;
             var frozen = _freezeTimer > 0;
+            var phaseStarted = _runExportActive ? Time.realtimeSinceStartupAsDouble : 0;
+            if (_runExportActive) { _cpuSteps++; if (frozen) _cpuFrozenSteps++; }
             if (frozen) _freezeTimer = Mathf.Max(0, _freezeTimer - realDt);
             var dt = frozen ? 0 : realDt * _timeScale;
             _time += dt;
@@ -2638,7 +2647,9 @@ namespace VoidFall.Runtime
             StepNullCity(dt);
             StepLegacyRestoration(dt);
             UpdateSpawns(dt);
+            if (_runExportActive) { var now = Time.realtimeSinceStartupAsDouble; _cpuSetupSum += (now - phaseStarted) * 1000; phaseStarted = now; }
             UpdateEnemies(dt);
+            if (_runExportActive) { var now = Time.realtimeSinceStartupAsDouble; _cpuEnemiesSum += (now - phaseStarted) * 1000; phaseStarted = now; }
             ApplySpikyGrowthPushes();
             // Relax separation over several passes, rebuilding the grid between
             // each so a body that moved cells is still paired correctly. One
@@ -2649,6 +2660,7 @@ namespace VoidFall.Runtime
                 SeparateEnemies();
             }
             RebuildEnemyGrid();
+            if (_runExportActive) { var now = Time.realtimeSinceStartupAsDouble; _cpuSeparationSum += (now - phaseStarted) * 1000; phaseStarted = now; }
             UpdateMeteors(dt);
             UpdateNebulaStrikes(dt);
             UpdateBlades(dt);
@@ -2658,6 +2670,7 @@ namespace VoidFall.Runtime
             UpdateHostileShots(dt);
             UpdateBosses(dt);
             StepHydraAttackState(dt);
+            if (_runExportActive) { var now = Time.realtimeSinceStartupAsDouble; _cpuWeaponsSum += (now - phaseStarted) * 1000; phaseStarted = now; }
             UpdatePickups(dt);
             // Keep the browser updateFx() lifecycle order after all gameplay
             // systems have emitted their effects for this fixed step.
@@ -2671,6 +2684,7 @@ namespace VoidFall.Runtime
             UpdateRingWaves(dt);
             UpdateFloaters(dt);
             CheckMilestones();
+            if (_runExportActive) _cpuLootFxSum += (Time.realtimeSinceStartupAsDouble - phaseStarted) * 1000;
             AdvanceCombatObjectiveProgress(dt);
             AdvanceRunLevelUps(realDt);
 

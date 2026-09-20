@@ -29,7 +29,7 @@ namespace VoidFall.Tests.PlayMode
 
         [TestCase("raid", "DESTROYER RAID INCOMING")]
         [TestCase("eclipse", "ECLIPSE INCOMING")]
-        [TestCase("black-hole", "BLACK HOLE · MOVE BEYOND THE RING")]
+        [TestCase("black-hole", "BLACK HOLE")]
         public void Incident_notice_survives_rewards_and_hidden_time(string incident, string title)
         {
             Call("ClearToasts"); _runtime.ForceMajorIncidentForDiagnostics(incident);
@@ -37,12 +37,14 @@ namespace VoidFall.Tests.PlayMode
             var states = (Array)Get(_runtime, "_toastStates");
             Assert.That(states.Cast<object>().Count(t => (string)Get(t, "Text") == title), Is.EqualTo(1));
             Set(_runtime, "_paused", true); Call("UpdateToastTimers", 10f);
-            Assert.That(states.Cast<object>().Any(t => (string)Get(t, "Text") == title && (float)Get(t, "Remaining") == 5f), Is.True);
+            Assert.That(states.Cast<object>().Any(t => (string)Get(t, "Text") == title && (float)Get(t, "Remaining") == 8f), Is.True);
             Set(_runtime, "_paused", false); Call("UpdateToastTimers", .5f); Call("UpdateToastViews");
             var views = (Text[])Get(_runtime, "_toastViews");
             var view = views.Single(t => t.enabled && t.text == title);
             Assert.That(view.font.name, Is.EqualTo("ChakraPetch-Bold"));
             Assert.That(view.color.a, Is.GreaterThan(.5));
+            Call("UpdateToastTimers", 5f); Call("UpdateToastViews");
+            Assert.That(view.enabled && view.color.a > .9f, Is.True, "Event remains fully readable after five seconds");
         }
 
         [Test] public void Raid_admits_eight_and_keeps_all_five_roles()

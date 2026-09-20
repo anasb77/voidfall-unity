@@ -68,12 +68,16 @@ namespace VoidFall.Runtime
         public int frames, gen0Collections;
         public long managedBytes;
         public double simulationMeanMs, renderMeanMs, hudMeanMs, updateMeanMs, updateMaxMs;
+        public int simulationSteps, frozenSteps, ordinaryShakeRequests, majorShakeRequests;
+        public double setupMeanMs, enemiesMeanMs, separationMeanMs, weaponsMeanMs, lootFxMeanMs;
+        public double shakePeakWorldUnits, shakeActiveFraction;
     }
 
     [Serializable]
     public sealed class UnityTelemetryContext
     {
         public int frameTimingVersion;
+        public int spatialGridVersion, cameraShakeVersion;
         public int mapPresentationVersion;
         public string buildVersion;
         public string unityVersion;
@@ -112,6 +116,8 @@ namespace VoidFall.Runtime
         public int directorVersion;
         public int lootPolicyVersion;
         public int pickupCapacity;
+        public float xpMergeDelaySeconds;
+        public int freshXpPickupSlots;
         public int reservedSpecialPickupSlots;
         public float survivalSeconds;
         public UnityTelemetryNamedValue[] workshopRanks;

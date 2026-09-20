@@ -606,7 +606,7 @@ namespace VoidFall.Runtime
         }
 
         private void EnqueueToast(string text, string detail, float seconds, ToastKind kind)
-            => EnqueueToastCore(text, detail, seconds, kind, false);
+            => EnqueueToastCore(text, detail, seconds + (kind == ToastKind.Danger ? 3f : 0f), kind, kind == ToastKind.Danger);
 
         private void EnqueueToastCore(string text, string detail, float seconds, ToastKind kind, bool priority)
         {

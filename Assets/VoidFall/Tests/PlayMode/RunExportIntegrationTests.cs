@@ -143,7 +143,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(window.updateMaxMs, Is.EqualTo(20));
             Assert.That(window.managedBytes, Is.GreaterThan(0));
             Assert.That(report.samples.Last().cpu.frames, Is.Zero);
-            Assert.That(report.context.frameTimingVersion, Is.EqualTo(2));
+            Assert.That(report.context.frameTimingVersion, Is.EqualTo(3));
             Assert.That(ReadHistory().Any(e => e.kind == "sample" && e.sample != null && e.sample.cpu.frames == 2), Is.True);
         }
 
@@ -507,12 +507,43 @@ namespace VoidFall.Tests.PlayMode
             var notice = history.Single(e => e.kind == "incident_notification");
             var raid = history.Single(e => e.kind == "destroyer_raid_deployed");
             Assert.That(notice.detail, Does.Contain("cue=RaidNotice"));
-            Assert.That(notice.durationSeconds, Is.EqualTo(5));
+            Assert.That(notice.durationSeconds, Is.EqualTo(8));
             Assert.That(raid.instanceId, Is.EqualTo(notice.instanceId));
             Assert.That(raid.amount, Is.EqualTo(8));
             Assert.That(raid.reason, Is.EqualTo("admitted"));
             Assert.That(history.Count(e => e.kind == "enemy_spawn" && e.id.StartsWith("destroyer-")), Is.EqualTo(8));
             Assert.That(ReadReport().context.incidentBalanceVersion, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void Dealer_stock_exports_upper_placement()
+        {
+            Call("OnVoidObjectiveCompleted"); Call("BeginPortalJunction");
+            Call("FinishRunExport", "test_finished");
+            var stock = ReadHistory().Single(e => e.kind == "dealer_stock");
+            Assert.That(stock.detail, Does.Contain("\"placement\":\"top\""));
+        }
+
+        [Test]
+        public void Shake_and_simulation_subsystems_export_bounded_windows()
+        {
+            Call("ResetPerformanceWindow");
+            Call("AddCameraShake", .055f); Call("AddCameraShake", .96f);
+            Call("ObserveCameraImpulse", .016f);
+            Call("Simulate", 1d / 60);
+            Call("RecordPerformancePhase", "update-total", 5d);
+            Call("RecordTelemetrySample", .016f);
+            Call("FinishRunExport", "test_finished");
+            var report = ReadReport();
+            Assert.That(report.context.spatialGridVersion, Is.EqualTo(2));
+            Assert.That(report.context.cameraShakeVersion, Is.EqualTo(2));
+            var sample = report.samples.Single(s => s.cpu != null && s.cpu.simulationSteps == 1).cpu;
+            Assert.That(sample.ordinaryShakeRequests, Is.GreaterThanOrEqualTo(1));
+            Assert.That(sample.majorShakeRequests, Is.GreaterThanOrEqualTo(1));
+            Assert.That(sample.shakePeakWorldUnits, Is.InRange(1, 14));
+            Assert.That(sample.shakeActiveFraction, Is.InRange(0, 1));
+            Assert.That(sample.setupMeanMs + sample.enemiesMeanMs + sample.separationMeanMs + sample.weaponsMeanMs + sample.lootFxMeanMs, Is.GreaterThan(0));
+            Assert.That(ReadHistory().Any(e => e.kind == "sample" && e.sample.cpu.simulationSteps == 1), Is.True);
         }
 
         private UnityTelemetryReport ReadReport() => JsonUtility.FromJson<UnityTelemetryReport>(

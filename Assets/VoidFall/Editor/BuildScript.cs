@@ -69,7 +69,7 @@ namespace VoidFall.EditorTools
                     "Mines: slower placement, 0.9s floor, 1.2s freeze / 1.2s recovery\n" +
                     "Approved weapons: 0.14s armed mine chains; independent summons with 700-unit return leash\n" +
                     "Approved artwork: Pulse Pistol/Railgun ranks I-VI and evolution; Clock numerals 10% lower opacity\n" +
-                    "Incidents v3: eight Destroyers; protected Raid/Eclipse/Black Hole notices and dedicated sound cues\n" +
+                    "Incidents v3: eight Destroyers; eight-second Raid/Eclipse/Black Hole notices and dedicated sound cues\n" +
                     "Maps v3: Null City 50% (860 units), Hydra/Court 60% (908 units); normal Zack scale\n" +
                     "Null City: 1.6x expanded layout, native-size props, ten new enemies, portal-clipped transit\n" +
                     "Hydra: stationary floor, mixed hive broods, five insects and two guardians\n" +
@@ -82,15 +82,18 @@ namespace VoidFall.EditorTools
                     "HUD: approved study 02 at 66%, bundled Chakra Petch, custom arsenal/passive/manual slots\n" +
                     "Damage numbers and notifications: Chakra Petch; pressure text +20%; map hint beneath HP\n" +
                     "Attack previews: map-specific warnings restricted to their owning enemies; no shared-enemy lines to world origin\n" +
-                    "Prepared arsenal sprites; frame timing telemetry v2\n" +
+                    "World-cell spatial grid v2: bounded storage without far-world clamping\n" +
+                    "Camera shake v2: grouped directional kill pulses, separate major accents, time-based settling\n" +
+                    "Prepared arsenal sprites; frame timing telemetry v3 with subsystem and shake windows\n" +
                     "Pressure starts at 1x; Spiky 19.5/58.5 radius every 0.5s, 4x raster resolution; Shuriken spin 14 rad/s\n" +
                     "Rewards: ordinary rare drops 1/300; Overclock bank capped at 30s; XP +25% from level 6\n" +
+                    "Loot v3: fresh XP gems remain collectable for two seconds before merging; bounded newborn reserve\n" +
                     "Video: saved monitor selection; smaller mute control below score\n" +
                     "Cards: Phase Rounds, weapon-bound Split Shot, Giant Slayer, Second Wind\n" +
                     "Escape: 10 active seconds, covered crossing, 2.5s arrival grace\n");
                 File.AppendAllText(Path.Combine(buildRoot, "BUILD_INFO.txt"),
                     "Dealer: safe crossing, one purchase per visit, 100 run Scraps per offer\n" +
-                    "Dealer art: four same-face expressions, upper/lower encounters, animated hair\n" +
+                    "Dealer art: four same-face expressions, upper-only encounters, animated hair\n" +
                     "Legendaries: Sound Blade / Charged Rifle, saved fragments and separate manual slot\n" +
                     "Controls: E / controller South browses; mouse + hold LMB/F or right stick + RT attacks\n");
                 Debug.Log($"Build succeeded: {summary.totalSize} bytes at {summary.outputPath}");

@@ -1022,6 +1022,7 @@ namespace VoidFall.Runtime
                 var pickup = Pickups[i];
                 if (!pickup.Active) continue;
                 pickup.Age += dt;
+                pickup.MergeDelay = Mathf.Max(0, pickup.MergeDelay - dt);
                 var delta = Player.Position - pickup.Position;
                 var distanceSquared = delta.sqrMagnitude;
                 if (playerAlive && (pickup.Pull || distanceSquared < magnetRadius * magnetRadius))

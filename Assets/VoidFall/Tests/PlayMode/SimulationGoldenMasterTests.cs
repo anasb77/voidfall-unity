@@ -100,7 +100,7 @@ namespace VoidFall.Tests.PlayMode
                 _legacyMeteorSchema = true;
                 var legacy = HashRuntimeState(runtime);
                 Debug.Log("METEOR SCHEMA CHECK legacy=" + legacy + " full=" + hash);
-                Assert.That(legacy, Is.EqualTo(4858828874924286091UL), "The approved density-v3 XP/drop simulation baseline must remain stable under the legacy meteor schema.");
+                Assert.That(legacy, Is.EqualTo(8893401275390364667UL), "The approved loot-v3 delayed-merge simulation baseline must remain stable under the legacy meteor schema.");
             }
             finally { _legacyMeteorSchema = false; }
             Assert.That(
@@ -168,7 +168,11 @@ namespace VoidFall.Tests.PlayMode
         // A controlled audit restoring ONLY those two rules reproduces both prior hashes exactly
         // (final-tuning-baseline-audit.xml). The approved rules yield legacy4858828874924286091 /
         // full10686876280106228379; all 32 seeds passed before this intentional re-pin.
-        internal const ulong GoldenMasterHash = 10686876280106228379;
+        // September20 loot-v3: a two-second merge timer, 1024 temporary XP
+        // slots, and visible overflow births intentionally change the reflected
+        // pickup schema and collection/RNG timeline. Conservation/burst tests
+        // and the 32-seed repeatability sweep passed before this re-pin.
+        internal const ulong GoldenMasterHash = 4792395221124045609;
 
         internal static ulong HashRuntimeState(object runtime)
         {

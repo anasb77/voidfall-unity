@@ -2316,6 +2316,7 @@ namespace VoidFall.Runtime
                 out var pulledXpCount,
                 out var pulledXpValue);
             CountPendingMusicGems();
+            if (dt > 0) MergeMatureXpOverflow();
             UpdateLootReachability(dt);
             _pickupStepTimer = Mathf.Max(0, _pickupStepTimer - dt);
             if (_pickupStepTimer <= 0) _pickupStep = 0;
@@ -2493,12 +2494,12 @@ namespace VoidFall.Runtime
             if (weapon.Id == "scattergun")
             {
                 _audio?.Play(ProceduralAudio.Cue.Scattergun);
-                AddCameraShake(0.12f);
+                RequestCameraImpulse(0.12f, false, new Vector2(-Mathf.Cos(baseAngle), -Mathf.Sin(baseAngle)));
             }
             else if (weapon.Id == "railgun")
             {
                 _audio?.Play(ProceduralAudio.Cue.Railgun, 0.78f);
-                AddCameraShake(0.24f);
+                RequestCameraImpulse(0.24f, false, new Vector2(-Mathf.Cos(baseAngle), -Mathf.Sin(baseAngle)));
                 TriggerFreeze(0.035f);
             }
             else if (weapon.Id == "seeker")
@@ -3575,8 +3576,12 @@ namespace VoidFall.Runtime
             for (var index = 0; index < drops.Length; index++)
             {
                 var drop = drops[index];
-                released += drop;
                 var slot = FindXpPickupSlot();
+                // Once the ordinary budget fills, represent the rest of this
+                // enemy's reward with one fresh gem instead of dozens of objects.
+                if (slot > MaxPickups || slot < 0)
+                    while (++index < drops.Length) drop += drops[index];
+                released += drop;
                 if (slot < 0)
                 {
                     var target = FindXpOverflowTarget(position);
@@ -3595,7 +3600,7 @@ namespace VoidFall.Runtime
                         }
                         existing.Age = 0;
                         _gameSim.Pickups[target] = existing;
-                        RecordPickupHistory("drop_merged", target, existing, drop);
+                        RecordPickupHistory("drop_merged", target, existing, drop, "fresh_reserve_exhausted");
                         RefreshPickupView(target);
                     }
                     else RecordRunHistory("drop_rejected", "xp", "pool_full", amount: drop);
@@ -3614,6 +3619,7 @@ namespace VoidFall.Runtime
                     Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * speed,
                     Value = drop,
                     Age = (float)_gameSim.Rng.Next() * 5f,
+                    MergeDelay = XpMergeDelaySeconds,
                     Speed = 0,
                     Kind = PickupKind.Xp,
                     Pull = false,
@@ -4434,7 +4440,7 @@ namespace VoidFall.Runtime
             {
                 var brute = enemy.Id == "brute";
                 var runner = enemy.Id == "runner";
-                AddCameraShake(brute ? 0.12f : 0.055f);
+                RequestCameraImpulse(brute ? 0.12f : 0.055f, false, _gameSim.Player.Position - enemy.Position);
                 BurstFx(
                     enemy.Position,
                     EnemyParticleColor(enemy),

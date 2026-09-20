@@ -31,6 +31,19 @@ namespace VoidFall.Runtime
         private double _cpuSimulationMs, _cpuRenderMs, _cpuHudMs;
         private double _cpuSimulationSum, _cpuRenderSum, _cpuHudSum, _cpuUpdateSum, _cpuUpdateMax;
         private int _cpuFrames, _cpuGen0Start;
+        private double _cpuSetupSum, _cpuEnemiesSum, _cpuSeparationSum, _cpuWeaponsSum, _cpuLootFxSum;
+        private int _cpuSteps, _cpuFrozenSteps, _shakeOrdinaryRequests, _shakeMajorRequests;
+        private double _shakePeak, _shakeActiveSeconds, _shakeObservedSeconds;
+
+        private void ObserveCameraImpulse(float seconds)
+        {
+            if (!_runExportActive || _paused || _mainMenuBrowsing || _gameOver || JourneyStopsCombat) return;
+            var enabled = _saveData?.settings != null && !_saveData.settings.reducedMotion;
+            var amplitude = enabled ? _cameraImpulse.AmplitudeNow * Mathf.Clamp01(_saveData.settings.shake) : 0;
+            _shakePeak = Math.Max(_shakePeak, amplitude);
+            _shakeObservedSeconds += seconds;
+            if (amplitude > .1) _shakeActiveSeconds += seconds;
+        }
 
         private void RecordPerformancePhase(string phase, double milliseconds)
         {
@@ -53,6 +66,9 @@ namespace VoidFall.Runtime
         {
             _cpuSimulationSum = _cpuRenderSum = _cpuHudSum = _cpuUpdateSum = _cpuUpdateMax = 0;
             _cpuFrames = 0;
+            _cpuSteps = _cpuFrozenSteps = _shakeOrdinaryRequests = _shakeMajorRequests = 0;
+            _cpuSetupSum = _cpuEnemiesSum = _cpuSeparationSum = _cpuWeaponsSum = _cpuLootFxSum = 0;
+            _shakePeak = _shakeActiveSeconds = _shakeObservedSeconds = 0;
             _cpuGen0Start = GC.CollectionCount(0);
         }
 
@@ -62,6 +78,13 @@ namespace VoidFall.Runtime
             var sample = new UnityTelemetryCpuSample
             {
                 frames = _cpuFrames,
+                simulationSteps = _cpuSteps, frozenSteps = _cpuFrozenSteps,
+                setupMeanMs = _cpuSetupSum / divisor, enemiesMeanMs = _cpuEnemiesSum / divisor,
+                separationMeanMs = _cpuSeparationSum / divisor, weaponsMeanMs = _cpuWeaponsSum / divisor,
+                lootFxMeanMs = _cpuLootFxSum / divisor,
+                ordinaryShakeRequests = _shakeOrdinaryRequests, majorShakeRequests = _shakeMajorRequests,
+                shakePeakWorldUnits = _shakePeak,
+                shakeActiveFraction = _shakeObservedSeconds > 0 ? _shakeActiveSeconds / _shakeObservedSeconds : 0,
                 simulationMeanMs = _cpuSimulationSum / divisor,
                 renderMeanMs = _cpuRenderSum / divisor,
                 hudMeanMs = _cpuHudSum / divisor,
@@ -99,7 +122,8 @@ namespace VoidFall.Runtime
                     if (entry != null) workshop.Add(new UnityTelemetryNamedValue { id = entry.id, value = entry.rank });
             _telemetry.ConfigureHistory(directory, new UnityTelemetryContext
             {
-                frameTimingVersion = 2,
+                frameTimingVersion = 3,
+                spatialGridVersion = 2, cameraShakeVersion = 2,
                 mapPresentationVersion = ApprovedMapRules.Version,
                 buildVersion = Application.version,
                 buildGuid = Application.buildGUID,
@@ -146,6 +170,8 @@ namespace VoidFall.Runtime
                 directorVersion = UsesSustainedDirector ? SustainedDirectorVersion : 1,
                 lootPolicyVersion = LootPolicyVersion,
                 pickupCapacity = MaxPickupSlots,
+                xpMergeDelaySeconds = XpMergeDelaySeconds,
+                freshXpPickupSlots = FreshXpPickupSlots,
                 reservedSpecialPickupSlots = ReservedSpecialPickupSlots,
                 survivalSeconds = (float)VoidProgressionRules.SurvivalSeconds,
                 workshopRanks = workshop.ToArray(),

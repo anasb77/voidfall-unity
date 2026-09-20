@@ -6,7 +6,8 @@ namespace VoidFall.Runtime
 {
     public sealed partial class VoidFallGameRuntime
     {
-        private const int LootPolicyVersion = 2;
+        private const int LootPolicyVersion = 3;
+        private const float XpMergeDelaySeconds = 2f;
         private const int ReservedSpecialPickupSlots = 24;
         private const int PrimaryXpPickupSlots = MaxPickups - ReservedSpecialPickupSlots;
         private const float XpMergeDistance = 180f;
@@ -19,7 +20,13 @@ namespace VoidFall.Runtime
             var slot = FindInactive(_gameSim.Pickups, PrimaryXpPickupSlots);
             if (slot >= 0) return slot;
             // The last slot stays XP-only; currency cannot occupy the special reserve.
-            return !_gameSim.Pickups[MaxPickups].Active ? MaxPickups : -1;
+            if (!_gameSim.Pickups[MaxPickups].Active) return MaxPickups;
+            if (ConsolidatePickupPair(PickupKind.Xp, out slot)) return slot;
+            // Real, collectable newborn gems use a bounded overflow reserve.
+            // Keep the original special reserve separate from these slots.
+            for (var i = MaxPickups + 1; i < MaxPickupSlots; i++)
+                if (!_gameSim.Pickups[i].Active) return i;
+            return -1;
         }
 
         private int FindSpecialPickupSlot()
@@ -44,7 +51,8 @@ namespace VoidFall.Runtime
                 var count = 0; var ordinarySlot = false;
                 for (var i = 0; i < _gameSim.Pickups.Length; i++)
                 {
-                    if (!_gameSim.Pickups[i].Active || _gameSim.Pickups[i].Kind != kind) continue;
+                    if (!_gameSim.Pickups[i].Active || _gameSim.Pickups[i].Kind != kind ||
+                        kind == PickupKind.Xp && _gameSim.Pickups[i].MergeDelay > 0) continue;
                     count++; ordinarySlot |= i < MaxPickups;
                 }
                 if (count >= 2 && ordinarySlot) return true;
@@ -52,29 +60,30 @@ namespace VoidFall.Runtime
             return false;
         }
 
-        private bool ConsolidatePickupPair(PickupKind kind, out int freedSlot)
+        private bool ConsolidatePickupPair(PickupKind kind, out int freedSlot, bool includeFreshSlots = false)
         {
             freedSlot = -1;
             var destination = -1; var nearest = float.PositiveInfinity;
             for (var i = 0; i < _gameSim.Pickups.Length; i++)
             {
                 var pickup = _gameSim.Pickups[i];
-                if (!pickup.Active || pickup.Kind != kind) continue;
+                if (!pickup.Active || pickup.Kind != kind || kind == PickupKind.Xp && pickup.MergeDelay > 0) continue;
                 var distance = (pickup.Position - _gameSim.Player.Position).sqrMagnitude;
                 if (distance >= nearest) continue;
                 nearest = distance; destination = i;
             }
             if (destination < 0) return false;
             var farthest = -1f;
-            for (var i = 0; i < MaxPickups; i++)
+            for (var i = 0; i < (includeFreshSlots ? MaxPickupSlots : MaxPickups); i++)
             {
                 var pickup = _gameSim.Pickups[i];
-                if (i == destination || !pickup.Active || pickup.Kind != kind) continue;
+                if (i == destination || !pickup.Active || pickup.Kind != kind || kind == PickupKind.Xp && pickup.MergeDelay > 0) continue;
                 var distance = (pickup.Position - _gameSim.Player.Position).sqrMagnitude;
                 if (distance <= farthest) continue;
                 farthest = distance; freedSlot = i;
             }
-            if (freedSlot < 0 && destination < MaxPickups && _gameSim.Pickups[MaxPickups].Active && _gameSim.Pickups[MaxPickups].Kind == kind)
+            if (freedSlot < 0 && destination < MaxPickups && _gameSim.Pickups[MaxPickups].Active && _gameSim.Pickups[MaxPickups].Kind == kind &&
+                (kind != PickupKind.Xp || _gameSim.Pickups[MaxPickups].MergeDelay <= 0))
             { freedSlot = destination; destination = MaxPickups; }
             if (freedSlot < 0) return false;
             var source = _gameSim.Pickups[freedSlot];
@@ -84,7 +93,7 @@ namespace VoidFall.Runtime
             target.Pull = (target.Pull || source.Pull) && !HasWildCard(WildCardId.Greed);
             _gameSim.Pickups[destination] = target;
             _musicMagnetSlots[destination] |= _musicMagnetSlots[freedSlot];
-            RecordPickupHistory("drop_consolidated", destination, target, transferred, "capacity", _telemetryPickupIds[freedSlot]);
+            RecordPickupHistory("drop_consolidated", destination, target, transferred, includeFreshSlots ? "merge_delay_elapsed" : "capacity", _telemetryPickupIds[freedSlot]);
             source.Active = false;
             _gameSim.Pickups[freedSlot] = source;
             _musicMagnetSlots[freedSlot] = false;
@@ -92,6 +101,17 @@ namespace VoidFall.Runtime
             Hide(_pickupViews[freedSlot]);
             RefreshPickupView(destination);
             return true;
+        }
+
+        private void MergeMatureXpOverflow()
+        {
+            var count = 0;
+            foreach (var pickup in _gameSim.Pickups)
+                if (pickup.Active && pickup.Kind == PickupKind.Xp) count++;
+            // Spread a screen-clear's consolidation over frames rather than
+            // performing an unbounded quadratic pass on the collection tick.
+            for (var merged = 0; count > PrimaryXpPickupSlots + 1 && merged < 8; merged++, count--)
+                if (!ConsolidatePickupPair(PickupKind.Xp, out _, true)) break;
         }
 
         private Vector2 ConstrainLootPosition(Vector2 position)

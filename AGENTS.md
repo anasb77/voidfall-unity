@@ -66,7 +66,7 @@ changes in `Docs/Design/2026-09-12-DealerPreviewFidelity.md`; do not restore the
 original platform overlap simply to match an older screenshot. Preserve the same
 creepy ASCII face, four appearances, feature shading, moving hair, breathing,
 head/gaze motion and purchase grin. The face floats beyond the platform with
-occasional upper and lower appearances, no platform shadow, and 1.3x animation
+upper-side appearances only (owner revision September20), no platform shadow, and 1.3x animation
 speed. Keep reduced-motion support. The room heading and movement-help text
 stay removed; retain destination labels, Scraps and reachable E Browse.
 

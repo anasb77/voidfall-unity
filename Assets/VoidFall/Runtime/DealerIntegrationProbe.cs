@@ -85,12 +85,13 @@ namespace VoidFall.Runtime
             Call("StartRunInternal", true, true); Set("_paused", true);
             _runtime.ApplySettings();
             Call("OnVoidObjectiveCompleted"); Call("BeginPortalJunction"); Set("_paused", true);
-            Set("_dealerPosition", new Vector2(0, 70)); SetPlayer("Position", new Vector2(0, -210)); Set("_dealerVariation", 0);
+            if (((Vector2)Get("_dealerPosition")).y <= 0) throw new InvalidOperationException("Dealer must appear above the platform.");
+            Set("_dealerVariation", 0);
             yield return Capture("room-top");
-            Set("_dealerPosition", new Vector2(0, -300)); SetPlayer("Position", new Vector2(-180, -140)); Set("_dealerVariation", 3);
-            yield return Capture("room-bottom");
+            Set("_dealerVariation", 3);
+            yield return Capture("room-top-variation");
             // Browse from the legal platform edge, rather than teleporting outside it to the dealer anchor.
-            SetPlayer("Position", new Vector2(0, -270)); yield return Capture("room-browse");
+            SetPlayer("Position", new Vector2(0, 40)); yield return Capture("room-browse");
             Set("_partsEarned", 100); Set("_paused", false); Call("OpenDealer");
             if (!(bool)Get("_dealerOpen")) throw new InvalidOperationException("Dealer did not open.");
             yield return Capture("shop");

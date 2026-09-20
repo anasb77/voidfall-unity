@@ -357,7 +357,7 @@ artwork to `Logs/WorkshopForms`, without reading or writing a real profile.
 fragment masks and late-stock fallbacks. `Content/LegendaryRules.cs` owns the
 manual weapon timing/ranks and stable attribution IDs. Runtime `.Dealer.cs`
 extends the existing Journey junction (including single exits) with fixed stock,
-upper/lower placement, E/controller interaction, modal ownership and atomic
+upper-only placement, E/controller interaction, modal ownership and atomic
 fragment saving. Closing/reopening never regenerates the session. One offer
 can be purchased per crossing; ordinary spending uses the run wallet.
 
@@ -371,7 +371,7 @@ map preview pixels through `(x-600, 380-y)`. Existing destination sprites and Za
 Workshop artwork are presented over the shared floor; the route graph still
 owns actual destination names and colors.
 The room omits the heading and movement-help copy. A separate platform frame
-leaves space beyond the selected upper/lower edge for the hovering face, with
+leaves space beyond the upper edge for the hovering face, with
 an interaction anchor reachable from the legal walking area. The portrait has
 no platform shadow. `DealerPortraitView.AnimationSpeed` scales head/gaze,
 breathing, hair and room hover cycles by 1.3; reduced-motion settings still apply.
@@ -643,8 +643,20 @@ separate owner priorities. See `Docs/Design/2026-09-08-DirectorI-SustainedCombat
 
 ## Run exports and instrumentation ownership
 
-Loot policy v2 (`.Loot.cs`) keeps the281-slot pool bounded:256 primary XP
-positions,24 special-reserve positions and one final XP-only overflow slot.
+`Core/CollisionGrid.cs` uses capacity-bounded hashed world-cell coordinates,
+without clamping world positions. Queries retain X-then-Y cell traversal and
+insertion order within each cell. This prevents far-travelled Abyss crowds
+collapsing into a single broad-phase bucket. `Core/CameraImpulse.cs` owns
+presentation-only grouped ordinary/major impulses; `.Fx.cs` admits requests,
+`.Render.cs` applies directional time-based offsets, and unscaled Update
+advances settling. Ordinary groups never extend their envelope. Gameplay
+hitstop and the authored escape shake remain separate.
+
+Loot policy v3 (`.Loot.cs`) keeps the1305-slot pool bounded:256 primary XP
+positions,24 special-reserve positions, one legacy XP-only overflow slot and
+1024 temporary XP-only positions for newborn drops. XP has a separate two-second
+merge timer (visual Age is randomized); gems remain collectable while protected.
+Mature excess gems consolidate toward257 piles, at most eight merges per frame.
 Overflow XP merges locally or relocates the selected distant gem to the drop;
 it must not add new XP to a faraway stationary pile. Specials can reclaim a
 slot by conserving and consolidating XP/Parts, then duplicate power-up charges.
@@ -658,8 +670,9 @@ without mutating the pool before Claim. No physical map resize was made.
 `Runtime/Telemetry/RunTelemetry.cs` owns the existing schema-4 JSON summary and
 bounded asynchronous JSONL journal. `Runtime/Gameplay/VoidFallGameRuntime.Telemetry.cs`
 owns run identity/context, event helpers, one-second combat/sample observations,
-thirty-second summary checkpoints, and finalization. Frame timing version 2
-corrects FPS units and adds bounded script CPU/GC windows to existing samples;
+thirty-second summary checkpoints, and finalization. Frame timing version 3
+retains corrected FPS units and bounded script CPU/GC windows, adding simulation
+subsystem costs, fixed/frozen step counts and grouped shake intensity/duty;
 see `Docs/RunExports.md` for timing coverage and exclusions. `.Persist.cs`
 retains the silent manual export entry point; gameplay terminal export is
 independent of profile-save success. Main runtime startup distinguishes menu initialization

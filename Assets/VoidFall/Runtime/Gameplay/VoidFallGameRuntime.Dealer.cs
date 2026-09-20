@@ -40,9 +40,8 @@ namespace VoidFall.Runtime
         {
             var seed = _runSeed ^ (uint)(_completedVoids + 1) * 0x9e3779b9u;
             seed ^= seed >> 16; seed *= 0x85ebca6bu; seed ^= seed >> 13; seed *= 0xc2b2ae35u; seed ^= seed >> 16;
-            var bottom = (seed & 1) != 0;
-            _dealerPosition = new Vector2(0, bottom ? -300 : 70);
-            _gameSim.Player.Position = bottom ? new Vector2(-180, -140) : new Vector2(0, -210);
+            _dealerPosition = new Vector2(0, 70);
+            _gameSim.Player.Position = new Vector2(0, -210);
             _gameSim.Player.Velocity = Vector2.zero;
             _dealerVariation = (int)((seed >> 5) % 4);
             _dealerOpen = false;

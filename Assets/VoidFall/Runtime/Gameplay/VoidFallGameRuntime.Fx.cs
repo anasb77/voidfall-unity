@@ -243,7 +243,7 @@ namespace VoidFall.Runtime
             SpawnBlastWave(enemy.Position, radius, 0.42f, false);
             BurstFx(enemy.Position, SourceDotColor("orange"), 16, 300, 0.5f, 0.85f);
             BurstFx(enemy.Position, SourceDotColor("yellow"), 8, 220, 0.4f, 0.7f);
-            AddCameraShake(0.22f);
+            RequestCameraImpulse(0.22f, true, _gameSim.Player.Position - enemy.Position);
             _audio?.Play(ProceduralAudio.Cue.ExploderBlast, 0.86f);
 
             // Keep the source's strict circle edge and copied-array behavior.
@@ -294,11 +294,15 @@ namespace VoidFall.Runtime
         }
 
         private void AddCameraShake(float amount)
+            => RequestCameraImpulse(amount, amount >= .32f, Vector2.right);
+
+        private void RequestCameraImpulse(float amount, bool major, Vector2 direction)
         {
             if (_saveData?.settings == null || _saveData.settings.reducedMotion) return;
             var scale = Mathf.Clamp01(_saveData.settings.shake);
             if (scale <= 0 || amount <= 0) return;
-            _cameraTrauma = Mathf.Clamp01(_cameraTrauma + amount * scale);
+            _cameraImpulse.Request(amount, major, direction.x, direction.y);
+            if (major) _shakeMajorRequests++; else _shakeOrdinaryRequests++;
         }
 
         private void TriggerFreeze(float seconds)

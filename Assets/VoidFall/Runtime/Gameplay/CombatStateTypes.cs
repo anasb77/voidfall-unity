@@ -149,6 +149,7 @@ namespace VoidFall.Runtime
             public Vector2 Velocity;
             public float Value;
             public float Age;
+            public float MergeDelay;
             public float Speed;
             public PickupKind Kind;
             public bool Pull;

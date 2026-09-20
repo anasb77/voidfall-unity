@@ -54,6 +54,17 @@ namespace VoidFall.Tests.PlayMode
             Call("OpenDealer"); Set("_dealerOpenedFrame", Time.frameCount - 2);
         }
         [Test]
+        public void Every_crossing_seed_places_the_dealer_above_the_platform()
+        {
+            Crossing(); Call("CloseDealer");
+            for (uint seed = 1; seed <= 16; seed++)
+            {
+                Set("_runSeed", seed); Call("BeginDealerCrossing");
+                Assert.That(((Vector2)Get("_dealerPosition")).y, Is.EqualTo(70));
+            }
+        }
+
+        [Test]
         public void BrowseIsFreeReopeningPreservesStockAndPurchaseIsOnce()
         {
             Crossing(); var session = (DealerSession)Get("_dealerSession");

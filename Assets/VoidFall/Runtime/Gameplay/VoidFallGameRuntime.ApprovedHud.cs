@@ -162,7 +162,7 @@ namespace VoidFall.Runtime
             _pressureText.transform.SetParent(_canvas.transform, false);
             ApprovedText(_pressureText,tc,0,-7.7f,20,1.7f,1.02f);
             _pressureText.color = new Color(.68f,.72f,.73f);
-            ApprovedText(_approvedMapHint,tl,1.8f,-4.85f,27,1.25f,.9f);
+            ApprovedText(_approvedMapHint,tl,1.8f,-4.85f,27,1.25f,.63f);
             _approvedMapHint.color = new Color(.78f,.87f,.93f);
             ApprovedText(_objectiveText,tl,1.8f,-6.2f,49,4.6f,1.45f,true);
             _objectiveText.horizontalOverflow = HorizontalWrapMode.Wrap;
