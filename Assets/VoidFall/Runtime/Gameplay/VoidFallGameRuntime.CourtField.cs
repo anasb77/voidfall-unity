@@ -32,6 +32,7 @@ namespace VoidFall.Runtime
         private void ResetCourtField()
         {
             HideCourtFieldDetails();
+            ResetApprovedCourt();
             _courtFieldReady = false;
             _courtBoundaryContact = false;
             _courtFloorCycle = -1;
@@ -80,7 +81,7 @@ namespace VoidFall.Runtime
                 placed++;
             }
             RecordRunHistory("court_board_created", "monochrome-court", amount: placed, position: _monochromeBoardOrigin,
-                detail: "columns=28;rows=28;tileSize=129.6;fixedOrigin=true");
+                detail: "columns=28;rows=28;tileSize=129.6;fixedOrigin=true;cameraHeight=908;sliderPercent=60;sentinelTerritory=4x4;bossFloor=wholeColor");
         }
 
         private void SpawnCourtSentinel(CourtRook rook)
@@ -296,53 +297,26 @@ namespace VoidFall.Runtime
 
         private void StepCourtLocalFloor()
         {
+            if (!_monochromeBossEncounterActive) return;
             var cycle = Mathf.FloorToInt(_monochromeBossElapsed / 5f);
             var age = _monochromeBossElapsed - cycle * 5f;
             if (cycle != _courtFloorCycle)
             {
                 _courtFloorCycle = cycle; _courtFloorBurst = false; _courtWarnedCount = _courtArmedCount = 0;
                 System.Array.Clear(_courtArmingOrder, 0, _courtArmingOrder.Length);
-                AddCourtScope(_gameSim.Player.Position);
-                foreach (var boss in _gameSim.Bosses) if (boss.Active && IsCourtGrandmaster(boss.Id)) AddCourtScope(boss.Position);
-                for (var i = 0; i < _courtArmingOrder.Length; i++)
-                    if (_courtArmingOrder[i] == -1) _courtArmingOrder[i] = ++_courtWarnedCount;
-                var cellIds = new string[_courtWarnedCount];
-                for (var i = 0; i < _courtArmingOrder.Length; i++)
-                    if (_courtArmingOrder[i] > 0) cellIds[_courtArmingOrder[i] - 1] = (i % CourtBoardColumns) + "," + (i / CourtBoardColumns);
+                for(var y=0;y<CourtBoardRows;y++)for(var x=0;x<CourtBoardColumns;x++)
+                    if(((x+y)&1)==(_monochromeHazard.Faction==CourtFaction.White?0:1))
+                        _courtArmingOrder[y*CourtBoardColumns+x]=++_courtWarnedCount;
                 RecordRunHistory("court_floor_scope", "court-floor", instanceId: cycle + 1, amount: _courtWarnedCount,
-                    position: _monochromeBoardOrigin, options: cellIds, detail: "faction=" + _monochromeHazard.Faction + ";radiusTiles=3;armingSeconds=2;burstAt=3.4");
+                    position: _monochromeBoardOrigin, detail: "scope=whole_board;bossOnly=true;faction=" + _monochromeHazard.Faction);
             }
-            var armed = MonochromeEncounterRules.ArmedCellCount(age, _courtWarnedCount);
-            if (armed != _courtArmedCount)
-            {
-                _courtArmedCount = armed;
-                // Scope includes ordered cells; one aggregate marks completed arming, avoiding per-frame history.
-                if (armed == _courtWarnedCount) RecordRunHistory("court_floor_arming", "court-floor", instanceId: cycle + 1, amount: armed, position: _monochromeBoardOrigin, durationSeconds: 2f);
-            }
+            _courtArmedCount = _courtWarnedCount;
             if (_courtFloorBurst || age < (float)MonochromeEncounterRules.HazardWarningSeconds) return;
             _courtFloorBurst = true;
-            var previousFaction = _damageFaction; _damageFaction = CombatFaction.Destroyer;
-            var enemyHits = 0; var bossHits = 0; var playerHit = false;
-            var firstNewbornSpawnId = _nextEnemyId;
-            try
-            {
-                if (CourtPositionWasWarned(_gameSim.Player.Position)) { DamagePlayer(22f, Vector2.zero); playerHit = true; }
-                // Snapshot slot identities so newborn sacrifice chasers cannot be hit by the same burst.
-                for (var i = 0; i < _gameSim.Enemies.Length; i++)
-                {
-                    var enemy = _gameSim.Enemies[i];
-                    if (!enemy.Active || enemy.SpawnId >= firstNewbornSpawnId || !CourtPositionWasWarned(enemy.Position)) continue;
-                    _damageFaction = FactionOf(enemy) == CombatFaction.Destroyer ? CombatFaction.Enemy : CombatFaction.Destroyer;
-                    ApplyEnemyDamage(i, IsCourtSentinel(enemy) ? 120f : 60f, Vector2.zero, 0f, false); enemyHits++;
-                }
-                _damageFaction = CombatFaction.Destroyer;
-                for (var i = 0; i < _gameSim.Bosses.Length; i++)
-                    if (_gameSim.Bosses[i].Active && CourtPositionWasWarned(_gameSim.Bosses[i].Position))
-                    { ApplyBossDamage(i, 60f); bossHits++; }
-            }
-            finally { _damageFaction = previousFaction; }
-            RecordRunHistory("court_floor_burst", "court-floor", instanceId: cycle + 1, amount: _courtWarnedCount, position: _monochromeBoardOrigin,
-                detail: "enemyHits=" + enemyHits + ";bossHits=" + bossHits + ";playerHit=" + playerHit);
+            var hit = CourtPositionWasWarned(_gameSim.Player.Position);
+            if(hit)DamagePlayer(22f,Vector2.zero);
+            RecordRunHistory("court_floor_burst", "court-floor", instanceId: cycle+1,amount:_courtWarnedCount,
+                position:_monochromeBoardOrigin,detail:"bossOnly=true;playerHit="+hit);
         }
 
         private bool CourtPositionWasWarned(Vector2 position)
@@ -365,6 +339,7 @@ namespace VoidFall.Runtime
         private void RenderCourtFieldDetails()
         {
             RenderCourtGrandmasterAim();
+            RenderApprovedTerritories();
             foreach (var rook in _courtRooks)
             {
                 if (rook == null || (!rook.Fallen && rook.SpawnId == 0)) continue;

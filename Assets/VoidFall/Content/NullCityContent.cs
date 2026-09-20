@@ -67,6 +67,16 @@ namespace VoidFall.Core
             Enemy("null-suppressor", "Suppressor", 170, 35, 12, 21, 7, "#4088ff", -1,
                 preferredDistance: 260, attackCooldown: 5, telegraphSeconds: 1.35,
                 projectileSpeed: 250),
+            Enemy("null-prism-lancer", "Prism Lancer", 120, 39, 8, 23, 4, "#90ede7", 0),
+            Enemy("null-orbit-warden", "Orbit Warden", 150, 48, 8, 27, 5, "#b8b5ff", 0),
+            Enemy("null-phase-skimmer", "Phase Skimmer", 110, 58, 8, 24, 4, "#f19bdf", 0),
+            Enemy("null-grav-loom", "Grav Loom", 190, 29, 8, 29, 6, "#ffd19b", 0),
+            Enemy("null-relay-tender", "Relay Tender", 130, 43, 8, 25, 4, "#95d6ff", 0),
+            Enemy("null-grid-walker", "Grid Walker", 48, 64, 8, 20, 2, "#88ded3", 0),
+            Enemy("null-needle-runner", "Needle Runner", 36, 88, 8, 17, 2, "#bacfff", 0),
+            Enemy("null-arc-hound", "Arc Hound", 58, 74, 8, 21, 2, "#e8a4d6", 0),
+            Enemy("null-ram-crawler", "Ram Crawler", 90, 46, 8, 27, 3, "#dfc697", 0),
+            Enemy("null-latch-drone", "Latch Drone", 44, 70, 8, 20, 2, "#aeaef1", 0),
         };
 
         public static readonly BossDefinition Motherload = new BossDefinition

@@ -113,7 +113,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(history.Any(e => e.kind == "director_elite_cadence" && e.id == "elite" && e.reason == "admitted"), Is.True);
             Assert.That(history.Any(e => e.kind == "director_repopulation" && e.reason == "breather"), Is.True);
             Assert.That(history.Any(e => e.kind == "director_repopulation" && e.reason == "batch" && e.amount > 0), Is.True);
-            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(6));
+            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(7));
         }
 
         [Test]
@@ -200,7 +200,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(ReadReport().samples.Last().viewportWidth, Is.GreaterThan(0));
             Assert.That(ReadReport().samples.Any(s => Math.Abs(s.frameMs - 20) < .001 && s.fps == 50), Is.True,
                 "The explicit 0.02 second sample must export 50 FPS; finalization also appends an EMA sample.");
-            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(6));
+            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(7));
             Assert.That(ReadReport().samples.Last().specialAttackLimit, Is.EqualTo(2));
         }
 
@@ -288,7 +288,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(report.context.baseWeaponSlots, Is.EqualTo(4));
             Assert.That(report.context.expandedWeaponSlots, Is.EqualTo(5));
             Assert.That(report.context.maxedWeaponsForExtraSlot, Is.EqualTo(2));
-            Assert.That(report.context.arsenalBalanceVersion, Is.EqualTo("2026-09-08-mine-control-v2"));
+            Assert.That(report.context.arsenalBalanceVersion, Is.EqualTo("2026-09-20-approved-weapons-v1"));
             Assert.That(report.context.incidentBalanceVersion, Is.EqualTo(2));
             var applied = ReadHistory().Single(e => e.kind == "upgrade_applied");
             Assert.That(applied.progress.weaponSlotLimit, Is.EqualTo(5));
@@ -421,7 +421,7 @@ namespace VoidFall.Tests.PlayMode
         [TestCase(ArenaId.Hydra, "hydra", 1.15f)]
         [TestCase(ArenaId.NullCity, "null-city", 1f)]
         [TestCase(ArenaId.NullCity, "null-city", 1.15f)]
-        public void Maps_share_gameplay_framing_player_size_and_export_camera_context(ArenaId arena, string id, float zoom)
+        public void Maps_use_approved_framing_normal_player_size_and_export_camera_context(ArenaId arena, string id, float zoom)
         {
             var normalPlayerScale = ((SpriteRenderer)Get(_runtime, "_playerView")).transform.localScale;
             Set(_runtime, "_voidRoute", new VoidRouteRun(new[] { new VoidRouteNode(id, id, 0, 1, "", "", "", "") }, id));
@@ -435,7 +435,8 @@ namespace VoidFall.Tests.PlayMode
                 zoomField.SetValue(null, zoom);
                 Call("UpdateGameplayCameraViewport");
                 var camera = (Camera)Get(_runtime, "_camera");
-                Assert.That(camera.orthographicSize, Is.EqualTo(486f * zoom).Within(.001f));
+                var cameraHeight = arena == ArenaId.NullCity ? 860f : 908f;
+                Assert.That(camera.orthographicSize, Is.EqualTo(cameraHeight * .5f * zoom).Within(.001f));
                 Call("Render");
                 Assert.That(((SpriteRenderer)Get(_runtime, "_playerView")).transform.localScale, Is.EqualTo(normalPlayerScale));
                 Set(_runtime, "_cameraFollowPosition", new Vector2(9000f, -9000f));
@@ -450,23 +451,50 @@ namespace VoidFall.Tests.PlayMode
                 }
                 if (arena == ArenaId.NullCity)
                 {
-                    var travel = Vector2.Max(Vector2.zero, new Vector2(800, 450) - half);
+                    var travel = Vector2.Max(Vector2.zero, new Vector2(1280, 720) - half);
                     Assert.That(centre.x, Is.EqualTo(travel.x).Within(.001f));
                     Assert.That(centre.y, Is.EqualTo(-travel.y).Within(.001f));
-                    Assert.That(map, Is.EqualTo(new Vector2(1240, 526)));
+                    Assert.That(map.x, Is.EqualTo(1984f).Within(.001f));
+                    Assert.That(map.y, Is.EqualTo(841.6f).Within(.001f));
                 }
                 Call("RecordTelemetrySample", .02f);
                 Call("FinishRunExport", "test_finished");
                 var report = ReadReport();
-                Assert.That(report.context.mapPresentationVersion, Is.EqualTo(2));
+                Assert.That(report.context.mapPresentationVersion, Is.EqualTo(3));
                 var sample = report.samples.Last();
-                Assert.That(sample.viewportHeight, Is.EqualTo(972f * zoom).Within(.01f));
+                Assert.That(sample.viewportHeight, Is.EqualTo(cameraHeight * zoom).Within(.01f));
                 Assert.That(sample.cameraX, Is.EqualTo(centre.x).Within(.01f));
                 Assert.That(sample.cameraY, Is.EqualTo(centre.y).Within(.01f));
                 Assert.That(sample.arenaWidth, Is.EqualTo(map.x).Within(.01f));
                 Assert.That(ReadHistory().Last(e => e.kind == "sample").sample.cameraX, Is.EqualTo(sample.cameraX));
             }
             finally { zoomField.SetValue(null, previousZoom); }
+        }
+
+        [Test]
+        public void Director_momentum_warning_admission_opportunity_and_rate_are_exported()
+        {
+            Set(_runtime, "_time", 270f);
+            ((VoidObjectiveTracker)Get(_runtime, "_objectives")).Step(270);
+            Call("TryScheduleMomentumBeat", 270f);
+            ((CombatEncounterClock)Get(_runtime, "_encounter")).Step(2, 0, false, true);
+            Call("DeploySustainedBeat");
+            Call("CancelEncounterDirector");
+            Set(_runtime, "_nextIncidentOpportunity", 0f);
+            Call("StepMajorIncidents", .016f);
+            Set(_runtime, "_spawnTimer", 0f);
+            Call("UpdateSpawns", .016f);
+            Call("FinishRunExport", "test_finished");
+            var history = ReadHistory();
+            var warning = history.Single(e => e.kind == "director_signature" && e.reason == "warning");
+            var deployment = history.Single(e => e.kind == "director_signature" && e.reason == "deployed");
+            Assert.That(warning.id, Is.EqualTo("elite_escort"));
+            Assert.That(warning.durationSeconds, Is.EqualTo(2));
+            Assert.That(deployment.instanceId, Is.EqualTo(warning.instanceId));
+            Assert.That(deployment.amount, Is.EqualTo(31));
+            Assert.That(history.Any(e => e.kind == "director_incident_opportunity" && e.reason == "incident_started"), Is.True);
+            Assert.That(history.Any(e => e.kind == "director_arrival_budget" && e.detail.Contains("interval=")), Is.True);
+            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(7));
         }
 
         private UnityTelemetryReport ReadReport() => JsonUtility.FromJson<UnityTelemetryReport>(

@@ -34,7 +34,7 @@ namespace VoidFall.Tests.Editor
             Assert.That(byKey, Does.ContainKey("projectile-frame|pistol|31"));
             Assert.That(byKey, Does.ContainKey("projectile-frame|pulse|31"));
             Assert.That(byKey, Does.ContainKey("projectile-frame|pulse-bright|31"));
-            for (var key = 0; key < 49; key++) Assert.That(byKey, Does.ContainKey("arsenal|" + key));
+            for (var key = 0; key < 63; key++) Assert.That(byKey, Does.ContainKey("arsenal|" + key));
             foreach (var id in new[] { "swarmer", "spiky", "shuriken" })
                 Assert.That(byKey.Keys.Any(k => k.StartsWith("enemy|" + id + "|")), Is.True, id + " needs baked art");
 
@@ -72,6 +72,14 @@ namespace VoidFall.Tests.Editor
                         Assert.That(sprite, Is.SameAs(catalog.Entries.Single(e => e.Key == key).Sprite));
                     }
             var face = factory.GetMethod("ArsenalClockFace", flags).Invoke(null, null);
+            var approved = factory.GetMethod("ApprovedProjectile", flags);
+            foreach (var id in new[] { "pistol", "railgun" })
+                for (var rank = 1; rank <= 7; rank++)
+                {
+                    var sprite = approved.Invoke(null, new object[] { id, Mathf.Min(rank, 6), rank == 7 });
+                    var key = 49 + (id == "railgun" ? 7 : 0) + rank - 1;
+                    Assert.That(sprite, Is.SameAs(catalog.Entries.Single(e => e.Key == "arsenal|" + key).Sprite));
+                }
             Assert.That(face, Is.SameAs(catalog.Entries.Single(e => e.Key == "arsenal|48").Sprite));
             TestContext.WriteLine("Prepared arsenal lookup (49 sprites, including reflection/assertions): " + watch.Elapsed.TotalMilliseconds + " ms");
             factory.GetMethod("DestroyArsenalSprites", flags).Invoke(null, null);
@@ -105,15 +113,17 @@ namespace VoidFall.Tests.Editor
         [TestCase(1)] // Summons
         [TestCase(2)] // Clock
         [TestCase(3)] // Boomerang
+        [TestCase(4)] // Approved Pulse Pistol, including evolution
+        [TestCase(5)] // Approved Railgun, including evolution
         public void Every_arsenal_rank_has_distinct_authored_pixels(int weapon)
         {
             // Production textures intentionally have no duplicate CPU pixel buffer.
             // Inspect the baked source PNG here, rather than making shipped assets readable.
             var catalog = Resources.Load<ProceduralSpriteCatalog>(ResourcePath);
             var previous = 0UL;
-            for (var rank = 1; rank <= 6; rank++)
+            for (var rank = 1; rank <= (weapon >= 4 ? 7 : 6); rank++)
             {
-                var key = "arsenal|" + (weapon * 12 + (rank - 1) * 2);
+                var key = "arsenal|" + (weapon >= 4 ? 49 + (weapon - 4) * 7 + rank - 1 : weapon * 12 + (rank - 1) * 2);
                 var sprite = catalog.Entries.Single(e => e.Key == key).Sprite;
                 var decoded = new Texture2D(2, 2);
                 try

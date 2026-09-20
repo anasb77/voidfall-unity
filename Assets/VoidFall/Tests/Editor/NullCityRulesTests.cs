@@ -8,12 +8,12 @@ namespace VoidFall.Tests.Editor
     public sealed class NullCityRulesTests
     {
         [Test]
-        public void Authored_floor_retains_native_scale_and_coordinates_round_trip()
+        public void Expanded_layout_retains_native_actor_scale_and_coordinates_round_trip()
         {
-            Assert.That(NullCityRules.WorldWidth, Is.EqualTo(1600));
-            Assert.That(NullCityRules.WorldHeight, Is.EqualTo(900));
-            Assert.That(NullCityRules.WorldX(NullCityRules.ArenaRight) - NullCityRules.WorldX(NullCityRules.ArenaLeft), Is.EqualTo(1240));
-            Assert.That(NullCityRules.WorldY(NullCityRules.ArenaTop) - NullCityRules.WorldY(NullCityRules.ArenaBottom), Is.EqualTo(526));
+            Assert.That(NullCityRules.WorldWidth, Is.EqualTo(2560));
+            Assert.That(NullCityRules.WorldHeight, Is.EqualTo(1440));
+            Assert.That(NullCityRules.WorldX(NullCityRules.ArenaRight) - NullCityRules.WorldX(NullCityRules.ArenaLeft), Is.EqualTo(1984).Within(.001));
+            Assert.That(NullCityRules.WorldY(NullCityRules.ArenaTop) - NullCityRules.WorldY(NullCityRules.ArenaBottom), Is.EqualTo(841.6).Within(.001));
             Assert.That(NullCityRules.CanvasX(NullCityRules.WorldX(1172.5)), Is.EqualTo(1172.5));
             Assert.That(NullCityRules.CanvasY(NullCityRules.WorldY(107.5)), Is.EqualTo(107.5));
         }
@@ -69,26 +69,26 @@ namespace VoidFall.Tests.Editor
             var third = NullCityRules.PurgeAt(34, false);
             var fourth = NullCityRules.PurgeAt(40, false);
 
-            AssertPurge(first, 0, 180, 311, 1240, 68);
-            AssertPurge(second, 1, 180, 558, 1240, 68);
-            AssertPurge(third, 2, 956, 218, 54, 527);
-            AssertPurge(fourth, 3, 488, 218, 54, 527);
+            AssertPurge(first, 0, 180, 345-34/NullCityRules.WorldScale, 1240, 68/NullCityRules.WorldScale);
+            AssertPurge(second, 1, 180, 592-34/NullCityRules.WorldScale, 1240, 68/NullCityRules.WorldScale);
+            AssertPurge(third, 2, 983-27/NullCityRules.WorldScale, 218, 54/NullCityRules.WorldScale, 527);
+            AssertPurge(fourth, 3, 515-27/NullCityRules.WorldScale, 218, 54/NullCityRules.WorldScale, 527);
         }
 
         [Test]
         public void Double_vertical_lane_alternates_each_normal_lockdown_pass()
         {
-            Assert.That(NullCityRules.PurgeAt(34, false).X, Is.EqualTo(956));
-            Assert.That(NullCityRules.PurgeAt(80, false).X, Is.EqualTo(1030));
-            Assert.That(NullCityRules.PurgeAt(126, false).X, Is.EqualTo(956));
+            Assert.That(NullCityRules.PurgeAt(34, false).X, Is.EqualTo(983-27/NullCityRules.WorldScale).Within(.001));
+            Assert.That(NullCityRules.PurgeAt(80, false).X, Is.EqualTo(1057-27/NullCityRules.WorldScale).Within(.001));
+            Assert.That(NullCityRules.PurgeAt(126, false).X, Is.EqualTo(983-27/NullCityRules.WorldScale).Within(.001));
         }
 
         [Test]
         public void Double_vertical_lane_alternates_each_boss_lockdown_pass()
         {
-            Assert.That(NullCityRules.PurgeAt(12, true).X, Is.EqualTo(956));
-            Assert.That(NullCityRules.PurgeAt(36, true).X, Is.EqualTo(1030));
-            Assert.That(NullCityRules.PurgeAt(60, true).X, Is.EqualTo(956));
+            Assert.That(NullCityRules.PurgeAt(12, true).X, Is.EqualTo(983-27/NullCityRules.WorldScale).Within(.001));
+            Assert.That(NullCityRules.PurgeAt(36, true).X, Is.EqualTo(1057-27/NullCityRules.WorldScale).Within(.001));
+            Assert.That(NullCityRules.PurgeAt(60, true).X, Is.EqualTo(983-27/NullCityRules.WorldScale).Within(.001));
         }
 
         [Test]
@@ -159,7 +159,7 @@ namespace VoidFall.Tests.Editor
             var enemyIds = NullCityContent.Enemies.Select(enemy => enemy.Id).ToArray();
 
             Assert.That(NullCityContent.Arena.Id, Is.EqualTo(NullCityContent.StableId));
-            Assert.That(enemyIds, Is.EqualTo(new[]
+            Assert.That(enemyIds.Take(12), Is.EqualTo(new[]
             {
                 "null-patrol", "null-enforcer", "null-sentinel", "null-crawler",
                 "null-volatile", "null-gunship", "null-mech", "null-broodmother",
@@ -175,7 +175,7 @@ namespace VoidFall.Tests.Editor
         public void Catalogue_preserves_approved_prototype_dimensions_and_normal_damage()
         {
             Assert.That(
-                NullCityContent.Enemies.Select(enemy => (enemy.Health, enemy.Speed, enemy.Radius)),
+                NullCityContent.Enemies.Take(12).Select(enemy => (enemy.Health, enemy.Speed, enemy.Radius)),
                 Is.EqualTo(new[]
                 {
                     (44d, 70d, 13d), (175d, 32d, 22d), (85d, 20d, 17d),
@@ -214,10 +214,10 @@ namespace VoidFall.Tests.Editor
         {
             Assert.That(purge.Visible, Is.True);
             Assert.That(purge.Lane, Is.EqualTo(lane));
-            Assert.That(purge.X, Is.EqualTo(x));
-            Assert.That(purge.Y, Is.EqualTo(y));
-            Assert.That(purge.Width, Is.EqualTo(width));
-            Assert.That(purge.Height, Is.EqualTo(height));
+            Assert.That(purge.X, Is.EqualTo(x).Within(.001));
+            Assert.That(purge.Y, Is.EqualTo(y).Within(.001));
+            Assert.That(purge.Width, Is.EqualTo(width).Within(.001));
+            Assert.That(purge.Height, Is.EqualTo(height).Within(.001));
         }
     }
 }

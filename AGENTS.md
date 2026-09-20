@@ -49,6 +49,15 @@ The browser studies (evolving bodies, specialized frames, modules, Iris,
 Instinct and Fragments) were exploration, not approved replacement designs.
 Do not infer additional Zack lore or a recovery/corruption arc from those studies.
 
+## Approved weapon studies
+
+Weapon-study approval (September20): the owner locked the Summons, Mines and
+Clock iterations plus Pulse Pistol and Railgun rank/evolution projectile art
+for later implementation. The exact scope and frozen browser references are in
+`Docs/Design/2026-09-20-Weapon-Approvals.md`. The other projectile proposals and
+all eight first-round new weapon concepts are rejected. New concepts remain
+browser exploration; do not infer their approval from prototype presence.
+
 ## Approved dealer and legendary direction
 
 The dealer studies in `../Prototypes/dealer-travel` and `../Prototypes/dealer-shop`
@@ -158,7 +167,7 @@ network uploads, per-hit file writes or unbounded queues. Keep exports outside
 Assets, in `RunExports` beside the player; isolate automated tests. If capture
 is incomplete, report counters/errors explicitly rather than hiding losses.
 
-Director I version 6 is implemented with a 750-actor ceiling; owner difficulty
+Director I version 7 is implemented with a 750-actor ceiling; owner difficulty
 tuning remains a playtest decision. Its live path is `.DirectorI.cs`, not the
 legacy 64/128/192 profile bands. See the sustained-combat design and validation
 documents in `Docs/Design/`. Next owner priorities are map-size correction,
@@ -173,32 +182,38 @@ Read `Docs/Design/2026-09-08-LootReachability-SixMinutes.md` before changing
 pickup allocation/iteration or time-dependent arena/director rules. Pickup
 generation snapshots must prevent same-tick collection of newborn rewards.
 
-## Approved map integration (September12)
+## Approved map integration (September20)
 
-September19 owner correction supersedes the browser-derived sizing below:
-Court, Hydra I and Null City use the shared gameplay camera and normal Zack
-rendering size. Preserve the existing Null City artwork at its original1×
-world scale (1600×900 art,1240×526 playable floor); geometry/props/hazard radii
-share that conversion. Do not compensate by changing combat speeds or health.
-Court and City camera framing stays inside the authored surface where possible;
-a surface smaller than the viewport stays centred. The existing city sign
-switches WELCOME TO NULL CITY / INTRUDER DETECTED. Active laser roads shake,
-not the camera; reduced motion disables that shake.
+The owner approved the final browser map study for native implementation.
+`Docs/Design/2026-09-20-Approved-Map-Integration.md` is the detailed scope;
+`Tools/ApprovedMaps` freezes the exact art and its reproducible exporter.
+Null City uses slider50% (860 vertical world units); Hydra and Court use60%
+(908 units). Preserve normal Zack size and the Spatial Awareness zoom bonus.
+Court and City cameras remain bounded to their authored surfaces.
 
-Court is a single fixed neutral board, with129.6-unit tiles, local snapshotted
-hazards sequentially armed over2s, one3.4s burst, and native mortar reticles.
-Keep the existing chess roster and Grandmaster designs. Living sentinel rooks
-are stationary/contact-only,100k–150kHP,targetable; fallen rooks have X eyes.
-Show bars without numeric HP. Kill notification is exactly “Sacificed the RoooK !”
-and5–6 roster-one children are queued idempotently. Preserve world boundaries
-and viewport-aware recycling; do not restore scrolling split-field wallpaper.
+Null City retains its original architecture and mechanics with a1.6× expanded
+layout (2560×1440 art,1984×841.6 floor). Positions expand; props, enemies and
+combat radii keep native size. Five specialists and five ordinary pursuers
+supplement the original roster. Laser roads shake locally, respecting reduced
+motion; transit clips between both portals in play and menu previews.
 
-Hydra I is360s survival without gene nodes/bone detail, with fast downward
-original glyph animation. Its ten spawn-identity-keyed hybrids/Viruses are in
-HydraPopulationRules and runtime HydraPopulation. Hydra I uses the existing
-collapse/swap/settle flow to the boss in the SAME route visit. **Hydra II keeps
-the old Unity map, authored art, boss behavior and health rules unchanged.**
-Never copy the browser's experimental HydraII camera or replacement lair.
+Court is one fixed28×28 board of129.6-unit soft-white/black tiles. Nineteen
+forms preserve source Pawn/Bishop/Queen/Rook I designs. Knights dash in an L;
+three large armored warhorses carry Pawn III, pursue at1.2× pawn speed and
+independently block20% of player hits. Sentinels keep their tracking eye with
+three small tooth-filled mouths and100k–150kHP. Each owns a fixed4×4 survival
+territory:3s warning,0.45s burst every14s, nonstacking24-point allied shield.
+Whole-color board attacks occur only during the twin-boss fight; their army
+is immune. Preserve fallen X eyes, HP bars without numbers, exactly
+“Sacificed the RoooK !”, and idempotently queued5–6 roster-one children.
+
+Hydra I's dark glyph floor is stationary. Its ten original hybrid/Virus
+populations remain active alongside five insects. Three hives each request
+five offspring every3s (three original, two insects); destroying one stops
+its broods and releases one of two guardians. Full pools defer births.
+Preserve the SAME-visit collapse/swap/settle transition and Hydra II's original
+Unity map, authored boss, behavior and health rules. Do not restore the
+rejected browser replacement lair or downward floor scrolling.
 
 ## Verification commands
 

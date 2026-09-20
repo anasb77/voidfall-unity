@@ -14,7 +14,7 @@ namespace VoidFall.Runtime
             ((_objectives?.Objective is MultiPhaseObjective phases && phases.PhaseIndex == 0) ||
              (_hydraPhaseTransition && !_riftTransitionSwapped));
 
-        private float HydraSurvivalGlyphOffset => -_hydraSurvivalElapsed * 240f;
+        private float HydraSurvivalGlyphOffset => 0f;
 
         private void BeginHydraPhaseTransition()
         {

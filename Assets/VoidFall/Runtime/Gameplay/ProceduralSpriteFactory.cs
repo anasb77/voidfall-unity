@@ -83,7 +83,7 @@ namespace VoidFall.Runtime
             switch (parts[0])
             {
                 case "arsenal":
-                    if (!TryIndex(parts, 1, 49, out var arsenal)) return false;
+                    if (!TryIndex(parts, 1, 63, out var arsenal)) return false;
                     ArsenalSprites[arsenal] = sprite;
                     PreparedArsenalSprites.Add(sprite);
                     return true;

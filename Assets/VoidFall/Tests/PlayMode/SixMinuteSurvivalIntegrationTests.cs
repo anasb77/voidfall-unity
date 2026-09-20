@@ -43,9 +43,9 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(Property("LocalDirectorSurvivalSeconds"), Is.EqualTo(seconds).Within(.001));
         }
 
-        [TestCase(329f, true)]
-        [TestCase(330f, false)]
-        public void New_beats_stop_only_in_the_last_thirty_seconds(float seconds, bool begins)
+        [TestCase(335f, true)]
+        [TestCase(336f, false)]
+        public void New_beats_reserve_twenty_four_seconds_to_resolve_before_boss(float seconds, bool begins)
         {
             Tracker.Step(seconds);
             Set("_time", seconds);
@@ -54,9 +54,10 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(_runtime.CurrentEncounterPhase == "Flow", Is.EqualTo(!begins));
         }
 
-        [TestCase(344f, 6)]
-        [TestCase(345f, 1)]
-        public void Ambient_arrivals_soften_only_in_the_last_fifteen_seconds(float seconds, int count)
+        [TestCase(345f, 6)]
+        [TestCase(351f, 6)]
+        [TestCase(352f, 1)]
+        public void Ambient_arrivals_soften_only_in_the_last_eight_seconds(float seconds, int count)
         {
             Tracker.Step(seconds);
             Set("_time", seconds);
@@ -160,10 +161,12 @@ namespace VoidFall.Tests.PlayMode
         {
             Invoke("SeedDiagnosticDirectorProgress", 360f);
             var pressure = (RunPressureState)Get("_runPressure");
-            Assert.That(pressure.PressureHundredths, Is.EqualTo(40));
+            Assert.That(pressure.ProgressionPressureHundredths, Is.EqualTo(40));
+            Assert.That(pressure.PressureHundredths, Is.EqualTo(126)); // Authored 1x opening, same stage credit.
             Assert.That(pressure.CreditedProgressSeconds, Is.EqualTo(300));
             Invoke("SeedDiagnosticDirectorProgress", 420f);
-            Assert.That(pressure.PressureHundredths, Is.EqualTo(50));
+            Assert.That(pressure.ProgressionPressureHundredths, Is.EqualTo(50));
+            Assert.That(pressure.PressureHundredths, Is.EqualTo(133));
             Assert.That(pressure.CreditedProgressSeconds, Is.EqualTo(360));
         }
 

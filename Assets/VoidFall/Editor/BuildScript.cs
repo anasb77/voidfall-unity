@@ -67,11 +67,17 @@ namespace VoidFall.EditorTools
                     "Clock: rank III adds a small seconds attack hand\n" +
                     "Boomerang: 35% larger projectile/contact radius (0.675 scale)\n" +
                     "Mines: slower placement, 0.9s floor, 1.2s freeze / 1.2s recovery\n" +
+                    "Approved weapons: 0.14s armed mine chains; independent summons with 700-unit return leash\n" +
+                    "Approved artwork: Pulse Pistol/Railgun ranks I-VI and evolution; Clock numerals 10% lower opacity\n" +
                     "Incidents: smaller stronger Black Hole and revised Destroyer opening\n" +
-                    "Maps: shared gameplay framing / native-scale Null City / bounded Court camera / Hydra I populations and teleport\n" +
+                    "Maps v3: Null City 50% (860 units), Hydra/Court 60% (908 units); normal Zack scale\n" +
+                    "Null City: 1.6x expanded layout, native-size props, ten new enemies, portal-clipped transit\n" +
+                    "Hydra: stationary floor, mixed hive broods, five insects and two guardians\n" +
+                    "Court: nineteen forms, mounted Pawn III warhorses, L-dash knights, 4x4 Sentinel territories\n" +
                     "Hydra II: original Unity map and boss encounter preserved\n" +
                     "Legacy restoration: " + VoidFall.Core.LegacyRestorationRules.Version + "\n" +
-                    "Director I v6: restored elite cadence; short post-clear refill; growth shoves and readable HUD/menu content\n" +
+                    "Director I v7: later-void momentum; late-Abyss elite escort and rusher flank; bounded per-void incident opportunities\n" +
+                    "Early roster: Shuriken eligible at 30s; Spiky at 50s; three-enemy introductions and learning grace\n" +
                     "HUD: approved study 02 at 66%, bundled Chakra Petch, custom arsenal/passive/manual slots\n" +
                     "Damage numbers: Chakra Petch Bold; prepared arsenal sprites; frame timing telemetry v2\n" +
                     "Pressure starts at 1x; Spiky 19.5/58.5 radius every 0.5s, 4x raster resolution; Shuriken spin 14 rad/s\n" +

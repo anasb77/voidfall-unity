@@ -78,6 +78,7 @@ namespace VoidFall.Runtime
         private void ResetMonochromeEncounterState()
         {
             ResetCourtField();
+            ResetApprovedCourt();
             _monochromeBossEncounterActive = false;
             _monochromeBossSpawnedForVoid = false;
             _courtBlackBossSlot = -1;
@@ -183,6 +184,7 @@ namespace VoidFall.Runtime
             if (!CurrentVoidIsMonochrome) return;
             EnsureCourtField();
             DrainCourtSacrifices();
+            StepApprovedCourt(dt);
             if (!_monochromeBossEncounterActive) _monochromeSurvivalElapsed += Mathf.Max(0f, dt);
         }
 
@@ -193,7 +195,7 @@ namespace VoidFall.Runtime
             if (_monochromeSpawnTimer > 0f || ActiveEnemies() >= DirectorRules.ActiveEnemyCap(_time, 0)) return;
             _monochromeSpawnTimer = Mathf.Max(0.32f, 0.76f - _monochromeSurvivalElapsed * 0.0012f);
 
-            var id = MonochromeRuntimeRules.NextSpawnId(_gameSim.Rng.Next());
+            var id = SelectApprovedCourtSpawn();
             var faction = (_monochromeSpawnSequence++ & 1) == 0
                 ? CourtFaction.Black
                 : CourtFaction.White;
@@ -215,9 +217,11 @@ namespace VoidFall.Runtime
                     : Mathf.Abs(enemy.Seed) + 1f;
                 enemy.AttackCooldown = 0.8f + (float)_gameSim.Rng.Next() * 1.2f;
                 enemy.Spin *= 0.3f;
+                if(ApprovedMapContent.CourtType(id)==0)enemy.Position=CourtSpawnPosition(new Vector2(x,y+96));
                 _gameSim.Enemies[index] = enemy;
                 break;
             }
+            if(ApprovedMapContent.CourtType(id)==0)SpawnApprovedPawnFormation(id,new Vector2(x,y),faction);
         }
 
         private void UpdateMonochromeEnemy(
@@ -227,7 +231,7 @@ namespace VoidFall.Runtime
             Vector2 direction)
         {
             if (IsCourtSentinel(enemy)) { enemy.Velocity = Vector2.zero; enemy.Knockback = Vector2.zero; enemy.Rotation = 0f; return; }
-            switch (enemy.Id)
+            switch (ApprovedCourtBaseId(enemy.Id))
             {
                 case "court-rook": UpdateCourtRook(ref enemy, dt, distance, direction); break;
                 case "court-bishop": UpdateCourtBishop(ref enemy, dt, distance, direction); break;
@@ -507,7 +511,7 @@ namespace VoidFall.Runtime
 
         private void RenderMonochromePresentation()
         {
-            if (_arenaId != ArenaId.MonochromeCourt) { HideMonochromeBoard(); HideCourtFieldDetails(); return; }
+            if (_arenaId != ArenaId.MonochromeCourt) { HideMonochromeBoard(); HideCourtFieldDetails(); RenderApprovedTerritories(); return; }
             SetupMonochromePresentation();
             if (!_courtFieldReady) return;
             RenderCourtFieldDetails();
@@ -519,11 +523,13 @@ namespace VoidFall.Runtime
                 var tile = _courtBoardTiles[index];
                 tile.transform.position = CourtCellCentre(column, row);
                 tile.transform.localScale = new Vector3(_monochromeBoardTileSize.x, _monochromeBoardTileSize.y, 1f);
-                tile.color = ((row + column) & 1) == 0 ? new Color(165f/255f, 165f/255f, 165f/255f, 1f) : new Color(32f/255f, 32f/255f, 32f/255f, 1f);
+                tile.color = ((row + column) & 1) == 0 ? new Color(195f/255f, 197f/255f, 191f/255f, 1f) : new Color(22f/255f, 29f/255f, 36f/255f, 1f);
                 _courtTileProperties.Clear();
                 var armed = CourtCellIsArmed(column, row);
-                _courtTileProperties.SetFloat("_HazardStage", armed ? (_monochromeHazard.Stage == CourtHazardStage.Burning ? 2f : 1f) : 0f);
-                _courtTileProperties.SetFloat("_Pulse", reducedMotion ? .55f : .5f + .5f * Mathf.Sin(_monochromeBossElapsed * 8f));
+                _courtTileProperties.SetFloat("_HazardStage", _monochromeBossEncounterActive ? (armed ? (_monochromeHazard.Stage == CourtHazardStage.Burning ? 2f : 1f) : 0f) : ApprovedCourtCellStage(column, row));
+                _courtTileProperties.SetFloat("_Pulse", reducedMotion ? .55f : .5f + .5f * Mathf.Sin((_monochromeBossEncounterActive ? _monochromeBossElapsed : _monochromeSurvivalElapsed) * 16f));
+                _courtTileProperties.SetFloat("_ReducedMotion", reducedMotion ? 1f : 0f);
+                _courtTileProperties.SetFloat("_BurstProgress", ApprovedCourtBurstProgress(column,row));
                 tile.SetPropertyBlock(_courtTileProperties);
                 tile.enabled = true;
             }

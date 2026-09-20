@@ -173,9 +173,19 @@ namespace VoidFall.Runtime
         {
             if (_time < _rosterIntroductionReadyAt || _arrivalGrace > 0 || LocalDirectorSurvivalSeconds < 15 || _pressureReliefTimer > 0 ||
                 _encounter.Phase != CombatEncounterPhase.Flow || _majorIncident.Kind != MajorIncidentKind.None || DirectorSurvivalSecondsRemaining < 35) return false;
+            // Safety can delay an introduction past another family's unlock. Preserve the
+            // authored reveal order rather than letting catalogue indices jump the queue.
+            var nextFamily = -1;
+            var earliest = double.MaxValue;
+            for (var candidate = 1; candidate < RestorationRoster.Length; candidate++)
+            {
+                var reveal = LegacyRestorationRules.RevealSeconds(RestorationRoster[candidate]);
+                if (_restorationIntroduced[candidate] || _time < reveal || reveal >= earliest) continue;
+                nextFamily = candidate; earliest = reveal;
+            }
             for (var i = 1; i < RestorationRoster.Length; i++)
             {
-                if (_restorationIntroduced[i] || _time < LegacyRestorationRules.RevealSeconds(RestorationRoster[i])) continue;
+                if (i != nextFamily) continue;
                 var admitted = 0;
                 var edge = i % 4;
                 for (var member = 0; member < 3; member++)

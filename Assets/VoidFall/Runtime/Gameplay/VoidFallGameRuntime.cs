@@ -5229,6 +5229,7 @@ namespace VoidFall.Runtime
         private Vector2 GameplayViewportHalfExtent()
         {
             if (_arenaId == ArenaId.NullCity) return NullCityViewportHalfExtent();
+            if (!_mainMenuBrowsing && (_arenaId == ArenaId.Hydra || _arenaId == ArenaId.MonochromeCourt)) return ApprovedMapViewport(908f);
             if (Screen.width > 0 && Screen.height > 0)
                 return GameplayViewportHalfExtent(Screen.width, Screen.height);
             if (_camera != null && _camera.orthographic)

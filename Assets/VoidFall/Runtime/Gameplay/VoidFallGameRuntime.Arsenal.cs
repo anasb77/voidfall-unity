@@ -15,6 +15,10 @@ namespace VoidFall.Runtime
             public Vector2 Position;
             public float Age, Angle;
             public int Rank, Hits, Hit0, Hit1, Hit2, Hit3, Hit4, MineIdentity;
+            public int SummonIdentity, ChainParentIdentity;
+            public float ChainDueAge;
+            public Vector2 ChainOrigin;
+            public HostileTarget Target;
         }
         private readonly ArsenalEntity[] _arsenalMines = new ArsenalEntity[ArsenalMineCapacity];
         private readonly ArsenalEntity[] _arsenalSummons = new ArsenalEntity[ArsenalSummonCapacity];
@@ -30,6 +34,7 @@ namespace VoidFall.Runtime
         private float _arsenalClockAngle;
         private int _arsenalGeneration;
         private int _nextArsenalMineIdentity;
+        private int _nextArsenalSummonIdentity;
 
         private int ArsenalRank(int index) => _upgradeProgress != null && index < _upgradeProgress.WeaponRanks.Length ? _upgradeProgress.WeaponRanks[index] : 0;
         private bool ArsenalEvolved(int index) => _upgradeProgress != null && index < _upgradeProgress.Evolved.Length && _upgradeProgress.Evolved[index];
@@ -38,6 +43,7 @@ namespace VoidFall.Runtime
 
         private void ResetArsenalWeapons()
         {
+            RecordArsenalCancellations();
             ResetOrbitalDefense();
             _arsenalGeneration++;
             Array.Clear(_arsenalMines, 0, _arsenalMines.Length);
@@ -104,12 +110,16 @@ namespace VoidFall.Runtime
                     foreach (var summon in _arsenalSummons) if (summon.Active) active++;
                     var available = target.Valid ? ArsenalSummonCapacity - active : Mathf.Max(0, stats.ProjectileCount - active);
                     var count = Mathf.Min(stats.ProjectileCount, available);
+                    if (count == 0) RecordRunHistory("summon_spawn_blocked", "summons", target.Valid ? "pool_full" : "idle_squad_full", sourceId: "summons");
                     for (var i = 0; i < _arsenalSummons.Length && count > 0; i++)
                     {
                         if (_arsenalSummons[i].Active) continue;
                         var spawnAngle = count * Mathf.PI * 2 / stats.ProjectileCount;
                         var spawnOffset = new Vector2(Mathf.Cos(spawnAngle), Mathf.Sin(spawnAngle)) * 24;
-                        _arsenalSummons[i] = new ArsenalEntity { Active = true, Position = player + spawnOffset, Rank = rank, Evolved = evolved, Idle = !target.Valid };
+                        var identity = ++_nextArsenalSummonIdentity;
+                        _arsenalSummons[i] = new ArsenalEntity { Active = true, Position = player + spawnOffset, Rank = rank, Evolved = evolved, Idle = !target.Valid, SummonIdentity = identity };
+                        ResetSummonTrail(i, player + spawnOffset);
+                        RecordRunHistory("summon_spawn", "summons", evolved ? "evolved" : "base", sourceId: "summons", instanceId: identity, position: player + spawnOffset);
                         count--;
                         _audio?.Play(ProceduralAudio.Cue.SummonSpawn);
                     }
@@ -143,24 +153,30 @@ namespace VoidFall.Runtime
 
         private void StepArsenalMines(float dt)
         {
+            StepMineImpacts(dt);
             var generation = _arsenalGeneration;
+            // Advance every age first so propagation timing does not depend on pool order.
+            for (var i = 0; i < _arsenalMines.Length; i++)
+                if (_arsenalMines[i].Active) _arsenalMines[i].Age += dt;
             for (var i = 0; i < _arsenalMines.Length; i++)
             {
                 var mine = _arsenalMines[i];
                 if (!mine.Active) continue;
-                mine.Age += dt;
                 if (mine.Age >= ArsenalContent.MineLifetimeSeconds)
                 {
                     mine.Active = false;
-                    RecordRunHistory("mine_expired", "mines", "lifetime", sourceId: "mines", instanceId: mine.MineIdentity);
+                    RecordRunHistory("mine_expired", "mines", "lifetime", sourceId: "mines", instanceId: mine.MineIdentity,
+                        relatedInstanceId: mine.ChainParentIdentity, position: mine.Position);
                 }
-                else if (mine.Age >= ArsenalContent.MineArmingSeconds && ArsenalMineTriggered(mine.Position))
+                else if (mine.Age >= ArsenalContent.MineArmingSeconds &&
+                    (mine.ChainDueAge > 0 ? mine.Age + .000001f >= mine.ChainDueAge : ArsenalMineTriggered(mine.Position)))
                 {
                     // Free before damage: death callbacks may reuse pooled combat slots.
                     mine.Active = false;
                     _arsenalMines[i] = mine;
                     var stats = ArsenalStats(6, mine.Rank);
                     var radius = (float)stats.BlastRadius * _areaMultiplier;
+                    ScheduleMineChain(mine, radius);
                     var frozen = 0;
                     var resisted = 0;
                     if (mine.Evolved)
@@ -185,11 +201,12 @@ namespace VoidFall.Runtime
                     // Aggregate control outcomes once per explosion, before damage
                     // callbacks can kill or replace targets or reset the arsenal.
                     RecordRunHistory("mine_detonated", "mines", mine.Evolved ? "evolved" : "base", sourceId: "mines",
-                        instanceId: mine.MineIdentity, amount: frozen, blockedAttempts: resisted,
+                        instanceId: mine.MineIdentity, relatedInstanceId: mine.ChainParentIdentity, amount: frozen, blockedAttempts: resisted, position: mine.Position,
                         durationSeconds: mine.Evolved ? (float)ArsenalContent.MineFreezeSeconds : 0);
                     ArsenalBlast(mine.Position, radius, (float)stats.Damage, 6, mine.Evolved ? "#8ceaff" : "#ffb75e");
-                    _audio?.Play(ProceduralAudio.Cue.MineBoom);
                     if (generation != _arsenalGeneration) return;
+                    SpawnMineImpact(mine.Position, radius, mine.Evolved);
+                    _audio?.Play(ProceduralAudio.Cue.MineBoom);
                 }
                 _arsenalMines[i] = mine;
             }
@@ -223,7 +240,7 @@ namespace VoidFall.Runtime
                 if (!unit.Active) continue;
                 unit.Age += dt;
                 var stats = ArsenalStats(7, unit.Rank);
-                var target = FindNearestHostile((float)stats.Range);
+                var target = AcquireSummonTarget(i, ref unit, (float)stats.Range);
                 unit.Idle = !target.Valid;
                 var side = idleSlot % 2 == 0 ? -1f : 1f;
                 var row = idleSlot / 2;
@@ -236,15 +253,18 @@ namespace VoidFall.Runtime
                 var speed = (float)stats.ProjectileSpeed * (float)SupportEffectRules.ProjectileSpeedMultiplier(SupportRank("projectileSpeed"));
                 if (!target.Valid) speed = Mathf.Max(speed, delta.magnitude * 7);
                 unit.Position = Vector2.MoveTowards(unit.Position, destination, speed * dt);
+                UpdateSummonTrail(i, unit.Position, dt);
                 if (target.Valid && (unit.Position - target.Position).sqrMagnitude <= Mathf.Pow(ArsenalTargetRadius(target) + 7 * ArsenalSizeMultiplier(), 2))
                 {
                     unit.Active = false;
                     _arsenalSummons[i] = unit;
+                    RecordRunHistory("summon_impact", "summons", unit.Evolved ? "evolved" : "base", sourceId: target.Boss ? "boss" : "enemy",
+                        instanceId: unit.SummonIdentity, relatedInstanceId: target.Identity, position: unit.Position);
                     if (unit.Evolved) ArsenalBlast(unit.Position, (float)stats.BlastRadius * _areaMultiplier, (float)stats.Damage, 7, "#87f5ab");
                     else
                     {
                         ArsenalHit(target, (float)stats.Damage, 7, unit.Position);
-                        BurstFx(unit.Position, ParseColor("#87f5ab", Color.white), 5, 110, .25f, .45f);
+                        BurstFx(unit.Position, ParseColor("#87f5ab", Color.white), 8, 110, .25f, .45f);
                     }
                     _audio?.Play(ProceduralAudio.Cue.SummonBlast);
                     if (generation != _arsenalGeneration) return;
@@ -375,8 +395,11 @@ namespace VoidFall.Runtime
         }
         private void ArsenalBlast(Vector2 position, float radius, float damage, int weapon, string color)
         {
+            var generation = _arsenalGeneration;
             var critical = _gameSim.Rng.Next() < _critChance;
             DamageArea(position, radius, damage * _damageMultiplier * (critical ? 2.1f : 1), -1, weapon, critical);
+            if (generation != _arsenalGeneration || weapon == 6) return;
+            if (weapon == 7) { SpawnMineImpact(position, radius, true, true); return; }
             SpawnRingWave(position, 8, radius * 2, .4f, ParseColor(color, Color.white));
         }
     }

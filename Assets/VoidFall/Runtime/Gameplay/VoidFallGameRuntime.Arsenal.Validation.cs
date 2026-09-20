@@ -14,16 +14,17 @@ namespace VoidFall.Runtime
             StartRunInternal(true);
             Array.Clear(_upgradeProgress.WeaponRanks, 0, _upgradeProgress.WeaponRanks.Length);
             Array.Clear(_upgradeProgress.Evolved, 0, _upgradeProgress.Evolved.Length);
-            for (var i = 6; i < ContentCatalog.Weapons.Length; i++)
+            for (var i = 0; i < ContentCatalog.Weapons.Length; i++)
             {
+                if (i < 6 && weapon == "all") continue;
                 if (weapon != "all" && ContentCatalog.Weapons[i].Id != weapon) continue;
                 _upgradeProgress.WeaponRanks[i] = Mathf.Clamp(rank, 1, 6);
                 _upgradeProgress.Evolved[i] = evolved;
             }
-            if (ArsenalRank(6) + ArsenalRank(7) + ArsenalRank(8) + ArsenalRank(9) == 0)
-                throw new ArgumentException("Use mines, summons, clock, boomerang or all for -vfarsenal.");
+            if (Array.TrueForAll(_upgradeProgress.WeaponRanks, value => value == 0))
+                throw new ArgumentException("Use a weapon ID or all for -vfarsenal.");
             RecalculatePlayerStats(false);
-            _pistolRank = 0;
+            _pistolRank = ArsenalRank(0);
             UpdateHud(); SyncUiScreen();
         }
 
@@ -83,7 +84,8 @@ namespace VoidFall.Runtime
                     }
                 }
             }
-            File.WriteAllText(Path.Combine(output, "complete.txt"), "Captured " + captures + " Unity weapon states. Profile isolated.");
+            yield return CaptureApprovedWeaponValidation(output);
+            File.WriteAllText(Path.Combine(output, "complete.txt"), "Captured " + captures + " arsenal states plus 14 approved projectile states and a mine chain. Profile isolated.");
             Debug.Log("ARSENAL CAPTURES COMPLETE " + captures);
             Application.Quit(0);
         }

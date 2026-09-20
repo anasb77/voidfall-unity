@@ -800,6 +800,7 @@ namespace VoidFall.Runtime
                 {
                     UpdateStandardElite(ref enemy, dt, distance, direction);
                 }
+                else if (TryUpdateApprovedEnemy(ref enemy, dt, distance, direction)) { }
                 else if (TryUpdateHydraPopulation(ref enemy, dt, distance, direction, ref globalHarvesterXp))
                 {
                     // Identity-keyed Hydra specimens own their inherited behavior.
@@ -881,11 +882,11 @@ namespace VoidFall.Runtime
                     ConstrainNullCityEnemy(ref enemy);
                     ConstrainCourtEnemy(ref enemy);
                 }
-                if (!IsCourtSentinel(enemy)) ApplyMajorIncidentEnemyDisplacement(ref enemy, dt);
+                if (!IsCourtSentinel(enemy) && enemy.Id != "hydra-hive") ApplyMajorIncidentEnemyDisplacement(ref enemy, dt);
                 ResolveEonSeaEnemyMovement(i, ref enemy, eonOldPosition);
                 ResolveDestroyerSweep(enemy, eonOldPosition);
                 FactionContact(ref enemy);
-                if (!IsCourtSentinel(enemy) && DestroyerContent.Find(enemy.Id) == null && (!enemy.Elite || enemy.EliteKind.HasValue) && distance > ApprovedMapEnemyRecycleDistance() &&
+                if (!IsCourtSentinel(enemy) && enemy.Id != "hydra-hive" && DestroyerContent.Find(enemy.Id) == null && (!enemy.Elite || enemy.EliteKind.HasValue) && distance > ApprovedMapEnemyRecycleDistance() &&
                     (_encounterMembers[i].Movement == EncounterMovement.None || _encounterMembers[i].Movement == EncounterMovement.Natural))
                 {
                     var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
@@ -2638,13 +2639,15 @@ namespace VoidFall.Runtime
             AppendBulletOrder(slot);
             var view = EnsureBulletView(slot);
             var frame = SourceProjectileFrameIndex(new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)));
-            view.sprite = ProceduralSpriteFactory.ProjectileFrame(weapon.Id, frame);
-            view.transform.rotation = Quaternion.identity;
+            var approvedProjectile = weapon.Id == "pistol" || weapon.Id == "railgun";
+            view.sprite = approvedProjectile ? ProceduralSpriteFactory.ApprovedProjectile(weapon.Id, rank, _gameSim.Bullets[slot].Evolved)
+                : ProceduralSpriteFactory.ProjectileFrame(weapon.Id, frame);
+            view.transform.rotation = approvedProjectile ? Quaternion.Euler(0, 0, angle * Mathf.Rad2Deg) : Quaternion.identity;
             view.color = Color.white;
             view.enabled = true;
             var contrast = _bulletContrastViews[slot];
             contrast.sprite = view.sprite;
-            contrast.transform.rotation = Quaternion.identity;
+            contrast.transform.rotation = view.transform.rotation;
             contrast.color = new Color(1f, 1f, 1f, 0.9f);
             contrast.enabled = false;
         }
@@ -3897,6 +3900,7 @@ namespace VoidFall.Runtime
             if (_damageFaction == CombatFaction.Player) damage *= PlayerDamageMultiplier() * (enemy.Elite || enemy.EliteKind.HasValue ? (float)LegacyRestorationRules.GiantSlayerMultiplier(SupportRank("giantSlayer")) : 1);
             else critical = false;
             var appliedDamage = Mathf.Max(0, damage);
+            if (ApplyApprovedEnemyDefense(index, ref enemy, ref appliedDamage, weaponIndex)) return;
             appliedDamage *= HydraPopulationIncomingDamageMultiplier(enemy, direction);
             if (enemy.Id == "null-marshal" && enemy.Age % 6f < 3f && direction.sqrMagnitude > .001f &&
                 Vector2.Dot(enemy.Facing, -direction.normalized) > .25f) appliedDamage *= .3f;
@@ -4179,6 +4183,8 @@ namespace VoidFall.Runtime
             }
             // The browser's shared damageArea presentation is emitted once
             // after all target resolution, including meteor-only blasts.
+            // Approved mines/summons own their colored impact presentation.
+            if (weaponIndex == 6 || weaponIndex == 7) return;
             BurstFx(origin, SourceDotColor("orange"), 8, 190, 0.35f, 0.7f);
             SpawnRingWave(
                 origin,
@@ -4305,6 +4311,7 @@ namespace VoidFall.Runtime
             if (!escaping)
             {
                 OnNullCityEnemyDeath(enemy);
+                OnApprovedEnemyDeath(enemy);
                 CrascendoEnemyDeath(index, enemy);
             }
             var enemyDefinition = FindEnemy(enemy.Id);
@@ -4924,12 +4931,16 @@ namespace VoidFall.Runtime
                 EliteKind = enemy.EliteKind,
                 View = slot,
             };
+            var approvedFrames = _approvedEnemies[enemy.View].Identity == enemy.SpawnId ? _approvedEnemies[enemy.View].Frames : null;
+            var approvedBody = approvedFrames != null ? _enemyViews[enemy.View].sprite : null;
+            if(approvedBody!=null){ghost.VisualSize=1;ghost.Rotation=_enemyViews[enemy.View].transform.eulerAngles.z;}
             _deathGhosts[slot] = ghost;
             AppendDeathGhostOrder(slot);
             var view = _deathGhostViews[slot];
             if (view != null)
             {
-                view.sprite = IsNullCityEnemy(enemy.Id) ? NullCityUnitSprite(enemy.Id, enemy.Age) : ProceduralSpriteFactory.Enemy(
+                view.flipX=approvedBody!=null&&_enemyViews[enemy.View].flipX;
+                view.sprite = approvedBody != null ? approvedBody : IsNullCityEnemy(enemy.Id) ? NullCityUnitSprite(enemy.Id, enemy.Age) : ProceduralSpriteFactory.Enemy(
                     SourceEnemySpriteId(enemy),
                     CachedEnemySpriteAccent(enemy),
                     false);
@@ -5967,7 +5978,7 @@ namespace VoidFall.Runtime
         private static EnemyDefinition FindEnemy(string id)
         {
             foreach (var definition in ContentCatalog.Enemies) if (definition.Id == id) return definition;
-            return MonochromeContent.FindEnemy(id) ?? NullCityContent.FindEnemy(id) ?? DestroyerContent.Find(id);
+            return ApprovedMapContent.FindEnemy(id) ?? MonochromeContent.FindEnemy(id) ?? NullCityContent.FindEnemy(id) ?? DestroyerContent.Find(id);
         }
 
         private static BossDefinition FindBoss(string id)

@@ -197,7 +197,7 @@ namespace VoidFall.Runtime
             if (!_nullCityBossActive && _nullCitySpawnClock <= 0f && ActiveEnemies() < 30)
             {
                 var roll = _gameSim.Rng.Next();
-                var type = roll < .45 ? 3 : roll < .62 ? 0 : roll < .74 ? 2 : roll < .84 ? 1 : roll < .92 ? 4 : 8;
+                var type = ApprovedMapRules.CityAmbient(roll);
                 SpawnNullCityUnit(type, NullCitySpawnEdge());
                 _nullCitySpawnClock = Mathf.Max(.65f, 1.2f - _nullCityElapsed * .001f);
             }
@@ -213,9 +213,9 @@ namespace VoidFall.Runtime
             if (!CurrentVoidIsNullCity || _nullCityCleared || dt <= 0f) return;
             if (!_nullCityMapRecorded && _runExportActive)
             {
-                RecordRunHistory("arena_map_policy", "null-city-native-scale-v2", reason: "entered",
+                RecordRunHistory("arena_map_policy", "null-city-expanded-v3", reason: "entered",
                     sourceId: "null-city", amount: NullCityRules.WorldScale,
-                    detail: "world=1600x900;authoredBounds=180,220,1420,746;camera=bounded_shared_follow;playerRenderScale=1;purgeDps=125");
+                    detail: "world=2560x1440;playfield=1984x841.6;authoredBounds=180,220,1420,746;cameraHeight=860;sliderPercent=50;playerRenderScale=1;propScale=1;purgeDps=125");
                 _nullCityMapRecorded = true;
             }
             _nullCityElapsed += dt;

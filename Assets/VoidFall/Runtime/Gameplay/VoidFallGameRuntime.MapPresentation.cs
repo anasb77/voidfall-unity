@@ -6,7 +6,7 @@ namespace VoidFall.Runtime
 {
     public sealed partial class VoidFallGameRuntime
     {
-        private readonly SpriteRenderer[] _hydraSurvivalSurfaces = new SpriteRenderer[3];
+        private readonly SpriteRenderer[] _hydraSurvivalSurfaces = new SpriteRenderer[9];
         private Vector2 ApprovedMapSizeWorld()
         {
             if (CurrentVoidIsNullCity) return new Vector2(
@@ -73,20 +73,18 @@ namespace VoidFall.Runtime
             if (!hydraI) return false; // Hydra II retains the original renderer.
             HideLegacyCityDecor(); Hide(_backdropView); Hide(_arenaBakedDetailView);
             UpdateGameplayCameraViewport();
-            var sprite = _arenaPlateSprites[(int)ArenaId.Hydra];
+            var sprite = ApprovedMapSprite("hydra-base");
             if (sprite == null) return true;
-            var half = GameplayViewportHalfExtent();
-            var height = half.y * 2f;
             var centre = RenderCameraCentre();
-            var reduced = _saveData?.settings != null && _saveData.settings.reducedMotion;
-            var offset = reduced ? 0 : -Mathf.Repeat(-HydraSurvivalGlyphOffset, height);
+            var tileX = Mathf.FloorToInt(centre.x / 1600f);
+            var tileY = Mathf.FloorToInt(centre.y / 900f);
             for (var i = 0; i < _hydraSurvivalSurfaces.Length; i++)
             {
-                if (_hydraSurvivalSurfaces[i] == null) _hydraSurvivalSurfaces[i] = CreateView("Hydra I Original Surface " + i, sprite, -130);
+                if (_hydraSurvivalSurfaces[i] == null) _hydraSurvivalSurfaces[i] = CreateView("Hydra stationary ground " + i, sprite, -130);
                 var view = _hydraSurvivalSurfaces[i];
                 view.sprite = sprite; view.color = Color.white; view.enabled = true;
-                view.transform.position = centre + new Vector2(0, offset + (i - 1) * height);
-                view.transform.localScale = new Vector3(half.x * 2f / sprite.bounds.size.x, height / sprite.bounds.size.y, 1);
+                view.transform.position = new Vector2((tileX + i % 3 - 1 + .5f) * 1600f, (tileY + i / 3 - 1 + .5f) * 900f);
+                view.transform.localScale = new Vector3(1600f / sprite.bounds.size.x, 900f / sprite.bounds.size.y, 1);
             }
             return true;
         }

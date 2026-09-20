@@ -11,7 +11,7 @@ using VoidFall.Runtime;
 
 namespace VoidFall.Tests.PlayMode
 {
-    public sealed class ArsenalIntegrationTests
+    public sealed partial class ArsenalIntegrationTests
     {
         private VoidFallGameRuntime _runtime;
         private object _sim;

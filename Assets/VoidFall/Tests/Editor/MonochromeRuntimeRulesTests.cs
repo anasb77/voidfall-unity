@@ -106,7 +106,7 @@ namespace VoidFall.Tests.Editor
         [Test]
         public void Bishop_uses_a_sniper_distance_and_long_readable_telegraph()
         {
-            Assert.That(MonochromeContent.FindEnemy("court-bishop").PreferredDistance, Is.GreaterThanOrEqualTo(470));
+            Assert.That(MonochromeContent.FindEnemy("court-bishop").PreferredDistance, Is.EqualTo(340));
             Assert.That(MonochromeContent.FindEnemy("court-bishop").TelegraphSeconds, Is.GreaterThanOrEqualTo(1));
         }
 

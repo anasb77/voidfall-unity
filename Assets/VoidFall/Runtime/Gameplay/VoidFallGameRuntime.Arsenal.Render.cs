@@ -14,6 +14,8 @@ namespace VoidFall.Runtime
 
         private void WarmArsenalVisuals()
         {
+            foreach (var index in new[] { 0, 2 })
+                if (ArsenalRank(index) > 0) ProceduralSpriteFactory.ApprovedProjectile(ContentCatalog.Weapons[index].Id, ArsenalRank(index), ArsenalEvolved(index));
             // Recalculate runs during the paused upgrade commit; first fire never rasterizes these assets.
             for (var index = 6; index < ContentCatalog.Weapons.Length; index++)
             {
@@ -28,6 +30,7 @@ namespace VoidFall.Runtime
 
         private void HideArsenalViews()
         {
+            HideApprovedArsenalViews();
             foreach (var view in _arsenalMineViews) Hide(view);
             foreach (var view in _arsenalMineRanges) Hide(view);
             foreach (var view in _arsenalSummonViews) Hide(view);
@@ -52,6 +55,7 @@ namespace VoidFall.Runtime
         private void RenderArsenalWeapons()
         {
             if (_gameSim == null || _worldRoot == null) return;
+            RenderApprovedArsenalViews();
             var size = ArsenalSizeMultiplier();
             for (var i = 0; i < _arsenalMines.Length; i++)
             {

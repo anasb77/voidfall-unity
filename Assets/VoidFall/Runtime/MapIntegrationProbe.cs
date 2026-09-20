@@ -39,7 +39,7 @@ namespace VoidFall.Runtime
         private float _entryMilliseconds;
         private bool _isolated;
         private Vector2 _playerPosition;
-        private float _pinnedNullClock = -1, _pinnedCourtClock = -1;
+        private float _pinnedNullClock = -1, _pinnedCourtClock = -1, _pinnedCourtSurvivalClock = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void CreateIfRequested()
@@ -113,10 +113,24 @@ namespace VoidFall.Runtime
             yield return Capture("01-null-surveillance-sign");
             _pinnedNullClock = (float)(NullCityRules.SurveillanceSeconds + NullCityRules.PurgeWarningSeconds + .4);
             yield return Capture("02-null-laser-sign");
+            for(var i=12;i<NullCityContent.Enemies.Length;i++)
+                Call("SpawnNullCityUnit",i,_playerPosition+new Vector2((i%5-2)*160,(i<17?1:-1)*210));
+            _pinnedNullClock=7;
+            yield return Capture("02b-null-expanded-roster");
 
             yield return EnterArena("monochrome-court", ArenaId.MonochromeCourt);
             Call("EnsureCourtField");
             yield return Capture("03-court-board-rooks");
+            for(var type=0;type<6;type++)for(var rank=0;rank<3;rank++)
+                Call("SpawnEnemy",ApprovedMapContent.CourtId(type,rank),(Vector2?)new Vector2((type-2.5f)*180,(rank-1)*230));
+            yield return Capture("03a-court-approved-roster");
+            var sentinel = ((Array)Get("_courtRooks")).GetValue(0);
+            _playerPosition = (Vector2)sentinel.GetType().GetField("Position", Flags).GetValue(sentinel) + Vector2.right * 200;
+            _pinnedCourtSurvivalClock = 2.8f;
+            yield return Capture("03c-court-sentinel-warning");
+            _pinnedCourtSurvivalClock = 3.15f;
+            yield return Capture("03d-court-sentinel-burst");
+            _pinnedCourtSurvivalClock = -1;
             _playerPosition = new Vector2(1750f, 1750f);
             yield return Capture("03b-court-edge-framing");
             _playerPosition = Vector2.zero;
@@ -136,6 +150,11 @@ namespace VoidFall.Runtime
                     throw new InvalidOperationException("Hydra specimen spawn rejected at index " + i);
             }
             yield return Capture("05-hydra-i-specimens");
+            Call("StepApprovedHydra",3f);
+            for(var i=0;i<5;i++)Call("SpawnEnemy",ApprovedMapContent.InsectIds[i],(Vector2?)new Vector2((i-2)*150,130));
+            Call("SpawnEnemy","hydra-mantis-matriarch",(Vector2?)new Vector2(-280,-200));
+            Call("SpawnEnemy","hydra-iron-carapace",(Vector2?)new Vector2(280,-200));
+            yield return Capture("05b-hydra-hive-and-insects");
             tracker = (VoidObjectiveTracker)Get("_objectives");
             tracker.Step(VoidProgressionRules.SurvivalSeconds);
             var route = (VoidRouteRun)Get("_voidRoute");
@@ -162,7 +181,7 @@ namespace VoidFall.Runtime
         private IEnumerator EnterArena(string id, ArenaId arena)
         {
             var started = Time.realtimeSinceStartupAsDouble;
-            _pinnedNullClock = _pinnedCourtClock = -1;
+            _pinnedNullClock = _pinnedCourtClock = _pinnedCourtSurvivalClock = -1;
             Call("ClearCombatForJourney");
             Call("ClearHydraBossArena");
             Call("ResetJourney");
@@ -206,6 +225,7 @@ namespace VoidFall.Runtime
             PinPlayer();
             if (_pinnedNullClock >= 0) Set("_nullCityElapsed", _pinnedNullClock);
             if (_pinnedCourtClock >= 0) Set("_monochromeBossElapsed", _pinnedCourtClock);
+            if (_pinnedCourtSurvivalClock >= 0) Set("_monochromeSurvivalElapsed", _pinnedCourtSurvivalClock);
             Set("_ambientClock", (float)Get("_ambientClock") + 1f / 60f);
             Call("Simulate", 1d / 60d);
             PinPlayer();

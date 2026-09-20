@@ -70,7 +70,9 @@ namespace VoidFall.Tests
         public void Roster_reveal_retains_new_families_through_fifteen_minutes()
         {
             Assert.That(LegacyRestorationRules.RevealSeconds("carrier"), Is.EqualTo(900));
-            Assert.That(LegacyRestorationRules.RevealSeconds("spiky"), Is.GreaterThan(360));
+            Assert.That(LegacyRestorationRules.RevealSeconds("shuriken"), Is.EqualTo(30));
+            Assert.That(LegacyRestorationRules.RevealSeconds("spiky"), Is.EqualTo(50));
+            Assert.That(LegacyRestorationRules.RevealSeconds("guard"), Is.GreaterThan(360));
             Assert.That(ContentCatalog.Enemies.Count(e => LegacyRestorationRules.IsNewEnemy(e.Id)), Is.EqualTo(3));
             Assert.That(LegacyRestorationRules.GiantSlayerMultiplier(3), Is.EqualTo(1.45).Within(.001));
         }

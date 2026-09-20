@@ -52,7 +52,7 @@ namespace VoidFall.Core
     public static class NullCityRules
     {
         // Map geometry is authored in canvas pixels; combat distances remain world units.
-        public const float WorldScale = 1f;
+        public const float WorldScale = ApprovedMapRules.CityLayoutScale;
         public const float WorldWidth = 1600f * WorldScale;
         public const float WorldHeight = 900f * WorldScale;
         public static double WorldX(double canvasX) => (canvasX - 800) * WorldScale;
@@ -61,7 +61,7 @@ namespace VoidFall.Core
         public static double CanvasY(double worldY) => 450 - worldY / WorldScale;
         public static string SignText(bool lockdown) => lockdown ? "INTRUDER DETECTED" : "WELCOME TO NULL CITY";
         public static double RoadShake(double elapsed, bool active, bool reducedMotion) =>
-            active && !reducedMotion && IsFinite(elapsed) ? Math.Sin(elapsed * 75) * 14 : 0;
+            active && !reducedMotion && IsFinite(elapsed) ? Math.Sin(elapsed * 73) * 3.2 + Math.Sin(elapsed * 119) * 1.5 : 0;
 
         public const double SurveillanceSeconds = 22;
         public const double LockdownSeconds = 24;
@@ -92,9 +92,9 @@ namespace VoidFall.Core
         public const double ArenaBottom = 746;
 
         private const double HorizontalLaneWidth = 1240;
-        private const double HorizontalLaneHeight = 68;
+        private const double HorizontalLaneHeight = 68 / WorldScale;
         private const double VerticalLaneY = 218;
-        private const double VerticalLaneWidth = 54;
+        private const double VerticalLaneWidth = 54 / WorldScale;
         private const double VerticalLaneHeight = 527;
         private const double TimeEpsilon = 0.000000001;
 
@@ -148,16 +148,16 @@ namespace VoidFall.Core
             switch (beat)
             {
                 case 0:
-                    return new NullCityPurge(true, active, beat, ArenaLeft, 311,
+                    return new NullCityPurge(true, active, beat, ArenaLeft, 345 - HorizontalLaneHeight * .5,
                         HorizontalLaneWidth, HorizontalLaneHeight, warningRemaining);
                 case 1:
-                    return new NullCityPurge(true, active, beat, ArenaLeft, 558,
+                    return new NullCityPurge(true, active, beat, ArenaLeft, 592 - HorizontalLaneHeight * .5,
                         HorizontalLaneWidth, HorizontalLaneHeight, warningRemaining);
                 case 2:
-                    return new NullCityPurge(true, active, beat, pass % 2 == 0 ? 956 : 1030,
+                    return new NullCityPurge(true, active, beat, (pass % 2 == 0 ? 983 : 1057) - VerticalLaneWidth * .5,
                         VerticalLaneY, VerticalLaneWidth, VerticalLaneHeight, warningRemaining);
                 default:
-                    return new NullCityPurge(true, active, beat, 488,
+                    return new NullCityPurge(true, active, beat, 515 - VerticalLaneWidth * .5,
                         VerticalLaneY, VerticalLaneWidth, VerticalLaneHeight, warningRemaining);
             }
         }

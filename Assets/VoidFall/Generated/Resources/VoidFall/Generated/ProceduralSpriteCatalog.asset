@@ -992,10 +992,38 @@ MonoBehaviour:
     _sprite: {fileID: 21300000, guid: 1caec0823f9c9104cb11f3434850b776, type: 3}
   - _key: arsenal|48
     _sprite: {fileID: 21300000, guid: f0163b27a6b2f344c97f400dc418b746, type: 3}
+  - _key: arsenal|49
+    _sprite: {fileID: 21300000, guid: 88ffb98f47bdba348be7cc2ca3c2810b, type: 3}
   - _key: arsenal|5
     _sprite: {fileID: 21300000, guid: cc7f3a6201f0e6d45884a1867c734159, type: 3}
+  - _key: arsenal|50
+    _sprite: {fileID: 21300000, guid: 15bc161affde3484f955de4009394503, type: 3}
+  - _key: arsenal|51
+    _sprite: {fileID: 21300000, guid: b39e284864c868c4c8427b35d96542eb, type: 3}
+  - _key: arsenal|52
+    _sprite: {fileID: 21300000, guid: 4d4c8f2e3a1738e4c953f1f797652452, type: 3}
+  - _key: arsenal|53
+    _sprite: {fileID: 21300000, guid: 3494d01580f9c754bb7a2fdc313b35c2, type: 3}
+  - _key: arsenal|54
+    _sprite: {fileID: 21300000, guid: 277925bfacfbf3e4ea822751653d0d3f, type: 3}
+  - _key: arsenal|55
+    _sprite: {fileID: 21300000, guid: 0281ca06076b0d24890dd2c30fa584c9, type: 3}
+  - _key: arsenal|56
+    _sprite: {fileID: 21300000, guid: 4de2729a9834b154d8ec2b2a7bb78d03, type: 3}
+  - _key: arsenal|57
+    _sprite: {fileID: 21300000, guid: ad92505b15d9c5e47a555bda0cf7eabf, type: 3}
+  - _key: arsenal|58
+    _sprite: {fileID: 21300000, guid: 2520df67af64ef74cb4e61f23e2aacef, type: 3}
+  - _key: arsenal|59
+    _sprite: {fileID: 21300000, guid: 065b6d4f494254a4dac8bef998170e36, type: 3}
   - _key: arsenal|6
     _sprite: {fileID: 21300000, guid: c24361d966af0154daeaa4b4f0b30ca2, type: 3}
+  - _key: arsenal|60
+    _sprite: {fileID: 21300000, guid: 704c76b735e3b4542997f4381aba9dbd, type: 3}
+  - _key: arsenal|61
+    _sprite: {fileID: 21300000, guid: 7e23466e4df97e147accd6ebb1d0991d, type: 3}
+  - _key: arsenal|62
+    _sprite: {fileID: 21300000, guid: dcbc1e76ca249544db5a1a9140f0e8ec, type: 3}
   - _key: arsenal|7
     _sprite: {fileID: 21300000, guid: 3a615100f9fee524bb0ccab1c73676b7, type: 3}
   - _key: arsenal|8

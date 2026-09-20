@@ -6,7 +6,7 @@ namespace VoidFall.Core
     // Authored additions; generated parity catalogues retain their stable ordering.
     public static class LegacyRestorationRules
     {
-        public const string Version = "2026-09-19-readability-v4";
+        public const string Version = "2026-09-20-director-momentum-v5";
         public const double SecondWindCooldown = 180;
         public const float SpikyBaseRadius = 19.5f;
         public const float SpikyExpandedScale = 3f;
@@ -30,10 +30,10 @@ namespace VoidFall.Core
                 case "swarmer": return 40;
                 case "gunner": return 75;
                 case "dasher": return 70;
-                case "shuriken": return 210;
+                case "shuriken": return 30;
                 case "brute": return 270;
                 case "exploder": return 60;
-                case "spiky": return 420;
+                case "spiky": return 50;
                 case "guard": return 480;
                 case "technician": return 540;
                 case "twinGunner": return 600;

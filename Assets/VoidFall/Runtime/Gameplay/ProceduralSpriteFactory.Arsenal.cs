@@ -11,6 +11,7 @@ namespace VoidFall.Runtime
 
         private static void WarmArsenalCatalogSprites()
         {
+            WarmApprovedProjectiles();
             foreach (var id in new[] { "mines", "summons", "clock", "boomerang" })
                 for (var rank = 1; rank <= 6; rank++)
                 {
@@ -24,6 +25,7 @@ namespace VoidFall.Runtime
         public static ProceduralSpriteCatalog BuildArsenalCatalogSnapshot()
         {
             DestroyArsenalSprites();
+            WarmApprovedProjectiles();
             foreach (var id in new[] { "mines", "summons", "clock", "boomerang" })
                 for (var rank = 1; rank <= 6; rank++)
                 {
@@ -89,7 +91,7 @@ namespace VoidFall.Runtime
 
         private static void ClockNumeral(RasterCanvas c, string text, Vector2 center)
         {
-            var color = new Color(.84f, .96f, 1, .85f);
+            var color = new Color(.84f, .96f, 1, .765f);
             for (var i = 0; i < text.Length; i++)
             {
                 var p = center + Vector2.right * ((i - (text.Length - 1) * .5f) * 6);

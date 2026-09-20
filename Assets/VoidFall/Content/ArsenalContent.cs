@@ -8,11 +8,13 @@ namespace VoidFall.Core
     {
         public const int FirstWeaponIndex = 6;
         public const double MineArmingSeconds = 0.55;
+        public const double MineChainSeconds = 0.14;
         public const double MineLifetimeSeconds = 15;
         public const double MineMinimumPlacementSeconds = 0.9;
         public const double MineFreezeSeconds = 1.2;
         public const double MineFreezeRecoverySeconds = 1.2;
         public const double SummonAcquisitionRange = 420;
+        public const double SummonReturnLeash = 700;
         public const double ClockOpacity = 0.5;
         public const double ClockFaceOpacity = 0.126;
         public const double BoomerangSizeScale = 0.675;

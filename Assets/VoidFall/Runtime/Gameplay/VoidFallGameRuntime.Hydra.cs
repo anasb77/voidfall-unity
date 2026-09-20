@@ -121,6 +121,7 @@ namespace VoidFall.Runtime
         private void ResetHydraEncounterState()
         {
             ResetHydraPopulation();
+            ResetApprovedHydra();
             _hydraPhaseTransition = false;
             _hydraBossEncounterActive = false;
             _hydraBossSpawnedForVoid = false;
@@ -257,6 +258,7 @@ namespace VoidFall.Runtime
 
         private void StepHydraSurvival(float dt)
         {
+            StepApprovedHydra(dt);
             if (CurrentVoidIsHydra && !_hydraBossEncounterActive)
                 _hydraSurvivalElapsed += Mathf.Max(0f, dt);
         }

@@ -26,45 +26,8 @@ namespace VoidFall.Core
             EliteRewardMultiplier = 1.25,
         };
 
-        public static readonly EnemyDefinition[] Enemies =
-        {
-            new EnemyDefinition
-            {
-                Id = "court-pawn", Name = "Pawn", Behavior = "court-pawn",
-                Health = 30, Speed = 78, ContactDamage = 8, Radius = 15, Xp = 1,
-                Color = "#e5e7eb", NaturalStartSeconds = 0,
-            },
-            new EnemyDefinition
-            {
-                Id = "court-rook", Name = "Rook", Behavior = "court-rook",
-                Health = 220, Speed = 82, ContactDamage = 22, Radius = 30, Xp = 8,
-                Color = "#f3f4f6", NaturalStartSeconds = 35,
-                AttackCooldown = 4.5, TelegraphSeconds = 0.8, RecoverySeconds = 0.75,
-            },
-            new EnemyDefinition
-            {
-                Id = "court-bishop", Name = "Bishop", Behavior = "court-bishop",
-                Health = 70, Speed = 42, ContactDamage = 10, Radius = 18, Xp = 6,
-                Color = "#d1d5db", NaturalStartSeconds = 25,
-                PreferredDistance = 500, AttackCooldown = 4.2, TelegraphSeconds = 1.15,
-                ProjectileSpeed = 440,
-            },
-            new EnemyDefinition
-            {
-                Id = "court-knight", Name = "Knight", Behavior = "court-knight",
-                Health = 55, Speed = 100, ContactDamage = 18, Radius = 17, Xp = 5,
-                Color = "#f9fafb", NaturalStartSeconds = 18,
-                AttackCooldown = 3.1, TelegraphSeconds = 0.7, RecoverySeconds = 0.55,
-            },
-            new EnemyDefinition
-            {
-                Id = "court-queen", Name = "Queen", Behavior = "court-queen",
-                Health = 190, Speed = 50, ContactDamage = 16, Radius = 26, Xp = 12,
-                Color = "#e5e7eb", NaturalStartSeconds = 80,
-                PreferredDistance = 360, AttackCooldown = 5.2, TelegraphSeconds = 1.0,
-                ProjectileSpeed = 360,
-            },
-        };
+        public static readonly EnemyDefinition[] Enemies = System.Array.FindAll(
+            ApprovedMapContent.Enemies, e => e.Id.StartsWith("court-", System.StringComparison.Ordinal));
 
         public static readonly BossDefinition BlackBoss = CreateBoss(
             "court-grandmaster-black", "Black Grandmaster", "court-black-volley", "#111827");
@@ -76,7 +39,7 @@ namespace VoidFall.Core
         public static EnemyDefinition FindEnemy(string id)
         {
             foreach (var enemy in Enemies) if (enemy.Id == id) return enemy;
-            return null;
+            return ApprovedMapContent.FindEnemy(id);
         }
 
         public static BossDefinition FindBoss(string id)

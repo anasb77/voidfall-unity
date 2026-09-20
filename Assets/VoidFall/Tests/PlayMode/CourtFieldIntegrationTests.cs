@@ -99,28 +99,28 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
-        public void Floor_scope_is_snapshotted_arms_for_two_seconds_and_bursts_once()
+        public void Boss_floor_warns_one_whole_color_and_bursts_once()
         {
             Call("BeginMonochromeBossEncounter");
             Set(_runtime,"_monochromeBossElapsed",0f); Call("StepMonochromeBossEncounter",0f);
             var scope = ((int[])Get(_runtime,"_courtArmingOrder")).ToArray();
-            Assert.That(scope.Count(i=>i>0), Is.InRange(1,75));
+            Assert.That(scope.Count(i=>i>0), Is.EqualTo(28*28/2));
             var game=Get(_runtime,"_gameSim"); var player=Get(game,"Player");
             Set(player,"Position",new Vector2(10000f,10000f)); Set(game,"Player",player);
             Set(_runtime,"_monochromeBossElapsed",1f); Call("StepMonochromeBossEncounter",0f);
             Assert.That((int[])Get(_runtime,"_courtArmingOrder"),Is.EqualTo(scope));
-            Assert.That((int)Get(_runtime,"_courtArmedCount"),Is.EqualTo(scope.Count(i=>i>0)/2));
+            Assert.That((int)Get(_runtime,"_courtArmedCount"),Is.EqualTo(scope.Count(i=>i>0)));
             Set(_runtime,"_monochromeBossElapsed",2f); Call("StepMonochromeBossEncounter",0f);
             Assert.That((int)Get(_runtime,"_courtArmedCount"),Is.EqualTo(scope.Count(i=>i>0)));
             Set(_runtime,"_monochromeBossElapsed",3.4f); Call("StepMonochromeBossEncounter",0f); Call("StepMonochromeBossEncounter",0f);
             Call("FinishRunExport","quit");
             Assert.That(History.Count(e=>e.kind=="court_floor_burst"),Is.EqualTo(1));
-            Assert.That(History.Single(e=>e.kind=="court_floor_scope").options.Length,Is.EqualTo(scope.Count(i=>i>0)));
-            Assert.That(History.Count(e=>e.kind=="court_floor_arming"),Is.EqualTo(1));
+            StringAssert.Contains("scope=whole_board",History.Single(e=>e.kind=="court_floor_scope").detail);
+            Assert.That(History.Single(e=>e.kind=="court_floor_scope").amount,Is.EqualTo(392));
         }
 
         [Test]
-        public void Burst_only_hits_warned_cells_across_player_enemies_and_shared_boss_pool()
+        public void Boss_floor_hits_player_on_danger_color_without_harming_its_own_army()
         {
             Call("BeginMonochromeBossEncounter");
             var game = Get(_runtime,"_gameSim");
@@ -152,11 +152,11 @@ namespace VoidFall.Tests.PlayMode
             Set(_runtime,"_monochromeBossElapsed",0f); Call("StepMonochromeBossEncounter",0f);
             Set(_runtime,"_monochromeBossElapsed",3.4f); Call("StepMonochromeBossEncounter",0f);
             Assert.That((float)Get(Get(game,"Player"),"Health"),Is.EqualTo(978f));
-            Assert.That((float)Get(enemies.GetValue(first),"Health"),Is.EqualTo(440f));
+            Assert.That((float)Get(enemies.GetValue(first),"Health"),Is.EqualTo(500f));
             Assert.That((float)Get(enemies.GetValue(second),"Health"),Is.EqualTo(500f));
-            Assert.That((float)Get(_runtime,"_monochromeSharedHealth"),Is.EqualTo(bossHealth-120f));
+            Assert.That((float)Get(_runtime,"_monochromeSharedHealth"),Is.EqualTo(bossHealth));
             Call("StepMonochromeBossEncounter",0f);
-            Assert.That((float)Get(enemies.GetValue(first),"Health"),Is.EqualTo(440f));
+            Assert.That((float)Get(enemies.GetValue(first),"Health"),Is.EqualTo(500f));
         }
 
         [Test]

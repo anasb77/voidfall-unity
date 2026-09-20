@@ -15,11 +15,14 @@ namespace VoidFall.Core
         public double PhaseSeconds { get; private set; }
         private double _recoverySeconds;
         private bool _sustained;
+        private double _warningSeconds;
 
-        public void BeginSustained(CombatEncounterKind kind, double recoverySeconds = 5)
+        public void BeginSustained(CombatEncounterKind kind, double recoverySeconds = 5, double warningSeconds = .75)
         {
             Begin(kind, recoverySeconds);
             _sustained = true;
+            _warningSeconds = double.IsNaN(warningSeconds) || double.IsInfinity(warningSeconds)
+                ? .75 : Math.Max(.75, warningSeconds);
         }
 
         public void Begin(CombatEncounterKind kind, double recoverySeconds)
@@ -51,7 +54,7 @@ namespace VoidFall.Core
             switch (Phase)
             {
                 case CombatEncounterPhase.Warning:
-                    if (PhaseSeconds + 1e-9 >= (_sustained ? .75 : 2.5)) Enter(CombatEncounterPhase.Deployment);
+                    if (PhaseSeconds + 1e-9 >= (_sustained ? _warningSeconds : 2.5)) Enter(CombatEncounterPhase.Deployment);
                     break;
                 case CombatEncounterPhase.ActiveThreat:
                     if (liveMembers <= 0 && !incomingThreat) Enter(CombatEncounterPhase.Resolution);

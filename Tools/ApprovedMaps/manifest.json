@@ -1,0 +1,860 @@
+[
+  {
+    "name": "null-city",
+    "width": 2560,
+    "height": 1440,
+    "ppu": 2
+  },
+  {
+    "name": "court-pawn-1-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-pawn-1-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-pawn-2-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-pawn-2-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-pawn-3-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-pawn-3-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-rook-1-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-rook-1-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-rook-2-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-rook-2-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-rook-3-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-rook-3-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-rook-4-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-rook-4-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-bishop-1-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-bishop-1-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-bishop-2-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-bishop-2-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-bishop-3-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-bishop-3-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-knight-1-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-knight-1-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-knight-2-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-knight-2-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-knight-3-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-knight-3-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-queen-1-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-queen-1-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-queen-2-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-queen-2-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-queen-3-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-queen-3-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-1-black",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-1-white",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-2-black",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-2-white",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-3-black",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-3-white",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "sentinel-0-black",
+    "width": 320,
+    "height": 320,
+    "ppu": 4
+  },
+  {
+    "name": "sentinel-0-white",
+    "width": 320,
+    "height": 320,
+    "ppu": 4
+  },
+  {
+    "name": "sentinel-1-black",
+    "width": 320,
+    "height": 320,
+    "ppu": 4
+  },
+  {
+    "name": "sentinel-1-white",
+    "width": 320,
+    "height": 320,
+    "ppu": 4
+  },
+  {
+    "name": "sentinel-2-black",
+    "width": 320,
+    "height": 320,
+    "ppu": 4
+  },
+  {
+    "name": "sentinel-2-white",
+    "width": 320,
+    "height": 320,
+    "ppu": 4
+  },
+  {
+    "name": "city-0",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-1",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-2",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-3",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-4",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-5",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-6",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-7",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-8",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-9",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "insect-0",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-1",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-2",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-3",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-4",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-legacy-0",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-legacy-1",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-legacy-2",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-legacy-3",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-legacy-4",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-legacy-5",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-legacy-6",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-legacy-7",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-legacy-8",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-legacy-9",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "guardian-0",
+    "width": 384,
+    "height": 384,
+    "ppu": 4
+  },
+  {
+    "name": "guardian-1",
+    "width": 384,
+    "height": 384,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-hive",
+    "width": 280,
+    "height": 280,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-1-black-frame1",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-1-white-frame1",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-2-black-frame1",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-2-white-frame1",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-3-black-frame1",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-3-white-frame1",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "city-0-frame1",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-1-frame1",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-2-frame1",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-3-frame1",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-4-frame1",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-5-frame1",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-6-frame1",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-7-frame1",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-8-frame1",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-9-frame1",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "insect-0-frame1",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-1-frame1",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-2-frame1",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-3-frame1",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-4-frame1",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "guardian-0-frame1",
+    "width": 384,
+    "height": 384,
+    "ppu": 4
+  },
+  {
+    "name": "guardian-1-frame1",
+    "width": 384,
+    "height": 384,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-1-black-frame2",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-1-white-frame2",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-2-black-frame2",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-2-white-frame2",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-3-black-frame2",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-3-white-frame2",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "city-0-frame2",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-1-frame2",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-2-frame2",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-3-frame2",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-4-frame2",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-5-frame2",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-6-frame2",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-7-frame2",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-8-frame2",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-9-frame2",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "insect-0-frame2",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-1-frame2",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-2-frame2",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-3-frame2",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-4-frame2",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "guardian-0-frame2",
+    "width": 384,
+    "height": 384,
+    "ppu": 4
+  },
+  {
+    "name": "guardian-1-frame2",
+    "width": 384,
+    "height": 384,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-1-black-frame3",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-1-white-frame3",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-2-black-frame3",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-2-white-frame3",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-3-black-frame3",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "court-armored-knight-3-white-frame3",
+    "width": 240,
+    "height": 240,
+    "ppu": 4
+  },
+  {
+    "name": "city-0-frame3",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-1-frame3",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-2-frame3",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-3-frame3",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-4-frame3",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-5-frame3",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-6-frame3",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-7-frame3",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-8-frame3",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "city-9-frame3",
+    "width": 192,
+    "height": 192,
+    "ppu": 4
+  },
+  {
+    "name": "insect-0-frame3",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-1-frame3",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-2-frame3",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-3-frame3",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "insect-4-frame3",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "guardian-0-frame3",
+    "width": 384,
+    "height": 384,
+    "ppu": 4
+  },
+  {
+    "name": "guardian-1-frame3",
+    "width": 384,
+    "height": 384,
+    "ppu": 4
+  },
+  {
+    "name": "hydra-base",
+    "width": 1600,
+    "height": 900,
+    "ppu": 2.4
+  }
+]

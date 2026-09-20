@@ -32,6 +32,7 @@ namespace VoidFall.Runtime
 
         private int SelectHydraPopulation(ref string id, bool elite, bool forcedChild)
         {
+            if (id.StartsWith("hydra-", StringComparison.Ordinal)) return -1;
             if (_hydraPopulationChildKind >= 0 && forcedChild && !elite)
             {
                 id = HydraPopulationRules.BaseId(_hydraPopulationChildKind);
@@ -307,16 +308,20 @@ namespace VoidFall.Runtime
             if (_hydraRepairDroneA[slot] != null) _hydraRepairDroneA[slot].enabled = false;
             if (_hydraRepairDroneB[slot] != null) _hydraRepairDroneB[slot].enabled = false;
         }
+        private readonly Sprite[] _approvedHydraLegacySprites = new Sprite[HydraPopulationRules.Count];
         private bool TryRenderHydraPopulation(int index, EnemyState enemy)
         {
             HideHydraPopulationExtras(index);
             if (!IsHydraPopulation(enemy)) return false;
             var state = _hydraPopulation[index];
             var view = _enemyViews[index];
-            var sprite = ProceduralSpriteFactory.HydraPopulation(state.Kind);
+            var sprite = _approvedHydraLegacySprites[state.Kind];
+            if (sprite == null)
+                sprite = _approvedHydraLegacySprites[state.Kind] = ApprovedMapSprite("hydra-legacy-" + state.Kind);
             view.sprite = sprite; view.transform.position = enemy.Position;
             view.transform.rotation = Quaternion.Euler(0,0,enemy.Rotation * Mathf.Rad2Deg);
-            var scale = enemy.Radius * 3f / sprite.bounds.size.x * SourceEnemyIntroScale(enemy.Age);
+            // Exported at the approved physical size, independently of collision radius.
+            var scale = (state.Child ? .7f : 1f) * SourceEnemyIntroScale(enemy.Age);
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
             if (state.Kind == (int)HydraPopulationKind.Bloat)
                 scale *= 1f + (state.Warning > 0 ? (1f - state.Warning / .7f) * .22f : 0f) +

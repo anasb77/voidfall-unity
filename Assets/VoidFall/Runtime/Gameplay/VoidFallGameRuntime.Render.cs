@@ -344,6 +344,8 @@ namespace VoidFall.Runtime
             // shared body sorting slot with rendererPriority.
             for (var i = 0; i < _gameSim.Enemies.Length; i++)
             {
+                if(i==0)HideApprovedEnemyOverlays();
+                if (_enemyViews[i] != null) _enemyViews[i].flipX = false;
                 Hide(_enemyHarvesterFullViews[i]);
                 Hide(_enemyExploderWarningViews[i]);
                 if (!_gameSim.Enemies[i].Active) { Hide(_enemyViews[i]); HideHydraPopulationExtras(i); }
@@ -356,6 +358,8 @@ namespace VoidFall.Runtime
                 if (TryRenderDestroyer(i, enemy)) continue;
                 _enemyViews[i].rendererPriority = order;
                 SetEnemyPresentationPriority(i, order);
+                HideHydraPopulationExtras(i);
+                if (TryRenderApprovedEnemy(i, enemy)) continue;
                 if (TryRenderCourtSentinel(i, enemy)) continue;
                 if (TryRenderHydraPopulation(i, enemy)) continue;
                 var progressedSprite = ProgressedEnemySprite(enemy);
@@ -477,23 +481,24 @@ namespace VoidFall.Runtime
                     _gameSim.Bullets[i].Radius,
                     _gameSim.Bullets[i].Rank);
                 var projectileId = ContentCatalog.Weapons[_gameSim.Bullets[i].WeaponIndex].Id;
-                if (projectileId == "pistol" && _gameSim.Bullets[i].Rank >= 2)
-                {
-                    var rank = _gameSim.Bullets[i].Rank;
-                    projectileId = rank >= 6 ? "pulse-bright" : rank >= 4 ? "pulse-warm" : "pulse";
-                    visualScale = Mathf.Clamp(_gameSim.Bullets[i].Radius / 3f, .58f, 1.72f) * (rank == 2 ? .6f : 1f);
-                }
-                var projectileFrame = ProceduralSpriteFactory.ProjectileFrame(
+                var approvedProjectile = projectileId == "pistol" || projectileId == "railgun";
+                if (approvedProjectile) visualScale = Mathf.Clamp(_gameSim.Bullets[i].Radius / (projectileId == "pistol" ? 3f : 9f), .58f, 1.72f);
+                var projectileRotation = approvedProjectile
+                    ? Quaternion.Euler(0, 0, Mathf.Atan2(_gameSim.Bullets[i].Velocity.y, _gameSim.Bullets[i].Velocity.x) * Mathf.Rad2Deg)
+                    : Quaternion.identity;
+                var projectileFrame = approvedProjectile
+                    ? ProceduralSpriteFactory.ApprovedProjectile(projectileId, _gameSim.Bullets[i].Rank, _gameSim.Bullets[i].Evolved)
+                    : ProceduralSpriteFactory.ProjectileFrame(
                     projectileId,
                     SourceProjectileFrameIndex(_gameSim.Bullets[i].Velocity));
                 _bulletViews[i].sprite = projectileFrame;
-                _bulletViews[i].transform.rotation = Quaternion.identity;
-                var projectileFrameSize = SourceProjectileSpriteWorldSize(projectileId);
+                _bulletViews[i].transform.rotation = projectileRotation;
+                var projectileFrameSize = approvedProjectile ? (projectileId == "pistol" ? 64 : 112) : SourceProjectileSpriteWorldSize(projectileId);
                 _bulletViews[i].transform.localScale = Vector3.one * (projectileFrameSize * visualScale);
                 var isRailgun = _gameSim.Bullets[i].WeaponIndex >= 0 &&
                     _gameSim.Bullets[i].WeaponIndex < ContentCatalog.Weapons.Length &&
                     ContentCatalog.Weapons[_gameSim.Bullets[i].WeaponIndex].Id == "railgun";
-                var brightPulse = projectileId == "pulse-bright";
+                var brightPulse = projectileId == "pistol" && _gameSim.Bullets[i].Rank >= 6;
                 if (isRailgun || brightPulse)
                 {
                     var direction = SourceVisualDirection(_gameSim.Bullets[i].Velocity);
@@ -501,14 +506,14 @@ namespace VoidFall.Runtime
                     var far = EnsureRailAfterimageView(i, false);
                     far.sprite = projectileFrame;
                     far.transform.position = _gameSim.Bullets[i].Position - direction * (brightPulse ? 12f : 34f);
-                    far.transform.rotation = Quaternion.identity;
+                    far.transform.rotation = projectileRotation;
                     far.transform.localScale = scale;
                     far.color = new Color(1f, 1f, 1f, 0.1f);
                     far.enabled = true;
                     var near = EnsureRailAfterimageView(i, true);
                     near.sprite = projectileFrame;
                     near.transform.position = _gameSim.Bullets[i].Position - direction * (brightPulse ? 6f : 19f);
-                    near.transform.rotation = Quaternion.identity;
+                    near.transform.rotation = projectileRotation;
                     near.transform.localScale = scale;
                     near.color = new Color(1f, 1f, 1f, 0.22f);
                     near.enabled = true;
@@ -524,7 +529,7 @@ namespace VoidFall.Runtime
                     var highContrast = _saveData?.settings != null && _saveData.settings.highContrast;
                     contrast.sprite = projectileFrame;
                     contrast.transform.position = _gameSim.Bullets[i].Position;
-                    contrast.transform.rotation = Quaternion.identity;
+                    contrast.transform.rotation = projectileRotation;
                     contrast.transform.localScale = Vector3.one *
                         (projectileFrameSize * visualScale * 1.22f);
                     contrast.enabled = highContrast;
@@ -4146,7 +4151,7 @@ namespace VoidFall.Runtime
                         new Color(96f / 255f, 165f / 255f, 250f / 255f, 0.85f));
                 }
 
-                var heavy = IsCourtSentinel(enemy) || enemy.Elite || enemy.Id == "brute" || enemy.Id == "bulwark" ||
+                var heavy = IsCourtSentinel(enemy) || enemy.Id == "hydra-hive" || enemy.Id == "hydra-mantis-matriarch" || enemy.Id == "hydra-iron-carapace" || enemy.Elite || enemy.Id == "brute" || enemy.Id == "bulwark" ||
                     enemy.Id == "carrier" || enemy.Id == "harvester";
                 if (!heavy || (!IsCourtSentinel(enemy) && enemy.Health >= enemy.MaxHealth)) continue;
 

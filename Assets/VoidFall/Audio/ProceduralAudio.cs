@@ -464,7 +464,7 @@ namespace VoidFall.Runtime
                 case Cue.BossDeath: return 1.200f;
                 case Cue.Currency: return 0.042f;
                 case Cue.MineDrop: return 0.090f;
-                case Cue.MineBoom: return 0.150f;
+                case Cue.MineBoom: return 0.100f;
                 case Cue.SummonSpawn: return 0.090f;
                 case Cue.SummonBlast: return 0.150f;
                 case Cue.BoomerangThrow: return 0.120f;
@@ -721,11 +721,11 @@ namespace VoidFall.Runtime
             _clips[(int)Cue.MineBoom] = BuildSequence(
                 "vf_mine_boom",
                 0.5f,
-                new[] { new SequenceNote(300f, 40f, 0.45f, 0f, 0.2f, Waveform.Saw) },
+                new[] { new SequenceNote(160f, 35f, 0.48f, 0f, 0.14f, Waveform.Triangle) },
                 new[]
                 {
-                    new SequenceNoise(2500f, 0.2f, 0.12f, 0f, 1f),
-                    new SequenceNoise(300f, 0.35f, 0.16f, 0f, 0.7f),
+                    new SequenceNoise(1800f, 0.16f, 0.09f, 0f, 1.5f),
+                    new SequenceNoise(300f, 0.35f, 0.10f, 0f, 0.7f),
                 });
             _clips[(int)Cue.BoomerangThrow] = BuildSequence(
                 "vf_boomerang_throw",

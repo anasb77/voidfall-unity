@@ -27,13 +27,13 @@ namespace VoidFall.Tests.PlayMode
         [TearDown] public void TearDown() => _profile?.Dispose();
 
         [Test]
-        public void New_run_has_a_real_empty_opening_and_zero_pressure()
+        public void New_run_has_a_real_empty_opening_and_one_times_pressure()
         {
             Assert.That(_runtime.ActiveEnemiesCount, Is.Zero);
-            Assert.That(_runtime.PressureHundredths, Is.Zero);
+            Assert.That(_runtime.PressureHundredths, Is.EqualTo(100));
             for (var i = 0; i < 60; i++) Invoke("Simulate", 1.0 / 60.0);
             Assert.That(_runtime.ActiveEnemiesCount, Is.Zero);
-            Assert.That(_runtime.PressureHundredths, Is.Zero);
+            Assert.That(_runtime.PressureHundredths, Is.EqualTo(100));
             for (var i = 0; i < 100; i++) Invoke("Simulate", 1.0 / 60.0);
             Assert.That(_runtime.ActiveEnemiesCount, Is.GreaterThan(0));
         }

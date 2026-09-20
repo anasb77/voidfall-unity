@@ -30,9 +30,9 @@ For visual work, view the relevant assets as well as reading their code:
 | Zack's eye | `Runtime/Gameplay/ProceduralSpriteFactory.cs`: `Operative()` draws the circular blue iris, dark center and central light. Current baked sprite: `Generated/ProceduralSprites/Sprite_0089_fixed_operative.png`. `VoidFallGameRuntime.Render.cs` composes the eye, aura, ring and Workshop cosmetics. |
 | Shared enemies and elites | Original forms: `ProceduralSpriteFactory.cs`; higher tiers: `Art/RosterProgression/`, `Resources/VoidFall/RosterProgressionVisuals.asset`, and runtime `.RosterProgression.cs`. Four tiers across 14 shared families and three elite families: Exploder, Siege Mortar and Curved Gunner. |
 | Shared bosses | Herald, Warden, Matriarch and Reaver: definitions in `Content/ContentCatalog.Generated.cs`, artwork in `ProceduralSpriteFactory.cs` and baked `Generated/ProceduralSprites/` boss images. |
-| Monochrome Court | Pawn, Rook, Bishop, Knight and Queen in black/white forms, plus Black and White Grandmasters. `Content/MonochromeContent.cs`, `ProceduralSpriteFactory.cs`, and baked Court sprites. |
-| Hydra | Shared enemies with mutation traits in `Core/MutationRules.cs`; `Content/HydraContent.cs` defines Hydra Prime. The live boss uses `Resources/VoidFall/Hydra/HydraPrime.png`, loaded by runtime `.Hydra.cs`; inspect that authored art rather than assuming its procedural fallback is the live appearance. |
-| Null City | Nine regular units, three lockdown police, and exclusive boss Motherload: `Content/NullCityContent.cs`, `Art/NullCity/Units/`, `Runtime/Gameplay/NullCityVisualAsset.cs`, and runtime `.NullCity.Render.cs`. Motherload is explicitly a detailed ship. |
+| Monochrome Court | Nineteen forms across Pawn, Rook, Bishop, Knight, Queen and mounted Armored Knight, plus Sentinels and both Grandmasters. `Content/ApprovedMapContent.cs`, `MonochromeContent.cs`, runtime `.ApprovedCourt`, and `Resources/VoidFall/ApprovedMaps/` (exported by `Tools/ApprovedMaps`). |
+| Hydra | Ten original hybrid/Virus forms, five insects, hives and two guardians: `HydraPopulationRules`, `ApprovedMapContent`, runtime `.HydraPopulation`/`.ApprovedHydra` and approved map resources. `HydraContent` defines Hydra Prime; the live boss retains `Resources/VoidFall/Hydra/HydraPrime.png` and runtime `.Hydra.cs`. |
+| Null City | Nine original units, three lockdown police, ten approved additions and Motherload: `Content/NullCityContent.cs`, `Art/NullCity/Units/`, `Resources/VoidFall/ApprovedMaps/`, `NullCityVisualAsset`, runtime `.NullCity.Render`/`.ApprovedCity`. Motherload is explicitly a detailed ship. |
 
 The 14 shared families are Regular (`chaser`), Runner, Gunner, Twin Gunner,
 Dasher, Brute, Exploder, Guard, Technician, Mortar, Splitter, Bulwark, Harvester
@@ -74,7 +74,7 @@ Assembly definitions live at each subsystem root. `Core` and `Content` have
 
 ## Legacy restoration ownership
 
-`Content/LegacyRestorationRules.cs` appends the three enemy families and compatible support cards without changing generated IDs. Runtime `.LegacyRestoration.cs` owns Second Wind cooldown, delayed Spiky chains, shuriken/Spiky motion and expansion-only crowd shoves, roster introductions, the independent V1 ring clock and identity-keyed V1 dash controllers; `.DirectorI.cs` owns the sustained v6 schedule, independent standard/variant elite cadence, bounded post-clear refill and budgets. The approved browser HUD is owned by runtime `.ApprovedHud.cs` and `ApprovedHudSlot.cs`; it reuses the original HUD bindings with bundled Chakra Petch fonts, live slots, and a 0.66 study scale. `LegacyHudGradient.cs` supplies the bar gradients. `UITheme.ApplyReadableContent` applies the bundled timer-family font selectively to level-up content, main-menu buttons, pause and result bodies while preserving existing headings and symbol glyphs. `.Journey.cs` / `.Rift.cs` / `.Escape.cs` retain covered swaps and the ten-second reward window. `LegacyRestorationProbe.cs` provides isolated native captures with `-vfrestoration-check=<directory>`. See `Docs/Design/2026-09-19-LegacyRestoration.md` for approved tuning and `LegacyRestoration*Tests` for regression coverage.
+`Content/LegacyRestorationRules.cs` appends the three enemy families and compatible support cards without changing generated IDs. Runtime `.LegacyRestoration.cs` owns Second Wind cooldown, delayed Spiky chains, shuriken/Spiky motion and expansion-only crowd shoves, roster introductions, the independent V1 ring clock and identity-keyed V1 dash controllers; `.DirectorI.cs` owns the sustained v7 schedule, independent standard/variant elite cadence, bounded post-clear refill and budgets. The approved browser HUD is owned by runtime `.ApprovedHud.cs` and `ApprovedHudSlot.cs`; it reuses the original HUD bindings with bundled Chakra Petch fonts, live slots, and a 0.66 study scale. `LegacyHudGradient.cs` supplies the bar gradients. `UITheme.ApplyReadableContent` applies the bundled timer-family font selectively to level-up content, main-menu buttons, pause and result bodies while preserving existing headings and symbol glyphs. `.Journey.cs` / `.Rift.cs` / `.Escape.cs` retain covered swaps and the ten-second reward window. `LegacyRestorationProbe.cs` provides isolated native captures with `-vfrestoration-check=<directory>`. See `Docs/Design/2026-09-19-LegacyRestoration.md` for approved tuning and `LegacyRestoration*Tests` for regression coverage.
 
 ## Locate a gameplay change
 
@@ -134,10 +134,18 @@ so upgrade commits do not rasterize them. `ProceduralSpriteBaker.BakeArsenal`
 updates this family while preserving other assets and GUIDs; the full bake
 includes the same family. Keep their standalone textures for HUD RawImage use,
 and never destroy Resources-owned sprites when clearing the runtime cache.
+Approved Pulse Pistol/Railgun rank I–VI and evolution artwork appends prepared
+keys `arsenal|49..62`, authored in `ProceduralSpriteFactory.ApprovedProjectiles.cs`
+and rotated by velocity in the bullet renderer. `.ApprovedArsenal.cs` adds
+0.14-second armed-mine propagation and identity-keyed per-unit summon targets
+with distribution and a 700-unit return leash. `.ApprovedArsenal.Render.cs`
+owns bounded mine links/arming/explosion geometry and summon pursuit trails.
+See `Docs/Design/2026-09-20-Approved-Weapon-Implementation.md`.
 Clock's face uses 12.6% opacity; its moving
 hands retain their previous 50% opacity and authored shape. Rank III adds a
 seconds attack hand with half the main hand's reach, width and damage, rotating
 twice as fast. Evolution retains its full-size counterclockwise hand.
+Only Roman-numeral artwork is 10% less opaque (0.85 to 0.765); dial/ticks are unchanged.
 Boomerang visuals and hit radius use half their original size.
 Mine range guides retain 70% of their original opacity. Idle summon creation
 stops at squad size; existing returning summons persist within the active cap.
@@ -244,34 +252,39 @@ Its horizons are tessellated as adjacent strips rather than a crossing fan.
   and meteors before initializing the next arena/objective.
 - Hydra: `Content/HydraContent.cs`, `Core/HydraEncounterRules.cs`,
   `Runtime/Gameplay/HydraRuntimeRules.cs`, `.Hydra.cs` and `.HydraTravel.cs`.
-  HydraI360s survival is base-only with downward glyph drift; `.MapPresentation`
-  owns its rendering and bounded-map camera helpers. Hydra I now shares the
-  standard gameplay zoom with II, without the browser-derived extra dezoom.
+  HydraI360s survival uses stationary approved glyph ground; `.MapPresentation`
+  owns its world-anchored tiling. `.ApprovedHydra` adds three mixed-brood hives,
+  five insect forms and two guardians while preserving the ten original types.
+  `.ApprovedMaps` uses908-unit camera height (approved slider60%) for Hydra.
   HydraTravel reuses Rift collapse/swap/settle inside
   one route visit without resetting objectives/pressure. HydraII retains the
   original bone surface, boss/art/geometry/health and solo-boss suppression.
   `Core/HydraPopulationRules.cs`, runtime `.HydraPopulation.cs` and
-  `ProceduralSpriteFactory.HydraPopulation.cs` own five hybrids and five Viruses.
+  `ProceduralSpriteFactory.HydraPopulation.cs` own five hybrids and five Viruses;
+  live art is exported from their approved browser silhouettes at physical scale.
   Spawn-ID sidecars hold behavior; bounded deferred offspring retain reward
   roots and cancel on transition. Reclaimer uses real harvested XP; repairs,
   shields, split, warnings and actual outcomes use the existing exporter.
 - Court: `MonochromeContent`, `MonochromeEncounterRules`, `MonochromeRuntimeRules`,
   `.Monochrome.cs` and `.CourtField.cs`. One fixed28×28 board of129.6-unit tiles,
-  standard gameplay zoom and player size, camera constrained at board edges,
+  908-unit camera height and normal player size, camera constrained at board edges,
   clamped playable bounds, seeded spaced sentinel/fallen rooks. Sentinels use
   state90 on pooled court-rook,100k–150kHP,stationary contact damage, no shots.
+  `.ApprovedCourt` owns their fixed4×4 survival attacks and nonstacking shields,
+  nineteen ranked forms, L-dash knights and Pawn III mounted armored warhorses.
   Native player weapons target them; death queues5–6 roster-one chasers and
   one requested notice. Existing Grandmasters share HP and each warns/fires
-  one volley. Local cell scope freezes per5s phase, arms over2s, bursts at3.4s,
-  alternates colors and damages all warned actors. `CourtTile.shader` owns
-  red warning/burst and six-segment reticle; per-tile property blocks are
+  one volley. Boss attacks alternate whole checker colors and damage only the
+  player on the warned color. `CourtTile.shader` owns soft stone, aggressive
+  cracks/bursts and reduced-motion variants; per-tile property blocks are
   initialized during setup, never in MonoBehaviour field constructors.
 - Null City: `NullCityContent`, `Core/NullCityRules`, `.NullCity.cs`,
-  `.NullCity.Render.cs` and `.NullCity.MapPresentation.cs`. Authored1600×900
-  coordinates map to1600×900world at the owner's restored1× scale; World/Canvas
-  helpers are reciprocal. The playable floor is1240×526. Its original artwork,
-  roster and native boss remain. Standard gameplay zoom and Zack size replace
-  browser multipliers. `.MapPresentation` constrains the shared smooth camera
+  `.NullCity.Render.cs`, `.NullCity.MapPresentation.cs` and `.ApprovedCity.cs`.
+  Authored1600×900 positions map to2560×1440world at1.6× layout scale; World/Canvas
+  helpers are reciprocal. Props/actors retain native size; floor is1984×841.6.
+  Original architecture, roster and boss remain, plus five specialists and five
+  simple pursuers. The camera uses860-unit height (slider50%), with normal Zack
+  size. Transit uses a shared portal clipping mask. `.MapPresentation` bounds the camera
   to the surface, centring axes smaller than the viewport; local energized-road shake
   preserves collision and purge timing. The original LCD anchor has a cached
   world-space text overlay for welcome/lockdown state. Native projectile,
@@ -568,11 +581,12 @@ are different representations: use existing mapping helpers.
   extend that data. Legacy enums/counts are not necessarily the full live
   catalogue; consumers such as support selection use `ExtendedCatalog.AllSupports()`.
 
-## Director I sustained combat (version 6)
+## Director I sustained combat (version 7)
 
 Current duration is **360 seconds** for all eight voids (`Core/VoidProgressionRules`).
-`LocalDirectorSurvivalSeconds` reports actual seconds; beat cutoff330 and
-lead-in/incident cutoff345 follow remaining time. The arrival ramp still reaches
+`LocalDirectorSurvivalSeconds` reports actual seconds; Director I beat cutoff336,
+ambient softening352 and incident cutoff345 follow remaining time. Other profiles
+retain beat cutoff330 and lead-in345. The arrival ramp still reaches
 full strength at300. `DurationAdjustedDifficultySeconds` preserves the old boss
 HP/tier clock by removing only added survival time; boss combat time still counts.
 Pressure retains canonical300+60 credits and80/20 weights. Diagnostics use the
@@ -596,6 +610,16 @@ Denied actors retain movement. Reservations use SpawnId plus unfinished states,
 queued city shots and live shot provenance; death, slot reuse and freezing must
 not erase an outstanding threat. Boss attacks retain their own controllers;
 ordinary special admissions reduce during bosses/recovery/incidents.
+`.DirectorMomentum.cs` owns the two late-Abyss signatures (elite escort at270,
+rusher flank at315), their shared-clock two-second warnings, and bounded per-arena
+incident opportunities. Two opportunities per eligible visit retry every8 seconds
+for at most48 seconds; native meteor conflicts choose a warned fodder flank.
+Arena reset clears this scheduling state. `.DirectorI.cs` keeps later-void arrivals
+at a nominal floor of22/s rising to33/s by local45, except during arrival grace,
+damage relief, incidents and the boss lead-in; stronger existing rates still win.
+Spiky and Shuriken become eligible at global50/30, with the existing three-enemy
+introductions and twelve-second family learning grace. Pending introductions
+follow reveal-time order after safety deferrals, independent of catalogue index.
 `_pressureReliefTimer` advances once in I's simulation path, not its bypassed
 legacy director. Do not introduce permanent health-based recovery or DPS matching.
 

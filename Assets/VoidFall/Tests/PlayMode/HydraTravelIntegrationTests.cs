@@ -71,7 +71,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(Get(_runtime, "_riftTransitionActive"), Is.False);
             Assert.That(Property("HydraSurvivalPresentationActive"), Is.True);
             var survivalViewport = (Vector2)Call("GameplayViewportHalfExtent");
-            Assert.That(survivalViewport.y, Is.EqualTo(486f).Within(.001f));
+            Assert.That(survivalViewport.y, Is.EqualTo(454f).Within(.001f));
             tracker.Step(1);
             var route = (VoidRouteRun)Get(_runtime, "_voidRoute");
             var historyBefore = route.History.ToArray();

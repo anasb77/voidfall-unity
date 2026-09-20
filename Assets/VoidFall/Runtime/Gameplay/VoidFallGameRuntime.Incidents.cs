@@ -82,12 +82,14 @@ namespace VoidFall.Runtime
                 if (_majorIncident.Kind == MajorIncidentKind.None)
                 {
                     StopMajorIncident();
-                    _nextIncidentOpportunity = _time + 240 + (_runSeed + (uint)_incidentSequence) % 61;
+                    _nextIncidentOpportunity = _time + (UsesSustainedDirector ? 100 : 240 + (_runSeed + (uint)_incidentSequence) % 61);
                     _spawnTimer = .65f;
                 }
                 return;
             }
-            if (_stressScenario != null || _incidentCount >= 4 || _time < _nextIncidentOpportunity) return;
+            if (_stressScenario != null) return;
+            if (UsesSustainedDirector) { TrySustainedIncidentOpportunity(); return; }
+            if (_incidentCount >= 4 || _time < _nextIncidentOpportunity) return;
             _incidentSequence++;
             _nextIncidentOpportunity = _time + 30 + (_runSeed ^ (uint)(_incidentSequence * 7919)) % 21;
             var attentionBlocked = UsesSustainedDirector

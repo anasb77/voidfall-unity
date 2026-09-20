@@ -261,6 +261,136 @@ namespace VoidFall.Tests.PlayMode
                 Invoke("BeginSustainedBeat", chosen); beforePrevious = previous; previous = chosen;
             }
         }
+        private void PrepareMomentum(float local, int stage = 0)
+        {
+            Set(_runtime, "_time", stage * 420f + local);
+            Set(_runtime, "_pressureStageIndex", stage);
+            ((VoidObjectiveTracker)Get(_runtime, "_objectives")).Step(local);
+            Set(_runtime, "_rosterIntroductionReadyAt", float.MaxValue);
+            Set(_runtime, "_nextLegacySwarmAt", float.MaxValue);
+            Set(_runtime, "_nextEliteTime", float.MaxValue);
+            Set(_runtime, "_nextEliteVariantTime", float.MaxValue);
+            Set(_runtime, "_nextEncounterTime", float.MaxValue);
+            Set(_runtime, "_spawnTimer", 0f);
+        }
+
+        [TestCase(0f, 80, 92)]
+        [TestCase(45f, 120, 136)]
+        public void Later_void_actual_arrivals_keep_momentum_without_filling_the_pool(float local, int minimum, int maximum)
+        {
+            PrepareMomentum(local, 1);
+            for (var i = 0; i < 240; i++) Invoke("UpdateSpawns", 1f / 60);
+            Assert.That(_runtime.ActiveEnemiesCount, Is.InRange(minimum, maximum));
+        }
+
+        [Test]
+        public void Later_void_arrival_grace_and_damage_relief_override_the_rate_floor()
+        {
+            PrepareMomentum(0, 1);
+            Set(_runtime, "_arrivalGrace", 2.5f);
+            for (var i = 0; i < 120; i++) Invoke("UpdateSpawns", 1f / 60);
+            Assert.That(_runtime.ActiveEnemiesCount, Is.Zero);
+            Set(_runtime, "_arrivalGrace", 0f); Set(_runtime, "_pressureReliefTimer", 3f);
+            for (var i = 0; i < 120; i++) Invoke("UpdateSpawns", 1f / 60);
+            Assert.That(_runtime.ActiveEnemiesCount, Is.InRange(10, 14));
+        }
+
+        [TestCase(270f, "elite", 1, 31)]
+        [TestCase(315f, "runner", 10, 28)]
+        public void Late_Abyss_signatures_warn_then_admit_their_composition_once(float local, string enemyId, int count, int total)
+        {
+            PrepareMomentum(local);
+            var introduced = (bool[])Get(_runtime, "_restorationIntroduced");
+            for (var i = 0; i < introduced.Length; i++) introduced[i] = true;
+            Invoke("TryScheduleMomentumBeat", local);
+            var clock = (CombatEncounterClock)Get(_runtime, "_encounter");
+            clock.Step(1.99, 0, false, false);
+            Assert.That(clock.Phase, Is.EqualTo(CombatEncounterPhase.Warning));
+            Assert.That(_runtime.ActiveEnemiesCount, Is.Zero);
+            clock.Step(.01, 0, false, false); Invoke("DeploySustainedBeat");
+            var enemies = (Array)Get(Get(_runtime, "_gameSim"), "Enemies");
+            Assert.That(_runtime.ActiveEnemiesCount, Is.EqualTo(total));
+            Assert.That(enemies.Cast<object>().Count(e => (bool)Get(e, "Active") && (string)Get(e, "Id") == enemyId), Is.EqualTo(count));
+            Invoke("CancelEncounterDirector"); Invoke("TryScheduleMomentumBeat", local);
+            Assert.That(clock.Phase, Is.EqualTo(CombatEncounterPhase.Flow));
+        }
+
+        [Test]
+        public void Signature_defers_under_damage_and_cancels_if_hit_during_warning()
+        {
+            PrepareMomentum(270);
+            Set(_runtime, "_pressureReliefTimer", 2f); Invoke("TryScheduleMomentumBeat", 270f);
+            Assert.That(_runtime.CurrentEncounterPhase, Is.EqualTo("Flow"));
+            Set(_runtime, "_pressureReliefTimer", 0f); Invoke("TryScheduleMomentumBeat", 271f);
+            ((CombatEncounterClock)Get(_runtime, "_encounter")).Step(2, 0, false, false);
+            Set(_runtime, "_pressureReliefTimer", 2f); Invoke("DeploySustainedBeat");
+            Assert.That(_runtime.ActiveEnemiesCount, Is.Zero);
+            Assert.That(_runtime.CurrentEncounterPhase, Is.EqualTo("Recovery"));
+        }
+
+        [Test]
+        public void Both_new_families_receive_small_early_introductions_and_learning_grace()
+        {
+            for (var seconds = 15; seconds <= 59; seconds++)
+            {
+                Set(_runtime, "_time", (float)seconds);
+                ((VoidObjectiveTracker)Get(_runtime, "_objectives")).Step(1);
+                if (seconds == 15) ((VoidObjectiveTracker)Get(_runtime, "_objectives")).Step(15);
+                Invoke("TryIntroduceRestorationEnemy");
+            }
+            var enemies = (Array)Get(Get(_runtime, "_gameSim"), "Enemies");
+            foreach (var id in new[] { "spiky", "shuriken" })
+                Assert.That(enemies.Cast<object>().Count(e => (bool)Get(e, "Active") && (string)Get(e, "Id") == id), Is.EqualTo(3), id);
+            Assert.That(Invoke("RestorationTypeIntroduced", "shuriken"), Is.True);
+            Assert.That(Invoke("RestorationTypeIntroduced", "spiky"), Is.False, "54-second intro still has its twelve-second grace");
+        }
+
+        [Test]
+        public void Safety_delayed_Spiky_is_introduced_before_later_gunners_and_dashers()
+        {
+            PrepareMomentum(80);
+            Set(_runtime, "_rosterIntroductionReadyAt", 0f);
+            var introduced = (bool[])Get(_runtime, "_restorationIntroduced");
+            introduced[1] = introduced[2] = introduced[5] = true; // Runner, green swarmer, Shuriken already taught.
+            Assert.That(Invoke("TryIntroduceRestorationEnemy"), Is.True);
+            var enemies = (Array)Get(Get(_runtime, "_gameSim"), "Enemies");
+            Assert.That(enemies.Cast<object>().Count(e => (bool)Get(e, "Active") && (string)Get(e, "Id") == "spiky"), Is.EqualTo(3));
+            Assert.That(_runtime.ActiveEnemiesCount, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void Meteor_blocked_incident_gets_warned_fodder_instead_and_resets_next_arena()
+        {
+            PrepareMomentum(100, 1); Set(_runtime, "_arenaId", ArenaId.RedNebula);
+            var sim = Get(_runtime, "_gameSim"); var meteors = (Array)Get(sim, "Meteors");
+            for (var i = 0; i < 3; i++) { var meteor = meteors.GetValue(i); Set(meteor, "Active", true); meteors.SetValue(meteor, i); }
+            for (var i = 0; i < 8; i++) Invoke("SpawnEnemy", "chaser");
+            Set(_runtime, "_nextIncidentOpportunity", 0f);
+            Invoke("StepMajorIncidents", .016f);
+            Assert.That(_runtime.CurrentMajorIncident, Is.EqualTo("None"));
+            Assert.That(_runtime.CurrentEncounterPhase, Is.EqualTo("Warning"));
+            ((CombatEncounterClock)Get(_runtime, "_encounter")).Step(2, 0, false, false);
+            Invoke("DeploySustainedBeat");
+            Assert.That(_runtime.ActiveEnemiesCount, Is.EqualTo(32));
+            Assert.That(Get(_runtime, "_arenaIncidentOpportunities"), Is.EqualTo(1));
+            Invoke("ResetEncounterDirector");
+            Assert.That(Get(_runtime, "_arenaIncidentOpportunities"), Is.EqualTo(0));
+            Assert.That((float)Get(_runtime, "_nextIncidentOpportunity"), Is.EqualTo(580f));
+        }
+
+        [Test]
+        public void Incident_safety_deferrals_expire_without_accumulating_a_backlog()
+        {
+            PrepareMomentum(100); Set(_runtime, "_nextIncidentOpportunity", 0f);
+            Set(_runtime, "_pressureReliefTimer", 3f);
+            Invoke("StepMajorIncidents", .016f);
+            Set(_runtime, "_time", 149f); Invoke("StepMajorIncidents", .016f);
+            Assert.That(Get(_runtime, "_arenaIncidentOpportunities"), Is.EqualTo(1));
+            Assert.That(_runtime.CurrentMajorIncident, Is.EqualTo("None"));
+            Assert.That(_runtime.CurrentEncounterPhase, Is.EqualTo("Flow"));
+            Assert.That((float)Get(_runtime, "_nextIncidentOpportunity"), Is.EqualTo(249f));
+        }
+
         private static void Set(object target, string name, object value) => target.GetType().GetField(name, Flags).SetValue(target, value);
         private object Invoke(string name, params object[] args) => RuntimeTestReflection.Invoke(_runtime, name, args);
     }

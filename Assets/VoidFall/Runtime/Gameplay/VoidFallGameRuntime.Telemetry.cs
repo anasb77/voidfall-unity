@@ -100,7 +100,7 @@ namespace VoidFall.Runtime
             _telemetry.ConfigureHistory(directory, new UnityTelemetryContext
             {
                 frameTimingVersion = 2,
-                mapPresentationVersion = 2,
+                mapPresentationVersion = ApprovedMapRules.Version,
                 buildVersion = Application.version,
                 buildGuid = Application.buildGUID,
                 unityVersion = Application.unityVersion,
@@ -122,7 +122,7 @@ namespace VoidFall.Runtime
                 baseWeaponSlots = ProgressionRules.BaseWeaponSlots,
                 expandedWeaponSlots = ProgressionRules.ExpandedWeaponSlots,
                 maxedWeaponsForExtraSlot = ProgressionRules.MaxedWeaponsForExtraSlot,
-                arsenalBalanceVersion = "2026-09-08-mine-control-v2",
+                arsenalBalanceVersion = "2026-09-20-approved-weapons-v1",
                 restorationVersion = LegacyRestorationRules.Version,
                 arrivalRateMultiplier = LegacyRestorationRules.ArrivalRateMultiplier,
                 ordinaryRareDropChance = LegacyRestorationRules.OrdinaryRareDropChance,

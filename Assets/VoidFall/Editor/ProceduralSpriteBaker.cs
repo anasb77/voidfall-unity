@@ -184,6 +184,8 @@ namespace VoidFall.Editor
                          "arsenal|0",
                          "arsenal|47",
                          "arsenal|48",
+                         "arsenal|55",
+                         "arsenal|62",
                      })
             {
                 if (!keys.Contains(required)) errors.Add("Missing prepared sprite key: " + required);

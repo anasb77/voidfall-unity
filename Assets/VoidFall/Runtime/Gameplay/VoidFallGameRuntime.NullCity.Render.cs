@@ -36,6 +36,7 @@ namespace VoidFall.Runtime
 
         private Sprite NullCityUnitSprite(string id, float elapsed, bool hit = false)
         {
+            if(NullCityContent.EnemyIndex(id)>=12)return ApprovedMapSprite("city-"+(NullCityContent.EnemyIndex(id)-12));
             var visuals = NullCityVisuals;
             if (visuals == null) return ProceduralSpriteFactory.Enemy("chaser");
             if (id == "null-marshal" && elapsed % 6f < 3f && !hit) return visuals.MarshalBracedSprite(elapsed);
@@ -48,7 +49,7 @@ namespace VoidFall.Runtime
 
         private float NullCityUnitScale(string id, Sprite sprite)
         {
-            if (sprite == null) return 1f;
+            if (sprite == null || NullCityContent.EnemyIndex(id)>=12) return 1f;
             var visuals = NullCityVisuals;
             var size = visuals != null ? visuals.UnitWorldSize(id).x : (float)(NullCityContent.FindEnemy(id)?.Radius ?? 114) * 4f;
             return size / Mathf.Max(.01f, sprite.bounds.size.x);
@@ -61,6 +62,7 @@ namespace VoidFall.Runtime
 
         private void HideNullCityCombatTelegraphs()
         {
+            HideApprovedRoadEnergy();
             if (_nullCityPurgeFill != null) _nullCityPurgeFill.enabled = false;
             if (_nullCityPurgeBorder != null) _nullCityPurgeBorder.enabled = false;
             if (_nullCityPurgeBeam != null) _nullCityPurgeBeam.enabled = false;
@@ -76,6 +78,7 @@ namespace VoidFall.Runtime
 
         private void HideNullCityPresentation()
         {
+            foreach(var portal in _approvedPortals)if(portal!=null)portal.enabled=false;
             HideNullCityCombatTelegraphs();
             ClearNullCityProp(_nullCityTransitView);
             ClearNullCityProp(_nullCityHangarView);
@@ -166,7 +169,7 @@ namespace VoidFall.Runtime
             view.sprite = sprite;
             view.transform.position = position;
             view.transform.rotation = Quaternion.identity;
-            view.transform.localScale = Vector3.one * NullCityRules.WorldScale;
+            view.transform.localScale = Vector3.one;
             view.color = color;
             view.enabled = sprite != null;
         }
@@ -183,7 +186,7 @@ namespace VoidFall.Runtime
             var lockdown = NullCityRules.CycleAt(clock, boss) == NullCityCycle.Lockdown;
             _nullCityDarkness = Mathf.MoveTowards(_nullCityDarkness, lockdown ? 1f : 0f, Time.unscaledDeltaTime * .9f);
             var index = (int)ArenaId.NullCity;
-            _backdropView.sprite = _arenaPlateSprites[index];
+            _backdropView.sprite = ApprovedMapSprite("null-city");
             _backdropView.transform.position = _nullCityOrigin;
             _backdropView.transform.rotation = Quaternion.identity;
             _backdropView.color = Color.Lerp(Color.white, new Color(.53f, .57f, .72f, 1f), _nullCityDarkness);
@@ -199,7 +202,7 @@ namespace VoidFall.Runtime
                 _arenaBakedDetailView.transform.position = _nullCityOrigin;
                 _arenaBakedDetailView.transform.rotation = Quaternion.identity;
                 _arenaBakedDetailView.color = new Color(1f, 1f, 1f, Mathf.Lerp(.9f, .22f, _nullCityDarkness));
-                _arenaBakedDetailView.enabled = _arenaBakedDetailView.sprite != null;
+                _arenaBakedDetailView.enabled = false; // Approved expanded skyline is already authored at native prop scale.
                 if (_arenaBakedDetailView.sprite != null)
                 {
                     var size = _arenaBakedDetailView.sprite.bounds.size;
@@ -212,7 +215,8 @@ namespace VoidFall.Runtime
                 // Recipe seeds vary moving compositions without moving the authored collision lanes.
                 var decor = clock + _arenaRecipeIndex * 4.25f;
                 NullCityProp(ref _nullCityTransitView, "Null City Transit", visuals.Transit,
-                    NullCityWorld(180f + Mathf.Repeat(decor * 78f, 1280f), 235f), Color.white, -88);
+                    NullCityWorld(279f, 230f), Color.white, -88);
+                RenderApprovedTransit(clock);
                 NullCityProp(ref _nullCityHangarView, "Null City Hangar", lockdown && !cleared ? visuals.HangarOpen : visuals.HangarClosed,
                     NullCityWorld(805f, 800f), Color.white, -87);
                 NullCityProp(ref _nullCityLcdView, "Null City LCD", lockdown ? visuals.LcdLockdown : visuals.LcdSurveillance,
@@ -268,7 +272,7 @@ namespace VoidFall.Runtime
 
         private Vector2 NullCityViewportHalfExtent()
         {
-            if (!_mainMenuBrowsing) return GameplayViewportHalfExtent(Screen.width, Screen.height);
+            if (!_mainMenuBrowsing) return ApprovedMapViewport(860f);
             var aspect = Screen.height > 0 ? Mathf.Max(.5f, (float)Screen.width / Screen.height) : 16f / 9f;
             var halfHeight = Mathf.Max(NullCityRules.WorldHeight * .5f, NullCityRules.WorldWidth * .5f / aspect);
             return new Vector2(halfHeight * aspect, halfHeight);
@@ -279,7 +283,7 @@ namespace VoidFall.Runtime
             if (!h.Visible) return;
             var x = (float)h.X; var y = (float)h.Y; var w = (float)h.Width; var height = (float)h.Height;
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
-            var jitter = (float)NullCityRules.RoadShake(_nullCityElapsed, h.Active, reducedMotion);
+            var jitter = (float)NullCityRules.RoadShake(_mainMenuBrowsing ? _ambientClock : _nullCityElapsed, h.Active, reducedMotion);
             var offset = h.Lane < 2 ? new Vector2(0f, jitter) : new Vector2(jitter, 0f);
             RenderNullCityRoadSurface(h, offset);
             var a = NullCityWorld(x, y + height * .5f);
@@ -308,6 +312,7 @@ namespace VoidFall.Runtime
             }
             if (h.Active)
             {
+                RenderApprovedRoadEnergy(h,offset,reducedMotion);
                 if (h.Lane >= 2) { a = NullCityWorld(x + w * .5f, y); b = NullCityWorld(x + w * .5f, y + height); }
                 NullCityLine(ref _nullCityPurgeBeam, "Null City Purge Discharge", a + offset, b + offset, Mathf.Min(w, height) * NullCityRules.WorldScale * .09f, new Color(1f, .94f, .77f, .95f), -71);
             }
@@ -318,7 +323,7 @@ namespace VoidFall.Runtime
             for (var i = 0; i < _gameSim.Enemies.Length; i++)
             {
                 var e = _gameSim.Enemies[i];
-                if (!e.Active || !IsNullCityEnemy(e.Id)) continue;
+                if (!e.Active || !IsNullCityEnemy(e.Id) || NullCityContent.EnemyIndex(e.Id)>=12) continue;
                 var color = ParseColor(NullCityContent.FindEnemy(e.Id).Color, Color.cyan);
                 color.a = .75f;
                 if (e.State == 1)

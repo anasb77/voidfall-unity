@@ -1,17 +1,75 @@
 # Run exports — schema 4
 
-## Map framing correction (September 19)
+## Approved weapon iteration (September 20)
 
-`context.mapPresentationVersion=2` identifies shared gameplay framing for Court,
-Hydra I and Null City, normal player rendering size, and restored native1× City
-geometry. Court retains its3628.8×3628.8 board; City's artwork is1600×900 and
-its playable floor1240×526. Hydra II geometry remains unchanged.
+`mine_chain` with reason `scheduled` joins the receiving mine `instanceId` to
+the detonating parent `relatedInstanceId`. `durationSeconds=0.14` is propagation
+delay; event position is the receiving mine. `mine_detonated` includes the same
+parent (zero for a proximity trigger) and the actual blast center; its existing
+freeze/resistance fields retain their meaning. `mine_expired` with reason
+`arsenal_reset` cancels active/pending mines during reset or travel. No chain
+event is emitted for an unarmed, out-of-radius or already scheduled neighbor.
+
+`summon_spawn` assigns a run-local monotonic unit identity. `summon_target`
+reasons `acquired`, `lost`, and `leash` join unit `instanceId` to target
+`relatedInstanceId`, with `sourceId=enemy|boss` disambiguating identity domains.
+`summon_impact` reports committed contact before damage callbacks, with reason
+`base|evolved`; actual damage continues through existing weapon damage windows.
+`summon_despawn` with reason `arsenal_reset` explains travel/reset removals.
+`summon_spawn_blocked` distinguishes `pool_full` from `idle_squad_full` at each
+scheduled spawn attempt without recording a successful admission.
+These use the existing bounded recorder and run/visit/time context; no extra
+combat RNG, per-frame events or per-event file writes are introduced.
+
+## Director I momentum (September 20)
+
+`context.directorVersion=7` and `restorationVersion=2026-09-20-director-momentum-v5`
+identify early Shuriken/Spiky, stronger later-void arrivals and late-Abyss signatures.
+`roster_introduction` reports actual admission time, which can be later than an
+unlock because of learning grace, damage relief or an active encounter. Pending
+families are introduced in reveal-time order after those deferrals.
+`director_arrival_budget.detail` adds invariant-culture `interval` (seconds between
+requested batches) and zero-based `stage`. `amount` remains requested batch size;
+individual `enemy_spawn` events are the source of truth for admissions, including
+population/threat rejections. This is a nominal arrival rate, not guaranteed kills
+or screen occupancy.
+
+`director_signature` IDs are `elite_escort`, `rusher_flank`, `incident_fallback`.
+Reasons: `warning` (two seconds), `deployed` (actual admitted amount and requested
+count/entry edge in detail), `cancelled_safety_window`, or `window_expired`.
+Warning/deployment join through encounter-owner `instanceId`; expired windows have
+no allocated encounter owner. Edges0/1/2/3 mean north/south/west/east. Flanks also
+use an adjacent edge, leaving an escape half-plane. Actors retain natural AI and
+normal attack reservations.
+
+`director_incident_opportunity` uses the run-local incident sequence as `instanceId`.
+Reasons: `opened`, `incident_started`, `meteor_fallback`, `duration_fallback`,
+`threat_fallback`, `expired_safety_window`. Completion `amount` is the number of
+opportunities consumed this arena, capped at2. Open windows last at most48 seconds
+and retry every8; pacing/safety rejections still emit `incident_deferred`.
+Later arenas reset the first due time to local60; Abyss uses85–120. Subsequent
+opportunities wait100 seconds after completion (or incident end). A fallback is
+a warned24-enemy familiar formation, not a major incident, and therefore does not
+increment `MajorIncidentsSeen`. Diagnostic forced incidents retain their original
+explicit bypass. No native hazards, damage relief or arrival grace are bypassed.
+
+## Approved maps (September 20)
+
+`context.mapPresentationVersion=3` identifies Null City's860-unit camera height
+(slider50%) and Hydra/Court's908-unit height (slider60%), before Spatial Awareness.
+Zack retains normal size. Court retains its3628.8×3628.8 board; City's expanded
+layout is2560×1440 with1984×841.6 playable floor and native-size props/actors.
+Hydra I ground is stationary; Hydra II geometry remains unchanged.
 Samples add `cameraX`/`cameraY`: the gameplay camera centre before cosmetic shake.
 `onScreenEnemies` now measures against that centre instead of the player, which
 can be off-centre near fixed-map boundaries. Existing viewport and arena fields
 continue to report world units through both summary JSON and journal JSONL.
-`arena_map_policy` uses `null-city-native-scale-v2`, amount1, once per City visit.
-Older exports with `null-city-original-4x-v1` describe the previous4× layout.
+`arena_map_policy` uses `null-city-expanded-v3`, amount1.6, once per City visit;
+Hydra uses `hydra-hives-v3`. `court_board_created` records the908-unit viewport,
+fixed4×4 Sentinel territories and boss-only whole-color attacks. Hive brood
+requests, deferred births, guardian releases, insect fuses/blasts, Court territory
+shields, promotions and warned attacks have source/target identities and outcomes.
+Version2 exports describe the earlier1× city; `null-city-original-4x-v1` is older.
 
 ## Growth, readability and Director I v6 (September 19)
 
@@ -90,7 +148,7 @@ Missing completion narrows investigation but is not proof of an audio fault;
 an unflushed journal tail may be missing. Neither event proves the renderer is
 responsive after the handler returns.
 
-The current `arsenalBalanceVersion` is `2026-09-08-mine-control-v2` and
+The current `arsenalBalanceVersion` is `2026-09-20-approved-weapons-v1` and
 `incidentBalanceVersion` is 2. Older exports omit these added fields or carry
 the earlier version. Do not compare balance samples without identifying policy.
 

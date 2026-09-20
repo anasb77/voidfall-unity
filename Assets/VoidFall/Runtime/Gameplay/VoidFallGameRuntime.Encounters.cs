@@ -63,12 +63,13 @@ namespace VoidFall.Runtime
             _bossReinforcementWaves = 0;
             _lastSpawnBlockReason = "opening";
             ResetSustainedDirector();
-            if (UsesSustainedDirector) _nextEncounterTime = _time + 30;
+            if (UsesSustainedDirector) _nextEncounterTime = _time + (_pressureStageIndex > 0 ? 12 : 30);
             HideEncounterWarnings();
         }
 
         private void CancelEncounterDirector()
         {
+            _momentumBeat = 0;
             _encounter.Reset();
             HideEncounterWarnings();
             _spawnTimer = .65f;

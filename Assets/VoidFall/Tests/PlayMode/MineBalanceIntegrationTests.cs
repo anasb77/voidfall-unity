@@ -132,6 +132,36 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(blasts[1].blockedAttempts, Is.EqualTo(1));
         }
 
+        [Test]
+        public void Approved_weapon_history_joins_chain_parents_and_summon_targets()
+        {
+            Enemy(100);
+            var mines = (Array)Get(_runtime, "_arsenalMines");
+            for (var i = 0; i < 2; i++)
+            {
+                var mine = Activator.CreateInstance(mines.GetType().GetElementType());
+                Set(mine, "Active", true); Set(mine, "Rank", 1); Set(mine, "Age", 1f);
+                Set(mine, "MineIdentity", 401 + i); Set(mine, "Position", new Vector2(i * 80, 0)); mines.SetValue(mine, i);
+            }
+            Call("StepArsenalMines", Dt); Call("StepArsenalMines", .14f);
+            var progress = new UpgradeProgress(); progress.WeaponRanks[7] = 1;
+            Set(_runtime, "_upgradeProgress", progress); Call("RecalculatePlayerStats", false);
+            Call("UpdateArsenalWeapons", Dt); Call("StepArsenalSummons", .2f);
+            var history = FinishHistory();
+            var chain = history.Single(e => e.kind == "mine_chain");
+            Assert.That(chain.instanceId, Is.EqualTo(402)); Assert.That(chain.relatedInstanceId, Is.EqualTo(401));
+            Assert.That(chain.durationSeconds, Is.EqualTo(.14f));
+            Assert.That(history.Single(e => e.kind == "mine_detonated" && e.instanceId == 402).relatedInstanceId, Is.EqualTo(401));
+            var impacts = history.Where(e => e.kind == "summon_impact").ToArray();
+            Assert.That(impacts.Length, Is.EqualTo(2));
+            foreach (var impact in impacts)
+            {
+                Assert.That(impact.relatedInstanceId, Is.EqualTo(100));
+                Assert.That(history.Any(e => e.kind == "summon_spawn" && e.instanceId == impact.instanceId), Is.True);
+                Assert.That(history.Any(e => e.kind == "summon_target" && e.instanceId == impact.instanceId && e.relatedInstanceId == 100), Is.True);
+            }
+        }
+
         [TestCase("warden")] [TestCase("matriarch")] [TestCase("reaver")]
         public void Boss_matchup_runs_actual_controller_and_records_mine_damage(string id)
         {

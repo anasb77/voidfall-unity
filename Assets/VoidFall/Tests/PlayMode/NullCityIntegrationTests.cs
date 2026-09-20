@@ -280,7 +280,7 @@ namespace VoidFall.Tests.PlayMode
         {
             EnterNullCity();
             var origin = (Vector2)Get(_runtime, "_nullCityOrigin");
-            var nearRightEdge = origin + new Vector2(615f, 0f);
+            var nearRightEdge = origin + new Vector2(987f, 0f);
             SetPlayer("Position", nearRightEdge);
             SetPlayer("Iframes", 0f);
             Set(_runtime, "_nullCityDashRequested", true);
@@ -289,7 +289,7 @@ namespace VoidFall.Tests.PlayMode
 
             var player = Get(GameSim, "Player");
             Assert.That(Get(player, "Iframes"), Is.EqualTo(0.25f));
-            Assert.That(Get(player, "Position"), Is.EqualTo(origin + new Vector2(620f, 0f)));
+            Assert.That(Get(player, "Position"), Is.EqualTo(origin + new Vector2(992f, 0f)));
             Assert.That((float)Get(_runtime, "_nullCityDashCooldown"), Is.GreaterThan(0f));
             Assert.That(Get(_runtime, "_nullCityDashRemaining"), Is.EqualTo(0f));
             yield return null;
@@ -300,7 +300,7 @@ namespace VoidFall.Tests.PlayMode
         {
             EnterNullCity();
             var origin = (Vector2)Get(_runtime, "_nullCityOrigin");
-            Assert.That(Invoke(_runtime, "NullCityWorld", 1420f, 450f), Is.EqualTo(origin + new Vector2(620f, 0)));
+            Assert.That(Invoke(_runtime, "NullCityWorld", 1420f, 450f), Is.EqualTo(origin + new Vector2(992f, 0)));
             var world = (Vector2)Invoke(_runtime, "NullCityWorld", 800f, 345f);
             Assert.That(Invoke(_runtime, "NullCityCanvas", world), Is.EqualTo(new Vector2(800f, 345f)));
             for (var i = 0; i < 12; i++)
@@ -333,10 +333,10 @@ namespace VoidFall.Tests.PlayMode
             var rows = File.ReadAllLines(Directory.GetFiles(_temporaryDirectory, "*.jsonl").Single())
                 .Select(JsonUtility.FromJson<UnityTelemetryHistoryEvent>).Where(e => e.kind == "arena_map_policy").ToArray();
             Assert.That(rows, Has.Length.EqualTo(1));
-            Assert.That(rows[0].id, Is.EqualTo("null-city-native-scale-v2"));
+            Assert.That(rows[0].id, Is.EqualTo("null-city-expanded-v3"));
             Assert.That(rows[0].sourceId, Is.EqualTo("null-city"));
-            Assert.That(rows[0].amount, Is.EqualTo(1));
-            Assert.That(rows[0].detail, Does.Contain("world=1600x900"));
+            Assert.That(rows[0].amount, Is.EqualTo(1.6f));
+            Assert.That(rows[0].detail, Does.Contain("world=2560x1440"));
             Assert.That(rows[0].arenaId, Is.Not.Empty);
             Assert.That(rows[0].visitIndex, Is.GreaterThan(0));
         }

@@ -24,14 +24,14 @@ namespace VoidFall.Tests.Editor
         }
 
         [Test]
-        public void Court_content_contains_the_approved_five_piece_roster_and_route_only_twins()
+        public void Court_content_contains_the_approved_six_family_roster_and_route_only_twins()
         {
             Assert.That(MonochromeContent.Arena.Id, Is.EqualTo("monochrome-court"));
             Assert.That(
-                MonochromeContent.Enemies.Select(enemy => enemy.Id),
+                MonochromeContent.Enemies.Where(enemy => ApprovedMapContent.CourtRank(enemy.Id)==0).Select(enemy => enemy.Id),
                 Is.EqualTo(new[]
                 {
-                    "court-pawn", "court-rook", "court-bishop", "court-knight", "court-queen",
+                    "court-pawn", "court-rook", "court-bishop", "court-knight", "court-queen", "court-armored-knight",
                 }));
             Assert.That(MonochromeContent.BlackBoss.StartsAtSeconds, Is.LessThan(0));
             Assert.That(MonochromeContent.WhiteBoss.StartsAtSeconds, Is.LessThan(0));
