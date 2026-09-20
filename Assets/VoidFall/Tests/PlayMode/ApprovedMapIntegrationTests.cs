@@ -159,6 +159,73 @@ namespace VoidFall.Tests.PlayMode
             finally
             {for(var i=0;i<Enemies.Length;i++)if((int)Get(Enemies.GetValue(i),"SpawnId")>=10000)Enemies.SetValue(Activator.CreateInstance(enemyType),i);}
         }
+        [Test]
+        public void Sentinel_alternates_eight_black_then_eight_white_cells_and_spares_the_other_color()
+        {
+            Enter("monochrome-court",ArenaId.MonochromeCourt);Call("EnsureCourtField");
+            var rooks=(Array)Get(_runtime,"_courtRooks");
+            for(var i=1;i<rooks.Length;i++)if(rooks.GetValue(i)!=null)Set(rooks.GetValue(i),"Fallen",true);
+            var rook=rooks.GetValue(0);var identity=(int)Get(rook,"SpawnId");
+            var slot=Active().Single(i=>(int)Get(Enemies.GetValue(i),"SpawnId")==identity);
+            var enemy=Enemies.GetValue(slot);var centre=(Vector2)Call("CourtCellCentre",28,28);
+            Set(enemy,"Position",centre);Enemies.SetValue(enemy,slot);
+            Set(_runtime,"_monochromeSurvivalElapsed",2f);Call("StepApprovedCourt",0f);
+            for(var y=26;y<30;y++)for(var x=26;x<30;x++)
+                Assert.That((float)Call("ApprovedCourtCellStage",x,y),Is.EqualTo(((x+y)&1)==1?1f:0f));
+            var game=Get(_runtime,"_gameSim");var player=Get(game,"Player");
+            Set(player,"Position",centre);Set(player,"Health",1000f);Set(player,"MaxHealth",1000f);Set(player,"Iframes",0f);Set(game,"Player",player);
+            Set(_runtime,"_monochromeSurvivalElapsed",3.1f);Call("StepApprovedCourt",0f);
+            Assert.That((float)Get(Get(game,"Player"),"Health"),Is.EqualTo(1000f),"White cell is safe during black cycle");
+            Set(_runtime,"_monochromeSurvivalElapsed",16f);Call("StepApprovedCourt",0f);
+            for(var y=26;y<30;y++)for(var x=26;x<30;x++)
+                Assert.That((float)Call("ApprovedCourtCellStage",x,y),Is.EqualTo(((x+y)&1)==0?1f:0f));
+            Set(_runtime,"_monochromeSurvivalElapsed",17.1f);Call("StepApprovedCourt",0f);Call("StepApprovedCourt",0f);
+            Assert.That((float)Get(Get(game,"Player"),"Health"),Is.EqualTo(980f));
+            Call("FinishRunExport","test_finished");
+            var history=File.ReadAllText(Directory.GetFiles(Path.Combine(_directory,"RunExports"),"*.jsonl").Single());
+            StringAssert.Contains("color=black;cycle=0",history);StringAssert.Contains("color=white;cycle=1",history);
+        }
+        [Test]
+        public void Crowd_push_moves_sentinel_and_its_shield_notice_is_coalesced()
+        {
+            Enter("monochrome-court",ArenaId.MonochromeCourt);Call("EnsureCourtField");
+            var rooks=(Array)Get(_runtime,"_courtRooks");var rook=rooks.GetValue(0);
+            var slot=Active().Single(i=>(int)Get(Enemies.GetValue(i),"SpawnId")== (int)Get(rook,"SpawnId"));
+            var e=Enemies.GetValue(slot);Set(e,"Position",Vector2.zero);Enemies.SetValue(e,slot);
+            Call("SpawnEnemy","court-pawn",(Vector2?)(Vector2.right*5));
+            Call("RebuildEnemyGrid");Call("SeparateEnemies");
+            var displaced=(Vector2)Get(Enemies.GetValue(slot),"Position");Assert.That(displaced.sqrMagnitude,Is.GreaterThan(0));
+            Call("StepApprovedCourt",0f);Assert.That((Vector2)Get(rook,"Position"),Is.EqualTo(displaced));
+            var pawnSlot=Active().Single(i=>Id(i)=="court-pawn");
+            var moved=displaced+Vector2.right*700;e=Enemies.GetValue(slot);Set(e,"Position",moved);Enemies.SetValue(e,slot);
+            var pawn=Enemies.GetValue(pawnSlot);Set(pawn,"Position",moved+Vector2.right*10);Enemies.SetValue(pawn,pawnSlot);
+            Call("StepApprovedCourt",.01f);Call("StepApprovedCourt",.01f);
+            Assert.That((Vector2)Get(rook,"Position"),Is.EqualTo(moved));
+            var states=(Array)Get(_runtime,"_approvedEnemies");Assert.That((float)Get(states.GetValue(pawnSlot),"Shield"),Is.EqualTo(24));
+            var toasts=(Array)Get(_runtime,"_toastStates");
+            Assert.That(toasts.Cast<object>().Count(t=>(bool)Get(t,"Active")&&(string)Get(t,"Text")=="ENEMY SHIELDED"),Is.EqualTo(1));
+        }
+        [Test]
+        public void Double_board_keeps_camera_and_tile_scale_and_renders_only_visible_tiles()
+        {
+            Enter("monochrome-court",ArenaId.MonochromeCourt);Call("EnsureCourtField");Call("Render");
+            var size=(Vector2)Call("ApprovedMapSizeWorld");Assert.That(size.x,Is.EqualTo(7257.6f).Within(.01));Assert.That(size.y,Is.EqualTo(size.x));
+            Assert.That(((Vector2)Call("GameplayViewportHalfExtent")).y*2,Is.EqualTo(908f));
+            var tiles=(SpriteRenderer[])Get(_runtime,"_courtBoardTiles");
+            Assert.That(tiles.Length,Is.EqualTo(56*56));Assert.That(tiles.Count(t=>t.enabled),Is.InRange(50,400));
+        }
+        [Test]
+        public void Original_knight_spawns_alongside_new_families_and_uses_its_original_art()
+        {
+            Enter("monochrome-court",ArenaId.MonochromeCourt);
+            var selected=Enumerable.Range(0,1000).Select(_=>(string)Call("SelectApprovedCourtSpawn")).ToArray();
+            foreach(var id in new[]{"court-pawn","court-rook","court-bishop","court-queen",ApprovedMapContent.OriginalKnightId,"court-knight","court-armored-knight"})Assert.That(selected,Does.Contain(id));
+            Call("SpawnEnemy",ApprovedMapContent.OriginalKnightId,(Vector2?)Vector2.zero);
+            var slot=Active().Single(i=>Id(i)==ApprovedMapContent.OriginalKnightId);
+            Assert.That(Call("TryRenderApprovedEnemy",slot,Enemies.GetValue(slot)),Is.True);
+            Assert.That(((SpriteRenderer[])Get(_runtime,"_enemyViews"))[slot].sprite.name,Does.Contain("knight-original"));
+            Assert.That(MonochromeContent.BlackBoss.Name,Is.EqualTo("Wing"));Assert.That(MonochromeContent.WhiteBoss.Name,Is.EqualTo("Wang"));
+        }
         private Array Enemies => (Array)Get(Get(_runtime,"_gameSim"),"Enemies");
         private string Id(int slot)=>(string)Get(Enemies.GetValue(slot),"Id");
         private int[] Active()=>Enumerable.Range(0,Enemies.Length).Where(i=>(bool)Get(Enemies.GetValue(i),"Active")).ToArray();

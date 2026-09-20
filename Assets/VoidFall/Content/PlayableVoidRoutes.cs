@@ -130,7 +130,7 @@ namespace VoidFall.Core
                 case "monochrome-court":
                     arena = MonochromeContent.Arena;
                     hint = "CHESS ARMIES / BURNING TILES";
-                    encounter = "defeat the Twin Grandmasters";
+                    encounter = "defeat Wingwang";
                     break;
                 case "crascendo":
                     arena = CrascendoContent.Arena;

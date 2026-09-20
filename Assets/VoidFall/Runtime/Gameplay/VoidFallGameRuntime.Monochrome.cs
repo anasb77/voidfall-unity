@@ -7,8 +7,8 @@ namespace VoidFall.Runtime
     {
         private const string CourtBlackBossId = "court-grandmaster-black";
         private const string CourtWhiteBossId = "court-grandmaster-white";
-        private const int CourtBoardColumns = 28;
-        private const int CourtBoardRows = 28;
+        private const int CourtBoardColumns = ApprovedMapRules.CourtColumns;
+        private const int CourtBoardRows = ApprovedMapRules.CourtRows;
 
         private readonly SpriteRenderer[] _courtBoardTiles =
             new SpriteRenderer[CourtBoardColumns * CourtBoardRows];
@@ -139,7 +139,7 @@ namespace VoidFall.Runtime
             if (_courtBlackBossSlot >= 0) _monochromeSharedMaxHealth += _gameSim.Bosses[_courtBlackBossSlot].MaxHealth;
             if (_courtWhiteBossSlot >= 0) _monochromeSharedMaxHealth += _gameSim.Bosses[_courtWhiteBossSlot].MaxHealth;
             _monochromeSharedHealth = _monochromeSharedMaxHealth;
-            ShowArenaToast("THE TWIN GRANDMASTERS COMMAND THE FLOOR", 2.8f, ToastKind.Danger);
+            ShowArenaToast("WINGWANG", 2.8f, ToastKind.Danger);
         }
 
         private void EndMonochromeBossEncounter()
@@ -175,7 +175,7 @@ namespace VoidFall.Runtime
             StepMonochromeBossEncounter(0f);
             _objectives?.Clear();
             _objectives = null;
-            _objectiveLine = "MONOCHROME COURT | TWIN GRANDMASTERS — ENGAGED";
+            _objectiveLine = "MONOCHROME COURT | WINGWANG — ENGAGED";
             _lastObjectiveLine = null;
         }
 
@@ -516,12 +516,17 @@ namespace VoidFall.Runtime
             if (!_courtFieldReady) return;
             RenderCourtFieldDetails();
             var reducedMotion = _saveData?.settings != null && _saveData.settings.reducedMotion;
+            var centre = RenderCameraCentre();
+            var visibleHalf = new Vector2(_camera.orthographicSize*_camera.aspect,_camera.orthographicSize) + _monochromeBoardTileSize;
             for (var row = 0; row < CourtBoardRows; row++)
             for (var column = 0; column < CourtBoardColumns; column++)
             {
                 var index = row * CourtBoardColumns + column;
                 var tile = _courtBoardTiles[index];
-                tile.transform.position = CourtCellCentre(column, row);
+                var position = CourtCellCentre(column, row);
+                if (Mathf.Abs(position.x-centre.x)>visibleHalf.x || Mathf.Abs(position.y-centre.y)>visibleHalf.y)
+                { if(tile.enabled)tile.enabled=false; continue; }
+                tile.transform.position = position;
                 tile.transform.localScale = new Vector3(_monochromeBoardTileSize.x, _monochromeBoardTileSize.y, 1f);
                 tile.color = ((row + column) & 1) == 0 ? new Color(195f/255f, 197f/255f, 191f/255f, 1f) : new Color(22f/255f, 29f/255f, 36f/255f, 1f);
                 _courtTileProperties.Clear();

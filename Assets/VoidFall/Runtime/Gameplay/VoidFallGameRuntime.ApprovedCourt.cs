@@ -9,9 +9,11 @@ namespace VoidFall.Runtime
         private readonly int[] _sentinelBursts=new int[CourtRookCount];
         private readonly int[] _sentinelWarnings=new int[CourtRookCount];
         private readonly LineRenderer[] _sentinelTerritories=new LineRenderer[CourtRookCount];
+        private float _courtShieldNoticeCooldown;
         private void ResetApprovedCourt()
         {
             Array.Clear(_approvedEnemies,0,_approvedEnemies.Length);
+            _courtShieldNoticeCooldown=0;
             for(var i=0;i<CourtRookCount;i++){_sentinelBursts[i]=_sentinelWarnings[i]=-1;if(_sentinelTerritories[i]!=null)_sentinelTerritories[i].enabled=false;}
             HideApprovedEnemyOverlays();
         }
@@ -20,6 +22,7 @@ namespace VoidFall.Runtime
             var roll=_gameSim.Rng.Next();
             var type=roll<.36?0:roll<.57?5:roll<.72?3:roll<.84?2:roll<.95?1:4;
             var rank=ApprovedMapRules.CourtTier(_monochromeSurvivalElapsed,_gameSim.Rng.Next());
+            if(type==3&&roll<.64)return ApprovedMapContent.OriginalKnightId;
             if(type==1&&_monochromeSurvivalElapsed>=120&&_gameSim.Rng.Next()<.22)rank=3;
             return ApprovedMapContent.CourtId(type,rank);
         }
@@ -42,12 +45,41 @@ namespace VoidFall.Runtime
             var cell=CourtCellIndex(position);var origin=CourtCellIndex(rook.Position);
             return cell>=0&&origin>=0&&ApprovedMapRules.InTerritory(cell%CourtBoardColumns,cell/CourtBoardColumns,origin%CourtBoardColumns,origin/CourtBoardColumns);
         }
+        private void SyncCourtRookPositions(bool constrain=false)
+        {
+            // Crowd separation deliberately moves Sentinels. Their eye, shield and attack follow the body.
+            for(var i=0;i<_gameSim.Enemies.Length;i++)
+            {
+                var enemy=_gameSim.Enemies[i];if(!enemy.Active||!IsCourtSentinel(enemy))continue;
+                foreach(var rook in _courtRooks)
+                {
+                    if(rook==null||rook.Fallen||rook.SpawnId!=enemy.SpawnId)continue;
+                    if(constrain)
+                    {
+                        enemy.Position=MonochromeRuntimeRules.ClampToBoard(enemy.Position,_monochromeBoardOrigin,
+                            new Vector2(CourtBoardColumns,CourtBoardRows)*(float)MonochromeEncounterRules.TileSize,enemy.Radius);
+                        _gameSim.Enemies[i]=enemy;
+                    }
+                    rook.Position=enemy.Position;break;
+                }
+            }
+        }
+        private bool SentinelCellMatches(int x,int y,int slot) =>
+            ApprovedMapRules.CellMatches(x,y,ApprovedMapRules.SentinelWhite(_monochromeSurvivalElapsed,slot));
+        private void CourtCellBurstFx(int x,int y)
+        {
+            if(_saveData?.settings?.reducedMotion??false)return;
+            var position=CourtCellCentre(x,y);var delta=position-RenderCameraCentre();
+            var half=GameplayViewportHalfExtent()+_monochromeBoardTileSize;
+            if(Mathf.Abs(delta.x)>half.x||Mathf.Abs(delta.y)>half.y)return;
+            BurstFx(position,new Color(1,.58f,.35f),4,150,.45f,.7f);
+        }
         private float ApprovedCourtCellStage(int x,int y)
         {
             var result=0f;
             for(var i=0;i<CourtRookCount;i++)
             {
-                if(!CourtTerritoryContains(_courtRooks[i],CourtCellCentre(x,y)))continue;
+                if(!SentinelCellMatches(x,y,i)||!CourtTerritoryContains(_courtRooks[i],CourtCellCentre(x,y)))continue;
                 var age=ApprovedMapRules.SentinelAge(_monochromeSurvivalElapsed,i);
                 result=Mathf.Max(result,age<3?1:age<3.45f?2:0);
             }
@@ -56,33 +88,41 @@ namespace VoidFall.Runtime
         private float ApprovedCourtBurstProgress(int x,int y)
         {
             if(_monochromeBossEncounterActive)return Mathf.Clamp01((_monochromeBossElapsed%5f-3.4f)/.45f);
-            for(var i=0;i<CourtRookCount;i++)if(CourtTerritoryContains(_courtRooks[i],CourtCellCentre(x,y)))
+            for(var i=0;i<CourtRookCount;i++)if(SentinelCellMatches(x,y,i)&&CourtTerritoryContains(_courtRooks[i],CourtCellCentre(x,y)))
             {var age=ApprovedMapRules.SentinelAge(_monochromeSurvivalElapsed,i);if(age>=3&&age<3.45f)return (age-3)/.45f;}
             return 1;
         }
         private void StepApprovedCourt(float dt)
         {
             if(!CurrentVoidIsMonochrome||!_courtFieldReady)return;
+            SyncCourtRookPositions(true);
+            _courtShieldNoticeCooldown=Mathf.Max(0,_courtShieldNoticeCooldown-dt);
+            var grantedShield=false;
             if(!_monochromeBossEncounterActive)for(var i=0;i<CourtRookCount;i++)
             {
                 var rook=_courtRooks[i];if(rook==null||rook.Fallen||rook.SpawnId==0)continue;
-                var total=_monochromeSurvivalElapsed+i*2.31f;var cycle=Mathf.FloorToInt(total/14);var age=total-cycle*14;
+                var cycle=ApprovedMapRules.SentinelCycle(_monochromeSurvivalElapsed,i);
+                var age=ApprovedMapRules.SentinelAge(_monochromeSurvivalElapsed,i);
+                var color=ApprovedMapRules.SentinelWhite(_monochromeSurvivalElapsed,i)?"white":"black";
                 if(age<3&&_sentinelWarnings[i]!=cycle)
                 {
                     _sentinelWarnings[i]=cycle;
-                    RecordRunHistory("court_sentinel_warning","court-sentinel",instanceId:rook.SpawnId,durationSeconds:3,position:rook.Position,detail:"cells=4x4;fixedGrid=true");
+                    RecordRunHistory("court_sentinel_warning","court-sentinel",instanceId:rook.SpawnId,durationSeconds:3,position:rook.Position,detail:"cells=4x4;color="+color+";cycle="+cycle+";followsRook=true");
                 }
                 if(age>=3&&age<3.45f&&_sentinelBursts[i]!=cycle)
                 {
                     _sentinelBursts[i]=cycle;
-                    var hit=CourtTerritoryContains(rook,_gameSim.Player.Position);
+                    var playerCell=CourtCellIndex(_gameSim.Player.Position);
+                    var hit=playerCell>=0&&CourtTerritoryContains(rook,_gameSim.Player.Position)&&SentinelCellMatches(playerCell%CourtBoardColumns,playerCell/CourtBoardColumns,i);
                     if(hit)DamagePlayer(20,Vector2.zero);
-                    RecordRunHistory("court_sentinel_burst","court-sentinel",instanceId:rook.SpawnId,position:rook.Position,amount:16,detail:"playerHit="+hit+";enemiesImmune=true");
-                    if(!(_saveData?.settings?.reducedMotion??false))
+                    var cell=CourtCellIndex(rook.Position);var count=0;
+                    for(var dy=-2;dy<2;dy++)for(var dx=-2;dx<2;dx++)
                     {
-                        var cell=CourtCellIndex(rook.Position);
-                        for(var y=-2;y<2;y++)for(var x=-2;x<2;x++)BurstFx(CourtCellCentre(cell%CourtBoardColumns+x,cell/CourtBoardColumns+y),new Color(1,.58f,.35f),4,150,.45f,.7f);
+                        var x=cell%CourtBoardColumns+dx;var y=cell/CourtBoardColumns+dy;
+                        if(x<0||y<0||x>=CourtBoardColumns||y>=CourtBoardRows||!SentinelCellMatches(x,y,i))continue;
+                        count++;CourtCellBurstFx(x,y);
                     }
+                    RecordRunHistory("court_sentinel_burst","court-sentinel",instanceId:rook.SpawnId,position:rook.Position,amount:count,detail:"color="+color+";cycle="+cycle+";playerHit="+hit+";enemiesImmune=true");
                 }
             }
             for(var i=0;i<_gameSim.Enemies.Length;i++)
@@ -99,9 +139,15 @@ namespace VoidFall.Runtime
                 if((!state.Inside||state.Shield<=0)&&state.ShieldCooldown<=0)
                 {
                     state.Shield=ApprovedMapRules.TerritoryShield;
+                    grantedShield=true;
                     RecordRunHistory("court_territory_shield",enemy.Id,instanceId:enemy.SpawnId,reason:state.Inside?"recharged":"entered",amount:state.Shield,position:enemy.Position);
                 }
                 state.Inside=true;
+            }
+            if(grantedShield&&_courtShieldNoticeCooldown<=0)
+            {
+                ShowArenaToast("Enemy shielded",1.5f,ToastKind.Info);
+                _courtShieldNoticeCooldown=1.5f;
             }
         }
         private void RenderApprovedTerritories()

@@ -104,7 +104,7 @@ namespace VoidFall.Tests.PlayMode
             Call("BeginMonochromeBossEncounter");
             Set(_runtime,"_monochromeBossElapsed",0f); Call("StepMonochromeBossEncounter",0f);
             var scope = ((int[])Get(_runtime,"_courtArmingOrder")).ToArray();
-            Assert.That(scope.Count(i=>i>0), Is.EqualTo(28*28/2));
+            Assert.That(scope.Count(i=>i>0), Is.EqualTo(56*56/2));
             var game=Get(_runtime,"_gameSim"); var player=Get(game,"Player");
             Set(player,"Position",new Vector2(10000f,10000f)); Set(game,"Player",player);
             Set(_runtime,"_monochromeBossElapsed",1f); Call("StepMonochromeBossEncounter",0f);
@@ -116,7 +116,7 @@ namespace VoidFall.Tests.PlayMode
             Call("FinishRunExport","quit");
             Assert.That(History.Count(e=>e.kind=="court_floor_burst"),Is.EqualTo(1));
             StringAssert.Contains("scope=whole_board",History.Single(e=>e.kind=="court_floor_scope").detail);
-            Assert.That(History.Single(e=>e.kind=="court_floor_scope").amount,Is.EqualTo(392));
+            Assert.That(History.Single(e=>e.kind=="court_floor_scope").amount,Is.EqualTo(1568));
         }
 
         [Test]
@@ -193,11 +193,11 @@ namespace VoidFall.Tests.PlayMode
             Call("ClampCourtPlayer");
             player=Get(game,"Player"); var position=(Vector2)Get(player,"Position");
             Assert.That(position.x,Is.GreaterThan(origin.x));
-            Assert.That(position.y,Is.LessThan(origin.y+28f*129.6f));
+            Assert.That(position.y,Is.LessThan(origin.y+56f*129.6f));
             Assert.That((Vector2)Get(player,"Velocity"),Is.EqualTo(Vector2.zero));
             var spawn=(Vector2)Call("CourtSpawnPosition",new Vector2(-10000f,10000f));
-            Assert.That(spawn.x,Is.InRange(origin.x+60f,origin.x+28f*129.6f-60f));
-            Assert.That(spawn.y,Is.InRange(origin.y+60f,origin.y+28f*129.6f-60f));
+            Assert.That(spawn.x,Is.InRange(origin.x+60f,origin.x+56f*129.6f-60f));
+            Assert.That(spawn.y,Is.InRange(origin.y+60f,origin.y+56f*129.6f-60f));
             Assert.That(Vector2.Distance(spawn,position),Is.GreaterThanOrEqualTo(300f));
         }
 
@@ -213,8 +213,8 @@ namespace VoidFall.Tests.PlayMode
             _runtime.GetType().GetMethod("ConstrainCourtEnemy",Flags).Invoke(_runtime,args);
             var origin=(Vector2)Get(_runtime,"_monochromeBoardOrigin");
             var pos=(Vector2)Get(args[0],"Position");
-            Assert.That(pos.x,Is.InRange(origin.x+12,origin.x+28f*129.6f-12));
-            Assert.That(pos.y,Is.InRange(origin.y+12,origin.y+28f*129.6f-12));
+            Assert.That(pos.x,Is.InRange(origin.x+12,origin.x+56f*129.6f-12));
+            Assert.That(pos.y,Is.InRange(origin.y+12,origin.y+56f*129.6f-12));
         }
 
         [Test]

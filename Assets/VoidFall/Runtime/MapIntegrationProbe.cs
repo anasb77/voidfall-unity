@@ -123,6 +123,7 @@ namespace VoidFall.Runtime
             yield return Capture("03-court-board-rooks");
             for(var type=0;type<6;type++)for(var rank=0;rank<3;rank++)
                 Call("SpawnEnemy",ApprovedMapContent.CourtId(type,rank),(Vector2?)new Vector2((type-2.5f)*180,(rank-1)*230));
+            Call("SpawnEnemy",ApprovedMapContent.OriginalKnightId,(Vector2?)new Vector2(0,-350));
             yield return Capture("03a-court-approved-roster");
             var sentinel = ((Array)Get("_courtRooks")).GetValue(0);
             _playerPosition = (Vector2)sentinel.GetType().GetField("Position", Flags).GetValue(sentinel) + Vector2.right * 200;
@@ -130,8 +131,10 @@ namespace VoidFall.Runtime
             yield return Capture("03c-court-sentinel-warning");
             _pinnedCourtSurvivalClock = 3.15f;
             yield return Capture("03d-court-sentinel-burst");
+            _pinnedCourtSurvivalClock = 17.15f;
+            yield return Capture("03e-court-sentinel-white-burst");
             _pinnedCourtSurvivalClock = -1;
-            _playerPosition = new Vector2(1750f, 1750f);
+            _playerPosition = new Vector2(3550f, 3550f);
             yield return Capture("03b-court-edge-framing");
             _playerPosition = Vector2.zero;
             PinPlayer(); // Restore the actual pose before the bosses choose their arena centre.
@@ -140,6 +143,10 @@ namespace VoidFall.Runtime
             Call("SyncVoidBossEncounterWithObjective");
             _pinnedCourtClock = .8f;
             yield return Capture("04-court-grandmaster-warning");
+            _pinnedCourtClock = 3.55f;
+            yield return Capture("04b-wingwang-white-burst");
+            _pinnedCourtClock = 8.55f;
+            yield return Capture("04c-wingwang-black-burst");
 
             yield return EnterArena("hydra", ArenaId.Hydra);
             Set("_hydraSurvivalElapsed", 35f);

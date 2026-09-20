@@ -31,7 +31,7 @@ namespace VoidFall.Tests.Editor
                 MonochromeContent.Enemies.Where(enemy => ApprovedMapContent.CourtRank(enemy.Id)==0).Select(enemy => enemy.Id),
                 Is.EqualTo(new[]
                 {
-                    "court-pawn", "court-rook", "court-bishop", "court-knight", "court-queen", "court-armored-knight",
+                    "court-pawn", "court-rook", "court-bishop", "court-knight", "court-queen", "court-armored-knight", ApprovedMapContent.OriginalKnightId,
                 }));
             Assert.That(MonochromeContent.BlackBoss.StartsAtSeconds, Is.LessThan(0));
             Assert.That(MonochromeContent.WhiteBoss.StartsAtSeconds, Is.LessThan(0));

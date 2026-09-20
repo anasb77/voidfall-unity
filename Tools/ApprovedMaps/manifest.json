@@ -270,6 +270,18 @@
     "ppu": 4
   },
   {
+    "name": "court-knight-original-black",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
+    "name": "court-knight-original-white",
+    "width": 160,
+    "height": 160,
+    "ppu": 4
+  },
+  {
     "name": "city-0",
     "width": 192,
     "height": 192,

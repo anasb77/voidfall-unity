@@ -73,7 +73,8 @@ namespace VoidFall.EditorTools
                     "Maps v3: Null City 50% (860 units), Hydra/Court 60% (908 units); normal Zack scale\n" +
                     "Null City: 1.6x expanded layout, native-size props, ten new enemies, portal-clipped transit\n" +
                     "Hydra: stationary floor, mixed hive broods, five insects and two guardians\n" +
-                    "Court: nineteen forms, mounted Pawn III warhorses, L-dash knights, 4x4 Sentinel territories\n" +
+                    "Court: 56x56 board, twenty forms, eight-point pawns, original and mounted Knights\n" +
+                    "Court attacks: movable Sentinels alternate black/white cells; Wingwang uses matching strikes\n" +
                     "Hydra II: original Unity map and boss encounter preserved\n" +
                     "Legacy restoration: " + VoidFall.Core.LegacyRestorationRules.Version + "\n" +
                     "Director I v7: later-void momentum; late-Abyss elite escort and rusher flank; bounded per-void incident opportunities\n" +

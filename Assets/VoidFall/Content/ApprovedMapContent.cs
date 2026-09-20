@@ -5,6 +5,7 @@ namespace VoidFall.Core
 {
     public static class ApprovedMapContent
     {
+        public const string OriginalKnightId = "court-knight-original";
         public static readonly string[] CourtFamilies = { "pawn", "rook", "bishop", "knight", "queen", "armored-knight" };
         private static readonly string[] CourtBaseIds = { "court-pawn", "court-rook", "court-bishop", "court-knight", "court-queen", "court-armored-knight" };
         public static readonly string[] InsectIds = { "hydra-needlewasp", "hydra-hookmantis", "hydra-blisterbeetle", "hydra-sawroach", "hydra-mourningmoth" };
@@ -30,6 +31,9 @@ namespace VoidFall.Core
                 e.AttackCooldown=new[]{4.5,4.2,3.8,4.2}[tier];e.TelegraphSeconds=type==4?2.7:new[]{1.2,1.05,.95,1.25}[tier];e.RecoverySeconds=.75;e.PreferredDistance=type==2?340:360;e.ProjectileSpeed=type==2?300:250;
                 entries.Add(e);
             }
+            var originalKnight=Enemy(OriginalKnightId,"Knight",55,100,17,"#f9fafb",18);
+            originalKnight.AttackCooldown=4.5;originalKnight.TelegraphSeconds=1.2;originalKnight.RecoverySeconds=.75;
+            entries.Add(originalKnight);
             for(var i=0;i<5;i++) entries.Add(Enemy(InsectIds[i],new[]{"Needlewasp","Hookmantis","Blisterbeetle","Sawroach","Mourningmoth"}[i],new[]{65d,85,60,110,65}[i],new[]{65d,72,60,48,55}[i],new[]{21d,23,24,26,23}[i]*.9,"#a0ac73",10));
             entries.Add(Enemy("hydra-hive","Hydra Hive",180,0,65,"#697651",0));
             entries.Add(Enemy("hydra-mantis-matriarch","Mantis Matriarch",480,52,60,"#c1bb80",22));

@@ -24,6 +24,11 @@ namespace VoidFall.Core
         }
         public static bool InTerritory(int cellX,int cellY,int rookX,int rookY) =>
             cellX >= rookX-2 && cellX < rookX+2 && cellY >= rookY-2 && cellY < rookY+2;
-        public static float SentinelAge(float elapsed,int slot) => (elapsed + slot*2.31f) % 14f;
+        public const int CourtColumns = 56;
+        public const int CourtRows = 56;
+        public static float SentinelAge(float elapsed,int slot) => (elapsed + slot*2.31f % 14f) % 14f;
+        public static int SentinelCycle(float elapsed,int slot) => (int)Math.Floor((elapsed + slot*2.31f % 14f) / 14f);
+        public static bool SentinelWhite(float elapsed,int slot) => (SentinelCycle(elapsed,slot) & 1) != 0;
+        public static bool CellMatches(int x,int y,bool white) => ((x+y)&1) == (white?0:1);
     }
 }

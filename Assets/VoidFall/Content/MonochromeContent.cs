@@ -30,9 +30,9 @@ namespace VoidFall.Core
             ApprovedMapContent.Enemies, e => e.Id.StartsWith("court-", System.StringComparison.Ordinal));
 
         public static readonly BossDefinition BlackBoss = CreateBoss(
-            "court-grandmaster-black", "Black Grandmaster", "court-black-volley", "#111827");
+            "court-grandmaster-black", "Wing", "court-black-volley", "#111827");
         public static readonly BossDefinition WhiteBoss = CreateBoss(
-            "court-grandmaster-white", "White Grandmaster", "court-white-volley", "#f3f4f6");
+            "court-grandmaster-white", "Wang", "court-white-volley", "#f3f4f6");
 
         public static ArenaDefinition FindArena(string id) => id == Arena.Id ? Arena : null;
 

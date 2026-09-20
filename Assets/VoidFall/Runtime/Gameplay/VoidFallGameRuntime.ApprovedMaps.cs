@@ -101,6 +101,7 @@ namespace VoidFall.Runtime
                 var slot=0;for(var i=0;i<_courtRooks.Length;i++)if(_courtRooks[i]!=null&&_courtRooks[i].SpawnId==enemy.SpawnId){slot=i;break;}
                 name="sentinel-"+(slot%3)+"-"+(CourtFactionOf(enemy)==CourtFaction.White?"white":"black");
             }
+            else if(enemy.Id==ApprovedMapContent.OriginalKnightId)name="court-knight-original-"+(white?"white":"black");
             else if(type>=0)name="court-"+ApprovedMapContent.CourtFamilies[type]+"-"+(ApprovedMapContent.CourtRank(enemy.Id)+1)+"-"+(CourtFactionOf(enemy)==CourtFaction.White?"white":"black");
             if(city>=12)name="city-"+(city-12);
             if(insect>=0)name="insect-"+insect;

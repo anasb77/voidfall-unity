@@ -57,7 +57,9 @@ explicit bypass. No native hazards, damage relief or arrival grace are bypassed.
 
 `context.mapPresentationVersion=3` identifies Null City's860-unit camera height
 (slider50%) and Hydra/Court's908-unit height (slider60%), before Spatial Awareness.
-Zack retains normal size. Court retains its3628.8×3628.8 board; City's expanded
+Zack retains normal size. Court revision2 expands its board to7257.6×7257.6;
+`court_board_created` records56×56 cells,129.6-unit tiles and the unchanged camera.
+City's expanded
 layout is2560×1440 with1984×841.6 playable floor and native-size props/actors.
 Hydra I ground is stationary; Hydra II geometry remains unchanged.
 Samples add `cameraX`/`cameraY`: the gameplay camera centre before cosmetic shake.
@@ -69,6 +71,9 @@ Hydra uses `hydra-hives-v3`. `court_board_created` records the908-unit viewport,
 fixed4×4 Sentinel territories and boss-only whole-color attacks. Hive brood
 requests, deferred births, guardian releases, insect fuses/blasts, Court territory
 shields, promotions and warned attacks have source/target identities and outcomes.
+Court revision2 Sentinel warning/burst details include `color`, `cycle` and the
+actual displaced rook position; burst `amount` counts the selected color only
+(eight cells away from board edges). Shield positions follow the movable body.
 Version2 exports describe the earlier1× city; `null-city-original-4x-v1` is older.
 
 ## Growth, readability and Director I v6 (September 19)

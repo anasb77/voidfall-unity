@@ -197,13 +197,19 @@ combat radii keep native size. Five specialists and five ordinary pursuers
 supplement the original roster. Laser roads shake locally, respecting reduced
 motion; transit clips between both portals in play and menu previews.
 
-Court is one fixed28×28 board of129.6-unit soft-white/black tiles. Nineteen
-forms preserve source Pawn/Bishop/Queen/Rook I designs. Knights dash in an L;
+Court is one fixed56×56 board of129.6-unit soft-white/black tiles. Twenty
+forms preserve source Pawn/Bishop/Queen/Rook I designs and restore the original
+geometric Knight alongside the newer Knights. Pawns and mounted pawn riders
+have eight points. Knights dash in an L;
 three large armored warhorses carry Pawn III, pursue at1.2× pawn speed and
 independently block20% of player hits. Sentinels keep their tracking eye with
-three small tooth-filled mouths and100k–150kHP. Each owns a fixed4×4 survival
-territory:3s warning,0.45s burst every14s, nonstacking24-point allied shield.
-Whole-color board attacks occur only during the twin-boss fight; their army
+three small tooth-filled mouths and100k–150kHP. Preserve crowd-pushed movement;
+the eye,4×4 attack area and shield follow the actual body. Attacks alternate
+eight black cells, then eight white cells, with3s warning and0.45s burst every14s.
+The nonstacking24-point allied shield shows only “Enemy shielded”, coalesced
+for simultaneous grants. Wing and Wang share the encounter name Wingwang and
+the same cell strike effects as Sentinels. Whole-color board attacks occur
+only during their fight; their army
 is immune. Preserve fallen X eyes, HP bars without numbers, exactly
 “Sacificed the RoooK !”, and idempotently queued5–6 roster-one children.
 

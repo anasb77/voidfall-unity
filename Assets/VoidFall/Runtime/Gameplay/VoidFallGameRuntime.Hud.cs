@@ -197,6 +197,7 @@ namespace VoidFall.Runtime
                 var bossHpInt = activeBossCount > 0 ? Mathf.CeilToInt(bossHealth) : 0;
                 var bossName = activeBossCount == 0
                     ? string.Empty
+                    : _monochromeBossEncounterActive ? "WINGWANG"
                     : activeBossCount == 1
                         ? (FindBoss(firstBoss.Id)?.Name ?? firstBoss.Id).ToUpperInvariant()
                         : activeBossCount + " BOSSES";

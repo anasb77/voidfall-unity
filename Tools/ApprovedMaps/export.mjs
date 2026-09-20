@@ -12,7 +12,7 @@ globalThis.window={};globalThis.document={createElement:()=>createCanvas(1,1)};
 vm.runInThisContext(readFileSync(path.join(root,'assets/null-city-art.js'),'utf8'));
 const {buildCity}=await import('./src/city.js');
 const {drawCourtPiece}=await import('./src/court-art.js');
-const {drawOriginalSentinel}=await import('./src/court-original-art.js');
+const {drawOriginalSentinel,drawOriginalFamily}=await import('./src/court-original-art.js');
 const {drawCityAddition}=await import('./src/city-roster.js');
 const {drawInsect,drawHive}=await import('./src/insects.js');
 const {drawHydraFloor,drawLegacy}=await import('./src/hydra-art.js');
@@ -26,6 +26,7 @@ for(let type=0;type<6;type++)for(let tier=0;tier<(type===1?4:3);tier++)for(const
  sprite(`court-${families[type]}-${tier+1}-${white?'white':'black'}`,type===5?240:160,type===5?240:160,g=>drawCourtPiece(g,{x:0,y:0,type,tier,white,angle:0},0));
 }
 for(let variant=0;variant<3;variant++)for(const white of [false,true])sprite(`sentinel-${variant}-${white?'white':'black'}`,320,320,g=>drawOriginalSentinel(g,{x:0,y:0,white,r:90,mouth:variant,id:variant,suppressPupil:true,phase:{stage:'rest',age:10}}, {x:0,y:0},0,true));
+for(const white of [false,true])sprite(`court-knight-original-${white?'white':'black'}`,160,160,g=>{g.scale(24,24);drawOriginalFamily(g,3,0,white)});
 for(let i=0;i<10;i++)sprite('city-'+i,192,192,g=>drawCityAddition(g,{type:13+i,angle:0,seed:0,attack:0,charge:0},0,0,0,1));
 for(let i=0;i<5;i++)sprite('insect-'+i,160,160,g=>drawInsect(g,{x:0,y:0,kind:i,phase:0,angle:-Math.PI/2},0));
 for(let i=0;i<10;i++)sprite('hydra-legacy-'+i,160,160,g=>drawLegacy(g,{x:0,y:0,type:i,angle:-Math.PI/2,hit:0}));

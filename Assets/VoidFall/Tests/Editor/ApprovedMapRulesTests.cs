@@ -20,10 +20,10 @@ namespace VoidFall.Tests.Editor
             Assert.That(cells,Is.EqualTo(16));Assert.That(ApprovedMapRules.InTerritory(2,0,0,0),Is.False);
         }
         [Test]
-        public void Court_has_nineteen_forms_and_horses_match_same_rank_pawn_speed()
+        public void Court_has_twenty_forms_and_horses_match_same_rank_pawn_speed()
         {
-            Assert.That(MonochromeContent.Enemies.Length,Is.EqualTo(19));
-            Assert.That(MonochromeContent.Enemies.Select(e=>e.Id).Distinct().Count(),Is.EqualTo(19));
+            Assert.That(MonochromeContent.Enemies.Length,Is.EqualTo(20));
+            Assert.That(MonochromeContent.Enemies.Select(e=>e.Id).Distinct().Count(),Is.EqualTo(20));
             for(var rank=0;rank<3;rank++)
             {
                 var pawn=ApprovedMapContent.FindEnemy(ApprovedMapContent.CourtId(0,rank));
@@ -31,6 +31,20 @@ namespace VoidFall.Tests.Editor
                 Assert.That(horse.Speed,Is.EqualTo(pawn.Speed*1.2).Within(.00001));
                 Assert.That(horse.Radius,Is.EqualTo(pawn.Radius*2).Within(.00001));
             }
+        }
+        [Test]
+        public void Sentinel_color_alternates_without_changing_mid_warning_and_each_color_has_eight_cells()
+        {
+            for(var slot=0;slot<10;slot++)for(var cycle=0;cycle<3;cycle++)
+            {
+                var time=14f+cycle*14f-slot*2.31f%14f;
+                var white=ApprovedMapRules.SentinelWhite(time+.1f,slot);
+                Assert.That(ApprovedMapRules.SentinelWhite(time+3.44f,slot),Is.EqualTo(white));
+                Assert.That(ApprovedMapRules.SentinelWhite(time+14.1f,slot),Is.Not.EqualTo(white));
+                var count=0;for(var y=-2;y<2;y++)for(var x=-2;x<2;x++)if(ApprovedMapRules.CellMatches(x,y,white))count++;
+                Assert.That(count,Is.EqualTo(8));
+            }
+            Assert.That(ApprovedMapRules.SentinelWhite(0,0),Is.False);
         }
         [Test]
         public void City_sampling_has_five_new_pursuers_and_preserves_ordinary_majority()

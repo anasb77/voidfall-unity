@@ -266,14 +266,17 @@ Its horizons are tessellated as adjacent strips rather than a crossing fan.
   roots and cancel on transition. Reclaimer uses real harvested XP; repairs,
   shields, split, warnings and actual outcomes use the existing exporter.
 - Court: `MonochromeContent`, `MonochromeEncounterRules`, `MonochromeRuntimeRules`,
-  `.Monochrome.cs` and `.CourtField.cs`. One fixed28×28 board of129.6-unit tiles,
+  `.Monochrome.cs` and `.CourtField.cs`. One fixed56×56 board of129.6-unit tiles,
   908-unit camera height and normal player size, camera constrained at board edges,
   clamped playable bounds, seeded spaced sentinel/fallen rooks. Sentinels use
   state90 on pooled court-rook,100k–150kHP,stationary contact damage, no shots.
-  `.ApprovedCourt` owns their fixed4×4 survival attacks and nonstacking shields,
-  nineteen ranked forms, L-dash knights and Pawn III mounted armored warhorses.
+  `.ApprovedCourt` owns their4×4 survival area, alternating black/white attacks,
+  and nonstacking shields with a coalesced “Enemy shielded” notice. Crowd pushes
+  remain enabled; the area and eye follow the pooled body. Twenty forms include
+  the original geometric Knight, L-dash knights and mounted warhorses; pawns
+  and their riders have eight points. Only visible board tiles are updated.
   Native player weapons target them; death queues5–6 roster-one chasers and
-  one requested notice. Existing Grandmasters share HP and each warns/fires
+  one requested notice. Wing and Wang (Wingwang) share HP and each warns/fires
   one volley. Boss attacks alternate whole checker colors and damage only the
   player on the warned color. `CourtTile.shader` owns soft stone, aggressive
   cracks/bursts and reduced-motion variants; per-tile property blocks are

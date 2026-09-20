@@ -5,7 +5,7 @@ function poly(g,p,fill,edge,w=.14){g.beginPath();p.forEach(([x,y],i)=>i?g.lineTo
 function line(g,x,y,xx,yy,c,w){g.beginPath();g.moveTo(x,y);g.lineTo(xx,yy);g.strokeStyle=c;g.lineWidth=w;g.stroke()}
 function disc(g,x,y,r,c){g.beginPath();g.arc(x,y,r,0,TAU);g.fillStyle=c;g.fill()}
 function arc(g,r,a,b,c,w=.07){g.beginPath();g.arc(0,0,r,a,b);g.strokeStyle=c;g.lineWidth=w;g.stroke()}
-const PAWN=[[0,-1],[.36,-.52],[.92,-.42],[.58,.06],[.78,.7],[.2,.58],[0,1],[-.25,.58],[-.82,.75],[-.62,.05],[-1,-.4],[-.38,-.52]];
+const PAWN=Array.from({length:16},(_,i)=>{const a=-Math.PI/2+i*TAU/16,r=i%2?.57:[1,.96,1.02,.97,1,.94,1.02,.98][i/2];return [Math.cos(a)*r,Math.sin(a)*r]});
 const ROOK=[[-.9,-.45],[-.72,-.95],[-.4,-.88],[-.34,-.58],[-.08,-.78],[0,-1],[.28,-.75],[.58,-.88],[.82,-.55],[1,-.1],[.78,.28],[.95,.65],[.38,.78],[0,1],[-.42,.76],[-.92,.7],[-.76,.2],[-1,-.18]];
 const BISHOP=[[-1,-.7],[-.28,-1],[.48,-.72],[.7,-.28],[1.55,-.18],[1.55,.2],[.62,.3],[.34,.82],[-.42,1],[-1,.58]];
 export function drawOriginalFamily(g,type,tier,white,time=0){
@@ -13,11 +13,11 @@ export function drawOriginalFamily(g,type,tier,white,time=0){
  const core=(x,y,r)=>{disc(g,x,y,r,ink);disc(g,x+r*.18,y-r*.14,Math.max(.045,r*.34),'#f8fafc')};
  const shape=p=>poly(g,p,body,ink);
  if(type===0){
-  // Growth follows the same six-point body: layered shell, then split tips.
-  if(tier===2){for(let i=0;i<6;i++){g.save();g.rotate(i*TAU/6);poly(g,[[-.14,-.78],[-.19,-1.12],[0,-1.25],[.19,-1.12],[.14,-.78]],body,ink,.085);g.restore()}}
+  // Preserve the layered shell and eye, with eight outer points at every rank.
+  if(tier===2){for(let i=0;i<8;i++){g.save();g.rotate(i*TAU/8);poly(g,[[-.14,-.78],[-.19,-1.12],[0,-1.25],[.19,-1.12],[.14,-.78]],body,ink,.085);g.restore()}}
   shape(PAWN);disc(g,-.08,.04,.52,inner);
   if(tier>0)poly(g,PAWN.map(([x,y])=>[x*.7,y*.7]),null,ink,.055);
-  if(tier===2)for(let i=0;i<6;i++){const a=i*TAU/6;line(g,Math.cos(a)*.49,Math.sin(a)*.49,Math.cos(a)*.65,Math.sin(a)*.65,ink,.06)}
+  if(tier===2)for(let i=0;i<8;i++){const a=i*TAU/8;line(g,Math.cos(a)*.49,Math.sin(a)*.49,Math.cos(a)*.65,Math.sin(a)*.65,ink,.06)}
   core(0,0,.31);
  }else if(type===1){
   shape(ROOK);disc(g,-.08,.04,.52,inner);
@@ -29,6 +29,9 @@ export function drawOriginalFamily(g,type,tier,white,time=0){
   g.fillStyle=ink;g.fillRect(.695,-.11,1.05,.22);core(-.25,0,.23);
   if(tier>0){line(g,.2,-.55,.55,-.43,ink,.055);line(g,.2,.56,.52,.45,ink,.055);poly(g,[[1.05,-.25],[1.65,-.3],[1.81,-.13],[1.81,.13],[1.65,.3],[1.05,.25]],null,ink,.065)}
   if(tier===2){for(const s of [-1,1]){poly(g,[[-.64,s*.79],[-.45,s*1.32],[.03,s*1.24],[.51,s*.79]],body,ink,.08);line(g,-.42,s*1.07,.05,s*.97,ink,.055)}arc(g,.58,Math.PI*.55,Math.PI*1.45,ink,.07)}
+ }else if(type===3){
+  shape([[-.8,-.42],[-.18,-1],[.46,-.78],[1,-.28],[.42,-.02],[1.05,.52],[.28,.58],[0,1],[-.58,.7],[-1,.2],[-.56,-.05]]);
+  disc(g,-.08,.04,.52,inner);poly(g,[[.12,-.5],[.88,-.24],[.42,.06]],ink,null);core(-.18,-.08,.22);
  }else if(type===4){
   // Preserve the original circular eye and small, ink-cut crown. No flower lobes.
   if(tier>0)for(let i=0;i<4;i++){const a=i*TAU/4+.18;arc(g,1.15,a,a+1.14,ink,.08)}

@@ -63,7 +63,9 @@ namespace VoidFall.Runtime
             var placed = 0;
             for (var attempt = 0; attempt < 600 && placed < CourtRookCount; attempt++)
             {
-                var position = _monochromeBoardOrigin + new Vector2(320f + (float)_gameSim.Rng.Next() * 2960f, 320f + (float)_gameSim.Rng.Next() * 2960f);
+                var position = _monochromeBoardOrigin + new Vector2(
+                    320f + (float)_gameSim.Rng.Next() * (CourtBoardColumns*(float)MonochromeEncounterRules.TileSize-640f),
+                    320f + (float)_gameSim.Rng.Next() * (CourtBoardRows*(float)MonochromeEncounterRules.TileSize-640f));
                 if ((position - _gameSim.Player.Position).sqrMagnitude < 440f * 440f) continue;
                 var spaced = true;
                 for (var i = 0; i < placed; i++)
@@ -81,7 +83,7 @@ namespace VoidFall.Runtime
                 placed++;
             }
             RecordRunHistory("court_board_created", "monochrome-court", amount: placed, position: _monochromeBoardOrigin,
-                detail: "columns=28;rows=28;tileSize=129.6;fixedOrigin=true;cameraHeight=908;sliderPercent=60;sentinelTerritory=4x4;bossFloor=wholeColor");
+                detail: "columns=56;rows=56;tileSize=129.6;fixedOrigin=true;cameraHeight=908;sliderPercent=60;sentinelTerritory=4x4;alternatingColor=true;crowdPush=true;courtRevision=2;bossFloor=wholeColor");
         }
 
         private void SpawnCourtSentinel(CourtRook rook)
@@ -140,6 +142,7 @@ namespace VoidFall.Runtime
             foreach (var rook in _courtRooks)
             {
                 if (rook == null || rook.Fallen || rook.SpawnId != enemy.SpawnId) continue;
+                rook.Position = enemy.Position;
                 rook.Fallen = true; rook.Health = 0f;
                 ShowArenaToast("Sacificed the RoooK !", 2.4f, ToastKind.Info);
                 rook.PendingChildren = rook.RequestedChildren = _gameSim.Rng.Next() < .5 ? 5 : 6;
@@ -315,6 +318,8 @@ namespace VoidFall.Runtime
             _courtFloorBurst = true;
             var hit = CourtPositionWasWarned(_gameSim.Player.Position);
             if(hit)DamagePlayer(22f,Vector2.zero);
+            for(var y=0;y<CourtBoardRows;y++)for(var x=0;x<CourtBoardColumns;x++)
+                if(_courtArmingOrder[y*CourtBoardColumns+x]>0)CourtCellBurstFx(x,y);
             RecordRunHistory("court_floor_burst", "court-floor", instanceId: cycle+1,amount:_courtWarnedCount,
                 position:_monochromeBoardOrigin,detail:"bossOnly=true;playerHit="+hit);
         }
@@ -338,6 +343,7 @@ namespace VoidFall.Runtime
 
         private void RenderCourtFieldDetails()
         {
+            SyncCourtRookPositions();
             RenderCourtGrandmasterAim();
             RenderApprovedTerritories();
             foreach (var rook in _courtRooks)
