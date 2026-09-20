@@ -8,14 +8,14 @@ namespace VoidFall.Runtime
     {
         private struct DestroyerActor
         {
-            public int Identity, AttackSerial;
+            public int Identity, AttackSerial, RaidMember;
             public Vector2 Origin, Aim;
             public bool SweepThisStep, Withdrawing, HasAttacked;
         }
         private readonly DestroyerActor[] _destroyers = new DestroyerActor[MaxEnemies];
-        private readonly int[] _destroyerHitIdentities = new int[MaxEnemies * 5];
-        private readonly int[] _destroyerHitSerials = new int[MaxEnemies * 5];
-        private readonly int[] _destroyerPlayerHitSerials = new int[5];
+        private readonly int[] _destroyerHitIdentities = new int[MaxEnemies * DestroyerContent.RaidCount];
+        private readonly int[] _destroyerHitSerials = new int[MaxEnemies * DestroyerContent.RaidCount];
+        private readonly int[] _destroyerPlayerHitSerials = new int[DestroyerContent.RaidCount];
         private readonly LineRenderer[] _destroyerWarnings = new LineRenderer[MaxEnemies];
         private readonly LineRenderer[] _destroyerHealth = new LineRenderer[MaxEnemies];
         private readonly Sprite[,] _destroyerSprites = new Sprite[5, 8];
@@ -37,17 +37,26 @@ namespace VoidFall.Runtime
             _destroyerRaidActive = true; _destroyerRaidCenter = center; _destroyerWithdrawing = false;
             _destroyerRaidElapsed = 0; _destroyerRaidResolved = false;
             var healthMultiplier = DestroyerContent.RaidHealthMultiplier(_encounterInitialized ? DirectorChallengeSeconds : _time);
-            for (var type = 0; type < DestroyerContent.Enemies.Length; type++)
+            var admitted = 0;
+            for (var member = 0; member < DestroyerContent.RaidCount; member++)
             {
-                var angle = (type - 2) * .36f;
+                var type = DestroyerContent.RaidTypeAt(member);
+                var angle = (member - 3.5f) * .25f;
                 var position = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * DestroyerContent.RaidEntryDistance(type);
                 // A raid is an independent finite source, even when initiated during another callback.
                 using (new FactionScope(this, -1, 0, CombatFaction.Destroyer, 0))
                     if (!SpawnEnemy(DestroyerContent.Enemies[type].Id, position, healthMultiplier: healthMultiplier, forcedRoster: EnemyRoster.One))
                     {
+                        RecordRunHistory("destroyer_raid_deployed", reason: "admission_failed", instanceId: _incidentSequence,
+                            amount: admitted, detail: "requested=8;cancelled=true");
                         EndDestroyerRaid(); return;
                     }
+                var slot = _gameSim.EnemyOrder[_gameSim.EnemyOrderCount - 1];
+                _destroyers[slot] = new DestroyerActor { Identity = _gameSim.Enemies[slot].SpawnId, RaidMember = member };
+                admitted++;
             }
+            RecordRunHistory("destroyer_raid_deployed", reason: "admitted", instanceId: _incidentSequence,
+                amount: admitted, detail: "requested=8;maw=2;razor=2;husk=1;grasp=1;spite=2");
         }
         private void StepDestroyerRaid(float dt, bool withdrawing)
         {
@@ -196,16 +205,16 @@ namespace VoidFall.Runtime
         {
             var type = DestroyerType(enemy.Id); if (type < 0) return;
             var actor = _destroyers[enemy.View]; if (!actor.SweepThisStep) return;
-            if (_destroyerPlayerHitSerials[type] != actor.AttackSerial &&
+            if (_destroyerPlayerHitSerials[actor.RaidMember] != actor.AttackSerial &&
                 SegmentBodyFraction(previousPosition, enemy.Position, _gameSim.Player.Position, enemy.Radius + AttackPlayerRadius) <= 1)
             {
-                _destroyerPlayerHitSerials[type] = actor.AttackSerial;
+                _destroyerPlayerHitSerials[actor.RaidMember] = actor.AttackSerial;
                 DamagePlayer(enemy.Damage, actor.Aim);
             }
-            // At most two dash actors; the collision pass is bounded, acquisition remains spatial/staggered.
+            // At most four dash actors; duplicate roles retain independent hit histories.
             for (var slot = 0; slot < _gameSim.Enemies.Length; slot++)
             {
-                var target = _gameSim.Enemies[slot]; var hitSlot = type * MaxEnemies + slot;
+                var target = _gameSim.Enemies[slot]; var hitSlot = actor.RaidMember * MaxEnemies + slot;
                 if (!target.Active || !FactionRewardRules.Hostile(CombatFaction.Destroyer, FactionOf(target)) ||
                     (_destroyerHitIdentities[hitSlot] == target.SpawnId && _destroyerHitSerials[hitSlot] == actor.AttackSerial) ||
                     SegmentBodyFraction(previousPosition, enemy.Position, target.Position, enemy.Radius + target.Radius) > 1) continue;

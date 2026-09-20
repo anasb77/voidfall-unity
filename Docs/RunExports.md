@@ -149,7 +149,7 @@ an unflushed journal tail may be missing. Neither event proves the renderer is
 responsive after the handler returns.
 
 The current `arsenalBalanceVersion` is `2026-09-20-approved-weapons-v1` and
-`incidentBalanceVersion` is 2. Older exports omit these added fields or carry
+`incidentBalanceVersion` is 3. Older exports omit these added fields or carry
 the earlier version. Do not compare balance samples without identifying policy.
 
 Mine lifecycle records use `sourceId=mines`, with a per-run mine instance ID:
@@ -163,6 +163,14 @@ second plus final remainder). Detail identifies radius, center and peak pull.
 and records attack age/health; `destroyer_raid_resolved` records duration and
 survivors with defeated/release/cancelled reason. Compare attack opportunities
 and exposure alongside damage, not just final kill counts.
+
+Incident policy 3 admits eight raiders (two Maw, two Razor, one Husk, one Grasp,
+two Spite). `incident_notification` records the queued five-second priority
+announcement and its dedicated audio cue in `detail`, joined through incident
+sequence in `instanceId`; this records dispatch, not proof the player heard it.
+`destroyer_raid_deployed` records actual admitted bodies in `amount`, requested
+composition in `detail`, and `admitted` or `admission_failed` in `reason`.
+A failed partial deployment is cancelled through the existing raid cleanup.
 
 The journal's `sequence` is strictly increasing within a run. `timeSeconds`
 is game simulation time; `wallTimeSeconds` is elapsed real time where recorded.

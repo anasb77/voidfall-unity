@@ -193,20 +193,24 @@ namespace VoidFall.Tests.PlayMode
             pressure.ObserveStage(0, 1, 1); pressure.ObserveStage(1, 1, 1); pressure.ObserveStage(2, .875, 0);
             Call("StartDestroyerRaid", Vector2.zero);
             var initialHealth = _enemies.Cast<object>().Where(e => (bool)Get(e, "Active")).Sum(e => (float)Get(e, "Health"));
-            var mawSlot = Enumerable.Range(0, _enemies.Length).Single(i => (bool)Get(_enemies.GetValue(i), "Active") && (string)Get(_enemies.GetValue(i), "Id") == "destroyer-maw");
-            var mawSweepDistance = 0f;
+            var mawSlots = Enumerable.Range(0, _enemies.Length).Where(i => (bool)Get(_enemies.GetValue(i), "Active") && (string)Get(_enemies.GetValue(i), "Id") == "destroyer-maw").ToArray();
+            var mawSweepDistances = new float[mawSlots.Length];
+            var mawBefore = new object[mawSlots.Length];
             var aliveAtOldRaidEnd = 0;
             var defeatTime = 0f;
             for (var tick = 1; tick <= 3840; tick++)
             {
                 var dt = 1f / 120; Put(_runtime, "_time", 1262.922f + tick * dt);
                 Call("StepDestroyerRaid", dt, false); Call("RebuildEnemyGrid"); Call("UpdateWeapons", dt);
-                var mawBefore = _enemies.GetValue(mawSlot);
+                for (var m = 0; m < mawSlots.Length; m++) mawBefore[m] = _enemies.GetValue(mawSlots[m]);
                 Call("UpdateEnemies", dt);
-                var mawAfter = _enemies.GetValue(mawSlot);
-                if ((bool)Get(mawBefore, "Active") && (bool)Get(mawAfter, "Active") &&
-                    (bool)Get(((Array)Get(_runtime, "_destroyers")).GetValue(mawSlot), "SweepThisStep"))
-                    mawSweepDistance += Vector2.Distance((Vector2)Get(mawBefore, "Position"), (Vector2)Get(mawAfter, "Position"));
+                for (var m = 0; m < mawSlots.Length; m++)
+                {
+                    var mawAfter = _enemies.GetValue(mawSlots[m]);
+                    if ((bool)Get(mawBefore[m], "Active") && (bool)Get(mawAfter, "Active") &&
+                        (bool)Get(((Array)Get(_runtime, "_destroyers")).GetValue(mawSlots[m]), "SweepThisStep"))
+                        mawSweepDistances[m] += Vector2.Distance((Vector2)Get(mawBefore[m], "Position"), (Vector2)Get(mawAfter, "Position"));
+                }
                 Call("RebuildEnemyGrid"); Call("UpdateBlades", dt);
                 Call("UpdateArsenalWeapons", dt); Call("UpdateBullets", dt); Call("UpdateRailTrails", dt); Call("UpdateHostileShots", dt);
                 if (tick == 376) aliveAtOldRaidEnd = _runtime.ActiveEnemiesCount;
@@ -214,6 +218,7 @@ namespace VoidFall.Tests.PlayMode
             }
             Call("FinishRunExport", "test_finished");
             var events = History(); var first = events.Where(e => e.kind == "destroyer_attack" && e.reason == "first").ToArray();
+            var mawSweepDistance = mawSweepDistances.Max();
             TestContext.WriteLine($"Raid HP={initialHealth:F0}; alive at 3.13s={aliveAtOldRaidEnd}; first attacks={first.Length}; defeated at={defeatTime:F2}s; Maw sweep={mawSweepDistance:F2}; first=" + string.Join(",", first.Select(e => e.id + "@" + e.durationSeconds.ToString("F2", System.Globalization.CultureInfo.InvariantCulture))));
             Assert.That(first.Length, Is.GreaterThan(0));
             Assert.That(first.Any(e => e.id == "destroyer-maw"), Is.True, "Maw commits its first charge against the strong build");
@@ -228,8 +233,11 @@ namespace VoidFall.Tests.PlayMode
         [Test]
         public void Frozen_destroyer_keeps_its_warning_takes_damage_then_completes_attack_after_thaw()
         {
-            Call("StartDestroyerRaid", Vector2.zero); Call("RebuildEnemyGrid"); Call("UpdateEnemies", .5f);
-            var slot = Enumerable.Range(0, _enemies.Length).Single(i => (bool)Get(_enemies.GetValue(i), "Active") && (string)Get(_enemies.GetValue(i), "Id") == "destroyer-spite");
+            Call("StartDestroyerRaid", Vector2.zero);
+            var slot = Enumerable.Range(0, _enemies.Length).First(i => (bool)Get(_enemies.GetValue(i), "Active") && (string)Get(_enemies.GetValue(i), "Id") == "destroyer-spite");
+            // Eight raiders share the same attention budget; wait for this Spite's turn.
+            for (var tick = 0; tick < 300 && (int)Get(_enemies.GetValue(slot), "State") != 1; tick++)
+            { Call("RebuildEnemyGrid"); Call("UpdateEnemies", .02f); }
             var enemy = _enemies.GetValue(slot); Assert.That((int)Get(enemy, "State"), Is.EqualTo(1));
             Call("TryRenderDestroyer", slot, enemy);
             var warning = ((LineRenderer[])Get(_runtime, "_destroyerWarnings"))[slot];

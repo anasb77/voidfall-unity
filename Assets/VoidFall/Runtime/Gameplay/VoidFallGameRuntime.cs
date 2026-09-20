@@ -266,6 +266,7 @@ namespace VoidFall.Runtime
         private struct ToastState
         {
             public bool Active;
+            public bool Priority;
             public string Text;
             public string Detail;
             public float Remaining;

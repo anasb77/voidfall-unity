@@ -65,6 +65,9 @@ namespace VoidFall.Runtime
             DodgeSfx,
             DeathAlt,
             BossHorn,
+            RaidNotice,
+            EclipseNotice,
+            BlackHoleNotice,
         }
 
         private const int DefaultSampleRate = 44100;
@@ -487,6 +490,16 @@ namespace VoidFall.Runtime
 
         private void BuildClips()
         {
+            _clips[(int)Cue.RaidNotice] = BuildSequence("vf_raid_notice", .9f, new[] {
+                new SequenceNote(110f, 82f, .22f, 0, .12f, Waveform.Saw),
+                new SequenceNote(110f, 82f, .22f, .28f, .12f, Waveform.Saw),
+                new SequenceNote(164f, 110f, .28f, .56f, .11f, Waveform.Triangle) });
+            _clips[(int)Cue.EclipseNotice] = BuildSequence("vf_eclipse_notice", 1.1f, new[] {
+                new SequenceNote(392f, 196f, .65f, 0, .12f, Waveform.Sine),
+                new SequenceNote(294f, 98f, .8f, .2f, .10f, Waveform.Triangle) });
+            _clips[(int)Cue.BlackHoleNotice] = BuildSequence("vf_black_hole_notice", .8f, new[] {
+                new SequenceNote(82f, 330f, .65f, 0, .12f, Waveform.Sine),
+                new SequenceNote(660f, 110f, .45f, .2f, .07f, Waveform.Triangle) });
             _clips[(int)Cue.Fire] = BuildTone("vf_fire", 0.07f, 840, 340, 0.045f, Waveform.Square);
             _clips[(int)Cue.Hit] = BuildSequence(
                 "vf_hit",

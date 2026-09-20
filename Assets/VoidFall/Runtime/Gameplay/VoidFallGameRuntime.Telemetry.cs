@@ -140,7 +140,7 @@ namespace VoidFall.Runtime
                 swarmIntervalSeconds = LegacyRestorationRules.SwarmIntervalSeconds,
                 escapeSeconds = EscapeDurationSeconds,
                 arrivalGraceSeconds = 2.5f,
-                incidentBalanceVersion = 2,
+                incidentBalanceVersion = 3,
                 enemyCapacity = MaxEnemies,
                 initialPopulationLimit = DirectorBodyLimit(),
                 directorVersion = UsesSustainedDirector ? SustainedDirectorVersion : 1,

@@ -289,7 +289,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(report.context.expandedWeaponSlots, Is.EqualTo(5));
             Assert.That(report.context.maxedWeaponsForExtraSlot, Is.EqualTo(2));
             Assert.That(report.context.arsenalBalanceVersion, Is.EqualTo("2026-09-20-approved-weapons-v1"));
-            Assert.That(report.context.incidentBalanceVersion, Is.EqualTo(2));
+            Assert.That(report.context.incidentBalanceVersion, Is.EqualTo(3));
             var applied = ReadHistory().Single(e => e.kind == "upgrade_applied");
             Assert.That(applied.progress.weaponSlotLimit, Is.EqualTo(5));
             Assert.That(applied.progress.weapons.Count(w => w.value == 6), Is.EqualTo(2));
@@ -495,6 +495,24 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(history.Any(e => e.kind == "director_incident_opportunity" && e.reason == "incident_started"), Is.True);
             Assert.That(history.Any(e => e.kind == "director_arrival_budget" && e.detail.Contains("interval=")), Is.True);
             Assert.That(ReadReport().context.directorVersion, Is.EqualTo(7));
+        }
+
+        [Test]
+        public void Incident_notice_and_eight_actual_raiders_are_exported()
+        {
+            _runtime.ForceMajorIncidentForDiagnostics("raid");
+            Call("StartDestroyerRaid", Vector2.zero);
+            Call("FinishRunExport", "test_finished");
+            var history = ReadHistory();
+            var notice = history.Single(e => e.kind == "incident_notification");
+            var raid = history.Single(e => e.kind == "destroyer_raid_deployed");
+            Assert.That(notice.detail, Does.Contain("cue=RaidNotice"));
+            Assert.That(notice.durationSeconds, Is.EqualTo(5));
+            Assert.That(raid.instanceId, Is.EqualTo(notice.instanceId));
+            Assert.That(raid.amount, Is.EqualTo(8));
+            Assert.That(raid.reason, Is.EqualTo("admitted"));
+            Assert.That(history.Count(e => e.kind == "enemy_spawn" && e.id.StartsWith("destroyer-")), Is.EqualTo(8));
+            Assert.That(ReadReport().context.incidentBalanceVersion, Is.EqualTo(3));
         }
 
         private UnityTelemetryReport ReadReport() => JsonUtility.FromJson<UnityTelemetryReport>(

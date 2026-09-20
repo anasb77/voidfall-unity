@@ -347,6 +347,8 @@ namespace VoidFall.Runtime
 
         private void UpdateToastTimers(float frameDt)
         {
+            // Overlays hide the stack; do not consume the player's reading time there.
+            if (_menuPage != MenuPage.None || _gameOver || _levelUpActive || _revivePending || _paused) return;
             var write = 0;
             for (var read = 0; read < _toastStates.Length; read++)
             {

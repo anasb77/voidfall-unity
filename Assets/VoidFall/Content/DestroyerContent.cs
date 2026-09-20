@@ -2,6 +2,9 @@ namespace VoidFall.Core
 {
     public static class DestroyerContent
     {
+        public const int RaidCount = 8;
+        // Preserve the five roles, then add Maw, Razor and Spite.
+        public static int RaidTypeAt(int index) => index < 5 ? index : index == 5 ? 0 : index == 6 ? 1 : 4;
         public static readonly EnemyDefinition[] Enemies =
         {
             Make("maw", "Maw", 360, 34, 122, 27, 330, .95, 2.6),

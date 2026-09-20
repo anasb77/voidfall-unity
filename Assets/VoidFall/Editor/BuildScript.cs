@@ -69,7 +69,7 @@ namespace VoidFall.EditorTools
                     "Mines: slower placement, 0.9s floor, 1.2s freeze / 1.2s recovery\n" +
                     "Approved weapons: 0.14s armed mine chains; independent summons with 700-unit return leash\n" +
                     "Approved artwork: Pulse Pistol/Railgun ranks I-VI and evolution; Clock numerals 10% lower opacity\n" +
-                    "Incidents: smaller stronger Black Hole and revised Destroyer opening\n" +
+                    "Incidents v3: eight Destroyers; protected Raid/Eclipse/Black Hole notices and dedicated sound cues\n" +
                     "Maps v3: Null City 50% (860 units), Hydra/Court 60% (908 units); normal Zack scale\n" +
                     "Null City: 1.6x expanded layout, native-size props, ten new enemies, portal-clipped transit\n" +
                     "Hydra: stationary floor, mixed hive broods, five insects and two guardians\n" +
@@ -79,7 +79,9 @@ namespace VoidFall.EditorTools
                     "Director I v7: later-void momentum; late-Abyss elite escort and rusher flank; bounded per-void incident opportunities\n" +
                     "Early roster: Shuriken eligible at 30s; Spiky at 50s; three-enemy introductions and learning grace\n" +
                     "HUD: approved study 02 at 66%, bundled Chakra Petch, custom arsenal/passive/manual slots\n" +
-                    "Damage numbers: Chakra Petch Bold; prepared arsenal sprites; frame timing telemetry v2\n" +
+                    "Damage numbers and notifications: Chakra Petch; pressure text +20%; map hint beneath HP\n" +
+                    "Attack previews: map-specific warnings restricted to their owning enemies; no shared-enemy lines to world origin\n" +
+                    "Prepared arsenal sprites; frame timing telemetry v2\n" +
                     "Pressure starts at 1x; Spiky 19.5/58.5 radius every 0.5s, 4x raster resolution; Shuriken spin 14 rad/s\n" +
                     "Rewards: ordinary rare drops 1/300; Overclock bank capped at 30s; XP +25% from level 6\n" +
                     "Video: saved monitor selection; smaller mute control below score\n" +

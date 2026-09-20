@@ -115,7 +115,8 @@ namespace VoidFall.Runtime
             }
             }
             var frame=animated&&enemy.Velocity.sqrMagnitude>1&&!(_saveData?.settings?.reducedMotion??false)?Mathf.FloorToInt(enemy.Age*8)%4:0;
-            RenderApprovedEnemyOverlays(index,enemy,state,type);
+            var ownsAttackPreview=type>=0||city>=12||insect>=0||enemy.Id=="hydra-hive"||enemy.Id=="hydra-mantis-matriarch"||enemy.Id=="hydra-iron-carapace";
+            RenderApprovedEnemyOverlays(index,enemy,state,type,ownsAttackPreview);
             if(state.Frames==null)return false;
             var sprite=state.Frames[frame];if(sprite==null)return false;
             var view=_enemyViews[index];view.sprite=sprite;view.transform.position=enemy.Position;
@@ -125,9 +126,12 @@ namespace VoidFall.Runtime
             view.color=enemy.HitTimer>0||state.BlockFlash>0?new Color(1f,.85f,.7f):Color.white;
             view.enabled=true;return true;
         }
-        private void RenderApprovedEnemyOverlays(int index,EnemyState enemy,ApprovedEnemyState state,int type)
+        private void RenderApprovedEnemyOverlays(int index,EnemyState enemy,ApprovedEnemyState state,int type,bool ownsAttackPreview)
         {
             if(state.Shield>0||state.Ward>0)NullCityCircle(ref _approvedShields[index],"Court protection",enemy.Position,enemy.Radius+8,new Color(.56f,.8f,.73f,.9f));
+            // Shared roster enemies use their own telegraphs. Their map-specific
+            // Target is unset, so drawing it creates a bogus line to world origin.
+            if(!ownsAttackPreview||JourneyStopsCombat)return;
             if(state.Fuse>=0&&!state.Exploded)NullCityCircle(ref _approvedWarnings[index],"Blister warning",enemy.Position,100,new Color(1f,.64f,.34f,.8f));
             else if((enemy.State==1 || enemy.Id=="null-grav-loom"&&enemy.State==2) && !IsCourtSentinel(enemy))
             {

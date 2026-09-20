@@ -423,6 +423,11 @@ against the 1600x900 reference units (the canvas scaler matches height), not
 raw screen pixels.
 Live HUD synchronization is chiefly `Runtime/Gameplay/VoidFallGameRuntime.Hud.cs`
 and `.UI.cs`; `UI/Hud/HudPresenter.cs` is not the sole live HUD owner.
+`.ApprovedHud.cs` owns the compact pressure label and map shortcut beneath HP.
+Combat notices use `.UI.cs`'s bounded toast queue and `.Hud.cs`'s visible-time
+lifetime. Major-incident notices are priority entries, protected from ordinary
+reward churn; `.Incidents.cs` dispatches their cached `ProceduralAudio` cues.
+Both the combat queue and menu `ToastView` use the bundled readable content font.
 
 The approved HUD remaster is composed by `.OverclockHud.cs`: the upper overclock
 notification remains as a charged word and countdown underline, below the boss

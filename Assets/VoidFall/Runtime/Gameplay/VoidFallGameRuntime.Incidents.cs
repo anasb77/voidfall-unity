@@ -96,7 +96,7 @@ namespace VoidFall.Runtime
                 ? _pressureReliefTimer > 0 || !SustainedIncidentOpeningSafe()
                 : ActiveDemandingEnemies() > 0 || !DirectorOpeningSafe();
             if (_encounter.Phase != CombatEncounterPhase.Flow || LocalDirectorSurvivalSeconds < 45 ||
-                attentionBlocked || ActiveEnemies() < 8 || ActiveEnemies() > DirectorBodyLimit() - 5)
+                attentionBlocked || ActiveEnemies() < 8 || ActiveEnemies() > DirectorBodyLimit() - DestroyerContent.RaidCount)
             {
                 RecordRunHistory("incident_deferred", reason: "pacing_population_or_unsafe_opening", instanceId: _incidentSequence);
                 return;
@@ -158,9 +158,14 @@ namespace VoidFall.Runtime
             _incidentCount++;
             _lastIncidentKind = kind;
             _spawnTimer = .65f;
-            ShowArenaToast(kind == MajorIncidentKind.BlackHole ? "BLACK HOLE · MOVE BEYOND THE RING" :
-                kind == MajorIncidentKind.DestroyerRaid ? "THE DESTROYERS HAVE ARRIVED" : "ECLIPSE",
-                (float)MajorIncidentRules.WarningDuration(kind), ToastKind.Danger);
+            var title = kind == MajorIncidentKind.BlackHole ? "BLACK HOLE · MOVE BEYOND THE RING" :
+                kind == MajorIncidentKind.DestroyerRaid ? "DESTROYER RAID INCOMING" : "ECLIPSE INCOMING";
+            var cue = kind == MajorIncidentKind.BlackHole ? ProceduralAudio.Cue.BlackHoleNotice :
+                kind == MajorIncidentKind.DestroyerRaid ? ProceduralAudio.Cue.RaidNotice : ProceduralAudio.Cue.EclipseNotice;
+            EnqueueToastCore(title, null, 5f, ToastKind.Danger, true);
+            _audio?.Play(cue, .85f);
+            RecordRunHistory("incident_notification", kind.ToString(), "announced", instanceId: _incidentSequence,
+                durationSeconds: 5, detail: "priority=true;cue=" + cue);
         }
 
         public bool ForceMajorIncidentForDiagnostics(string name)

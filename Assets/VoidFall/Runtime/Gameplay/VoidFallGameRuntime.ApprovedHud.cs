@@ -12,6 +12,7 @@ namespace VoidFall.Runtime
         // Browser study 02 at 60%, then the owner's relative +10% revision.
         private const float ApprovedHudScale = .66f;
         private Font _approvedHudFont, _approvedHudBold;
+        private Text _approvedMapHint;
         private Text _approvedScoreLabel, _approvedArsenalLabel, _approvedPassiveLabel, _approvedManualLabel;
         private Image _approvedLevelFrame, _approvedTooltip;
         private Text _approvedTooltipText;
@@ -45,6 +46,10 @@ namespace VoidFall.Runtime
             _approvedLevelFrame.enabled = true;
             _approvedLevelFrame.transform.SetSiblingIndex(_levelText.transform.GetSiblingIndex());
             _approvedScoreLabel = ApprovedLabel("Score Heading", "S C O R E");
+            _approvedMapHint = ApprovedLabel("Map Shortcut", "[TAB] To open the map");
+            foreach (var text in new[] { _boostText, _boostGhostA, _boostGhostB, _boostSecondsText, _boostEffectText, _arenaBannerTitle })
+                if (text != null) { text.font = _approvedHudBold; text.fontStyle = FontStyle.Normal; }
+            if (_arenaBannerDetail != null) _arenaBannerDetail.font = _approvedHudFont;
             _approvedArsenalLabel = ApprovedLabel("Arsenal Heading", "ARSENAL");
             _approvedPassiveLabel = ApprovedLabel("Passive Heading", "PASSIVES");
             _approvedManualLabel = ApprovedLabel("Legendary Heading", "LEGENDARY");
@@ -155,8 +160,10 @@ namespace VoidFall.Runtime
             ApprovedText(_levelText,tc,0,-5.35f,5.5f,1.7f,1f);
             _levelText.alignment = TextAnchor.MiddleCenter;
             _pressureText.transform.SetParent(_canvas.transform, false);
-            ApprovedText(_pressureText,tc,0,-7.7f,20,1.4f,.85f);
+            ApprovedText(_pressureText,tc,0,-7.7f,20,1.7f,1.02f);
             _pressureText.color = new Color(.68f,.72f,.73f);
+            ApprovedText(_approvedMapHint,tl,1.8f,-4.85f,27,1.25f,.9f);
+            _approvedMapHint.color = new Color(.78f,.87f,.93f);
             ApprovedText(_objectiveText,tl,1.8f,-6.2f,49,4.6f,1.45f,true);
             _objectiveText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _objectiveText.alignment = TextAnchor.UpperLeft;

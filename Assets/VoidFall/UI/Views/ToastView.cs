@@ -127,6 +127,7 @@ namespace VoidFall.UI
                 detailLabel.rectTransform.anchoredPosition = new Vector2(0f, 2f);
             }
 
+            UITheme.ApplyReadableContent(root, false);
             _active.Add(new Notice
             {
                 Root = root,

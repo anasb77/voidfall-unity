@@ -41,6 +41,46 @@ namespace VoidFall.Runtime
             _gameSim.Player.Iframes = 9999;
             _hudGroup.alpha = 1;
             DestroyEnemiesForVoidTransition(); ClearMeteors();
+            if (ArsenalValidationProbe.Argument("-vfnotice-check=") == "1")
+            {
+                foreach (var incident in new[] { "raid", "eclipse", "black-hole" })
+                {
+                    ClearToasts(); StopMajorIncident();
+                    ForceMajorIncidentForDiagnostics(incident);
+                    UpdateToastTimers(.5f);
+                    Render(); UpdateHud(); SyncUiScreen();
+                    yield return CaptureRestorationFrame(output, incident + "-notice.png");
+                }
+                StopMajorIncident(); ClearToasts();
+                ShowArenaToast("ELITE INCOMING", 3f);
+                ShowMilestoneToast("score", 5000);
+                UpdateToastTimers(.5f); Render(); UpdateHud(); SyncUiScreen();
+                yield return CaptureRestorationFrame(output, "elite-score-notices.png");
+                ClearToasts();
+                foreach (var roster in new[] { EnemyRoster.One, EnemyRoster.Two, EnemyRoster.Four })
+                {
+                    DestroyEnemiesForVoidTransition();
+                    var previewIds = new[] { "gunner", "dasher", "twinGunner", "mortar" };
+                    for (var n = 0; n < previewIds.Length; n++)
+                    {
+                        SpawnEnemy(previewIds[n], new Vector2(-270 + n * 180, 110));
+                        var enemy = _gameSim.Enemies[n];
+                        enemy.Roster = roster; enemy.State = 1; enemy.StateTimer = .4f; enemy.Age = 5;
+                        enemy.DashDirection = previewIds[n] == "mortar" ? new Vector2(200, -100) : new Vector2(.3f, -1).normalized;
+                        enemy.AimPosition = enemy.DashDirection;
+                        _gameSim.Enemies[n] = enemy;
+                    }
+                    _applicationInactive = false; _paused = false;
+                    Render(); UpdateHud(); SyncUiScreen();
+                    yield return CaptureRestorationFrame(output, "previews-" + roster + ".png");
+                }
+                DestroyEnemiesForVoidTransition(); StartDestroyerRaid(Vector2.zero);
+                Render(); UpdateHud(); SyncUiScreen();
+                yield return CaptureRestorationFrame(output, "eight-raiders.png");
+                FinishRunExport("diagnostic_complete");
+                File.WriteAllText(Path.Combine(output, "complete.txt"), "Notification and preview captures complete.");
+                Application.Quit(0); yield break;
+            }
             var ids = new[] { "chaser", "runner", "swarmer", "shuriken", "spiky", "exploder" };
             for (var i = 0; i < 90; i++)
             {

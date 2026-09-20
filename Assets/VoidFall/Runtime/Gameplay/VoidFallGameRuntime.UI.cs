@@ -606,6 +606,9 @@ namespace VoidFall.Runtime
         }
 
         private void EnqueueToast(string text, string detail, float seconds, ToastKind kind)
+            => EnqueueToastCore(text, detail, seconds, kind, false);
+
+        private void EnqueueToastCore(string text, string detail, float seconds, ToastKind kind, bool priority)
         {
             // Find an inactive slot first; only evict the oldest if all are full.
             var targetSlot = -1;
@@ -619,8 +622,13 @@ namespace VoidFall.Runtime
             }
             if (targetSlot < 0)
             {
-                // All slots full — shift left to evict the oldest (index 0).
-                for (var index = 1; index < _toastStates.Length; index++)
+                // Incidents must survive simultaneous score/loot notifications.
+                var evict = -1;
+                for (var index = 0; index < _toastStates.Length; index++)
+                    if (!_toastStates[index].Priority) { evict = index; break; }
+                if (evict < 0 && !priority) return;
+                if (evict < 0) evict = 0;
+                for (var index = evict + 1; index < _toastStates.Length; index++)
                     _toastStates[index - 1] = _toastStates[index];
                 targetSlot = _toastStates.Length - 1;
             }
@@ -629,6 +637,7 @@ namespace VoidFall.Runtime
             _toastStates[targetSlot] = new ToastState
             {
                 Active = true,
+                Priority = priority,
                 Text = upperText,
                 Detail = detailText,
                 Remaining = Mathf.Max(0.1f, seconds),
@@ -3998,6 +4007,7 @@ namespace VoidFall.Runtime
             text.fontStyle = FontStyle.Bold;
             text.supportRichText = true;
             text.raycastTarget = false;
+            UITheme.ApplyReadableContent(text.transform, false);
             text.rectTransform.sizeDelta = new Vector2(680, 38);
             text.enabled = false;
             return text;
