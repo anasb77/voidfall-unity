@@ -27,17 +27,40 @@ namespace VoidFall.Tests.PlayMode
             Invoke(runtime, "EnsureCourtField");
             Invoke(runtime, "RenderMonochromePresentation");
             var tiles = (SpriteRenderer[])GetField(runtime, "_courtBoardTiles");
-            var position = tiles[0].transform.position;
-            Assert.That(tiles[0].enabled, Is.True);
+            var visibleIndex = Array.FindIndex(tiles, tile => tile.enabled);
+            Assert.That(visibleIndex, Is.GreaterThanOrEqualTo(0));
+            Assert.That(tiles[0].enabled, Is.False, "the distant board corner is culled");
+            var position = tiles[visibleIndex].transform.position;
             var sim = GetField(runtime, "_gameSim");
             var player = GetField(sim, "Player");
             SetField(player, "Position", new Vector2(1000, 900));
             SetField(sim, "Player", player);
             Invoke(runtime, "RenderMonochromePresentation");
-            Assert.That(tiles[0].transform.position, Is.EqualTo(position));
+            Assert.That(tiles[visibleIndex].transform.position, Is.EqualTo(position));
             SetField(runtime, "_arenaId", ArenaId.Hydra);
             Invoke(runtime, "RenderMonochromePresentation");
             foreach (var view in tiles) Assert.That(view.enabled, Is.False);
+        }
+
+        [Test]
+        public void Benchmark_resolves_roulette_through_real_claims_and_releases_its_pause()
+        {
+            var runtime = _isolatedRuntime;
+            Assert.That(runtime.ApplyStressScenario("productionMax", 1595785438u), Is.True);
+            try
+            {
+                Invoke(runtime, "SpawnRouletteChest", Vector2.zero);
+                SetField(runtime, "_rouletteChestPulse", 2f);
+                Invoke(runtime, "CollectRouletteChest");
+                Assert.That(GetField(runtime, "_rouletteActive"), Is.True);
+                for (var i = 0; i < 16; i++) runtime.PrepareBenchmarkFrame();
+                Assert.That(GetField(runtime, "_rouletteActive"), Is.False);
+                Assert.That(GetField(runtime, "_prizeRevealActive"), Is.False);
+                Assert.That(GetField(runtime, "_paused"), Is.False);
+                var claims = (System.Collections.IList)GetField(runtime, "_rouletteClaims");
+                Assert.That(GetField(runtime, "_rouletteClaimIndex"), Is.EqualTo(claims.Count));
+            }
+            finally { runtime.ClearStressScenario(); }
         }
 
         [UnitySetUp]
@@ -307,6 +330,9 @@ namespace VoidFall.Tests.PlayMode
             SetField(runtime, "_voidCompletionDelayRemaining", 0f);
 
             Invoke(runtime, "StepVoidCompletionDelay", 0f);
+            for (var step = 0; step < 20 && runtime.JourneyStatus == "Travel"; step++) Invoke(runtime, "UpdateJourneyFlow", .1f);
+            Assert.That(runtime.JourneyStatus, Is.EqualTo("Junction"));
+            Invoke(runtime, "OnRouteVoidChosen", "hydra");
             Invoke(runtime, "CommitRiftTransitionSwap");
 
             Assert.That(route.CurrentVoidId, Is.EqualTo("hydra"));

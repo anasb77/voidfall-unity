@@ -695,11 +695,10 @@ namespace VoidFall.Runtime
             return "chaser";
         }
 
-        private void UpdateEnemies(float dt)
+        private Action<Vector2, float, float> _enemyFactionBlastHook;
+
+        private void BindEnemySimulationCallbacks()
         {
-            UpdateHydraPopulationBirths();
-            PrepareDirectorAttackBudget();
-            var globalHarvesterXp = XpHeldByHarvesters();
             // Enemy behaviour presentation hooks (see GameSim contract notes).
             _gameSim.EnemyBurstFxHook = EnemyBurstFxForSim;
             _gameSim.EnemyRingWaveHook = EnemyRingWaveForSim;
@@ -711,11 +710,9 @@ namespace VoidFall.Runtime
             _gameSim.EnemyDamagePlayerHook = EnemyDamagePlayerForSim;
             _gameSim.EnemyTargetPositionQuery ??= () => EnemyControllerTargetPosition;
             _gameSim.EnemyTargetVelocityQuery ??= () => EnemyControllerTargetVelocity;
-            _gameSim.EnemyFactionBlastHook = _destroyerRaidActive ? EnemyControllerBlast : null;
             _gameSim.EnemyAlliedQuery ??= (a, b) => FactionOf(a) == FactionOf(b);
             _gameSim.EnemyAnchoredQuery ??= e => DestroyerType(e.Id) >= 0 &&
                 (e.State == 1 || e.State == 2 || _destroyers[e.View].SweepThisStep);
-            _gameSim.EnemyFactionTargeting = _destroyerRaidActive;
             _gameSim.DamageFactionQuery ??= () => _damageFaction;
             _gameSim.EnemyBlastWaveHook = EnemyBlastWaveForSim;
             _gameSim.EnemyBlastWaveFxOnlyHook = EnemyBlastWaveFxOnlyForSim;
@@ -734,6 +731,16 @@ namespace VoidFall.Runtime
             _gameSim.PickupAbsorbedTelemetryHook = _pickupAbsorbedTelemetryHook;
             _gameSim.EnemyTelemetryHook = EnemyTelemetryForSim;
             _gameSim.EnemyShakeHook = EnemyShakeForSim;
+            _enemyFactionBlastHook = EnemyControllerBlast;
+        }
+
+        private void UpdateEnemies(float dt)
+        {
+            UpdateHydraPopulationBirths();
+            PrepareDirectorAttackBudget();
+            var globalHarvesterXp = XpHeldByHarvesters();
+            _gameSim.EnemyFactionBlastHook = _destroyerRaidActive ? _enemyFactionBlastHook : null;
+            _gameSim.EnemyFactionTargeting = _destroyerRaidActive;
             // Browser updateEnemies walks its compact array backwards. The
             // logical order list preserves that behavior across pooled slots.
             for (var order = _gameSim.EnemyOrderCount - 1; order >= 0; order--)
@@ -1962,6 +1969,9 @@ namespace VoidFall.Runtime
                     var railgun = bullet.WeaponIndex >= 0 &&
                         bullet.WeaponIndex < ContentCatalog.Weapons.Length &&
                         ContentCatalog.Weapons[bullet.WeaponIndex].Id == "railgun";
+                    var seeker = bullet.WeaponIndex >= 0 &&
+                        bullet.WeaponIndex < ContentCatalog.Weapons.Length &&
+                        ContentCatalog.Weapons[bullet.WeaponIndex].Id == "seeker";
                     var critical = _gameSim.Rng.Next() < _critChance;
                     ApplyEnemyDamage(enemyIndex, bullet.Damage * (critical ? 2.1f : 1),
                         bullet.Velocity, bullet.Knockback, critical, bullet.WeaponIndex);
@@ -1973,6 +1983,7 @@ namespace VoidFall.Runtime
                             bullet.Damage * (weaponId == "seeker" ? 0.8f : 0.35f),
                             bullet.HitEnemy0, bullet.WeaponIndex);
                     }
+                    if (seeker) _audio?.Play(ProceduralAudio.Cue.SeekerBlast);
                     if (bullet.Cluster)
                     {
                         bullet.Cluster = false;
@@ -1987,6 +1998,9 @@ namespace VoidFall.Runtime
                     var railgun = bullet.WeaponIndex >= 0 &&
                         bullet.WeaponIndex < ContentCatalog.Weapons.Length &&
                         ContentCatalog.Weapons[bullet.WeaponIndex].Id == "railgun";
+                    var seeker = bullet.WeaponIndex >= 0 &&
+                        bullet.WeaponIndex < ContentCatalog.Weapons.Length &&
+                        ContentCatalog.Weapons[bullet.WeaponIndex].Id == "seeker";
                     var critical = _gameSim.Rng.Next() < _critChance;
                     ApplyBossDamage(
                         bossIndex,
@@ -2008,6 +2022,7 @@ namespace VoidFall.Runtime
                             0.35f,
                             0.7f);
                     }
+                    if (seeker) _audio?.Play(ProceduralAudio.Cue.SeekerBlast);
                     if (bullet.Cluster)
                     {
                         bullet.Cluster = false;
@@ -2023,6 +2038,9 @@ namespace VoidFall.Runtime
                     var railgun = bullet.WeaponIndex >= 0 &&
                         bullet.WeaponIndex < ContentCatalog.Weapons.Length &&
                         ContentCatalog.Weapons[bullet.WeaponIndex].Id == "railgun";
+                    var seeker = bullet.WeaponIndex >= 0 &&
+                        bullet.WeaponIndex < ContentCatalog.Weapons.Length &&
+                        ContentCatalog.Weapons[bullet.WeaponIndex].Id == "seeker";
                     if (railgun) RailgunImpact(meteor.Position, bullet.Hits);
                     if (bullet.BlastRadius > 0)
                     {
@@ -2035,6 +2053,7 @@ namespace VoidFall.Runtime
                             -1,
                             bullet.WeaponIndex);
                     }
+                    if (seeker) _audio?.Play(ProceduralAudio.Cue.SeekerBlast);
                     return true;
                 };
                 _bulletRicochetHook = slot =>
@@ -2326,6 +2345,7 @@ namespace VoidFall.Runtime
         {
             var parts = Mathf.Max(1, Mathf.RoundToInt(value));
             _partsEarned += parts;
+            RegisterScavengerScraps(parts);
             SpawnFloater(
                 _gameSim.Player.Position + Vector2.up * 18f,
                 "+" + parts + " Scrap" + (parts > 1 ? "s" : string.Empty),
@@ -3245,10 +3265,18 @@ namespace VoidFall.Runtime
             var roster = forcedRoster ?? (
                 standardElite || carrierDrone || splitterFragment || summonedByBossTelemetryId != 0
                     ? EnemyRoster.One
-                    : EnemyRosterRules.EnemyRosterForSpawn(
-                        id,
-                        UsesSustainedDirector ? (RestorationFamilyAge(id) < 60 ? 0 : _time) : _encounterInitialized ? DirectorChallengeSeconds : _time,
-                        EnemyRosterRules.RosterSpawnRoll(_runSeed, enemyId)));
+                    : UsesSustainedDirector && IsSharedDirectorArena()
+                        ? EnemyRosterRules.SharedRosterForSpawn(
+                            id,
+                            _sharedDirectorVisitIndex,
+                            LocalDirectorSurvivalSeconds,
+                            RestorationFamilyAge(id),
+                            _time,
+                            EnemyRosterRules.RosterSpawnRoll(_runSeed, enemyId))
+                        : EnemyRosterRules.EnemyRosterForSpawn(
+                            id,
+                            _encounterInitialized ? DirectorChallengeSeconds : _time,
+                            EnemyRosterRules.RosterSpawnRoll(_runSeed, enemyId)));
             if (!AdmitDirectorSpawn(id, roster, eliteKind, elite)) return false;
             _nextEnemyId++;
             var angle = (float)(_gameSim.Rng.Next() * Math.PI * 2);
@@ -3289,6 +3317,12 @@ namespace VoidFall.Runtime
             var baseXp = splitterFragment || carrierDrone
                 ? 1
                 : standardElite ? ContentCatalog.Elite.Xp : definition.Xp;
+            // Null City ordinary bodies award 75% XP so its higher authored
+            // arrival rate does not overtake shared-arena progression. Child
+            // fragments/drones and boss summons keep their existing bounty.
+            var ordinaryNullCityReward = CurrentVoidIsNullCity && !elite && IsNullCityEnemy(id) &&
+                !carrierDrone && !splitterFragment && summonedByBossTelemetryId == 0;
+            if (ordinaryNullCityReward) baseXp *= .75;
             var mutationGene = hydraPopulationKind >= 0 ? MutationGene.None : HydraRuntimeRules.RollMutation(
                 _gameSim.Rng,
                 _arenaId,
@@ -3701,6 +3735,7 @@ namespace VoidFall.Runtime
             var view = EnsurePickupView(slot);
             view.sprite = pickup.Kind == PickupKind.Xp
                 ? ProceduralSpriteFactory.Gem(XpPickupTier(pickup.Value))
+                : pickup.Kind == PickupKind.Part ? ProceduralSpriteFactory.Scrap(slot % 3)
                 : ProceduralSpriteFactory.Pickup(PickupKindName(pickup.Kind));
             view.color = Color.white;
             view.enabled = true;
@@ -3817,10 +3852,14 @@ namespace VoidFall.Runtime
             var appliedDamage = Mathf.Max(1, damage);
             if (_dealerShield > 0)
             {
+                var shieldBefore = _dealerShield;
                 appliedDamage = DealerRules.Absorb(ref _dealerShield, appliedDamage);
+                RecordRunHistory("player_shield_absorbed", sourceId: sourceId, amount: shieldBefore - _dealerShield,
+                    durationSeconds: CombatRules.PlayerHitImmunitySeconds,
+                    detail: JsonUtility.ToJson(new SurvivalSupportOutcome { shield = _dealerShield, shieldCapacity = _shieldCapacity }));
                 if (appliedDamage <= 0)
                 {
-                    _gameSim.Player.Iframes = .65f;
+                    _gameSim.Player.Iframes = CombatRules.PlayerHitImmunitySeconds;
                     SpawnFloater(_gameSim.Player.Position, "SHIELD", UITheme.CyanLight, 13);
                     return;
                 }
@@ -3840,14 +3879,15 @@ namespace VoidFall.Runtime
             TrySecondWind();
             RecordRunHistory("player_damage", sourceId: _factionControllerIdentity > 0 ? "enemy_controller" : "unattributed",
                 relatedInstanceId: _factionControllerIdentity, amount: appliedDamage,
-                hp: Mathf.Max(0, _gameSim.Player.Health), maxHp: _gameSim.Player.MaxHealth);
+                hp: Mathf.Max(0, _gameSim.Player.Health), maxHp: _gameSim.Player.MaxHealth,
+                durationSeconds: CombatRules.PlayerHitImmunitySeconds);
             _music?.NotifyPlayerDamage(
                 _gameSim.Player.MaxHealth > 0f ? appliedDamage / _gameSim.Player.MaxHealth : 1f,
                 _gameSim.Player.Health <= 0f);
             _pressureReliefTimer = Mathf.Max(
                 _pressureReliefTimer,
                 _gameSim.Player.Health < _gameSim.Player.MaxHealth * 0.35f ? 5f : 2.5f);
-            _gameSim.Player.Iframes = 0.65f;
+            _gameSim.Player.Iframes = CombatRules.PlayerHitImmunitySeconds;
             _redFlash = 1f;
             TriggerFreeze(0.04f);
             _audio?.Play(ProceduralAudio.Cue.Hurt, 0.82f);
@@ -4379,6 +4419,7 @@ namespace VoidFall.Runtime
             }
 
             var rewardable = rewardActor.Identity == enemy.SpawnId && rewardActor.Rewardable;
+            if (rewardable && playerFinish && !escaping) RegisterLifeStealKill(enemy.Id, enemy.SpawnId);
             var playerShare = escaping ? 1 : rewardActor.Contribution.Fraction;
             if (rewardable) AwardFactionScore(rewardScore * playerShare);
             else { rewardXp = 0; rewardParts = 0; }
@@ -4507,7 +4548,8 @@ namespace VoidFall.Runtime
 
             // Browser removeEnemy applies the Part roll to every non-Elite
             // enemy, including Carrier Drones and Splitter Fragments.
-            if (rewardable && !enemy.Elite && _gameSim.Rng.Next() < 0.045)
+            var partChance = SurvivalSupportRules.ScrapChance(SupportRank("scavenger"));
+            if (rewardable && !enemy.Elite && _gameSim.Rng.Next() < partChance)
             {
                 if (!SpawnSpecialPickup(enemy.Position, 1, PickupKind.Part) && escaping)
                     GrantPartPickup(1);
@@ -5060,24 +5102,28 @@ namespace VoidFall.Runtime
                 rank.rectTransform.sizeDelta.y);
         }
 
-        internal bool CommitSettings()
+        internal bool CommitSettings() => TryCommitProfile(_saveData, "settings");
+
+        private bool TryCommitProfile(SaveData candidate, string scope = "profile")
         {
-            if (_saveStore == null || _saveData == null)
+            if (_saveStore == null || candidate == null)
             {
-                SetMenuNotice("Settings could not be saved");
+                SetMenuNotice("Progress could not be saved");
                 return false;
             }
-
             try
             {
-                _saveData = SaveStore.Sanitize(_saveData);
-                _saveStore.Save(_saveData);
+                // Sanitize a detached candidate: replacing its nested arrays
+                // before a failed write must never detach live rollback targets.
+                var committed = SaveStore.Sanitize(SaveStore.Clone(candidate));
+                _saveStore.Save(committed);
+                _saveData = committed;
                 return true;
             }
             catch (Exception exception)
             {
-                Debug.LogWarning("VoidFall settings could not be saved: " + exception.Message);
-                SetMenuNotice("Settings could not be saved");
+                Debug.LogWarning("VoidFall " + scope + " could not be saved: " + exception.Message);
+                SetMenuNotice("Progress could not be saved");
                 return false;
             }
         }

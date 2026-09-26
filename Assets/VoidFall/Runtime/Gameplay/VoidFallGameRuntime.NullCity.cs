@@ -46,6 +46,8 @@ namespace VoidFall.Runtime
         private float _nullCityHeavyClock;
         private int _nullCityHeavySequence;
         private int _nullCityPoliceWave;
+        private bool _nullCityPacingRecorded;
+        private bool _nullCityLastPacingLockdown;
         private int _nullCityLastCyclePass = -1;
         private float _nullCityDashRemaining;
         private float _nullCityDashCooldown;
@@ -83,9 +85,11 @@ namespace VoidFall.Runtime
             _nullCityElapsed = _nullCityBossElapsed = 0f;
             _nullCityMapRecorded = false;
             _nullCitySpawnClock = 0.5f;
-            _nullCityHeavyClock = 10f;
+            _nullCityHeavyClock = NullCityPacingRules.FirstHeavySeconds;
             _nullCityHeavySequence = 0;
             _nullCityPoliceWave = 0;
+            _nullCityPacingRecorded = false;
+            _nullCityLastPacingLockdown = false;
             _nullCityLastCyclePass = -1;
             ClearNullCityBirthQueue();
             _nullCityBlastCount = 0;
@@ -142,6 +146,15 @@ namespace VoidFall.Runtime
         private bool SpawnNullCityUnit(int type, Vector2 position, bool newborn = false, bool fromHangar = false)
         {
             if (type < 0 || type >= NullCityContent.Enemies.Length || _nullCityCleared) return false;
+            var admissionLockdown = NullCityPacingRules.IsLockdown(_nullCityBossActive, NullCityLockdown);
+            var activeCap = NullCityPacingRules.ActiveCap(admissionLockdown);
+            if (ActiveEnemies() >= activeCap)
+            {
+                RecordRunHistory("null_city_spawn", NullCityContent.Enemies[type].Id, sourceId: "null-city",
+                    reason: "native_cap", budgetLimit: activeCap, budgetUsed: ActiveEnemies(),
+                    detail: newborn ? "arrival=brood" : fromHangar ? "arrival=reinforcement" : "arrival=ordinary");
+                return false;
+            }
             bool spawned;
             if (_nullCityBossActive && !_spawnFromActor && _spawnRewardRoot == 0 && _nullCityBossSlot >= 0)
             {
@@ -149,7 +162,15 @@ namespace VoidFall.Runtime
                     spawned = SpawnEnemy(NullCityContent.Enemies[type].Id, position, forcedRoster: EnemyRoster.One);
             }
             else spawned = SpawnEnemy(NullCityContent.Enemies[type].Id, position, forcedRoster: EnemyRoster.One);
-            if (!spawned) return false;
+            if (!spawned)
+            {
+                var phaseLockdown = NullCityPacingRules.IsLockdown(_nullCityBossActive, NullCityLockdown);
+                RecordRunHistory("null_city_spawn", NullCityContent.Enemies[type].Id, sourceId: "null-city",
+                    reason: "rejected", detail: "active=" + ActiveEnemies() +
+                        ";target=" + NullCityPacingRules.ActiveTarget(phaseLockdown) +
+                        ";cap=" + NullCityPacingRules.ActiveCap(phaseLockdown));
+                return false;
+            }
             var identity = _nextEnemyId - 1;
             for (var i = 0; i < _gameSim.Enemies.Length; i++)
             {
@@ -165,6 +186,17 @@ namespace VoidFall.Runtime
                     Emergence = fromHangar ? 1.3f : 0f,
                     Grace = newborn ? .65f : fromHangar ? .9f : 0f,
                 };
+                var phaseLockdown = NullCityPacingRules.IsLockdown(_nullCityBossActive, NullCityLockdown);
+                var source = newborn ? "brood" : fromHangar ? "reinforcement" :
+                    NullCityPacingRules.IsHeavy(e.Id) ? "heavy" : "ordinary";
+                RecordRunHistory("null_city_spawn", e.Id, sourceId: "null-city", instanceId: identity,
+                    reason: source, amount: 1, hp: e.Health, maxHp: e.MaxHealth, position: e.Position,
+                    detail: "phase=" + (phaseLockdown ? "lockdown" : "surveillance") +
+                        ";active=" + ActiveEnemies() +
+                        ";target=" + NullCityPacingRules.ActiveTarget(phaseLockdown) +
+                        ";cap=" + NullCityPacingRules.ActiveCap(phaseLockdown) +
+                        ";ordinaryIntervalSeconds=" + NullCityPacingRules.OrdinaryInterval(phaseLockdown) +
+                        ";pacingVersion=" + NullCityPacingRules.Version);
                 return true;
             }
             return false;
@@ -189,22 +221,77 @@ namespace VoidFall.Runtime
             return false;
         }
 
+        private int NullCityHeavyCount()
+        {
+            var count = 0;
+            for (var i = 0; i < _gameSim.Enemies.Length; i++)
+            {
+                var e = _gameSim.Enemies[i];
+                if (e.Active && NullCityPacingRules.IsHeavy(e.Id)) count++;
+            }
+            return count;
+        }
+
+        private void RecordNullCityPacing(bool lockdown)
+        {
+            if (_nullCityPacingRecorded && lockdown == _nullCityLastPacingLockdown) return;
+            _nullCityPacingRecorded = true;
+            _nullCityLastPacingLockdown = lockdown;
+            RecordRunHistory("null_city_pacing", lockdown ? "lockdown" : "surveillance",
+                sourceId: "null-city", amount: NullCityPacingRules.ActiveTarget(lockdown),
+                budgetLimit: NullCityPacingRules.ActiveCap(lockdown),
+                detail: "ordinaryArrivalsPerSecond=" + (lockdown
+                    ? NullCityPacingRules.LockdownOrdinaryArrivalsPerSecond
+                    : NullCityPacingRules.QuietOrdinaryArrivalsPerSecond) +
+                    ";heavyLimit=" + NullCityPacingRules.HeavyLimit(_nullCityElapsed, _nullCityBossActive) +
+                    ";policePerWave=" + NullCityPacingRules.MaximumPolicePerWave +
+                    ";pacingVersion=" + NullCityPacingRules.Version);
+        }
+
+        private void SpawnNullCityHeavyGroup(int activeCap)
+        {
+            var type = 5 + _nullCityHeavySequence++ % 3;
+            var heavyPosition = NullCitySpawnEdge();
+            if (!SpawnNullCityUnit(type, heavyPosition)) return;
+            // Every later heavy arrives with a native-sized escort so its threat
+            // is readable without multiplying its health or damage.
+            if (ActiveEnemies() < activeCap)
+            {
+                var escortCanvas = NullCityCanvas(heavyPosition) +
+                    new Vector2(_nullCityHeavySequence % 2 == 0 ? -72f : 72f, 28f) / NullCityRules.WorldScale;
+                escortCanvas.x = Mathf.Clamp(escortCanvas.x, (float)NullCityRules.ArenaLeft, (float)NullCityRules.ArenaRight);
+                escortCanvas.y = Mathf.Clamp(escortCanvas.y, (float)NullCityRules.ArenaTop, (float)NullCityRules.ArenaBottom);
+                SpawnNullCityUnit(_nullCityHeavySequence % 2 == 0 ? 0 : 3,
+                    NullCityWorld(escortCanvas.x, escortCanvas.y));
+            }
+        }
+
         private void UpdateNullCitySpawns(float dt)
         {
-            if (!CurrentVoidIsNullCity || _nullCityCleared || _riftTransitionActive) return;
+            if (!CurrentVoidIsNullCity || _nullCityCleared || _riftTransitionActive ||
+                _paused || _gameOver || _revivePending || _levelUpActive || JourneyStopsCombat) return;
+            var lockdown = NullCityPacingRules.IsLockdown(_nullCityBossActive, NullCityLockdown);
+            var activeTarget = NullCityPacingRules.ActiveTarget(lockdown);
+            var activeCap = NullCityPacingRules.ActiveCap(lockdown);
+            RecordNullCityPacing(lockdown);
+            // Do not bank spawn debt while the authored density target is full;
+            // the next opening should resume at the configured rate.
+            if (ActiveEnemies() >= activeTarget && _nullCitySpawnClock < 0f) _nullCitySpawnClock = 0f;
             _nullCitySpawnClock -= dt;
             _nullCityHeavyClock -= dt;
-            if (!_nullCityBossActive && _nullCitySpawnClock <= 0f && ActiveEnemies() < 30)
+            var ordinaryGuard = 8;
+            while (!_nullCityBossActive && _nullCitySpawnClock <= 0f && ActiveEnemies() < activeTarget && ordinaryGuard-- > 0)
             {
                 var roll = _gameSim.Rng.Next();
                 var type = ApprovedMapRules.CityAmbient(roll);
                 SpawnNullCityUnit(type, NullCitySpawnEdge());
-                _nullCitySpawnClock = Mathf.Max(.65f, 1.2f - _nullCityElapsed * .001f);
+                _nullCitySpawnClock += NullCityPacingRules.OrdinaryInterval(lockdown);
             }
-            if (!_nullCityBossActive && _nullCityHeavyClock <= 0f && ActiveEnemies() < 40 && !HasNullCityHeavy())
+            if (!_nullCityBossActive && _nullCityHeavyClock <= 0f && ActiveEnemies() < activeCap &&
+                NullCityHeavyCount() < NullCityPacingRules.HeavyLimit(_nullCityElapsed, false))
             {
-                SpawnNullCityUnit(5 + _nullCityHeavySequence++ % 3, NullCitySpawnEdge());
-                _nullCityHeavyClock = 19f;
+                SpawnNullCityHeavyGroup(activeCap);
+                _nullCityHeavyClock = NullCityPacingRules.HeavyCooldownSeconds;
             }
         }
 
@@ -229,8 +316,17 @@ namespace VoidFall.Runtime
                 var police = 0;
                 for (var i = 0; i < _gameSim.Enemies.Length; i++)
                     if (_gameSim.Enemies[i].Active && NullCityContent.EnemyIndex(_gameSim.Enemies[i].Id) >= 9) police++;
-                for (var type = 9; type <= 11 && police < 9 && ActiveEnemies() < 48; type++, police++)
-                    SpawnNullCityUnit(type, NullCityWorld(680f + (type - 9) * 110f, 777f), fromHangar: true);
+                if (police < NullCityPacingRules.MaximumPolicePerWave)
+                {
+                    RecordRunHistory("null_city_reinforcement_warning", "police", sourceId: "null-city",
+                        amount: NullCityPacingRules.MaximumPolicePerWave - police,
+                        durationSeconds: 1.3f, reason: _nullCityBossActive ? "boss_lockdown" : "lockdown",
+                        detail: "warned=true;wave=" + (_nullCityPoliceWave + 1) +
+                            ";activeCap=" + NullCityPacingRules.LockdownActiveCap);
+                    for (var type = 9; type <= 11 && police < NullCityPacingRules.MaximumPolicePerWave &&
+                        ActiveEnemies() < NullCityPacingRules.LockdownActiveCap; type++, police++)
+                        SpawnNullCityUnit(type, NullCityWorld(680f + (type - 9) * 110f, 777f), fromHangar: true);
+                }
                 if (_nullCityPoliceWave++ == 0) ShowArenaToast("LAW ENFORCEMENT DEPLOYED", 3f, ToastKind.Danger);
             }
             ProcessNullCityBirths();
@@ -302,14 +398,17 @@ namespace VoidFall.Runtime
 
         private void ProcessNullCityBirths()
         {
+            var activeCap = NullCityPacingRules.ActiveCap(NullCityPacingRules.IsLockdown(_nullCityBossActive, NullCityLockdown));
+            if (_nullCityBirthCount == 0 || ActiveEnemies() >= activeCap) return;
             var remaining = 0;
             for (var i = 0; i < _nullCityBirthCount; i++)
             {
                 var p = _nullCityBirthQueue[i];
                 var root = _nullCityBirthRoots[i];
                 _nullCityBirthRoots[i] = 0;
-                bool spawned;
-                using (FactionBirthScope(root)) spawned = SpawnNullCityUnit(3, p, newborn: true);
+                var spawned = false;
+                if (ActiveEnemies() < activeCap)
+                    using (FactionBirthScope(root)) spawned = SpawnNullCityUnit(3, p, newborn: true);
                 if (spawned) ReleaseFactionBirthRoot(root);
                 else
                 {
@@ -651,9 +750,7 @@ namespace VoidFall.Runtime
                 Hide(_enemyTelegraphSecondaryLineViews[i]); Hide(_enemyTelegraphTertiaryLineViews[i]);
             }
             if (_voidRoute == null || _stressScenario != null) ResetEnemyOrder();
-            for (var i = 0; i < _gameSim.HostileShots.Length; i++)
-            { _gameSim.HostileShots[i] = default; Hide(_hostileShotViews[i]); }
-            ResetHostileShotOrder();
+            ClearHostileShots();
             ClearMeteors();
         }
     }

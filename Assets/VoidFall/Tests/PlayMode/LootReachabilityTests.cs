@@ -177,7 +177,9 @@ namespace VoidFall.Tests.PlayMode
             Set(_runtime,"_lootRecoveryTimer",0f); Call("UpdateLootReachability",.25f);
             var point=(Vector2)Get(Pickups.GetValue(0),"Position");
             var origin=(Vector2)Get(_runtime,"_monochromeBoardOrigin");
-            Assert.That(point.x,Is.LessThanOrEqualTo(origin.x+28*129.6f-32));
+            var tileSize=(float)MonochromeEncounterRules.TileSize;
+            Assert.That(point.x,Is.InRange(origin.x+32-.001f,origin.x+ApprovedMapRules.CourtColumns*tileSize-32+.001f));
+            Assert.That(point.y,Is.InRange(origin.y+32-.001f,origin.y+ApprovedMapRules.CourtRows*tileSize-32+.001f));
             Assert.That((float)Get(Pickups.GetValue(0),"Value"),Is.EqualTo(1));
             Assert.That((float)Get(_runtime,"_xp"),Is.Zero);
         }

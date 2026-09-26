@@ -112,7 +112,7 @@ namespace VoidFall.Tests.PlayMode
         public void Withdrawal_cancels_raider_projectiles_and_ends_without_kill_rewards()
         {
             Call("EndDestroyerRaid"); Call("StartDestroyerRaid", Vector2.zero);
-            Assert.That(_runtime.ActiveEnemiesCount, Is.EqualTo(5));
+            Assert.That(_runtime.ActiveEnemiesCount, Is.EqualTo(DestroyerContent.RaidCount));
             var first = FirstActive(); var score = Get(_runtime, "_score");
             using ((IDisposable)Call("EnemyFactionScope", _enemies.GetValue(first)))
                 Call("SpawnHostileShot", Vector2.zero, Vector2.right, 10f, 100f, 0f, false, -1, 0f);

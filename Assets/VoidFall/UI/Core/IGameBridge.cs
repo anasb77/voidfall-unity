@@ -23,8 +23,12 @@ namespace VoidFall.UI
         /// </summary>
         bool TryPersistSettings();
 
-        /// <summary>Persists the whole current profile. Same primitive as TryPersistSettings.</summary>
-        bool TryPersistProfile();
+        /// <summary>
+        /// Persists a complete detached candidate and publishes it only on success.
+        /// Failure leaves the live profile intact. Controllers must not mutate
+        /// the source profile before invoking this boundary.
+        /// </summary>
+        bool TryCommitProfile(SaveData candidate);
 
         /// <summary>Rebuilds live audio/quality state from current settings.</summary>
         void ApplyLiveSettings();

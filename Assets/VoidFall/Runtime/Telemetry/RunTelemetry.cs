@@ -103,6 +103,10 @@ namespace VoidFall.Runtime
         public string arsenalBalanceVersion;
         public string restorationVersion;
         public float arrivalRateMultiplier;
+        public float playerHitImmunitySeconds;
+        public string survivalSupportVersion;
+        public double ordinaryScrapDropChance;
+        public int lifeStealKillThreshold, scavengerScrapThreshold;
         public double ordinaryRareDropChance, overclockMaximumBankedSeconds, xpMultiplierAfterLevelFive, boomerangSizeScale, clockFaceOpacity;
         public int selectedMonitorIndex;
         public string actualMonitorName;
@@ -114,6 +118,10 @@ namespace VoidFall.Runtime
         public int enemyCapacity;
         public int initialPopulationLimit;
         public int directorVersion;
+        public int directorRosterScheduleVersion;
+        public int sharedDirectorStage;
+        public float lateAbyssTierTwoMinimumShare, lateAbyssTierTwoMaximumShare;
+        public float secondSharedTierTwoMinimumShare, secondSharedTierTwoMaximumShare;
         public int lootPolicyVersion;
         public int pickupCapacity;
         public float xpMergeDelaySeconds;
@@ -127,6 +135,7 @@ namespace VoidFall.Runtime
     [Serializable]
     public sealed class UnityTelemetryHistoryEvent
     {
+        public int schemaVersion;
         public long sequence;
         public float timeSeconds;
         public float wallTimeSeconds = -1;
@@ -172,7 +181,7 @@ namespace VoidFall.Runtime
     {
         public string file;
         public string format = "jsonl";
-        public int schemaVersion = 4;
+        public int schemaVersion = RunHistoryJson.SchemaVersion;
         public long submitted;
         public long written;
         public long flushed;
@@ -210,7 +219,9 @@ namespace VoidFall.Runtime
         public string[] evolved;
         public string legendaryId;
         public int legendaryRank, soundBladeFragments, chargedRifleFragments;
-        public float dealerShield, delayedPowerCombatSeconds;
+        public float dealerShield, shieldCapacity, delayedPowerCombatSeconds;
+        public int lifeStealKillProgress, scavengerScrapProgress;
+        public double ordinaryScrapDropChance;
         public int dealerExtraWeapon = -1, dealerHealthBonus, dealerRecoveryCharges;
     }
 
@@ -439,6 +450,7 @@ namespace VoidFall.Runtime
         private int _droppedArenaTransitions;
         private int _droppedMilestones;
         private HistoryWriter _history;
+        private readonly StringBuilder _historyJsonBuilder = new StringBuilder(768);
         private UnityTelemetryContext _context;
         private string _outputDirectory;
         private long _historySequence;
@@ -498,9 +510,10 @@ namespace VoidFall.Runtime
                 if (value.directorId < 0) value.directorId = _historyDirectorId;
                 if (value.challengeSeconds < 0) value.challengeSeconds = _historyChallengeSeconds;
             }
+            value.schemaVersion = RunHistoryJson.SchemaVersion;
             value.sequence = ++_historySequence;
             if (_history.RejectIfUnavailable()) return;
-            try { _history.Enqueue(JsonUtility.ToJson(value)); }
+            try { _history.Enqueue(RunHistoryJson.Serialize(value, _historyJsonBuilder)); }
             catch (Exception exception) { _history.RecordRejected(exception.Message); }
         }
 

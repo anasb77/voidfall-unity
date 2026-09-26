@@ -346,6 +346,26 @@ namespace VoidFall.Tests.PlayMode
         }
 
         [Test]
+        public void Second_shared_visit_introduces_twin_gunner_at_local_thirty_without_backlog_flush()
+        {
+            Set(_runtime, "_sharedDirectorVisitIndex", 1);
+            Set(_runtime, "_pressureStageIndex", 1);
+            Set(_runtime, "_time", 30f);
+            ((VoidObjectiveTracker)Get(_runtime, "_objectives")).Step(30);
+            Set(_runtime, "_rosterIntroductionReadyAt", 0f);
+            Set(_runtime, "_arrivalGrace", 0f);
+            Set(_runtime, "_pressureReliefTimer", 0f);
+            var introduced = (bool[])Get(_runtime, "_restorationIntroduced");
+            for (var i = 0; i < introduced.Length; i++) introduced[i] = true;
+            introduced[11] = false; // twinGunner is the first staged family in visit two.
+            Assert.That(Invoke("TryIntroduceRestorationEnemy"), Is.True);
+            var enemies = (Array)Get(Get(_runtime, "_gameSim"), "Enemies");
+            Assert.That(enemies.Cast<object>().Count(e => (bool)Get(e, "Active") && (string)Get(e, "Id") == "twinGunner"), Is.EqualTo(3));
+            Assert.That(Get(_runtime, "_rosterIntroductionReadyAt"), Is.EqualTo(42f).Within(.001f));
+            Assert.That(Invoke("RestorationTypeIntroduced", "splitter"), Is.True, "Already learned families remain eligible without replaying an introduction.");
+        }
+
+        [Test]
         public void Safety_delayed_Spiky_is_introduced_before_later_gunners_and_dashers()
         {
             PrepareMomentum(80);

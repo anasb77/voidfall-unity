@@ -163,6 +163,7 @@ namespace VoidFall.UI
                 () => Callbacks?.StartRun?.Invoke(),
                 new Vector2(330f, height));
             UIBuilder.Stretch(button.GetComponent<RectTransform>());
+            DefaultFocus = button;
             return height;
         }
 

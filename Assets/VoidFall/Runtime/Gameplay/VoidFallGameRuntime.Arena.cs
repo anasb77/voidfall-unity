@@ -199,8 +199,12 @@ namespace VoidFall.Runtime
             // parity test and source both use 0.065). Sprites/Default on this
             // linear mesh path renders that alpha too strongly, so attenuate
             // the material once instead of changing the source data.
-            if (_arenaGridRenderer.material != null)
-                _arenaGridRenderer.material.color = new Color(1f, 1f, 1f, 0.1f);
+            var gridMaterial = _arenaGridRenderer.material;
+            if (gridMaterial != null)
+            {
+                _dynamicMaterials.Add(gridMaterial);
+                gridMaterial.color = new Color(1f, 1f, 1f, 0.1f);
+            }
             _arenaGridRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _arenaGridRenderer.receiveShadows = false;
             _arenaGridRenderer.enabled = false;
@@ -1515,17 +1519,21 @@ namespace VoidFall.Runtime
             var cityIndex = (int)ArenaId.NullCity;
             if (_preparedArenaPlateKeys[cityIndex].IsValid && !target.Contains(_preparedArenaPlateKeys[cityIndex]))
                 DetachNullCityAssetConsumers();
-            if (!_arenaResidency.Reconcile(target))
-                Debug.LogWarning(_arenaResidency.LastFailure);
             for (var index = 0; index < _preparedArenaPlateKeys.Length; index++)
             {
                 var installed = _preparedArenaPlateKeys[index];
                 if (!installed.IsValid || target.Contains(installed)) continue;
+                DetachApprovedMapConsumers(_preparedArenaPlateAssets[index]?.ApprovedMapVisuals);
+                if (_backdropView != null && _backdropView.sprite == _arenaPlateSprites[index]) _backdropView.sprite = null;
+                if (_arenaBakedDetailView != null && _arenaBakedDetailView.sprite == _arenaPlateDetailSprites[index]) _arenaBakedDetailView.sprite = null;
                 _preparedArenaPlateAssets[index] = null;
                 _preparedArenaPlateKeys[index] = default;
                 _arenaPlateSprites[index] = null;
                 _arenaPlateDetailSprites[index] = null;
             }
+            // Every renderer and managed cache relinquishes the old package
+            // before Addressables decrements its final ownership reference.
+            if (!_arenaResidency.Reconcile(target)) Debug.LogWarning(_arenaResidency.LastFailure);
         }
 
         private static string ArenaIdName(ArenaId arena)

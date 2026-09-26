@@ -54,6 +54,7 @@ namespace VoidFall.Editor
             var errors = new List<string>();
             errors.AddRange(ArenaContentBaker.ValidateAll());
             errors.AddRange(ArenaAddressableMigration.ValidateAll());
+            errors.AddRange(ApprovedMapAssetMigration.ValidateAll());
             errors.AddRange(ProceduralSpriteBaker.ValidatePreparedAssets());
 
             var required = LoadRequiredAssets(false);

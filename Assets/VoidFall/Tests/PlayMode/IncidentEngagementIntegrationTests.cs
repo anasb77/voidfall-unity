@@ -57,7 +57,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(center.magnitude, Is.InRange(160f, 170f));
             Call("ApplyMajorIncidentPlayerDisplacement", 1f);
             Assert.That(Position, Is.EqualTo(Vector2.zero), "warning has no force");
-            var state = (MajorIncidentState)Get(_runtime, "_majorIncident"); state.Step(4);
+            var state = (MajorIncidentState)Get(_runtime, "_majorIncident"); state.Step(MajorIncidentRules.BlackHoleWarningSeconds + MajorIncidentRules.BlackHoleActivationSeconds);
             Call("ApplyMajorIncidentPlayerDisplacement", .25f);
             var baseSpeed = (float)ContentCatalog.Operative.MoveSpeed;
             Assert.That(Position.x, Is.GreaterThan(baseSpeed * .5f * .25f));
@@ -92,25 +92,30 @@ namespace VoidFall.Tests.PlayMode
             var presentation = Get(_runtime, "_incidentPresentation");
             var view = (GameObject)Get(presentation, "_view");
             Assert.That(view.transform.lossyScale.x * .91f / 2, Is.EqualTo(230f).Within(.01f));
-            var state = (MajorIncidentState)Get(_runtime, "_majorIncident"); state.Step(4);
+            var state = (MajorIncidentState)Get(_runtime, "_majorIncident"); state.Step(MajorIncidentRules.BlackHoleWarningSeconds + MajorIncidentRules.BlackHoleActivationSeconds);
             Put(_runtime, "_paused", true);
             Call("StepMajorIncidents", 1f); Call("ApplyMajorIncidentPlayerDisplacement", 1f);
-            Assert.That(state.Elapsed, Is.EqualTo(4)); Assert.That(Position, Is.EqualTo(Vector2.zero));
+            Assert.That(state.Elapsed, Is.EqualTo(MajorIncidentRules.BlackHoleWarningSeconds + MajorIncidentRules.BlackHoleActivationSeconds)); Assert.That(Position, Is.EqualTo(Vector2.zero));
             Put(_runtime, "_paused", false); Call("StopMajorIncident");
             Call("ApplyMajorIncidentPlayerDisplacement", 1f);
             Assert.That(Position, Is.EqualTo(Vector2.zero));
             Assert.That(view.GetComponent<MeshRenderer>().enabled, Is.False);
         }
 
-        [TestCase(235f, false)]
-        [TestCase(260f, false)]
-        [TestCase(260f, true)]
-        public void Running_black_hole_entry_produces_pull_unless_player_jukes_during_warning(float speed, bool juke)
+        [TestCase(235f, false, false)]
+        [TestCase(260f, false, false)]
+        [TestCase(260f, true, false)]
+        [TestCase(235f, false, true)]
+        [TestCase(260f, false, true)]
+        public void Running_black_hole_warning_can_be_escaped_but_active_entry_pulls(float speed, bool juke, bool enterActive)
         {
             Player("Velocity", Vector2.right * speed);
             Put(_runtime, "_moveSpeedMultiplier", speed / (float)ContentCatalog.Operative.MoveSpeed);
             Assert.That(_runtime.ForceMajorIncidentForDiagnostics("black-hole"), Is.True);
             var center = (Vector2)Get(_runtime, "_incidentCenter");
+            if (enterActive)
+                ((MajorIncidentState)Get(_runtime, "_majorIncident")).Step(
+                    MajorIncidentRules.BlackHoleWarningSeconds + MajorIncidentRules.BlackHoleActivationSeconds);
             var direction = juke ? Vector2.left : Vector2.right;
             Call("SpawnPickup", Position + direction * 400f, 1f);
             var pickups = (Array)Get(_sim, "Pickups");
@@ -136,8 +141,8 @@ namespace VoidFall.Tests.PlayMode
             var pulls = History().Where(e => e.kind == "black_hole_pull").ToArray();
             var displacement = pulls.Sum(e => e.amount);
             TestContext.WriteLine($"Running Black Hole speed={speed:F0}; juke={juke}; actual pull={displacement:F2}; final distance={Vector2.Distance(Position, center):F2}");
-            if (juke) Assert.That(displacement, Is.Zero, "reacting to the warning can avoid the force entirely");
-            else Assert.That(displacement, Is.GreaterThan(20f), "continuing straight should feel real attraction before escaping");
+            if (!enterActive) Assert.That(displacement, Is.Zero, "the ten-second warning gives a moving player time to leave the locked zone");
+            else Assert.That(displacement, Is.GreaterThan(20f), "entering the active zone produces real attraction before escape");
         }
 
         [Test]
@@ -157,7 +162,7 @@ namespace VoidFall.Tests.PlayMode
         public void Incident_exports_record_committed_phases_and_actual_pull_without_frame_spam()
         {
             _runtime.ForceMajorIncidentForDiagnostics("black-hole");
-            for (var tick = 0; tick < 600; tick++)
+            for (var tick = 0; tick < (MajorIncidentRules.BlackHoleWarningSeconds + 5) * 120; tick++)
             {
                 Put(_runtime, "_time", tick / 120f);
                 Call("StepMajorIncidents", 1f / 120);
@@ -265,7 +270,7 @@ namespace VoidFall.Tests.PlayMode
             Put(_runtime, "_time", 85f);
             Assert.That(_runtime.ForceMajorIncidentForDiagnostics("raid"), Is.True);
             var sawRelease = false; var bodiesAtRelease = 0;
-            for (var tick = 1; tick <= 4560; tick++)
+            for (var tick = 1; tick <= (MajorIncidentRules.TotalDuration(MajorIncidentKind.DestroyerRaid) + 1) * 120; tick++)
             {
                 const float dt = 1f / 120;
                 Put(_runtime, "_time", 85f + tick * dt);

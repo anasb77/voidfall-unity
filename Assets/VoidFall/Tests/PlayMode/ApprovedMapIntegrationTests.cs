@@ -35,7 +35,17 @@ namespace VoidFall.Tests.PlayMode
             Set(_runtime, "_saveData", SaveStore.CreateDefault());
             Set(_runtime, "_runExportDirectoryOverride", Path.Combine(_directory, "RunExports"));
             Call("StartRunInternal", true, false);
-            yield return null;
+            // These fixtures jump directly between arenas, bypassing travel.
+            // Preload the same packages that real travel owns asynchronously.
+            Call("PrepareMenuArenaCatalogue");
+            var residency = (ArenaResidencyManager)Get(_runtime, "_arenaResidency");
+            foreach (var arena in new[] { ArenaId.Hydra, ArenaId.NullCity, ArenaId.MonochromeCourt })
+            {
+                var key = (ArenaPackageKey)Call("ArenaPackageFor", arena);
+                var deadline = Time.realtimeSinceStartup + 30f;
+                while (residency.Status(key) == ArenaPackageLoadStatus.Loading && Time.realtimeSinceStartup < deadline) yield return null;
+                Assert.That(residency.Status(key), Is.EqualTo(ArenaPackageLoadStatus.Ready), residency.LastFailure);
+            }
         }
 
         [UnityTearDown]

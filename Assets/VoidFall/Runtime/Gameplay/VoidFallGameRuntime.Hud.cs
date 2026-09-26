@@ -35,6 +35,7 @@ namespace VoidFall.Runtime
             if (_canvas != null)
                 _canvas.enabled = hudVisible || _hudGroup == null || _hudGroup.alpha > 0.001f;
             UpdateHudResponsiveLayout();
+            UpdateSurvivalHud();
             UpdatePressureHud();
             UpdateDamageOverlays();
             UpdateArenaBanner();

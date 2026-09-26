@@ -2038,7 +2038,7 @@ namespace VoidFall.Runtime
                 Gem(tier);
             yield return 3;
 
-            foreach (var kind in new[] { "xp", "part", "magnet", "repair", "bomb", "overdrive" })
+            foreach (var kind in new[] { "xp", "part", "magnet", "repair", "bomb", "overdrive", "part-frame", "part-cell" })
                 Pickup(kind);
             yield return 6;
 
@@ -3365,6 +3365,8 @@ namespace VoidFall.Runtime
 
         private static Sprite BuildPickup(string kind)
         {
+            if (kind == "part" || kind == "part-frame" || kind == "part-cell")
+                return BuildScrap(kind == "part-frame" ? 1 : kind == "part-cell" ? 2 : 0);
             var color = kind == "part" ? ParseColor("#facc15")
                 : kind == "magnet" ? ParseColor("#22d3ee")
                 : kind == "repair" ? ParseColor("#4ade80")

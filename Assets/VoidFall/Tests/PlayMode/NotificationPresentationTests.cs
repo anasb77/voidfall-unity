@@ -27,9 +27,9 @@ namespace VoidFall.Tests.PlayMode
         }
         [TearDown] public void TearDown() { _profile.Dispose(); _runtime.enabled = _enabled; }
 
-        [TestCase("raid", "DESTROYER RAID INCOMING")]
-        [TestCase("eclipse", "ECLIPSE INCOMING")]
-        [TestCase("black-hole", "BLACK HOLE")]
+        [TestCase("raid", "DESTROYERS INCOMING")]
+        [TestCase("eclipse", "ECLIPSE WARNING")]
+        [TestCase("black-hole", "BLACKHOLE INCOMING")]
         public void Incident_notice_survives_rewards_and_hidden_time(string incident, string title)
         {
             Call("ClearToasts"); _runtime.ForceMajorIncidentForDiagnostics(incident);
@@ -37,7 +37,7 @@ namespace VoidFall.Tests.PlayMode
             var states = (Array)Get(_runtime, "_toastStates");
             Assert.That(states.Cast<object>().Count(t => (string)Get(t, "Text") == title), Is.EqualTo(1));
             Set(_runtime, "_paused", true); Call("UpdateToastTimers", 10f);
-            Assert.That(states.Cast<object>().Any(t => (string)Get(t, "Text") == title && (float)Get(t, "Remaining") == 8f), Is.True);
+            Assert.That(states.Cast<object>().Any(t => (string)Get(t, "Text") == title && (float)Get(t, "Remaining") == 12f), Is.True);
             Set(_runtime, "_paused", false); Call("UpdateToastTimers", .5f); Call("UpdateToastViews");
             var views = (Text[])Get(_runtime, "_toastViews");
             var view = views.Single(t => t.enabled && t.text == title);
@@ -45,6 +45,18 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(view.color.a, Is.GreaterThan(.5));
             Call("UpdateToastTimers", 5f); Call("UpdateToastViews");
             Assert.That(view.enabled && view.color.a > .9f, Is.True, "Event remains fully readable after five seconds");
+        }
+
+        [TestCase("raid", "DESTROYERS RAID!")]
+        [TestCase("eclipse", "ECLIPSE !")]
+        [TestCase("black-hole", "BLACK HOLE !")]
+        public void Incident_arrival_announces_when_warning_becomes_active(string incident, string title)
+        {
+            Call("ClearToasts"); _runtime.ForceMajorIncidentForDiagnostics(incident);
+            Call("StepMajorIncidents", 10f);
+            var states = (Array)Get(_runtime, "_toastStates");
+            Assert.That(states.Cast<object>().Any(t => (string)Get(t, "Text") == title), Is.True,
+                "Arrival toast '" + title + "' must queue when the incident goes active");
         }
 
         [Test] public void Raid_admits_eight_and_keeps_all_five_roles()
@@ -140,7 +152,8 @@ namespace VoidFall.Tests.PlayMode
         {
             var clips = (AudioClip[])Get(Get(_runtime, "_audio"), "_clips");
             var names = new System.Collections.Generic.HashSet<string>();
-            foreach (var cue in new[] { ProceduralAudio.Cue.RaidNotice, ProceduralAudio.Cue.EclipseNotice, ProceduralAudio.Cue.BlackHoleNotice })
+            foreach (var cue in new[] { ProceduralAudio.Cue.RaidNotice, ProceduralAudio.Cue.EclipseNotice, ProceduralAudio.Cue.BlackHoleNotice,
+                ProceduralAudio.Cue.RaidArrival, ProceduralAudio.Cue.EclipseArrival, ProceduralAudio.Cue.BlackHoleArrival })
             {
                 var clip = clips[(int)cue]; Assert.That(clip, Is.Not.Null); Assert.That(names.Add(clip.name), Is.True);
                 var samples = new float[clip.samples * clip.channels]; Assert.That(clip.GetData(samples, 0), Is.True);

@@ -17,7 +17,8 @@ namespace VoidFall.Runtime
             _crascendoBosses = new CrascendoGrowthState[_gameSim.Bosses.Length];
             _crascendoBossPush = new Vector2[_gameSim.Bosses.Length]; _crascendoElapsed = 0;
             _gameSim.EnemyNaturalRadiusHook = CurrentVoidIsCrascendo ? CrascendoNaturalRadius : null;
-            _gameSim.EnemyQueryPadding = CurrentVoidIsCrascendo ? 8 : 0;
+            _gameSim.ExpandEnemyQueriesForRadius = CurrentVoidIsCrascendo;
+            _gameSim.EnemyQueryPadding = 0;
         }
         private void StepCrascendo(float dt)
         {
@@ -38,6 +39,7 @@ namespace VoidFall.Runtime
             if (state.Identity != enemy.SpawnId || state.BaseRadius <= 0) state = new CrascendoGrowthState { Identity = enemy.SpawnId, BaseRadius = enemy.Radius, NaturalRadius = enemy.Radius };
             state.Hits = Mathf.Min(CrascendoRules.HitsToMaximum, state.Hits + 1);
             enemy.Radius = Mathf.Min(state.BaseRadius * CrascendoRules.MaximumGrowth, Mathf.Max(enemy.Radius + state.BaseRadius * CrascendoRules.GrowthPerHit, state.BaseRadius * CrascendoRules.Growth(state.Hits)));
+            _gameSim.IncludeEnemyQueryRadius(enemy.Radius);
         }
         private float CrascendoNaturalRadius(EnemyState enemy, float naturalRadius)
         {
@@ -45,7 +47,9 @@ namespace VoidFall.Runtime
             if (state.Identity != enemy.SpawnId || state.BaseRadius <= 0) state = new CrascendoGrowthState { Identity = enemy.SpawnId, BaseRadius = enemy.Radius, NaturalRadius = enemy.Radius };
             var increment = Mathf.Max(0, naturalRadius - state.NaturalRadius);
             state.NaturalRadius = Mathf.Max(state.NaturalRadius, naturalRadius);
-            return Mathf.Min(state.BaseRadius * CrascendoRules.MaximumGrowth, enemy.Radius + increment);
+            var radius = Mathf.Min(state.BaseRadius * CrascendoRules.MaximumGrowth, enemy.Radius + increment);
+            _gameSim.IncludeEnemyQueryRadius(radius);
+            return radius;
         }
         private void InitializeCrascendoBoss(int index, BossState boss)
         {

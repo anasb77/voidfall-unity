@@ -52,10 +52,9 @@ namespace VoidFall.UI
             }
             if (profile.form == id) return true;
 
-            var previous = profile.form;
-            profile.form = id;
-            if (_bridge.TryPersistProfile()) return true;
-            profile.form = previous;
+            var candidate = SaveStore.Clone(profile);
+            candidate.form = id;
+            if (_bridge.TryCommitProfile(candidate)) return true;
             notice = "Form selection could not be saved. Your previous form is still selected.";
             return false;
         }
@@ -153,71 +152,63 @@ namespace VoidFall.UI
             return list;
         }
 
-        /// <summary>
-        /// Guarded purchase: validates cost and balance, deducts Scraps,
-        /// increments the rank, persists, and rolls both back when storage
-        /// fails. Returns false with a player-facing notice on every failure
-        /// path.
-        /// </summary>
-        public bool TryPurchase(IList<WorkshopEntry> entries, ref int parts, string id, out string notice)
+        /// <summary>Commits the rank and its complete wallet debit together.</summary>
+        public bool TryPurchase(SaveData profile, string id, out string notice)
         {
-            var entry = FindEntry(entries, id);
+            var entry = FindEntry(profile?.workshop, id);
             if (entry == null)
             {
                 notice = null;
                 return false;
             }
-
             var cost = CostFor(id, entry.rank);
             if (cost < 0)
             {
                 notice = "That upgrade is already at maximum rank.";
                 return false;
             }
-            if (parts < cost)
+            if (profile.parts < cost)
             {
-                notice = $"Need {cost - parts} more Scraps.";
+                notice = $"Need {cost - profile.parts} more Scraps.";
                 return false;
             }
 
-            parts -= cost;
-            entry.rank++;
-            if (_bridge.TryPersistProfile())
+            var candidate = SaveStore.Clone(profile);
+            candidate.parts -= cost;
+            var purchased = FindEntry(candidate.workshop, id);
+            purchased.rank++;
+            if (_bridge.TryCommitProfile(candidate))
             {
-                notice = $"{NameFor(id)} upgraded to rank {entry.rank}. Applies next run.";
+                notice = $"{NameFor(id)} upgraded to rank {purchased.rank}. Applies next run.";
                 return true;
             }
-
-            // Storage failed: roll the purchase back so the shown balance
-            // matches what is on disk.
-            parts += cost;
-            entry.rank--;
             notice = "Purchase could not be saved. Scraps were not spent.";
             return false;
         }
 
-        /// <summary>
-        /// Refunds every purchased rank at its original cost, zeroes all
-        /// ranks, and persists. Returns the refunded Scrap total (0 when there
-        /// is nothing to refund or no workshop data exists).
-        /// </summary>
-        public int RefundAll(IList<WorkshopEntry> entries, ref int parts)
+        /// <summary>Refunds original costs in the same commit that removes the ranks.</summary>
+        public bool TryRefundAll(SaveData profile, out int refundedParts, out string notice)
         {
-            if (entries == null) return 0;
-            var refundedParts = 0;
-            foreach (var entry in entries)
+            refundedParts = 0;
+            notice = null;
+            if (profile?.workshop == null) return true;
+            var candidate = SaveStore.Clone(profile);
+            foreach (var entry in candidate.workshop)
             {
                 if (entry == null) continue;
-                for (var r = 0; r < entry.rank; r++)
+                for (var rank = 0; rank < entry.rank; rank++)
                 {
-                    var cost = CostFor(entry.id, r);
+                    var cost = CostFor(entry.id, rank);
                     if (cost > 0) refundedParts += cost;
                 }
                 entry.rank = 0;
             }
-            parts += refundedParts;
-            _bridge.TryPersistProfile();
-            return refundedParts;
+            if (refundedParts == 0) return true;
+            candidate.parts = (int)Math.Min(999_999_999L, (long)candidate.parts + refundedParts);
+            if (_bridge.TryCommitProfile(candidate)) return true;
+            refundedParts = 0;
+            notice = "Refund could not be saved. Your upgrades and Scraps are unchanged.";
+            return false;
         }
     }
 }

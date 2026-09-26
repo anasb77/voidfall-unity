@@ -69,12 +69,28 @@ namespace VoidFall.Tests
         [Test]
         public void Roster_reveal_retains_new_families_through_fifteen_minutes()
         {
-            Assert.That(LegacyRestorationRules.RevealSeconds("carrier"), Is.EqualTo(900));
+            Assert.That(LegacyRestorationRules.RevealSeconds("guard"), Is.EqualTo(150));
+            Assert.That(LegacyRestorationRules.RevealSeconds("brute"), Is.EqualTo(210));
+            Assert.That(LegacyRestorationRules.RevealSeconds("technician"), Is.EqualTo(270));
             Assert.That(LegacyRestorationRules.RevealSeconds("shuriken"), Is.EqualTo(30));
             Assert.That(LegacyRestorationRules.RevealSeconds("spiky"), Is.EqualTo(50));
-            Assert.That(LegacyRestorationRules.RevealSeconds("guard"), Is.GreaterThan(360));
+            Assert.That(LegacyRestorationRules.SharedRevealSeconds("twinGunner", 1), Is.EqualTo(30));
+            Assert.That(LegacyRestorationRules.SharedRevealSeconds("splitter", 1), Is.EqualTo(90));
+            Assert.That(LegacyRestorationRules.SharedRevealSeconds("mortar", 1), Is.EqualTo(150));
+            Assert.That(double.IsPositiveInfinity(LegacyRestorationRules.SharedRevealSeconds("carrier", 1)), Is.True);
             Assert.That(ContentCatalog.Enemies.Count(e => LegacyRestorationRules.IsNewEnemy(e.Id)), Is.EqualTo(3));
             Assert.That(LegacyRestorationRules.GiantSlayerMultiplier(3), Is.EqualTo(1.45).Within(.001));
+        }
+
+        [Test]
+        public void Shared_tier_preview_keeps_late_Abyss_small_and_second_visit_ramps()
+        {
+            Assert.That(LegacyRestorationRules.SharedTierTwoShare(0, 269, 100), Is.Zero);
+            Assert.That(LegacyRestorationRules.SharedTierTwoShare(0, 270, 100), Is.EqualTo(.05).Within(.0001));
+            Assert.That(LegacyRestorationRules.SharedTierTwoShare(0, 360, 100), Is.EqualTo(.10).Within(.0001));
+            Assert.That(LegacyRestorationRules.SharedTierTwoShare(1, 0, 59), Is.Zero);
+            Assert.That(LegacyRestorationRules.SharedTierTwoShare(1, 0, 60), Is.EqualTo(.15).Within(.0001));
+            Assert.That(LegacyRestorationRules.SharedTierTwoShare(1, 360, 60), Is.EqualTo(.50).Within(.0001));
         }
     }
 }

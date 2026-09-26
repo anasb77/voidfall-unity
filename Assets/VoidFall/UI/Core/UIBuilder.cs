@@ -1202,7 +1202,7 @@ namespace VoidFall.UI
                 0.09f);
             caption.rectTransform.anchorMin = new Vector2(0f, 0.5f);
             caption.rectTransform.anchorMax = new Vector2(1f, 1f);
-            caption.rectTransform.offsetMin = new Vector2(10f, 0f);
+            caption.rectTransform.offsetMin = new Vector2(10f, 4f);
             caption.rectTransform.offsetMax = new Vector2(-10f, -10f);
 
             var readout = CreateText(
@@ -1217,7 +1217,7 @@ namespace VoidFall.UI
             readout.rectTransform.anchorMin = new Vector2(0f, 0f);
             readout.rectTransform.anchorMax = new Vector2(1f, 0.5f);
             readout.rectTransform.offsetMin = new Vector2(10f, 10f);
-            readout.rectTransform.offsetMax = new Vector2(-10f, 2f);
+            readout.rectTransform.offsetMax = new Vector2(-10f, -3f);
             return readout;
         }
 
@@ -1971,6 +1971,36 @@ namespace VoidFall.UI
         protected RectTransform Root { get; private set; }
 
         private bool _built;
+        private Selectable _lastSelected;
+        protected Selectable DefaultFocus { get; set; }
+
+        public void SetInputEnabled(bool enabled)
+        {
+            RememberFocus();
+            if (Group != null) Group.interactable = enabled;
+        }
+
+        private bool CanFocus(Selectable target) => target != null &&
+            target.transform.IsChildOf(transform) && target.IsActive() && target.IsInteractable();
+
+        private void RememberFocus()
+        {
+            var selected = EventSystem.current?.currentSelectedGameObject;
+            if (selected != null && selected.transform.IsChildOf(transform))
+                _lastSelected = selected.GetComponent<Selectable>();
+        }
+
+        public void RestoreFocus()
+        {
+            if (!IsVisible || EventSystem.current == null) return;
+            var current = EventSystem.current.currentSelectedGameObject;
+            if (current != null && CanFocus(current.GetComponent<Selectable>())) return;
+            var target = CanFocus(_lastSelected) ? _lastSelected : CanFocus(DefaultFocus) ? DefaultFocus : null;
+            if (target == null)
+                foreach (var selectable in GetComponentsInChildren<Selectable>(false))
+                    if (CanFocus(selectable)) { target = selectable; break; }
+            if (target != null) EventSystem.current.SetSelectedGameObject(target.gameObject);
+        }
         private UIRiseIn[] _entrances = Array.Empty<UIRiseIn>();
 
         /// <summary>Builds the screen. Safe to call more than once.</summary>
@@ -1998,9 +2028,10 @@ namespace VoidFall.UI
         {
             if (gameObject.activeSelf == visible)
             {
-                if (visible) Replay();
+                if (visible) { Replay(); RestoreFocus(); }
                 return;
             }
+            if (!visible) RememberFocus();
             gameObject.SetActive(visible);
             if (Group != null)
             {
@@ -2011,6 +2042,7 @@ namespace VoidFall.UI
             {
                 Replay();
                 OnShown();
+                RestoreFocus();
             }
         }
 

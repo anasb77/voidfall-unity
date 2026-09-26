@@ -95,7 +95,8 @@ namespace VoidFall.Tests.PlayMode
             for(var i=0;i<angles.Length;i++)
                 Assert.That(Mathf.Repeat(angles[(i+1)%20]-angles[i],Mathf.PI*2),Is.EqualTo(Mathf.PI*2/20).Within(.002));
             Assert.That(green,Is.EqualTo(5));
-            Assert.That(Get<float>("_nextLegacySwarmAt"),Is.EqualTo(214));
+            Assert.That(Get<float>("_nextLegacySwarmAt"),Is.EqualTo(30),
+                "Directed circle deployment must not reschedule the independent legacy swarm clock");
         }
         private object Call(string name,params object[] args)=>RuntimeTestReflection.Invoke(_runtime,name,args);
         private static object Field(object target,string name)=>target.GetType().GetField(name,Flags).GetValue(target);

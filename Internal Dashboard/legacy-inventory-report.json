@@ -1,0 +1,265 @@
+{
+  "counts": {
+    "contentFamilies": 245,
+    "uniqueRenders": 184,
+    "sourceFiles": 103,
+    "Present": 9,
+    "Review": 29,
+    "Adapted": 73,
+    "Missing": 134
+  },
+  "categories": {
+    "Enemies": {
+      "total": 44,
+      "Present": 8,
+      "Review": 4,
+      "Adapted": 6,
+      "Missing": 26
+    },
+    "Upgrades": {
+      "total": 10,
+      "Adapted": 10
+    },
+    "Maps": {
+      "total": 4,
+      "Missing": 4
+    },
+    "Audio": {
+      "total": 39,
+      "Adapted": 25,
+      "Review": 14
+    },
+    "Weapons": {
+      "total": 18,
+      "Adapted": 7,
+      "Missing": 11
+    },
+    "Evolutions": {
+      "total": 18,
+      "Adapted": 7,
+      "Missing": 11
+    },
+    "Cards": {
+      "total": 60,
+      "Adapted": 18,
+      "Missing": 42
+    },
+    "Characters": {
+      "total": 4,
+      "Review": 3,
+      "Missing": 1
+    },
+    "Bosses": {
+      "total": 4,
+      "Present": 1,
+      "Review": 1,
+      "Missing": 2
+    },
+    "Challenges": {
+      "total": 8,
+      "Missing": 8
+    },
+    "Elite modifiers": {
+      "total": 10,
+      "Missing": 10
+    },
+    "Forms": {
+      "total": 11,
+      "Review": 3,
+      "Missing": 8
+    },
+    "Abilities": {
+      "total": 11,
+      "Missing": 11
+    },
+    "Events": {
+      "total": 4,
+      "Review": 4
+    },
+    "Assets": {
+      "total": 184,
+      "Review": 184
+    }
+  },
+  "versions": [
+    {
+      "id": "v1",
+      "name": "Voidfall v1",
+      "files": 16,
+      "enemies": 5,
+      "weapons": 0,
+      "cards": 0,
+      "forms": 0,
+      "changes": [
+        "index.html",
+        "package-lock.json",
+        "package.json",
+        "src/App.tsx",
+        "src/components/GameUI.tsx",
+        "src/game/audio.ts",
+        "src/game/engine.ts",
+        "src/game/input.ts",
+        "src/game/sprites.ts",
+        "src/game/types.ts",
+        "src/game/upgrades.ts",
+        "src/index.css",
+        "src/main.tsx",
+        "src/utils/cn.ts",
+        "tsconfig.json",
+        "vite.config.ts"
+      ],
+      "counts": {
+        "Enemies": 5,
+        "Upgrades": 10,
+        "Maps": 1,
+        "Audio": 14,
+        "Assets": 29
+      }
+    },
+    {
+      "id": "v2",
+      "name": "Voidfall v2",
+      "files": 21,
+      "enemies": 12,
+      "weapons": 10,
+      "cards": 27,
+      "forms": 0,
+      "changes": [
+        "src/components/GameUI.tsx",
+        "src/game/audio.ts",
+        "src/game/characters.ts",
+        "src/game/enemies.ts",
+        "src/game/engine.ts",
+        "src/game/passives.ts",
+        "src/game/save.ts",
+        "src/game/sprites.ts",
+        "src/game/types.ts",
+        "src/game/weapons.ts"
+      ],
+      "counts": {
+        "Enemies": 12,
+        "Upgrades": 10,
+        "Audio": 28,
+        "Weapons": 10,
+        "Evolutions": 10,
+        "Cards": 27,
+        "Characters": 4,
+        "Bosses": 4,
+        "Maps": 3,
+        "Challenges": 8,
+        "Elite modifiers": 10,
+        "Assets": 51
+      }
+    },
+    {
+      "id": "v3",
+      "name": "Voidfall v3",
+      "files": 22,
+      "enemies": 16,
+      "weapons": 18,
+      "cards": 32,
+      "forms": 8,
+      "changes": [
+        "src/components/GameUI.tsx",
+        "src/game/audio.ts",
+        "src/game/enemies.ts",
+        "src/game/engine.ts",
+        "src/game/forms.ts",
+        "src/game/passives.ts",
+        "src/game/save.ts",
+        "src/game/sprites.ts",
+        "src/game/types.ts",
+        "src/game/weapons.ts"
+      ],
+      "counts": {
+        "Enemies": 16,
+        "Upgrades": 10,
+        "Audio": 39,
+        "Weapons": 18,
+        "Evolutions": 18,
+        "Cards": 32,
+        "Characters": 4,
+        "Bosses": 4,
+        "Maps": 3,
+        "Challenges": 8,
+        "Elite modifiers": 10,
+        "Forms": 8,
+        "Abilities": 8,
+        "Assets": 72
+      }
+    },
+    {
+      "id": "v4",
+      "name": "Voidfall v4",
+      "files": 22,
+      "enemies": 40,
+      "weapons": 18,
+      "cards": 54,
+      "forms": 11,
+      "changes": [
+        "src/components/GameUI.tsx",
+        "src/game/enemies.ts",
+        "src/game/engine.ts",
+        "src/game/forms.ts",
+        "src/game/passives.ts",
+        "src/game/save.ts",
+        "src/game/sprites.ts",
+        "src/game/types.ts"
+      ],
+      "counts": {
+        "Enemies": 40,
+        "Upgrades": 10,
+        "Audio": 39,
+        "Weapons": 18,
+        "Evolutions": 18,
+        "Cards": 54,
+        "Characters": 4,
+        "Bosses": 4,
+        "Maps": 3,
+        "Challenges": 8,
+        "Elite modifiers": 10,
+        "Forms": 11,
+        "Abilities": 11,
+        "Assets": 159
+      }
+    },
+    {
+      "id": "v5",
+      "name": "Voidfall v5",
+      "files": 22,
+      "enemies": 40,
+      "weapons": 18,
+      "cards": 60,
+      "forms": 11,
+      "changes": [
+        "src/components/GameUI.tsx",
+        "src/game/enemies.ts",
+        "src/game/engine.ts",
+        "src/game/forms.ts",
+        "src/game/passives.ts",
+        "src/game/types.ts"
+      ],
+      "counts": {
+        "Enemies": 40,
+        "Upgrades": 10,
+        "Audio": 39,
+        "Weapons": 18,
+        "Evolutions": 18,
+        "Cards": 60,
+        "Characters": 4,
+        "Bosses": 4,
+        "Maps": 3,
+        "Challenges": 8,
+        "Elite modifiers": 9,
+        "Forms": 11,
+        "Abilities": 11,
+        "Events": 4,
+        "Assets": 159
+      }
+    }
+  ],
+  "limitations": [
+    "Missing = absent as a named catalog entry after stable-ID and reviewed role mappings. Adapted = current counterpart with changed definition. Present = current stable ID exists; parity is not implied. Review = possible relation or art/audio needing manual comparison. None of these labels approves migration.",
+    "Five complete source versions. Families are a union across versions, not just v5. Original Canvas normal/hit/projectile/form/dot renders and fixed arena/boss stills are included. Cards carry every authored rank. Stored, superseded catalogs are labeled. Sound is source only; no invented recordings."
+  ]
+}

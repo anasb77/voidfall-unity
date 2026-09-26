@@ -176,9 +176,28 @@ namespace VoidFall.Editor
 
         private static long EstimateTextureBytes(ArenaPlateAsset plate)
         {
-            // BC7 is one byte per pixel. Two current full-screen plates plus a
-            // complete mip chain cost approximately 4/3 of the top mip payload.
-            return (long)plate.Width * plate.Height * 2L * 4L / 3L;
+            // Include all actual imported texture dependencies, including arena
+            // actor catalogues. Each texture contributes once per package.
+            long bytes = 0;
+            foreach (var path in AssetDatabase.GetDependencies(AssetDatabase.GetAssetPath(plate), true))
+            {
+                var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                if (texture == null) continue;
+                var blockWidth = (int)UnityEngine.Experimental.Rendering.GraphicsFormatUtility.GetBlockWidth(texture.format);
+                var blockHeight = (int)UnityEngine.Experimental.Rendering.GraphicsFormatUtility.GetBlockHeight(texture.format);
+                var blockBytes = (int)UnityEngine.Experimental.Rendering.GraphicsFormatUtility.GetBlockSize(texture.format);
+                if (blockWidth <= 0 || blockHeight <= 0 || blockBytes <= 0)
+                    throw new InvalidOperationException("Unknown texture storage format: " + path);
+                for (var mip = 0; mip < texture.mipmapCount; mip++)
+                {
+                    var width = Mathf.Max(1, texture.width >> mip);
+                    var height = Mathf.Max(1, texture.height >> mip);
+                    bytes += (long)((width + blockWidth - 1) / blockWidth) *
+                        ((height + blockHeight - 1) / blockHeight) * blockBytes;
+                }
+            }
+            if (bytes <= 0) throw new InvalidOperationException("Could not measure arena texture dependencies: " + plate.name);
+            return bytes;
         }
 
         public static string PlatePath(ArenaId arena) =>

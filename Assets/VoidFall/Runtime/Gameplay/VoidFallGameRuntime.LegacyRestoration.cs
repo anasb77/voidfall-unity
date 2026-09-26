@@ -19,10 +19,59 @@ namespace VoidFall.Runtime
         private bool _circleBeat;
         private float _nextLegacySwarmAt;
         private int _legacySwarmSequence;
+        private int _sharedDirectorVisitIndex = -1;
+        private string _sharedDirectorVisitKey;
         private readonly int[] _legacyRushIdentities = new int[MaxEnemies];
+        private readonly string[] _restorationChoiceCandidates = new string[17];
         private readonly bool[] _restorationIntroduced = new bool[17];
         private readonly float[] _restorationIntroducedAt = new float[17];
         private static readonly string[] RestorationRoster = { "chaser", "runner", "swarmer", "gunner", "dasher", "shuriken", "brute", "exploder", "spiky", "guard", "technician", "twinGunner", "splitter", "mortar", "bulwark", "harvester", "carrier" };
+        private static readonly string[] BasicFallbacks = { "runner", "swarmer", "chaser" };
+        private static readonly string[] PursuitFallbacks = { "runner", "gunner", "chaser" };
+        private static readonly string[] FlankFallbacks = { "gunner", "runner", "dasher", "chaser" };
+        private static readonly string[] HuntFallbacks = { "guard", "runner", "chaser" };
+        private static readonly string[] BreakthroughFallbacks = { "guard", "runner", "chaser" };
+
+        private bool IsSharedDirectorArena()
+        {
+            return _arenaId == ArenaId.Void || _arenaId == ArenaId.RedNebula ||
+                _arenaId == ArenaId.WhiteSakura || _arenaId == ArenaId.EonSea ||
+                _arenaId == ArenaId.Crascendo;
+        }
+
+        private void TrackSharedDirectorVisit()
+        {
+            if (!IsSharedDirectorArena()) return;
+            var key = CurrentVoidId ?? ArenaIdName(_arenaId);
+            if (string.Equals(_sharedDirectorVisitKey, key, StringComparison.Ordinal)) return;
+            _sharedDirectorVisitKey = key;
+            _sharedDirectorVisitIndex = Mathf.Max(0, _sharedDirectorVisitIndex + 1);
+        }
+
+        private double SharedRevealSeconds(string id)
+        {
+            return LegacyRestorationRules.SharedRevealSeconds(id, _sharedDirectorVisitIndex);
+        }
+
+        private string ChooseEligibleRestorationFamily(string requested, string[] fallbacks)
+        {
+            var selected = requested;
+            if (!RestorationTypeIntroduced(selected) || !AmbientTypeAllowed(selected))
+            {
+                selected = null;
+                for (var i = 0; i < fallbacks.Length; i++)
+                {
+                    var candidate = fallbacks[i];
+                    if (RestorationTypeIntroduced(candidate) && AmbientTypeAllowed(candidate))
+                    { selected = candidate; break; }
+                }
+                if (selected == null) selected = "chaser";
+                if (!string.Equals(selected, requested, StringComparison.Ordinal))
+                    RecordRunHistory("spawn_substituted", selected, "family_limit", sourceId: requested,
+                        detail: "sharedStage=" + _sharedDirectorVisitIndex);
+            }
+            return selected;
+        }
 
         private void ResetLegacyRestoration()
         {
@@ -32,6 +81,8 @@ namespace VoidFall.Runtime
             _circleBeat = false;
             _nextLegacySwarmAt = 30f;
             _legacySwarmSequence = 0;
+            _sharedDirectorVisitIndex = -1;
+            _sharedDirectorVisitKey = null;
             Array.Clear(_legacyRushIdentities, 0, _legacyRushIdentities.Length);
             Array.Clear(_restorationIntroduced, 0, _restorationIntroduced.Length);
             Array.Clear(_restorationIntroducedAt, 0, _restorationIntroducedAt.Length);
@@ -168,19 +219,20 @@ namespace VoidFall.Runtime
             growth.Contacts = 0; growth.Displacement = 0; growth.ReportAt = _time + 1;
         }
 
-        private string EligibleDirectorType(string id) => _time >= LegacyRestorationRules.RevealSeconds(id) ? id : "chaser";
+        private string EligibleDirectorType(string id) => RestorationTypeIntroduced(id) ? id : "chaser";
         private bool TryIntroduceRestorationEnemy()
         {
             if (_time < _rosterIntroductionReadyAt || _arrivalGrace > 0 || LocalDirectorSurvivalSeconds < 15 || _pressureReliefTimer > 0 ||
                 _encounter.Phase != CombatEncounterPhase.Flow || _majorIncident.Kind != MajorIncidentKind.None || DirectorSurvivalSecondsRemaining < 35) return false;
             // Safety can delay an introduction past another family's unlock. Preserve the
             // authored reveal order rather than letting catalogue indices jump the queue.
+            var local = LocalDirectorSurvivalSeconds;
             var nextFamily = -1;
             var earliest = double.MaxValue;
             for (var candidate = 1; candidate < RestorationRoster.Length; candidate++)
             {
-                var reveal = LegacyRestorationRules.RevealSeconds(RestorationRoster[candidate]);
-                if (_restorationIntroduced[candidate] || _time < reveal || reveal >= earliest) continue;
+                var reveal = SharedRevealSeconds(RestorationRoster[candidate]);
+                if (_restorationIntroduced[candidate] || local < reveal || reveal >= earliest) continue;
                 nextFamily = candidate; earliest = reveal;
             }
             for (var i = 1; i < RestorationRoster.Length; i++)
@@ -196,7 +248,9 @@ namespace VoidFall.Runtime
                 _rosterIntroductionReadyAt = _time + 12;
                 _nextEncounterTime = Mathf.Max(_nextEncounterTime, _time + 12);
                 _spawnTimer = .75f;
-                RecordRunHistory("roster_introduction", RestorationRoster[i], amount: admitted, detail: "tier=1;grace=12");
+                RecordRunHistory("roster_introduction", RestorationRoster[i], amount: admitted,
+                    detail: "tier=1;grace=60;sharedStage=" + _sharedDirectorVisitIndex +
+                        ";local=" + local.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
                 return true;
             }
             return false;
@@ -215,15 +269,66 @@ namespace VoidFall.Runtime
         {
             // One combat draw, weighted toward familiar fodder; unlocks do not increase total arrival budget.
             var roll = _gameSim.Rng.Next();
-            if (roll < .40) return "chaser";
-            if (roll < .57) return RestorationTypeIntroduced("runner") ? "runner" : "chaser";
-            if (roll < .70) return RestorationTypeIntroduced("swarmer") ? "swarmer" : "chaser";
-            var available = 0;
-            for (var i = 3; i < RestorationRoster.Length; i++) if (RestorationTypeIntroduced(RestorationRoster[i])) available++;
-            if (available == 0) return "chaser";
-            var selected = Math.Min(available - 1, (int)((roll - .70) / .30 * available));
-            for (var i = 3; i < RestorationRoster.Length; i++) if (RestorationTypeIntroduced(RestorationRoster[i]) && selected-- == 0) return RestorationRoster[i];
-            return "chaser";
+            var local = LocalDirectorSurvivalSeconds;
+            var basicShare = _sharedDirectorVisitIndex <= 0
+                ? local < 270f
+                    ? .88 - .18 * Mathf.Clamp01((local - 90f) / 90f)
+                    : .70 - .10 * Mathf.Clamp01((local - 270f) / 90f)
+                : .60 - .10 * Mathf.Clamp01(local / (float)VoidProgressionRules.SurvivalSeconds);
+            string requested;
+            if (roll < basicShare)
+            {
+                var basicRoll = roll / Math.Max(.001, basicShare);
+                requested = basicRoll < .52 ? "chaser" : basicRoll < .78 ? "runner" : "swarmer";
+                return ChooseEligibleRestorationFamily(requested, BasicFallbacks);
+            }
+
+            var specialists = _restorationChoiceCandidates;
+            var count = 0;
+            for (var i = 3; i < RestorationRoster.Length; i++)
+            {
+                var id = RestorationRoster[i];
+                if (RestorationTypeIntroduced(id)) specialists[count++] = id;
+            }
+            if (count == 0) return "chaser";
+            var selected = Math.Min(count - 1, (int)((roll - basicShare) / Math.Max(.001, 1d - basicShare) * count));
+            requested = specialists[selected];
+            if (AmbientTypeAllowed(requested)) return requested;
+            for (var offset = 1; offset < count; offset++)
+            {
+                var candidate = specialists[(selected + offset) % count];
+                if (!AmbientTypeAllowed(candidate)) continue;
+                RecordRunHistory("spawn_substituted", candidate, "family_limit", sourceId: requested,
+                    detail: "sharedStage=" + _sharedDirectorVisitIndex);
+                return candidate;
+            }
+            return ChooseEligibleRestorationFamily(requested, BasicFallbacks);
+        }
+
+        private string ChooseSustainedBeatEnemy(CombatEncounterKind kind, int index)
+        {
+            string requested;
+            string[] fallbacks;
+            switch (kind)
+            {
+                case CombatEncounterKind.Pursuit:
+                    requested = index < 3 ? "runner" : index < 5 ? "guard" : index < 7 ? "gunner" : "chaser";
+                    fallbacks = PursuitFallbacks;
+                    break;
+                case CombatEncounterKind.Flank:
+                    requested = index < 4 ? "runner" : index < 6 ? "twinGunner" : index == 6 ? "guard" : "dasher";
+                    fallbacks = FlankFallbacks;
+                    break;
+                case CombatEncounterKind.Hunt:
+                    requested = index < 2 ? "gunner" : index == 2 ? "technician" : "chaser";
+                    fallbacks = HuntFallbacks;
+                    break;
+                default:
+                    requested = index < 3 ? "brute" : index < 5 ? "guard" : "runner";
+                    fallbacks = BreakthroughFallbacks;
+                    break;
+            }
+            return ChooseEligibleRestorationFamily(requested, fallbacks);
         }
         private void TryDeployLegacySwarm()
         {

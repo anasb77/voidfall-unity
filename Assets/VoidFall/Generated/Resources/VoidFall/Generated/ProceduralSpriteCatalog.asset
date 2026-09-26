@@ -276,8 +276,6 @@ MonoBehaviour:
     _sprite: {fileID: 21300000, guid: b9f0b07bb9bb5504da755aca035fcda6, type: 3}
   - _key: pickup|overdrive
     _sprite: {fileID: 21300000, guid: 12377da94331c06429672dadc0c95499, type: 3}
-  - _key: pickup|part
-    _sprite: {fileID: 21300000, guid: f0cc0ff0216fa4c49b70b2825e95a242, type: 3}
   - _key: pickup|repair
     _sprite: {fileID: 21300000, guid: 54fac0b4440abe040863cd095ee12c63, type: 3}
   - _key: pickup|trackshift
@@ -1030,3 +1028,9 @@ MonoBehaviour:
     _sprite: {fileID: 21300000, guid: bb02cc63bc299044489523375f9d7a61, type: 3}
   - _key: arsenal|9
     _sprite: {fileID: 21300000, guid: 69372b39ef865424ea33e43e65069055, type: 3}
+  - _key: pickup|part
+    _sprite: {fileID: 21300000, guid: f0cc0ff0216fa4c49b70b2825e95a242, type: 3}
+  - _key: pickup|part-frame
+    _sprite: {fileID: 21300000, guid: ea57a2cb3103f034d8ad35bd00c7f8c7, type: 3}
+  - _key: pickup|part-cell
+    _sprite: {fileID: 21300000, guid: 6ad5f783429cd424eb288f131ef3e45a, type: 3}

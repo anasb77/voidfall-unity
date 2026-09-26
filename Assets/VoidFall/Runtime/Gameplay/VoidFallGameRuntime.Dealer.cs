@@ -20,6 +20,7 @@ namespace VoidFall.Runtime
         private void ResetDealerRun()
         {
             _dealerOpen = false; _dealerSession = null; _dealerShield = 0;
+            ResetSurvivalSupports();
             _dealerDelayedOwned = false; _dealerCombatSeconds = 0; _dealerExtraWeapon = -1; _dealerHealthBonus = 0;
             _dealerRecoveryCharges = 0;
             ResetLegendaries();
@@ -66,7 +67,7 @@ namespace VoidFall.Runtime
             var keyboard = Keyboard.current; var pad = Gamepad.current;
             if (_dealerOpen)
             {
-                if (keyboard != null && keyboard.eKey.wasPressedThisFrame || pad != null && pad.buttonEast.wasPressedThisFrame) CloseDealer();
+                if (keyboard != null && keyboard.eKey.wasPressedThisFrame) CloseDealer();
                 return;
             }
             if (CanOpenDealer && (keyboard != null && keyboard.eKey.wasPressedThisFrame || pad != null && pad.buttonSouth.wasPressedThisFrame)) OpenDealer();
@@ -123,7 +124,7 @@ namespace VoidFall.Runtime
             _partsEarned = receipt.WalletAfter;
             switch (offer.Kind)
             {
-                case DealerOfferKind.Shield: _dealerShield = 20; break;
+                case DealerOfferKind.Shield: GrantPlayerShield(20, "dealer"); break;
                 case DealerOfferKind.DelayedPower: _dealerDelayedOwned = true; _dealerCombatSeconds = 0; break;
                 case DealerOfferKind.ExtraProjectile: _dealerExtraWeapon = offer.TargetWeapon; break;
                 case DealerOfferKind.MoreHealth: _dealerHealthBonus += 3; _gameSim.Player.Health += 3; RecalculatePlayerStats(false); break;

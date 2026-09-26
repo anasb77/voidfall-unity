@@ -45,7 +45,6 @@ namespace VoidFall.Runtime
         // objective, no boss scheduling, and no way forward).
         private bool _routeSelectOpen;
         // Single-destination voids teleport directly with no portal or cards.
-        private string _riftAutoVoidId;
         // Set when the objective completes; the safety net re-fires the rift
         // if nothing owns the run 45s later. -1 while a Void is in progress.
         private float _objectiveCompleteAt = -1f;
@@ -72,7 +71,6 @@ namespace VoidFall.Runtime
             _riftTransitionVoidId = null;
             _openRouteAfterRoulette = false;
             _routeSelectOpen = false;
-            _riftAutoVoidId = null;
             _objectiveCompleteAt = -1f;
             HideRiftPortal();
         }
@@ -93,10 +91,6 @@ namespace VoidFall.Runtime
             _journeyStage = JourneyStage.Rewards;
             _routeMapOpen = false;
             ClearCombatForJourney();
-            var available = _voidRoute.NodesInState(RouteNodeState.Available);
-            // One exit: teleport straight there when the delay expires. No
-            // portal, no cards - the portal is the multi-destination choice.
-            _riftAutoVoidId = available.Count == 1 ? available[0] : null;
             _voidCompletionDelayRemaining = EscapeDurationSeconds;
             _voidCompletionPending = true;
             UpdateEscapeStatus();
@@ -139,14 +133,7 @@ namespace VoidFall.Runtime
         {
             if (_riftTransitionActive || _journeyStage == JourneyStage.Junction) return;
             if (_voidRoute.HasEscaped) { FinishJourney(); return; }
-            if (!string.IsNullOrEmpty(_riftAutoVoidId))
-            {
-                Debug.Log($"VOIDFLOW auto-teleport to={_riftAutoVoidId} t={_time:F1}");
-                // Automatic travel must commit the route choice just like a
-                // card click, before the swap initializes its objective.
-                OnRouteVoidChosen(_riftAutoVoidId);
-                return;
-            }
+            // Every between-void crossing includes the safe dealer room.
             Debug.Log($"VOIDFLOW rift-open t={_time:F1}");
             ShowArenaToast("THE RIFT OPENS", 3f);
             _audio?.Play(ProceduralAudio.Cue.RiftOpen);
@@ -279,7 +266,6 @@ namespace VoidFall.Runtime
                 ArenaIdName(_arenaId), ArenaIdName(ArenaIdForRouteNode(voidId)), (float)_time);
             Debug.Log($"VOIDFLOW choice void={voidId} t={_time:F1}");
             _routeSelectOpen = false;
-            _riftAutoVoidId = null;
             var node = _voidRoute.Node(voidId);
             _arenaFlash = Mathf.Max(_arenaFlash, 0.62f);
             _cyanFlash = Mathf.Max(_cyanFlash, 0.48f);
@@ -488,12 +474,7 @@ namespace VoidFall.Runtime
                 Hide(_bulletContrastViews[index]);
             }
             ResetBulletOrder();
-            for (var index = 0; index < _gameSim.HostileShots.Length; index++)
-            {
-                _gameSim.HostileShots[index].Active = false;
-                Hide(_hostileShotViews[index]);
-            }
-            ResetHostileShotOrder();
+            ClearHostileShots();
         }
 
         private void ResetDirectorAfterVoidTransition()

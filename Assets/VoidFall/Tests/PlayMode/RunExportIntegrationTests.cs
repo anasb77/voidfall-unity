@@ -113,7 +113,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(history.Any(e => e.kind == "director_elite_cadence" && e.id == "elite" && e.reason == "admitted"), Is.True);
             Assert.That(history.Any(e => e.kind == "director_repopulation" && e.reason == "breather"), Is.True);
             Assert.That(history.Any(e => e.kind == "director_repopulation" && e.reason == "batch" && e.amount > 0), Is.True);
-            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(7));
+            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(8));
         }
 
         [Test]
@@ -200,7 +200,7 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(ReadReport().samples.Last().viewportWidth, Is.GreaterThan(0));
             Assert.That(ReadReport().samples.Any(s => Math.Abs(s.frameMs - 20) < .001 && s.fps == 50), Is.True,
                 "The explicit 0.02 second sample must export 50 FPS; finalization also appends an EMA sample.");
-            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(7));
+            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(8));
             Assert.That(ReadReport().samples.Last().specialAttackLimit, Is.EqualTo(2));
         }
 
@@ -244,11 +244,129 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(ReadReport().context.spikyExpandedScale, Is.EqualTo(3));
             Assert.That(ReadReport().context.shurikenSpinRadians, Is.EqualTo(14));
             Assert.That(ReadReport().context.swarmIntervalSeconds, Is.EqualTo(34));
-            Assert.That(ReadReport().context.ordinaryRareDropChance, Is.EqualTo(1d / 300).Within(.0000001));
+            Assert.That(ReadReport().context.ordinaryRareDropChance, Is.EqualTo(1d / 700).Within(.0000001));
             Assert.That(ReadReport().context.overclockMaximumBankedSeconds, Is.EqualTo(30));
             Assert.That(ReadReport().context.xpMultiplierAfterLevelFive, Is.EqualTo(1.25));
             Assert.That(ReadReport().context.boomerangSizeScale, Is.EqualTo(.675));
             Assert.That(ReadReport().context.clockFaceOpacity, Is.EqualTo(.126));
+        }
+
+        [TestCase(0f, 92f, 72f)]
+        [TestCase(20f, 100f, 92f)]
+        public void Hits_resume_after_point_two_simulation_seconds_and_export_the_balance(
+            float shield, float healthAfterFirstHit, float healthAfterSecondHit)
+        {
+            var game = Get(_runtime, "_gameSim");
+            var player = Get(game, "Player");
+            Set(player, "Health", 100f); Set(player, "MaxHealth", 100f); Set(player, "Iframes", 0f);
+            Set(game, "Player", player);
+            Set(_runtime, "_dealerShield", shield);
+            Set(_runtime, "_paused", false); Set(_runtime, "_timeScale", 1f);
+            Call("DamagePlayer", 8f, Vector2.zero, "chaser", false);
+            Assert.That(Get(Get(game, "Player"), "Health"), Is.EqualTo(healthAfterFirstHit));
+            Call("DamagePlayer", 20f, Vector2.zero, "runner", false);
+            Assert.That(Get(Get(game, "Player"), "Health"), Is.EqualTo(healthAfterFirstHit));
+
+            // Hitstop pauses simulation time; release it to exercise the actual timer expiry.
+            Set(_runtime, "_freezeTimer", 0f);
+            Call("Simulate", .19d);
+            Call("DamagePlayer", 20f, Vector2.zero, "runner", false);
+            Assert.That(Get(Get(game, "Player"), "Health"), Is.EqualTo(healthAfterFirstHit));
+            Call("Simulate", .02d);
+            Call("DamagePlayer", 20f, Vector2.zero, "runner", false);
+            Assert.That(Get(Get(game, "Player"), "Health"), Is.EqualTo(healthAfterSecondHit));
+
+            Call("FinishRunExport", "test_finished");
+            var report = ReadReport();
+            Assert.That(report.context.playerHitImmunitySeconds, Is.EqualTo(.20f).Within(.00001f));
+            Assert.That(report.context.ordinaryRareDropChance, Is.EqualTo(1d / 700).Within(.0000001d));
+            var damage = ReadHistory().Where(e => e.kind == "player_damage").ToArray();
+            Assert.That(damage.Length, Is.EqualTo(shield > 0 ? 1 : 2));
+            Assert.That(damage.Sum(e => e.amount), Is.EqualTo(100f - healthAfterSecondHit));
+            Assert.That(damage.All(e => Math.Abs(e.durationSeconds - .20f) < .00001f), Is.True);
+        }
+
+        [Test]
+        public void Survival_supports_export_actual_healing_collected_value_and_shared_shields()
+        {
+            var progress = (UpgradeProgress)Get(_runtime, "_upgradeProgress");
+            progress.SupportRanks[Array.FindIndex(ExtendedCatalog.AllSupports(), x => x.Id == "lifeSteal")] = 5;
+            progress.SupportRanks[Array.FindIndex(ExtendedCatalog.AllSupports(), x => x.Id == "scavenger")] = 4;
+            var game = Get(_runtime, "_gameSim");
+            var player = Get(game, "Player");
+            Set(player, "Health", 50f); Set(player, "MaxHealth", 100f); Set(game, "Player", player);
+            Set(_runtime, "_lifeStealKillProgress", 199);
+            Call("SpawnEnemy", "chaser");
+            var enemies = (Array)Get(game, "Enemies");
+            var slot = Enumerable.Range(0, enemies.Length).First(i => (bool)Get(enemies.GetValue(i), "Active"));
+            Call("ApplyEnemyDamage", slot, 100000f);
+            Assert.That(Get(Get(game, "Player"), "Health"), Is.EqualTo(50.9f).Within(.0001f));
+            Assert.That(Get(_runtime, "_lifeStealKillProgress"), Is.EqualTo(0));
+            Call("GrantPartPickup", 450f);
+            Assert.That(Get(_runtime, "_scavengerScrapProgress"), Is.EqualTo(50));
+            Assert.That(Get(_runtime, "_dealerShield"), Is.EqualTo(10f));
+            Call("GrantPartPickup", 1950f);
+            Assert.That(Get(_runtime, "_dealerShield"), Is.EqualTo(20f));
+            Assert.That(Get(_runtime, "_shieldCapacity"), Is.EqualTo(20f), "Consolidation cannot grow capacity");
+            Assert.That(Get(_runtime, "_scavengerScrapProgress"), Is.EqualTo(0));
+            Call("FinishRunExport", "test_finished");
+            var events = ReadHistory();
+            var heal = events.Single(e => e.kind == "support_proc" && e.id == "lifeSteal");
+            Assert.That(heal.amount, Is.EqualTo(.9f).Within(.0001f));
+            Assert.That(heal.relatedInstanceId, Is.GreaterThan(0));
+            Assert.That(events.Count(e => e.kind == "support_proc" && e.id == "scavenger"), Is.EqualTo(2));
+            Assert.That(ReadReport().context.ordinaryScrapDropChance, Is.EqualTo(.02));
+            Assert.That(ReadReport().context.survivalSupportVersion, Is.EqualTo(SurvivalSupportRules.Version));
+            var end = events.Single(e => e.kind == "run_end");
+            Assert.That(end.progress.ordinaryScrapDropChance, Is.EqualTo(.024).Within(.000001));
+            Assert.That(end.progress.shieldCapacity, Is.EqualTo(20));
+        }
+
+        [Test]
+        public void Full_health_does_not_bank_life_steal_and_unowned_scraps_do_not_count()
+        {
+            Call("GrantPartPickup", 199f);
+            Assert.That(Get(_runtime, "_scavengerScrapProgress"), Is.EqualTo(0));
+            var progress = (UpgradeProgress)Get(_runtime, "_upgradeProgress");
+            progress.SupportRanks[Array.FindIndex(ExtendedCatalog.AllSupports(), x => x.Id == "lifeSteal")] = 1;
+            Set(_runtime, "_lifeStealKillProgress", 199);
+            Call("RegisterLifeStealKill", "chaser", 1);
+            Assert.That(Get(_runtime, "_lifeStealKillProgress"), Is.EqualTo(0));
+            Call("FinishRunExport", "test_finished");
+            var proc = ReadHistory().Single(e => e.kind == "support_proc");
+            Assert.That(proc.reason, Is.EqualTo("full_health"));
+            Assert.That(proc.amount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Health_capacity_changes_width_and_large_shields_have_no_false_denominator()
+        {
+            var game = Get(_runtime, "_gameSim"); var player = Get(game, "Player");
+            Set(player, "MaxHealth", 100f); Set(game, "Player", player); Call("UpdateHud");
+            var healthBar = (UnityEngine.UI.Image)Get(_runtime, "_healthBarFill");
+            var originalWidth = healthBar.rectTransform.sizeDelta.x;
+            Set(player, "MaxHealth", 125f); Set(game, "Player", player); Call("UpdateHud");
+            Assert.That(healthBar.rectTransform.sizeDelta.x / originalWidth, Is.EqualTo(1.25f).Within(.001));
+            var shieldBar = (UnityEngine.UI.Image)Get(_runtime, "_playerShieldFill");
+            Assert.That(shieldBar.rectTransform.sizeDelta.x, Is.LessThan(healthBar.rectTransform.sizeDelta.x));
+            Assert.That(shieldBar.rectTransform.anchoredPosition.y, Is.GreaterThan(healthBar.rectTransform.anchoredPosition.y));
+            Call("GrantPlayerShield", 50f, "future_test", 0f); Call("UpdateHud");
+            Assert.That(((UnityEngine.UI.Text)Get(_runtime, "_playerShieldValue")).text, Is.EqualTo("50"));
+            Assert.That(shieldBar.fillAmount, Is.EqualTo(1));
+            Assert.That(Get(_runtime, "_shieldCapacity"), Is.EqualTo(50f));
+        }
+
+        [Test]
+        public void New_run_resets_survival_progress_and_capacity()
+        {
+            Set(_runtime, "_lifeStealKillProgress", 199);
+            Set(_runtime, "_scavengerScrapProgress", 199);
+            Call("GrantPlayerShield", 50f, "test", 0f);
+            Call("StartRunInternal", true, false);
+            Assert.That(Get(_runtime, "_lifeStealKillProgress"), Is.EqualTo(0));
+            Assert.That(Get(_runtime, "_scavengerScrapProgress"), Is.EqualTo(0));
+            Assert.That(Get(_runtime, "_dealerShield"), Is.EqualTo(0f));
+            Assert.That(Get(_runtime, "_shieldCapacity"), Is.EqualTo(20f));
         }
 
         private string ExportDirectory => Path.Combine(_directory, "RunExports");
@@ -494,7 +612,23 @@ namespace VoidFall.Tests.PlayMode
             Assert.That(deployment.amount, Is.EqualTo(31));
             Assert.That(history.Any(e => e.kind == "director_incident_opportunity" && e.reason == "incident_started"), Is.True);
             Assert.That(history.Any(e => e.kind == "director_arrival_budget" && e.detail.Contains("interval=")), Is.True);
-            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(7));
+            Assert.That(ReadReport().context.directorVersion, Is.EqualTo(8));
+        }
+
+        [Test]
+        public void Shared_roster_schedule_and_spawn_stage_are_exported()
+        {
+            Set(_runtime, "_time", 300f);
+            ((VoidObjectiveTracker)Get(_runtime, "_objectives")).Step(300);
+            Assert.That(Call("SpawnEnemy", "runner"), Is.True);
+            Call("FinishRunExport", "test_finished");
+            var report = ReadReport();
+            Assert.That(report.context.directorRosterScheduleVersion, Is.EqualTo(1));
+            Assert.That(report.context.sharedDirectorStage, Is.EqualTo(0));
+            Assert.That(report.context.lateAbyssTierTwoMinimumShare, Is.EqualTo(.05f).Within(.0001f));
+            var spawn = ReadHistory().Single(e => e.kind == "enemy_spawn" && e.id == "runner");
+            Assert.That(spawn.detail, Does.Contain("sharedStage=0"));
+            Assert.That(spawn.rosterTier, Is.EqualTo(1));
         }
 
         [Test]
@@ -507,7 +641,7 @@ namespace VoidFall.Tests.PlayMode
             var notice = history.Single(e => e.kind == "incident_notification");
             var raid = history.Single(e => e.kind == "destroyer_raid_deployed");
             Assert.That(notice.detail, Does.Contain("cue=RaidNotice"));
-            Assert.That(notice.durationSeconds, Is.EqualTo(8));
+            Assert.That(notice.durationSeconds, Is.EqualTo(12));
             Assert.That(raid.instanceId, Is.EqualTo(notice.instanceId));
             Assert.That(raid.amount, Is.EqualTo(8));
             Assert.That(raid.reason, Is.EqualTo("admitted"));

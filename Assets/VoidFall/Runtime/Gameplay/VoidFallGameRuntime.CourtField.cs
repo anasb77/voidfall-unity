@@ -122,12 +122,7 @@ namespace VoidFall.Runtime
             ResetEnemyOrder();
             for (var i = 0; i < _gameSim.Enemies.Length; i++)
                 if (_gameSim.Enemies[i].Active) _gameSim.AppendEnemyOrder(i);
-            for (var i = 0; i < _gameSim.HostileShots.Length; i++)
-            {
-                _gameSim.HostileShots[i] = default;
-                Hide(_hostileShotViews[i]);
-            }
-            ResetHostileShotOrder();
+            ClearHostileShots();
             for (var i = 0; i < _gameSim.Bosses.Length; i++)
             {
                 _gameSim.Bosses[i] = default;

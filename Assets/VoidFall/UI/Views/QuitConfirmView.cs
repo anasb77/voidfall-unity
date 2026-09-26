@@ -64,6 +64,7 @@ namespace VoidFall.UI
                 Hide,
                 46f);
             UIBuilder.SetHeight(cancel.GetComponent<RectTransform>(), 46f);
+            DefaultFocus = cancel;
         }
 
         /// <summary>Opens the confirmation over the main menu.</summary>
@@ -74,7 +75,16 @@ namespace VoidFall.UI
 
         public override void SetVisible(bool visible)
         {
+            var wasVisible = IsVisible;
+            if (visible) Manager?.MainMenu?.SetInputEnabled(false);
+            Manager?.SetChromeInputEnabled(!visible);
             base.SetVisible(visible);
+            if (visible) DefaultFocus?.Select();
+            if (!visible && wasVisible && Manager?.CurrentScreen == UIScreen.Home)
+            {
+                Manager.MainMenu.SetInputEnabled(true);
+                Manager.MainMenu.RestoreFocus();
+            }
             // The menu-theme muffle tracks dialog visibility exactly, including
             // SetScreen sweeps that dismiss the dialog without calling Hide().
             Callbacks?.SetQuitDialogOpen?.Invoke(visible);

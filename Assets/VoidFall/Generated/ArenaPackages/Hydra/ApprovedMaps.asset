@@ -1,0 +1,96 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a104c4415ca47ffa6db2bd634548def, type: 3}
+  m_Name: ApprovedMaps
+  m_EditorClassIdentifier: VoidFall.Runtime::VoidFall.Runtime.ApprovedMapVisualAsset
+  _arena: 3
+  _entries:
+  - Id: insect-0
+    Sprite: {fileID: 21300000, guid: 92448f446475f104b9c7c988a1294b70, type: 3}
+  - Id: insect-1
+    Sprite: {fileID: 21300000, guid: dfc76da45fdbae24f9c4fcbb2853a21c, type: 3}
+  - Id: insect-2
+    Sprite: {fileID: 21300000, guid: 82118ee0c461ea14cb064018de239169, type: 3}
+  - Id: insect-3
+    Sprite: {fileID: 21300000, guid: 6b9f2e24d23abb1418f700d42c828ba2, type: 3}
+  - Id: insect-4
+    Sprite: {fileID: 21300000, guid: 9f7cd2ca44638da47a05b961cc00a6e2, type: 3}
+  - Id: hydra-legacy-0
+    Sprite: {fileID: 21300000, guid: 5a076bf6e9e9bc949bb2fff979121fb7, type: 3}
+  - Id: hydra-legacy-1
+    Sprite: {fileID: 21300000, guid: 506127244e787dc4da9b11e95048b62b, type: 3}
+  - Id: hydra-legacy-2
+    Sprite: {fileID: 21300000, guid: bc4914f4ca1d40447b2f8f6fe7ec8105, type: 3}
+  - Id: hydra-legacy-3
+    Sprite: {fileID: 21300000, guid: 12fb4d789fe1e464e9f5fbdd27a77449, type: 3}
+  - Id: hydra-legacy-4
+    Sprite: {fileID: 21300000, guid: 028ba4a404ac6794bbdb9871b1a9a5f3, type: 3}
+  - Id: hydra-legacy-5
+    Sprite: {fileID: 21300000, guid: e07654efa0b1a5c4b981e9655a97ff84, type: 3}
+  - Id: hydra-legacy-6
+    Sprite: {fileID: 21300000, guid: 9615f88fb44d79d4a8d4846466c4fd91, type: 3}
+  - Id: hydra-legacy-7
+    Sprite: {fileID: 21300000, guid: ed109edd57906e44b90d898f0d8df6f0, type: 3}
+  - Id: hydra-legacy-8
+    Sprite: {fileID: 21300000, guid: 536f20b320fb8b049af6bd8c4623184a, type: 3}
+  - Id: hydra-legacy-9
+    Sprite: {fileID: 21300000, guid: 343ad5c65cd57a547bda1c2b53594f0b, type: 3}
+  - Id: guardian-0
+    Sprite: {fileID: 21300000, guid: 4dc15f5e27ae02e4dad89c1183bbac4e, type: 3}
+  - Id: guardian-1
+    Sprite: {fileID: 21300000, guid: 03375c2f6d7014042bf75aef064f6baa, type: 3}
+  - Id: hydra-hive
+    Sprite: {fileID: 21300000, guid: 1d857817ccc524e44b9244eee716669f, type: 3}
+  - Id: insect-0-frame1
+    Sprite: {fileID: 21300000, guid: aea7be0401891fd40be1394cf5520c73, type: 3}
+  - Id: insect-1-frame1
+    Sprite: {fileID: 21300000, guid: 886edf2d0c8aae34fb21080204b9e9d4, type: 3}
+  - Id: insect-2-frame1
+    Sprite: {fileID: 21300000, guid: 1164689d3e8b55848bb8579edb6c84b9, type: 3}
+  - Id: insect-3-frame1
+    Sprite: {fileID: 21300000, guid: 61af16efa9aba7343b72263853f6dbdd, type: 3}
+  - Id: insect-4-frame1
+    Sprite: {fileID: 21300000, guid: eae92fe60142f4d4ea66c8a9698e336b, type: 3}
+  - Id: guardian-0-frame1
+    Sprite: {fileID: 21300000, guid: 3862a60f686f27847b265c7c757a4a24, type: 3}
+  - Id: guardian-1-frame1
+    Sprite: {fileID: 21300000, guid: ba6e57be2f4520c4ca16db72aa99ca68, type: 3}
+  - Id: insect-0-frame2
+    Sprite: {fileID: 21300000, guid: 28a1eeeb27e795e4d85ee8d877154b78, type: 3}
+  - Id: insect-1-frame2
+    Sprite: {fileID: 21300000, guid: d8a77ca43c2f2fc41b59c3dab8860adc, type: 3}
+  - Id: insect-2-frame2
+    Sprite: {fileID: 21300000, guid: 799ecb69aa7a0464d9f3b44c75b44e76, type: 3}
+  - Id: insect-3-frame2
+    Sprite: {fileID: 21300000, guid: de78a254d2cc89d4aab4472ffd59fb02, type: 3}
+  - Id: insect-4-frame2
+    Sprite: {fileID: 21300000, guid: 687095805ecc5a3489a65cf5b8b93f80, type: 3}
+  - Id: guardian-0-frame2
+    Sprite: {fileID: 21300000, guid: 003ff376fdf7e9b439246af48f56cf30, type: 3}
+  - Id: guardian-1-frame2
+    Sprite: {fileID: 21300000, guid: 13fcee9478bf065478c3738ed34c5099, type: 3}
+  - Id: insect-0-frame3
+    Sprite: {fileID: 21300000, guid: aba023e5dcc2f2d46873d1dc54ddeda1, type: 3}
+  - Id: insect-1-frame3
+    Sprite: {fileID: 21300000, guid: 086a4e87bcdd4e149852e96ddb6b0e7c, type: 3}
+  - Id: insect-2-frame3
+    Sprite: {fileID: 21300000, guid: bfff29633633b834f8b378fd896e75c0, type: 3}
+  - Id: insect-3-frame3
+    Sprite: {fileID: 21300000, guid: b1886499be20fc04796db46dae022a86, type: 3}
+  - Id: insect-4-frame3
+    Sprite: {fileID: 21300000, guid: 919ab744cecdacb4b90747635a3166d1, type: 3}
+  - Id: guardian-0-frame3
+    Sprite: {fileID: 21300000, guid: a5ee1a65cf405704a902431eb15e4b21, type: 3}
+  - Id: guardian-1-frame3
+    Sprite: {fileID: 21300000, guid: ae8fb0614d6c27b45b686b208db061f7, type: 3}
+  - Id: hydra-base
+    Sprite: {fileID: 21300000, guid: 8cfb1dff247b8e64582f02ee4f86167e, type: 3}

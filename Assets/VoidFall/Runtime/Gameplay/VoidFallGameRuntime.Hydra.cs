@@ -224,12 +224,7 @@ namespace VoidFall.Runtime
                 Hide(_enemyHealthFillViews[index]);
             }
             ResetEnemyOrder();
-            for (var index = 0; index < _gameSim.HostileShots.Length; index++)
-            {
-                _gameSim.HostileShots[index] = default;
-                Hide(_hostileShotViews[index]);
-            }
-            ResetHostileShotOrder();
+            ClearHostileShots();
             for (var index = 0; index < _gameSim.Bosses.Length; index++)
             {
                 _gameSim.Bosses[index] = default;

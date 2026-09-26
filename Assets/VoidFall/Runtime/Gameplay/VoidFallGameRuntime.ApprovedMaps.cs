@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using VoidFall.Core;
 
@@ -14,19 +13,53 @@ namespace VoidFall.Runtime
             public bool Inside, Exploded;
             public Vector2 Origin, Corner, Target;
             public string SpriteId;
-            public bool SpriteWhite;
+            public bool SpriteWhite, SpritePending;
             public Sprite[] Frames;
         }
         private readonly ApprovedEnemyState[] _approvedEnemies = new ApprovedEnemyState[MaxEnemies];
         private readonly LineRenderer[] _approvedWarnings = new LineRenderer[MaxEnemies];
         private readonly LineRenderer[] _approvedSecondaryWarnings = new LineRenderer[MaxEnemies];
         private readonly LineRenderer[] _approvedShields = new LineRenderer[MaxEnemies];
-        private readonly Dictionary<string,Sprite> _approvedSprites = new Dictionary<string,Sprite>();
         private Sprite ApprovedMapSprite(string name)
         {
-            if (!_approvedSprites.TryGetValue(name,out var sprite))
-            { sprite=Resources.Load<Sprite>("VoidFall/ApprovedMaps/"+name); _approvedSprites.Add(name,sprite); }
-            return sprite;
+            if (!ApprovedMapVisualAsset.TryGetOwner(name, out var arena)) return null;
+            var index = (int)arena;
+            if (_preparedArenaPlateAssets[index] == null && !TryInstallPreparedArenaPlate(arena)) return null;
+            return _preparedArenaPlateAssets[index].ApprovedMapVisuals?.Find(name);
+        }
+
+        private void DetachApprovedMapConsumers(ApprovedMapVisualAsset visuals)
+        {
+            if (visuals == null) return;
+            DetachApprovedMapSprites(_enemyViews, visuals);
+            DetachApprovedMapSprites(_bossViews, visuals);
+            DetachApprovedMapSprites(_deathGhostViews, visuals);
+            DetachApprovedMapSprites(_hydraSurvivalSurfaces, visuals);
+            DetachApprovedMapSprite(_backdropView, visuals);
+            DetachApprovedMapSprite(_arenaBakedDetailView, visuals);
+            for (var i = 0; i < _approvedHydraLegacySprites.Length; i++)
+                if (visuals.OwnsSprite(_approvedHydraLegacySprites[i])) _approvedHydraLegacySprites[i] = null;
+            for (var i = 0; i < _approvedEnemies.Length; i++)
+            {
+                ref var state = ref _approvedEnemies[i];
+                if (state.Frames == null || !visuals.OwnsSprite(state.Frames[0])) continue;
+                // Visual caches have no authority over shields, wards or AI state.
+                state.Frames = null;
+                state.SpriteId = null;
+                state.SpritePending = false;
+            }
+        }
+
+        private static void DetachApprovedMapSprites(SpriteRenderer[] views, ApprovedMapVisualAsset visuals)
+        {
+            foreach (var view in views) DetachApprovedMapSprite(view, visuals);
+        }
+
+        private static void DetachApprovedMapSprite(SpriteRenderer view, ApprovedMapVisualAsset visuals)
+        {
+            if (view == null || !visuals.OwnsSprite(view.sprite)) return;
+            view.enabled = false;
+            view.sprite = null;
         }
         private Vector2 ApprovedMapViewport(float height)
         {
@@ -94,7 +127,7 @@ namespace VoidFall.Runtime
             var city=NullCityContent.EnemyIndex(enemy.Id);
             var insect=ApprovedMapContent.InsectKind(enemy.Id);
             var animated=type==5||city>=12||insect>=0||enemy.Id=="hydra-mantis-matriarch"||enemy.Id=="hydra-iron-carapace";
-            if(state.SpriteId!=enemy.Id||state.SpriteWhite!=white)
+            if(state.SpriteId!=enemy.Id||state.SpriteWhite!=white||state.SpritePending)
             {
             if(sentinel)
             {
@@ -108,11 +141,16 @@ namespace VoidFall.Runtime
             if(enemy.Id=="hydra-hive")name="hydra-hive";
             if(enemy.Id=="hydra-mantis-matriarch")name="guardian-0";
             if(enemy.Id=="hydra-iron-carapace")name="guardian-1";
-            state.SpriteId=enemy.Id;state.SpriteWhite=white;state.Frames=null;
+            state.SpriteId=enemy.Id;state.SpriteWhite=white;state.Frames=null;state.SpritePending=false;
             if(name!=null)
             {
-                state.Frames=new Sprite[animated?4:1];state.Frames[0]=ApprovedMapSprite(name);
-                if(animated)for(var f=1;f<4;f++)state.Frames[f]=ApprovedMapSprite(name+"-frame"+f);
+                var first = ApprovedMapSprite(name);
+                state.SpritePending = first == null;
+                if (first != null)
+                {
+                    state.Frames=new Sprite[animated?4:1];state.Frames[0]=first;
+                    if(animated)for(var f=1;f<4;f++)state.Frames[f]=ApprovedMapSprite(name+"-frame"+f);
+                }
             }
             }
             var frame=animated&&enemy.Velocity.sqrMagnitude>1&&!(_saveData?.settings?.reducedMotion??false)?Mathf.FloorToInt(enemy.Age*8)%4:0;

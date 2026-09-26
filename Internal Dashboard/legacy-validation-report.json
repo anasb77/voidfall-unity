@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "checks": 4474,
+  "counts": {
+    "contentFamilies": 245,
+    "uniqueRenders": 184,
+    "sourceFiles": 103,
+    "Present": 9,
+    "Review": 29,
+    "Adapted": 73,
+    "Missing": 134
+  },
+  "versions": [
+    "v1",
+    "v2",
+    "v3",
+    "v4",
+    "v5"
+  ],
+  "originalFilesVerified": true,
+  "note": "Catalog absence is scoped evidence, not a full proof of runtime feature absence. Art renders run original code in an isolated Canvas implementation."
+}

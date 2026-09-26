@@ -6,7 +6,7 @@ namespace VoidFall.Runtime
 {
     public sealed partial class VoidFallGameRuntime
     {
-        private const int SustainedDirectorVersion = 7;
+        private const int SustainedDirectorVersion = 8;
         // Reach the existing arrival rate by five minutes, then sustain it through the added minute.
         private const float SustainedArrivalRampSeconds = 300f;
         private int _clearObservedPopulation, _clearObservedKills, _refillStage, _refillAdmitted;
@@ -173,13 +173,16 @@ namespace VoidFall.Runtime
             _lastSpawnBlockReason = null;
             RecordRunHistory("director_arrival_budget", reason: boss ? "boss" : recovery ? "damage_relief" : "sustained",
                 amount: batch, detail: "target=" + target + ";version=" + SustainedDirectorVersion + ";rateMultiplier=" + arrivalMultiplier +
-                    ";interval=" + _spawnTimer.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) + ";stage=" + _pressureStageIndex);
+                    ";interval=" + _spawnTimer.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) +
+                    ";stage=" + _pressureStageIndex + ";sharedStage=" + _sharedDirectorVisitIndex +
+                    ";local=" + local.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
             for (var i = 0; i < batch && _gameSim.EnemyOrderCount < target; i++)
             {
-                var id = boss || recovery ? (i % 2 == 0 ? "chaser" : "runner") : ChooseAmbientEnemy();
-                id = EligibleDirectorType(id);
-                if (!RestorationTypeIntroduced(id) || !AmbientTypeAllowed(id)) id = "chaser";
-                RecordRunHistory("director_choice", id, "sustained_ambient");
+                var requested = boss || recovery ? (i % 2 == 0 ? "chaser" : "runner") : ChooseAmbientEnemy();
+                var id = ChooseEligibleRestorationFamily(requested, BasicFallbacks);
+                RecordRunHistory("director_choice", id, "sustained_ambient",
+                    detail: "sharedStage=" + _sharedDirectorVisitIndex + ";local=" +
+                        local.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
                 if (!SpawnEnemy(id, SustainedSpawnPosition(-1))) break;
             }
         }
@@ -339,21 +342,22 @@ namespace VoidFall.Runtime
             if (DeployRestorationCircle()) return;
             var edge = (int)((_runSeed + (uint)_encounterSequence * 17) % 4);
             var admitted = 0;
+            var composition = string.Empty;
             for (var i = 0; i < 10; i++)
             {
-                var id = _encounter.Kind == CombatEncounterKind.Pursuit ? (i < 6 ? "runner" : "chaser") :
-                    _encounter.Kind == CombatEncounterKind.Flank ? (i < 2 ? "dasher" : "runner") :
-                    _encounter.Kind == CombatEncounterKind.Hunt ? (i < 2 ? "gunner" : "chaser") : (i < 2 ? "brute" : "chaser");
-                id = EligibleDirectorType(id);
-                if (!RestorationTypeIntroduced(id)) id = "chaser";
+                var id = ChooseSustainedBeatEnemy(_encounter.Kind, i);
                 var slot = FindInactive(_gameSim.Enemies);
                 if (slot < 0 || !SpawnEnemy(id, SustainedSpawnPosition(_encounter.Kind == CombatEncounterKind.Flank ? (edge + (i % 2) * 2) % 4 : edge))) continue;
                 _encounterMembers[slot] = new EncounterMember { SpawnId = _gameSim.Enemies[slot].SpawnId,
                     Owner = _encounterOwner, Movement = EncounterMovement.Natural };
+                if (composition.Length > 0) composition += ",";
+                composition += id;
                 admitted++;
             }
             _encounter.CommitDeployment(admitted);
-            RecordRunHistory("director_beat_deployed", _encounter.Kind.ToString(), instanceId: _encounterOwner, amount: admitted);
+            RecordRunHistory("director_beat_deployed", _encounter.Kind.ToString(), instanceId: _encounterOwner, amount: admitted,
+                detail: "sharedStage=" + _sharedDirectorVisitIndex + ";local=" + LocalDirectorSurvivalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture) +
+                    ";composition=" + composition);
         }
 
         private void StepDirectorCapacityProbe()
@@ -376,7 +380,7 @@ namespace VoidFall.Runtime
             _diagnosticRunSeedOverride = seed == 0 ? FixtureRunSeed : seed;
             StartRunInternal(false);
             _directorPlaytestActive = true;
-            RecordRunHistory("director_playtest", "scripted_input", detail: "normal_health;fresh_profile;first_offered_upgrade;director_version=7");
+            RecordRunHistory("director_playtest", "scripted_input", detail: "normal_health;fresh_profile;first_offered_upgrade;director_version=8");
             return true;
         }
 

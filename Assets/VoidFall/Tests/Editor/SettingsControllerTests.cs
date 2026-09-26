@@ -25,7 +25,7 @@ namespace VoidFall.Tests.Editor
             public void ApplyLiveSettings() { ApplyCalls++; }
             public System.Collections.Generic.IReadOnlyList<HighScoreEntry> GetHighScores() => System.Array.Empty<HighScoreEntry>();
             public LifetimeStats GetLifetimeStats() => null;
-            public bool TryPersistProfile() => TryPersistSettings();
+            public bool TryCommitProfile(SaveData candidate) => TryPersistSettings();
         }
 
         private static SaveSettings LiveProfile() => new SaveSettings { quality = "high", touchSize = 1f };

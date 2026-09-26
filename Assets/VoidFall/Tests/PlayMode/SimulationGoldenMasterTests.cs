@@ -100,7 +100,7 @@ namespace VoidFall.Tests.PlayMode
                 _legacyMeteorSchema = true;
                 var legacy = HashRuntimeState(runtime);
                 Debug.Log("METEOR SCHEMA CHECK legacy=" + legacy + " full=" + hash);
-                Assert.That(legacy, Is.EqualTo(8893401275390364667UL), "The approved loot-v3 delayed-merge simulation baseline must remain stable under the legacy meteor schema.");
+                Assert.That(legacy, Is.EqualTo(4093819818710876312UL), "The approved hit-immunity/drop balance baseline must remain stable under the legacy meteor schema.");
             }
             finally { _legacyMeteorSchema = false; }
             Assert.That(
@@ -172,7 +172,17 @@ namespace VoidFall.Tests.PlayMode
         // slots, and visible overflow births intentionally change the reflected
         // pickup schema and collection/RNG timeline. Conservation/burst tests
         // and the 32-seed repeatability sweep passed before this re-pin.
-        internal const ulong GoldenMasterHash = 4792395221124045609;
+        // September 26 owner-approved balance: ordinary rare drops 1/300 -> 1/500;
+        // shared hit immunity .65s -> .20s. Fewer rare drops intentionally change
+        // pickup state and subsequent RNG consumption. The untouched baseline passed
+        // (hit-balance-baseline.xml), and all 32 seeds reproduced before this re-pin
+        // (hit-balance-sweep.xml). Measured legacy13583215273215912127 /
+        // full15234022560576798591 in hit-balance-playmode.xml.
+        // Unified ordinary 2% Scraps / 1-in-700 power-ups and appended survival
+        // supports intentionally change RNG outcomes and the progression snapshot.
+        // survival-playmode.xml passed all 32 repeatability seeds before re-pinning.
+        // Measured legacy4093819818710876312 / full1912782885852962356.
+        internal const ulong GoldenMasterHash = 1912782885852962356;
 
         internal static ulong HashRuntimeState(object runtime)
         {

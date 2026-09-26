@@ -73,6 +73,9 @@ namespace VoidFall.Runtime
                         instanceId: _incidentSequence, amount: (float)_majorIncident.Strength,
                         durationSeconds: _majorIncident.Kind == MajorIncidentKind.None
                             ? (float)MajorIncidentRules.TotalDuration(kind) : (float)_majorIncident.Elapsed);
+                if (_majorIncident.Kind != MajorIncidentKind.None &&
+                    phase == MajorIncidentPhase.Warning && _majorIncident.Phase == MajorIncidentPhase.Active)
+                    AnnounceMajorIncidentArrival(kind);
                 if (kind == MajorIncidentKind.DestroyerRaid)
                 {
                     if (!_incidentRaidStarted && _majorIncident.Phase == MajorIncidentPhase.Active)
@@ -158,13 +161,25 @@ namespace VoidFall.Runtime
             _incidentCount++;
             _lastIncidentKind = kind;
             _spawnTimer = .65f;
-            var title = kind == MajorIncidentKind.BlackHole ? "BLACK HOLE" :
-                kind == MajorIncidentKind.DestroyerRaid ? "DESTROYER RAID INCOMING" : "ECLIPSE INCOMING";
+            var title = kind == MajorIncidentKind.BlackHole ? "BLACKHOLE INCOMING" :
+                kind == MajorIncidentKind.DestroyerRaid ? "DESTROYERS INCOMING" : "ECLIPSE WARNING";
             var cue = kind == MajorIncidentKind.BlackHole ? ProceduralAudio.Cue.BlackHoleNotice :
                 kind == MajorIncidentKind.DestroyerRaid ? ProceduralAudio.Cue.RaidNotice : ProceduralAudio.Cue.EclipseNotice;
-            EnqueueToastCore(title, null, 8f, ToastKind.Danger, true);
+            EnqueueToastCore(title, null, 12f, ToastKind.Danger, true);
             _audio?.Play(cue, .85f);
             RecordRunHistory("incident_notification", kind.ToString(), "announced", instanceId: _incidentSequence,
+                durationSeconds: 12, detail: "priority=true;cue=" + cue);
+        }
+
+        private void AnnounceMajorIncidentArrival(MajorIncidentKind kind)
+        {
+            var title = kind == MajorIncidentKind.BlackHole ? "BLACK HOLE !" :
+                kind == MajorIncidentKind.DestroyerRaid ? "DESTROYERS RAID!" : "ECLIPSE !";
+            var cue = kind == MajorIncidentKind.BlackHole ? ProceduralAudio.Cue.BlackHoleArrival :
+                kind == MajorIncidentKind.DestroyerRaid ? ProceduralAudio.Cue.RaidArrival : ProceduralAudio.Cue.EclipseArrival;
+            EnqueueToastCore(title, null, 8f, ToastKind.Danger, true);
+            _audio?.Play(cue, .85f);
+            RecordRunHistory("incident_arrival", kind.ToString(), "announced", instanceId: _incidentSequence,
                 durationSeconds: 8, detail: "priority=true;cue=" + cue);
         }
 

@@ -21,6 +21,7 @@ namespace VoidFall.Runtime
         [SerializeField] private NullCityVisualAsset _nullCityVisuals;
         [SerializeField] private EonSeaVisualAsset _eonSeaVisuals;
         [SerializeField] private CrascendoVisualAsset _crascendoVisuals;
+        [SerializeField] private ApprovedMapVisualAsset _approvedMapVisuals;
         [SerializeField] private int _schema = CurrentSchema;
 
         public ArenaId Arena => _arena;
@@ -33,6 +34,7 @@ namespace VoidFall.Runtime
         public NullCityVisualAsset NullCityVisuals => _nullCityVisuals;
         public EonSeaVisualAsset EonSeaVisuals => _eonSeaVisuals;
         public CrascendoVisualAsset CrascendoVisuals => _crascendoVisuals;
+        public ApprovedMapVisualAsset ApprovedMapVisuals => _approvedMapVisuals;
         public int Schema => _schema;
 
         public bool IsValidFor(ArenaId arena)
@@ -42,7 +44,9 @@ namespace VoidFall.Runtime
                    _baseSprite != null &&
                    _detailSprite != null &&
                    _width > 0 &&
-                   _height > 0;
+                   _height > 0 &&
+                   (!ApprovedMapVisualAsset.RequiredFor(arena) ||
+                    _approvedMapVisuals != null && _approvedMapVisuals.IsValidFor(arena));
         }
     }
 }

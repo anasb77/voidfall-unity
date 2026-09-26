@@ -114,7 +114,7 @@ namespace VoidFall.EditorTools
             public void ApplyLiveSettings() { }
             public System.Collections.Generic.IReadOnlyList<HighScoreEntry> GetHighScores() => Array.Empty<HighScoreEntry>();
             public LifetimeStats GetLifetimeStats() => null;
-            public bool TryPersistProfile() => false;
+            public bool TryCommitProfile(SaveData candidate) => false;
         }
     }
 }

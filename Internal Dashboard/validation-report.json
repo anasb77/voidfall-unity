@@ -1,0 +1,101 @@
+{
+  "passed": true,
+  "checks": 900,
+  "counts": {
+    "cardFamilies": 80,
+    "cards": 219,
+    "weapons": 12,
+    "automaticWeapons": 10,
+    "supports": 22,
+    "evolutions": 10,
+    "enemyFamilies": 74,
+    "enemyForms": 140,
+    "bosses": 8,
+    "maps": 8,
+    "images": 982
+  },
+  "coverageChecks": [
+    {
+      "check": "Complete weapons families",
+      "passed": true
+    },
+    {
+      "check": "Every weapons rank",
+      "passed": true
+    },
+    {
+      "check": "Complete supports families",
+      "passed": true
+    },
+    {
+      "check": "Every supports rank",
+      "passed": true
+    },
+    {
+      "check": "Complete late upgrades families",
+      "passed": true
+    },
+    {
+      "check": "Every late upgrades rank",
+      "passed": true
+    },
+    {
+      "check": "Every weapon evolution",
+      "passed": true
+    },
+    {
+      "check": "All five implemented Wild Cards",
+      "passed": true
+    },
+    {
+      "check": "Every definition in ContentCatalog.Enemies",
+      "passed": true
+    },
+    {
+      "check": "Every definition in ApprovedMapContent.Enemies",
+      "passed": true
+    },
+    {
+      "check": "Every definition in NullCityContent.Enemies",
+      "passed": true
+    },
+    {
+      "check": "Every definition in DestroyerContent.Enemies",
+      "passed": true
+    },
+    {
+      "check": "Every definition in ContentCatalog.Bosses",
+      "passed": true
+    },
+    {
+      "check": "Hydra original ten populations",
+      "passed": true
+    },
+    {
+      "check": "Shared fourteen families have four tiers",
+      "passed": true
+    },
+    {
+      "check": "Three specialist elite families have four tiers",
+      "passed": true
+    },
+    {
+      "check": "Every prepared map",
+      "passed": true
+    },
+    {
+      "check": "No missing entity art",
+      "passed": true
+    },
+    {
+      "check": "Computed card total",
+      "passed": true
+    },
+    {
+      "check": "Unique card identifiers",
+      "passed": true
+    }
+  ],
+  "assetProvenance": true,
+  "note": "Entity stats are authored/tier baselines, not a simulation of a particular run."
+}

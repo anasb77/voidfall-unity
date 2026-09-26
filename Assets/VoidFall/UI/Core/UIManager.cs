@@ -356,7 +356,7 @@ namespace VoidFall.UI
             _muteButton = UIBuilder.CreateIconButton(
                 _chromeLayerRect,
                 "Mute",
-                muted ? "\u2715" : "\u266B",
+                "\u266B",
                 () =>
                 {
                     Callbacks.ToggleMute?.Invoke();
@@ -374,14 +374,28 @@ namespace VoidFall.UI
             if (glyph != null) glyph.localScale = Vector3.one * .65f;
 
             _muteGlyph = _muteButton.transform.Find("Glyph")?.GetComponent<TMPro.TextMeshProUGUI>();
+            _muteSlash = UIBuilder.CreateFill(_muteButton.transform, "Muted Slash", UITheme.TextMetricLabel);
+            _muteSlash.raycastTarget = false;
+            _muteSlash.rectTransform.anchorMin = _muteSlash.rectTransform.anchorMax = new Vector2(.5f, .5f);
+            _muteSlash.rectTransform.sizeDelta = new Vector2(2, 16);
+            _muteSlash.rectTransform.localRotation = Quaternion.Euler(0, 0, -40);
+            RefreshMuteGlyph();
         }
 
         /// <summary>Keeps the corner control in sync after a keyboard mute.</summary>
+        private Image _muteSlash;
+
+        public void SetChromeInputEnabled(bool enabled)
+        {
+            if (_muteButton != null) _muteButton.interactable = enabled;
+        }
+
         public void RefreshMuteGlyph()
         {
             if (_muteGlyph == null) return;
             var muted = Callbacks?.IsMuted != null && Callbacks.IsMuted();
-            _muteGlyph.text = muted ? "\u2715" : "\u266B";
+            _muteGlyph.text = "\u266B";
+            if (_muteSlash != null) _muteSlash.gameObject.SetActive(muted);
             _muteGlyph.color = muted ? UITheme.TextMetricLabel : UITheme.TextChip;
         }
 
@@ -450,7 +464,8 @@ namespace VoidFall.UI
         {
             if (_muteButton == null) return;
             var rect = _muteButton.GetComponent<RectTransform>();
-            var gameplay = _screen == UIScreen.None;
+            var gameplay = _screen != UIScreen.Home && _screen != UIScreen.Workshop &&
+                _screen != UIScreen.Records && _screen != UIScreen.Settings && _screen != UIScreen.DirectorSelection;
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(1, gameplay ? 1 : 0);
             var unit = _root.rect.width * .01f * .66f;
             rect.anchoredPosition = gameplay ? new Vector2(-6.1f * unit, -8.3f * unit) : new Vector2(-14, 14);

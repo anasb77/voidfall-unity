@@ -20,6 +20,17 @@ namespace VoidFall.Tests
             Assert.That(EnemyRosterRules.EnemyRosterForSpawn("runner", seconds, roll), Is.EqualTo(expected));
         }
 
+        [Test]
+        public void SharedDirectorTierPolicyHonorsLearningGraceAndVisitRamp()
+        {
+            Assert.That(EnemyRosterRules.SharedRosterForSpawn("runner", 0, 300, 59, 1200, 0), Is.EqualTo(EnemyRoster.One));
+            Assert.That(EnemyRosterRules.SharedRosterForSpawn("runner", 0, 300, 60, 1200, .06), Is.EqualTo(EnemyRoster.Two));
+            Assert.That(EnemyRosterRules.SharedRosterForSpawn("runner", 1, 0, 60, 1200, .14), Is.EqualTo(EnemyRoster.Two));
+            Assert.That(EnemyRosterRules.SharedRosterForSpawn("runner", 1, 0, 60, 1200, .16), Is.EqualTo(EnemyRoster.One));
+            Assert.That(EnemyRosterRules.SharedRosterForSpawn("runner", 1, 360, 60, 1200, .49), Is.EqualTo(EnemyRoster.Two));
+            Assert.That(EnemyRosterRules.SharedRosterForSpawn("runner", 2, 0, 60, 900, 0), Is.EqualTo(EnemyRoster.Two));
+        }
+
         [TestCase("hydra")][TestCase("pawn")][TestCase("null-marshal")][TestCase("elite")]
         public void ExclusiveAndStandardEliteIdsNeverEnterSharedProgression(string id)
         {

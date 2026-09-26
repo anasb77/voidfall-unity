@@ -1,14 +1,15 @@
 using System;
 using System.Globalization;
+using System.IO;
 using System.Text;
 using UnityEngine;
 
 namespace VoidFall.Persistence
 {
     /// <summary>
-    /// Emits the browser's v5 save shape, including its object maps. This is
-    /// intentionally separate from JsonUtility so a Unity profile can be
-    /// moved back to the browser without losing dynamic map fields.
+    /// Emits browser-compatible object maps plus all current Unity profile
+    /// fields. Older browsers may ignore the Unity-only fields; Unity export /
+    /// import round-trips retain forms, cleared arenas and video preferences.
     /// </summary>
     public static class BrowserSaveExporter
     {
@@ -17,6 +18,8 @@ namespace VoidFall.Persistence
             // SaveStore.Sanitize clamps in place and hands back the same
             // reference, so sanitizing the caller's profile here would mutate
             // live game state as a side effect of an export. Detach first.
+            if (value != null && value.version > SaveStore.SaveVersion)
+                throw new NotSupportedException("Cannot downgrade a profile from a newer save version.");
             var save = SaveStore.Sanitize(Clone(value));
             var json = new StringBuilder(4096);
             json.Append('{');
@@ -50,8 +53,51 @@ namespace VoidFall.Persistence
             json.Append(',');
             Property(json, "arena");
             AppendString(json, save.arena);
+            json.Append(','); Property(json, "form"); AppendString(json, save.form);
+            json.Append(','); Property(json, "unlockedForms"); AppendStrings(json, save.unlockedForms);
+            json.Append(','); Property(json, "voidsCleared"); AppendStrings(json, save.voidsCleared);
             json.Append('}');
             return json.ToString();
+        }
+
+        /// <summary>Flushes and atomically replaces an export, retaining its last good copy.</summary>
+        public static void WriteFile(string path, SaveData value)
+        {
+            var json = Export(value);
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+            var temporary = path + ".tmp";
+            try
+            {
+                using (var stream = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
+                using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
+                {
+                    writer.Write(json);
+                    writer.Flush();
+                    stream.Flush(true);
+                }
+                if (File.Exists(path)) File.Replace(temporary, path, path + ".bak");
+                else File.Move(temporary, path);
+            }
+            catch
+            {
+                try { if (File.Exists(temporary)) File.Delete(temporary); }
+                catch { /* Preserve the original exception; a stale temp is never loaded. */ }
+                throw;
+            }
+        }
+
+        private static void AppendStrings(StringBuilder json, string[] values)
+        {
+            json.Append('[');
+            var first = true;
+            foreach (var value in values ?? Array.Empty<string>())
+            {
+                if (!first) json.Append(',');
+                first = false;
+                AppendString(json, value);
+            }
+            json.Append(']');
         }
 
         /// <summary>
@@ -92,6 +138,12 @@ namespace VoidFall.Persistence
             json.Append(',');
             Property(json, "quality");
             AppendString(json, value.quality);
+            json.Append(','); Property(json, "resolutionWidth"); json.Append(value.resolutionWidth);
+            json.Append(','); Property(json, "resolutionHeight"); json.Append(value.resolutionHeight);
+            json.Append(','); Property(json, "fullscreenMode"); json.Append(value.fullscreenMode);
+            json.Append(','); Property(json, "monitorIndex"); json.Append(value.monitorIndex);
+            json.Append(','); Property(json, "bloom"); AppendFloat(json, value.bloom);
+            json.Append(','); Property(json, "chromatic"); AppendFloat(json, value.chromatic);
             json.Append('}');
         }
 

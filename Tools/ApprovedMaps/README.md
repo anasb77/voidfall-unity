@@ -8,10 +8,16 @@ Run `npm install` in this directory, then `npm run export`. Alternatively set
 `@napi-rs/canvas` 0.1.100 and run `node Tools/ApprovedMaps/export.mjs` from the
 repository root. No browser server is needed.
 
-The exporter writes PNGs to `Assets/VoidFall/Resources/VoidFall/ApprovedMaps` and
+The exporter writes PNGs to `Assets/VoidFall/Generated/ApprovedMaps` and
 records their physical dimensions/pixels-per-unit in `manifest.json`.
 `VoidFall.EditorTools.ApprovedMapAssetImporter.Bake` imports them through Unity's
-asset APIs. Commit the importer-generated metadata with the assets. Do not
+asset APIs. Run `VoidFall.Editor.ApprovedMapAssetMigration.MigrateAndConfigure`
+after exporting to attach the three catalogues to their arena plates. Addressables
+owns these sprites through the arena recipes; the build gate checks manifest
+coverage, ownership, desktop BC7 imports and world scale. The Windows override
+preserves source pixels, dimensions and mipmaps while reducing GPU texture
+storage. Compare native outlines, gradients and alpha edges after changing it.
+Commit the metadata and catalogues. Do not
 manually rescale the PNGs, alter their GUIDs, or multiply their display scale by
 the city layout expansion.
 

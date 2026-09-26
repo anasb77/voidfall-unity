@@ -13,6 +13,7 @@ namespace VoidFall.Runtime
         private const float ApprovedHudScale = .66f;
         private Font _approvedHudFont, _approvedHudBold;
         private Text _approvedMapHint;
+        private Image _approvedClockBacking, _approvedScoreBacking, _approvedMapBacking;
         private Text _approvedScoreLabel, _approvedArsenalLabel, _approvedPassiveLabel, _approvedManualLabel;
         private Image _approvedLevelFrame, _approvedTooltip;
         private Text _approvedTooltipText;
@@ -90,14 +91,42 @@ namespace VoidFall.Runtime
                 var glow = text.GetComponent<Shadow>() ?? text.gameObject.AddComponent<Shadow>();
                 glow.effectColor = new Color(.13f,.83f,.93f,.35f); glow.effectDistance = new Vector2(0,-1);
             }
+            _approvedClockBacking = CreateApprovedHudBacking("Clock Backing", _timeText.transform);
+            // The metrics were created before the approved heading; the backing
+            // must precede those values too, otherwise it tints the score itself.
+            _approvedScoreBacking = CreateApprovedHudBacking("Score Backing", _metricsPanel.transform);
+            _approvedMapBacking = CreateApprovedHudBacking("Map Hint Backing", _approvedMapHint.transform);
+            RefreshApprovedHudContrast();
             UpdatePressureHud();
-            LayoutApprovedHud(); RefreshApprovedBuildHud();
+            LayoutApprovedHud(); SetupSurvivalHud(); RefreshApprovedBuildHud();
+        }
+
+        private Image CreateApprovedHudBacking(string name, Transform before)
+        {
+            var image = CreateHudImage(_canvas.transform, name);
+            image.sprite = UISprites.Rounded(3, Color.white, Color.white, Color.clear);
+            image.type = Image.Type.Sliced;
+            image.raycastTarget = false;
+            image.enabled = true;
+            image.transform.SetSiblingIndex(before.GetSiblingIndex());
+            return image;
+        }
+
+        private void RefreshApprovedHudContrast()
+        {
+            var color = new Color(.02f, .03f, .06f, _saveData?.settings?.highContrast == true ? .97f : .86f);
+            if (_approvedClockBacking != null) _approvedClockBacking.color = color;
+            if (_approvedScoreBacking != null) _approvedScoreBacking.color = color;
+            if (_approvedMapBacking != null) _approvedMapBacking.color = color;
         }
 
         private Text ApprovedLabel(string name, string value)
         {
             var text = CreateText(_canvas.transform, Vector2.zero, Vector2.zero, 10, new Color(.5f,.59f,.67f));
             text.name = name; text.text = value; text.font = _approvedHudFont; text.raycastTarget = false;
+            var outline = text.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0, 0, 0, .9f);
+            outline.effectDistance = new Vector2(.8f, -.8f);
             text.horizontalOverflow = HorizontalWrapMode.Overflow; text.resizeTextForBestFit = false;
             return text;
         }
@@ -145,6 +174,9 @@ namespace VoidFall.Runtime
             if (Mathf.Approximately(width, _approvedLayoutWidth)) return;
             _approvedLayoutWidth = width;
             var tl = new Vector2(0,1); var tc = new Vector2(.5f,1); var tr = Vector2.one;
+            ApprovedRect(_approvedClockBacking.rectTransform, tc, 0, -.9f, 21, 9.1f);
+            ApprovedRect(_approvedScoreBacking.rectTransform, tr, -5.55f, -1.3f, 25.1f, 6.3f);
+            ApprovedRect(_approvedMapBacking.rectTransform, tl, 1.45f, -4.7f, 27, 1.65f);
             foreach (var xp in new[] { _xpBarBackground, _xpBarFill })
             { xp.rectTransform.offsetMin = new Vector2(0, -.5f*ApprovedUnit); xp.rectTransform.offsetMax = Vector2.zero; }
             ApprovedRect(_healthIcon.rectTransform,tl,1.8f,-1.75f,1.1f,1.1f);
@@ -231,6 +263,7 @@ namespace VoidFall.Runtime
             switch(id)
             {
                 case "scattergun": return "scatter"; case "railgun": return "rail";
+                case "lifeSteal": return "heart"; case "scavenger": return "scrap";
                 case "phaseRounds": return "phase"; case "giantSlayer": return "giant"; case "secondWind": return "wind";
                 case "collector": return "magnet"; case "calibration": case "output": return "power";
                 case "regenerator": return "regen"; case "plating": case "frame": return "armor";

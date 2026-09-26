@@ -1,0 +1,8 @@
+{
+  "name": "voidfall-internal-dashboard",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": { "start": "node server.mjs", "legacy": "node export-legacy.mjs" },
+  "dependencies": { "@napi-rs/canvas": "0.1.100" }
+}

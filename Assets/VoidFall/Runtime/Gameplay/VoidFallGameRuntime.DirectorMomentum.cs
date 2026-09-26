@@ -73,6 +73,7 @@ namespace VoidFall.Runtime
                 _majorIncident.Kind != MajorIncidentKind.None || DirectorSurvivalSecondsRemaining <= 8;
             if (!blocked)
             {
+                var composition = string.Empty;
                 for (var i = 0; i < requested && _gameSim.EnemyOrderCount < 700; i++)
                 {
                     var id = beat == 1 ? (i == 0 ? "elite" : i < 25 ? "chaser" : "swarmer") :
@@ -80,8 +81,7 @@ namespace VoidFall.Runtime
                     if (id == "elite" && ActiveEnemyTypeCount("elite") >= 2) id = "chaser";
                     if (id != "elite")
                     {
-                        id = EligibleDirectorType(id);
-                        if (!RestorationTypeIntroduced(id)) id = "chaser";
+                        id = ChooseEligibleRestorationFamily(id, BasicFallbacks);
                     }
                     // One entry edge for escort/fallback. Adjacent edges for flank leave an escape half-plane.
                     var edge = beat == 2 && i % 2 != 0 ? (_momentumEdge < 2 ? 2 : 0) : _momentumEdge;
@@ -90,8 +90,12 @@ namespace VoidFall.Runtime
                     _encounterMembers[slot] = new EncounterMember { SpawnId = _gameSim.Enemies[slot].SpawnId,
                         Owner = _encounterOwner, Movement = EncounterMovement.Natural };
                     if (id == "elite") _nextEliteTime = Mathf.Max(_nextEliteTime, _time + 55);
+                    if (composition.Length > 0) composition += ",";
+                    composition += id;
                     admitted++;
                 }
+                RecordRunHistory("director_signature", MomentumBeatId(beat), "composition", instanceId: _encounterOwner,
+                    amount: admitted, detail: "sharedStage=" + _sharedDirectorVisitIndex + ";composition=" + composition);
             }
             _encounter.CommitDeployment(admitted);
             RecordRunHistory("director_signature", MomentumBeatId(beat), blocked ? "cancelled_safety_window" : "deployed",

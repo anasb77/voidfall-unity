@@ -56,6 +56,7 @@ namespace VoidFall.Runtime
             Array.Clear(_directorActorIds, 0, _directorActorIds.Length);
             Array.Clear(_directorActorExpiry, 0, _directorActorExpiry.Length);
             _encounterInitialized = true;
+            TrackSharedDirectorVisit();
             _encounterSequence = _encounterOwner = 0;
             _nextEncounterTime = _time + 14;
             _spawnTimer = Mathf.Max(.5f, RunOpeningSeconds - _time);

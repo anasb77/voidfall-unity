@@ -1,4 +1,47 @@
-# Run exports — schema 4
+# Run exports — summary schema 4 / history schema 5
+
+History schema 5 adds `schemaVersion: 5` to each JSONL event and keeps the existing
+scalar names, stable identities, outcomes and context fields. Optional `sample`,
+`progress`, `context`, `options` and null strings are absent when not supplied.
+Readers must treat absent optional payloads as unavailable, not as measured zero.
+Older JSONL without an event version uses the legacy schema-4 shape. Summary JSON
+remains schema 4; its `history.schemaVersion` identifies the journal format.
+`RunHistoryJson` serializes the compact shape on the calling thread using a reused
+builder; the bounded writer still receives immutable strings and reports losses.
+No events are sampled away or silently dropped as part of this size reduction.
+
+## Hit immunity and ordinary drops (September 26)
+
+Context adds `playerHitImmunitySeconds=0.20`; `ordinaryRareDropChance` is now
+`1/700`. `ordinaryScrapDropChance=0.02` is the unified base; Null City uses the
+same chances.
+Elite variants, standard elites, bosses and the power-up type distribution retain
+their existing rates. `player_damage.durationSeconds` records the standard hit
+protection in simulation seconds (lethal hits enter separate death protection).
+Fully absorbed dealer-shield hits
+use the same immunity; revive/travel protection and per-enemy contact cooldowns
+are unchanged. The recorder remains schema 4 with additive context/event data.
+
+## Survival supports and shields (September 26)
+
+Context adds `survivalSupportVersion`, `ordinaryScrapDropChance`,
+`lifeStealKillThreshold=200` and `scavengerScrapThreshold=200`. Progress adds
+`lifeStealKillProgress`, `scavengerScrapProgress`, `shieldCapacity` and effective
+`ordinaryScrapDropChance`; the compatible `dealerShield` field now represents
+shared current shields.
+
+`support_proc` uses id `lifeSteal` or `scavenger`. Amount is actual healing or
+shield gained. Life Steal links the triggering enemy with `sourceId` and
+`relatedInstanceId`, and exports resulting HP. Reasons include `healed`,
+`full_health`, `shield_granted` and `shield_full`. JSON detail carries rank,
+requested amount, threshold, remainder, shield and capacity. Full thresholds
+are consumed even when capped. Scavenger aggregates multiple thresholds in one
+pickup event; collected value counts, direct wallet payouts do not.
+
+`player_shield_granted` records source and committed amount, with requested
+amount/current shield/capacity in detail. `player_shield_absorbed` records actual
+shield consumed, source, remaining shield/capacity and 0.20s protection.
+These events use the existing recorder and schema 4; no separate exporter.
 
 ## World grid and camera impulses (September 20)
 
@@ -44,8 +87,15 @@ combat RNG, per-frame events or per-event file writes are introduced.
 
 ## Director I momentum (September 20)
 
-`context.directorVersion=7` and `restorationVersion=2026-09-20-director-momentum-v5`
-identify early Shuriken/Spiky, stronger later-void arrivals and late-Abyss signatures.
+`context.directorVersion=8` and `restorationVersion=2026-09-20-director-roster-v1`
+identify stage-aware shared-roster introductions, tier previews, stronger later-void
+arrivals and late-Abyss signatures. `directorRosterScheduleVersion=1` identifies
+the additive schedule fields; `sharedDirectorStage` is zero-based among shared
+director visits, so native arenas and route omissions do not consume an
+introduction package. `lateAbyssTierTwoMinimumShare`/`MaximumShare` are the
+5–10% preview bounds; `secondSharedTierTwoMinimumShare`/`MaximumShare` are the
+15–50% second-visit bounds. Newly introduced families receive a 60-second tier-I
+learning grace even when the global run clock is later.
 `roster_introduction` reports actual admission time, which can be later than an
 unlock because of learning grace, damage relief or an active encounter. Pending
 families are introduced in reveal-time order after those deferrals.
@@ -80,6 +130,11 @@ explicit bypass. No native hazards, damage relief or arrival grace are bypassed.
 (slider50%) and Hydra/Court's908-unit height (slider60%), before Spatial Awareness.
 Zack retains normal size. Court revision2 expands its board to7257.6×7257.6;
 `court_board_created` records56×56 cells,129.6-unit tiles and the unchanged camera.
+
+Null City ordinary native bodies are committed with0.75× their catalogue XP,
+the same ordinary Scrap/power-up chances as other arenas (September 26).
+The XP adjustment happens at spawn before `enemy_spawn` telemetry records XP. Elites, bosses and summoned child bodies retain
+their authored rewards and guarantees.
 City's expanded
 layout is2560×1440 with1984×841.6 playable floor and native-size props/actors.
 Hydra I ground is stationary; Hydra II geometry remains unchanged.
@@ -111,7 +166,7 @@ Context adds `restorationVersion`, `escapeSeconds` (10), `arrivalGraceSeconds` (
 
 `second_wind` records actual healed `amount`, resulting HP/maxHP, 180-second cooldown in `durationSeconds`, and level in `detail`. `spiky_chain_burst` joins the dying enemy by `instanceId`, with base damage and radius/player-safety details; `spiky_chain_rejected` reports queue overflow. `roster_introduction` identifies the family and admitted count; `director_circle_deployed` records its encounter owner, admitted count and composition/gap. `crossing_transition` records cover_begin/covered_swap/settled reasons. `arrival_grace` identifies the destination and duration. All use existing run/visit/time context and bounded history storage. Damage still aggregates through existing damage windows. The restoration capture flag marks runs diagnostic and isolates their profile.
 
-Context also records density-v3 tuning: `ordinaryRareDropChance` (1/300), `overclockMaximumBankedSeconds` (30), `xpMultiplierAfterLevelFive` (1.25), `boomerangSizeScale` (.675), `clockFaceOpacity` (.126), `spikyPhaseSeconds` (.5), `selectedMonitorIndex` (-1 AUTO) and `actualMonitorName`. The `overclock` history event now includes remaining duration and power tier. `display_monitor_changed` records requested index in amount, applied/auto/disconnected_fallback/move_failed reason and actual display name/count. Changes during menus appear in the next run's context.
+Context also records density-v3 tuning: `ordinaryRareDropChance` (currently 1/700), `overclockMaximumBankedSeconds` (30), `xpMultiplierAfterLevelFive` (1.25), `boomerangSizeScale` (.675), `clockFaceOpacity` (.126), `spikyPhaseSeconds` (.5), `selectedMonitorIndex` (-1 AUTO) and `actualMonitorName`. The `overclock` history event now includes remaining duration and power tier. `display_monitor_changed` records requested index in amount, applied/auto/disconnected_fallback/move_failed reason and actual display name/count. Changes during menus appear in the next run's context.
 
 Signature `director_circle_deployed` events use `id=legacy-rush-circle`, a run-local sequence identity, admitted count, requested count, uniform composition and next due time. Separate mixed tactical rings use `mixed-green-circle` and the encounter owner identity. Existing individual spawn records report admission/rejection; no extra RNG is consumed by telemetry. `director_arrival_budget` records the actual multiplier, retaining 2.0 during boss/damage relief and 2.5 otherwise.
 
@@ -220,7 +275,7 @@ changes the gameplay score/pressure state.
 |---|---|
 | `run_metadata`, `run_start`, `run_end` | Initial context and explicit final reason. `quit`, `abandoned`, `restarted`, `interrupted` are not scored defeats. Normal terminal statuses remain `gameover` and `escaped`. |
 | `sample`, `flow_state`, `spawn_gate` | One-second combat samples plus changed journey/encounter/incident/pause/focus state. Population, pressure, player health/position, XP, viewport and nearest enemy/on-screen population support pacing analysis. |
-| `director_choice`, `spawn_substituted`, `spawn_rejected`, `encounter_selected`, `incident_selected`, `incident_stopped` | Actual choices, composition substitution and admission failures. Gate transitions describe periods with no spawn attempts. |
+| `director_choice`, `spawn_substituted`, `spawn_rejected`, `encounter_selected`, `incident_selected`, `incident_stopped` | Actual choices, composition substitution and admission failures. Shared-director choice, arrival-budget, signature and beat-deployment details include the zero-based shared stage and local survival time; family-limit substitutions identify the requested and selected families. Gate transitions describe periods with no spawn attempts. |
 | `enemy_spawn`, `enemy_first_hit`, `enemy_damage_window`, `enemy_death`, `enemy_despawn` | Join on enemy `instanceId`. Spawn records effective HP/speed/damage, XP value, tier, elite/mutation/shield and source. Damage windows total actual health/shield damage since previous flush, split Player/NonPlayer. Death duration is first-hit-to-removal, or -1 if never hit; spawn-to-death is timestamp subtraction. Despawns are not kills. |
 | `weapon_damage_window`, `player_damage`, `boss_spawn`, `boss_damage`, `boss_defeat` | Weapon deltas and player/boss outcomes. Boss IDs use telemetry instance IDs. Player-damage attribution is explicitly `unattributed` where the current source path provides no reliable actor identity; never infer a shooter from proximity. |
 | `drop_spawn`, `drop_merged`, `drop_rejected`, `drop_collected`, `drop_absorbed`, `drop_discarded`, `xp_received`, `boss_reward` | Drop IDs survive pool-slot reuse. Spawn/merge `sourceId` and `relatedInstanceId` identify enemy, boss or roulette origin where known. `amount` on merge is added value; absorption is the amount taken, including partial absorption. Collected XP face value and credited XP after modifiers are separate. A gift drop is not a collected benefit. |
@@ -252,6 +307,18 @@ width/height means no asserted finite boundary, NOT a zero-size arena; the
 viewport fields are actual gameplay extents. Legacy sample health/speed/damage
 multipliers describe reference formulas, not every native unit's effective
 stats. Use `enemy_spawn` for role/arena health comparisons.
+
+Committed form gates emit `form_unlocked` with the stable form ID and
+`reason=saved` after the profile transaction succeeds. A failed crossing
+progress write emits `profile_commit`, `id=form_progress`, `reason=failed`;
+the route retains the clear for a later crossing or terminal retry. These
+events never announce an unlock from an intermediate terminal save.
+
+Native Null City admission uses `null_city_spawn`, `reason=native_cap`, with
+`budgetLimit`/`budgetUsed` and an arrival category when a requested arrival is
+rejected at the arena boundary. Deferred brood entries retain their positions
+and faction reward roots; a full queue is not retried or logged every tick.
+Successful births continue to report their committed `null_city_spawn` identity.
 
 ## Persistence and performance
 

@@ -41,6 +41,11 @@ namespace VoidFall.Runtime
             _gameSim.Player.Iframes = 9999;
             _hudGroup.alpha = 1;
             DestroyEnemiesForVoidTransition(); ClearMeteors();
+            if (ArsenalValidationProbe.Argument("-vfsurvival-check=") == "1")
+            {
+                yield return CaptureSurvivalRevision(output);
+                yield break;
+            }
             if (ArsenalValidationProbe.Argument("-vfloot-check=") == "1")
             {
                 ClearToasts(); ForceMajorIncidentForDiagnostics("black-hole");

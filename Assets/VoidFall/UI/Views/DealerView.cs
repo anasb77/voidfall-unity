@@ -43,7 +43,7 @@ namespace VoidFall.UI
             ClearChildren(_grid);
             for (var i = 0; i < session.Offers.Length; i++) BuildOffer(session, i, wallet, soundMask, rifleMask);
             SetVisible(true);
-            var first = GetComponentInChildren<Button>(); if (first != null) first.Select();
+            RestoreFocus();
         }
         public void Purchased(int index) { _look = index - 1; _smileUntil = Time.unscaledTime + 3.5f; }
         public void SetNotice(string message) { if (_notice != null) _notice.text = message; }

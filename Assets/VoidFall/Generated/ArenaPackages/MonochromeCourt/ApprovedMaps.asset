@@ -1,0 +1,144 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a104c4415ca47ffa6db2bd634548def, type: 3}
+  m_Name: ApprovedMaps
+  m_EditorClassIdentifier: VoidFall.Runtime::VoidFall.Runtime.ApprovedMapVisualAsset
+  _arena: 4
+  _entries:
+  - Id: court-pawn-1-black
+    Sprite: {fileID: 21300000, guid: 1bae82e6371b5cc4799c6da289fccf5e, type: 3}
+  - Id: court-pawn-1-white
+    Sprite: {fileID: 21300000, guid: 389906df25ff28842a8d8a8536c8b60b, type: 3}
+  - Id: court-pawn-2-black
+    Sprite: {fileID: 21300000, guid: f34097744e63b774d81ae709fb40f369, type: 3}
+  - Id: court-pawn-2-white
+    Sprite: {fileID: 21300000, guid: 5bd86358cfcd10b448bb22efcede7d2f, type: 3}
+  - Id: court-pawn-3-black
+    Sprite: {fileID: 21300000, guid: 78ab1d8f03b19f147bb26cdebe7db0ff, type: 3}
+  - Id: court-pawn-3-white
+    Sprite: {fileID: 21300000, guid: 09579633e60bdb94797cb1c69022742b, type: 3}
+  - Id: court-rook-1-black
+    Sprite: {fileID: 21300000, guid: 19bfc43da2b49624baf6b8fff05c9f7a, type: 3}
+  - Id: court-rook-1-white
+    Sprite: {fileID: 21300000, guid: 81d10d2cb6545b64da3c8b1de88baab9, type: 3}
+  - Id: court-rook-2-black
+    Sprite: {fileID: 21300000, guid: 3f10e290e1415b3488966ce16dbeaaa0, type: 3}
+  - Id: court-rook-2-white
+    Sprite: {fileID: 21300000, guid: 8f35e302c7072c243a0d291cff982f8a, type: 3}
+  - Id: court-rook-3-black
+    Sprite: {fileID: 21300000, guid: 163380c79c97854429ea23c18f1dd286, type: 3}
+  - Id: court-rook-3-white
+    Sprite: {fileID: 21300000, guid: 045325097e076334c8217283b5fb00ec, type: 3}
+  - Id: court-rook-4-black
+    Sprite: {fileID: 21300000, guid: 61aa9fef6772b1149bdbd26dd51797ad, type: 3}
+  - Id: court-rook-4-white
+    Sprite: {fileID: 21300000, guid: 5c81979248058694ab234a816174c62f, type: 3}
+  - Id: court-bishop-1-black
+    Sprite: {fileID: 21300000, guid: c5ba6fab603061242979f5beff02c4fe, type: 3}
+  - Id: court-bishop-1-white
+    Sprite: {fileID: 21300000, guid: 19a8987a75a06894885de986d0d89aeb, type: 3}
+  - Id: court-bishop-2-black
+    Sprite: {fileID: 21300000, guid: d27eafbd239a3f046996984220483f6c, type: 3}
+  - Id: court-bishop-2-white
+    Sprite: {fileID: 21300000, guid: d7d91150aff84cc4dbca824262245047, type: 3}
+  - Id: court-bishop-3-black
+    Sprite: {fileID: 21300000, guid: 1dccf2c9de9b8a642a8c7a501b9cab43, type: 3}
+  - Id: court-bishop-3-white
+    Sprite: {fileID: 21300000, guid: 994fc0a621843584cb4f02d90dcac6f5, type: 3}
+  - Id: court-knight-1-black
+    Sprite: {fileID: 21300000, guid: 27c2f6ef60226b84d95b282a61f957e2, type: 3}
+  - Id: court-knight-1-white
+    Sprite: {fileID: 21300000, guid: d5eacc9231f24b64b9778e388ebdd904, type: 3}
+  - Id: court-knight-2-black
+    Sprite: {fileID: 21300000, guid: 6b8944bbcca59044ab16abb3b4c9e99a, type: 3}
+  - Id: court-knight-2-white
+    Sprite: {fileID: 21300000, guid: 41dfc38216069f74fad8dbb4fbb268ec, type: 3}
+  - Id: court-knight-3-black
+    Sprite: {fileID: 21300000, guid: 7c8c40603f0db0549bc0e5e21bf506f8, type: 3}
+  - Id: court-knight-3-white
+    Sprite: {fileID: 21300000, guid: cc1c77d0d1f24a347854cefc677c0be0, type: 3}
+  - Id: court-queen-1-black
+    Sprite: {fileID: 21300000, guid: a5db8133b67bd1744aa535dc325e4b5d, type: 3}
+  - Id: court-queen-1-white
+    Sprite: {fileID: 21300000, guid: 28dcf72dbd11267469bcee9fbb01021a, type: 3}
+  - Id: court-queen-2-black
+    Sprite: {fileID: 21300000, guid: 61a4ebb0f9ae51144bdf825a259d56f2, type: 3}
+  - Id: court-queen-2-white
+    Sprite: {fileID: 21300000, guid: c2f2b9350d9bc5a428f90e0ad8395cc1, type: 3}
+  - Id: court-queen-3-black
+    Sprite: {fileID: 21300000, guid: 433cfe2a2b02f31458d5ea97594b3d45, type: 3}
+  - Id: court-queen-3-white
+    Sprite: {fileID: 21300000, guid: f5eb3473652b9f445bea9f0442cd7aad, type: 3}
+  - Id: court-armored-knight-1-black
+    Sprite: {fileID: 21300000, guid: c7160d1e82d6d1a4f8b7044d20ee0669, type: 3}
+  - Id: court-armored-knight-1-white
+    Sprite: {fileID: 21300000, guid: a09e3653eac35d945bba2dc68e3d9773, type: 3}
+  - Id: court-armored-knight-2-black
+    Sprite: {fileID: 21300000, guid: 3a7bb077a67d3e641be24f4673d785cd, type: 3}
+  - Id: court-armored-knight-2-white
+    Sprite: {fileID: 21300000, guid: 023bb2e309695fa4ab8a0fffba219a74, type: 3}
+  - Id: court-armored-knight-3-black
+    Sprite: {fileID: 21300000, guid: 20cca7f6560a8ad4f8e16c52119ba557, type: 3}
+  - Id: court-armored-knight-3-white
+    Sprite: {fileID: 21300000, guid: d355aefc27b3bb64c90f7c965978016b, type: 3}
+  - Id: sentinel-0-black
+    Sprite: {fileID: 21300000, guid: 39e4d822e20ae0b4ba0dfb7e7c867703, type: 3}
+  - Id: sentinel-0-white
+    Sprite: {fileID: 21300000, guid: 21e61a573f2adca43a936c041d6f86f5, type: 3}
+  - Id: sentinel-1-black
+    Sprite: {fileID: 21300000, guid: 3a9af0f2b2e2d7b4382770ffa6a14894, type: 3}
+  - Id: sentinel-1-white
+    Sprite: {fileID: 21300000, guid: 22962cc9c41d3f747b3c0dee9e1d0821, type: 3}
+  - Id: sentinel-2-black
+    Sprite: {fileID: 21300000, guid: 0795aad432767c740854f7f95161daa7, type: 3}
+  - Id: sentinel-2-white
+    Sprite: {fileID: 21300000, guid: e44e1cada8f46d446895ce8ed5bb616f, type: 3}
+  - Id: court-knight-original-black
+    Sprite: {fileID: 21300000, guid: eda5bc4a3d922f94094f996e4794bd48, type: 3}
+  - Id: court-knight-original-white
+    Sprite: {fileID: 21300000, guid: d1538c344c1df3847a9dac31fa5e8129, type: 3}
+  - Id: court-armored-knight-1-black-frame1
+    Sprite: {fileID: 21300000, guid: 6840805d4e01ea14e96b5975165f72d6, type: 3}
+  - Id: court-armored-knight-1-white-frame1
+    Sprite: {fileID: 21300000, guid: ed903b5bad79f1e439954c056acc57b0, type: 3}
+  - Id: court-armored-knight-2-black-frame1
+    Sprite: {fileID: 21300000, guid: 7a5f296dc31c341489567c93b23da8ee, type: 3}
+  - Id: court-armored-knight-2-white-frame1
+    Sprite: {fileID: 21300000, guid: a78eefdb4713a33478de405d021f1ba9, type: 3}
+  - Id: court-armored-knight-3-black-frame1
+    Sprite: {fileID: 21300000, guid: df55a23b41f9cb54a985ae00cb6cabbf, type: 3}
+  - Id: court-armored-knight-3-white-frame1
+    Sprite: {fileID: 21300000, guid: dd5a22c1591cfb14f957f56ed67d5df3, type: 3}
+  - Id: court-armored-knight-1-black-frame2
+    Sprite: {fileID: 21300000, guid: 431c15042ea7e1e479df4960537ddd7f, type: 3}
+  - Id: court-armored-knight-1-white-frame2
+    Sprite: {fileID: 21300000, guid: 311bd047545b75640b56404c2ec9b94e, type: 3}
+  - Id: court-armored-knight-2-black-frame2
+    Sprite: {fileID: 21300000, guid: a853a9d0366e0be45ae2ed2aed8b72a1, type: 3}
+  - Id: court-armored-knight-2-white-frame2
+    Sprite: {fileID: 21300000, guid: 66ab73d01036f6d448465d981e0d4cc5, type: 3}
+  - Id: court-armored-knight-3-black-frame2
+    Sprite: {fileID: 21300000, guid: d5113b8b207b43f4885a8ecb4a9782be, type: 3}
+  - Id: court-armored-knight-3-white-frame2
+    Sprite: {fileID: 21300000, guid: 3a9137ecd98ada9438eab0f9cc661af6, type: 3}
+  - Id: court-armored-knight-1-black-frame3
+    Sprite: {fileID: 21300000, guid: 5650519f9dcd50a4da344ae40358d9c6, type: 3}
+  - Id: court-armored-knight-1-white-frame3
+    Sprite: {fileID: 21300000, guid: 94edd3f5bcc042a4c8fc32183241f670, type: 3}
+  - Id: court-armored-knight-2-black-frame3
+    Sprite: {fileID: 21300000, guid: ac945852f58d65a4cbccd454ef30db1e, type: 3}
+  - Id: court-armored-knight-2-white-frame3
+    Sprite: {fileID: 21300000, guid: eda5f7fbc9386a34f995fa24c7ab3f38, type: 3}
+  - Id: court-armored-knight-3-black-frame3
+    Sprite: {fileID: 21300000, guid: e45d261de746a6947b4b6ccf82d76424, type: 3}
+  - Id: court-armored-knight-3-white-frame3
+    Sprite: {fileID: 21300000, guid: 22dc2b3b58d889a409fb00a7908fd8c6, type: 3}

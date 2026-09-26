@@ -1,5 +1,6 @@
 using System;
 using VoidFall.Core;
+using VoidFall.Persistence;
 using VoidFall.UI;
 
 namespace VoidFall.Runtime
@@ -13,52 +14,51 @@ namespace VoidFall.Runtime
     /// </summary>
     public partial class VoidFallGameRuntime
     {
-        /// <summary>
-        /// Records the completed Void's arena once per clear and evaluates the
-        /// form unlock gates. Called from the journey's void-complete edge.
-        /// </summary>
+        /// <summary>Commits completed-void progress and unlocks as one profile change.</summary>
         private void RecordVoidClearedForForms()
         {
             if (_saveData == null || _voidRoute == null) return;
-            var arenaId = _voidRoute.CurrentArenaId;
-            if (string.IsNullOrEmpty(arenaId)) return;
-            if (Array.IndexOf(_saveData.voidsCleared ?? Array.Empty<string>(), arenaId) < 0)
-            {
-                var grown = new string[(_saveData.voidsCleared?.Length ?? 0) + 1];
-                if (_saveData.voidsCleared != null) Array.Copy(_saveData.voidsCleared, grown, _saveData.voidsCleared.Length);
-                grown[grown.Length - 1] = arenaId;
-                _saveData.voidsCleared = grown;
-            }
-            EvaluateFormUnlocks();
+            var candidate = CloneSaveData(_saveData);
+            var newlyUnlocked = StageFormProgress(candidate,
+                AddCounter(candidate.stats?.totalBossKills ?? 0, _bossKills));
+            if (newlyUnlocked.Length == 0 && candidate.voidsCleared.Length == (_saveData.voidsCleared?.Length ?? 0))
+                return;
+            if (TryCommitProfile(candidate))
+                AnnounceFormUnlocks(newlyUnlocked);
+            else
+                RecordRunHistory("profile_commit", "form_progress", "failed");
+            // Failed writes leave the profile untouched. Completed route nodes
+            // retain the earned facts for the next crossing or terminal retry.
         }
 
-        /// <summary>
-        /// Applies the spec's unlock gates against lifetime progress: the
-        /// Dasher after the first guardian defeat, the Brute after three
-        /// distinct Void clears across runs. Newly opened forms announce
-        /// themselves once and persist with the profile immediately, so a
-        /// crash after the gate cannot take the unlock back.
-        /// </summary>
-        private void EvaluateFormUnlocks()
+        /// <summary>Stages run facts without saving or announcing partial progress.</summary>
+        private string[] StageFormProgress(SaveData candidate, int guardianKills)
         {
-            if (_saveData == null) return;
-            var guardianKills = (_saveData.stats?.totalBossKills ?? 0) + _bossKills;
-            var newlyUnlocked = PlayerForms.EvaluateUnlocks(
-                _saveData.unlockedForms,
-                guardianKills,
-                _saveData.voidsCleared?.Length ?? 0);
-            if (newlyUnlocked.Length == 0) return;
+            var cleared = new System.Collections.Generic.List<string>(candidate.voidsCleared ?? Array.Empty<string>());
+            if (_voidRoute != null)
+                foreach (var nodeId in _voidRoute.History)
+                    if (_voidRoute.StateOf(nodeId) == RouteNodeState.Completed)
+                    {
+                        var arenaId = _voidRoute.Node(nodeId).ArenaId;
+                        if (!string.IsNullOrEmpty(arenaId) && !cleared.Contains(arenaId)) cleared.Add(arenaId);
+                    }
+            candidate.voidsCleared = cleared.ToArray();
+            var newlyUnlocked = PlayerForms.EvaluateUnlocks(candidate.unlockedForms, guardianKills, cleared.Count);
+            if (newlyUnlocked.Length == 0) return newlyUnlocked;
+            var merged = new System.Collections.Generic.List<string>(candidate.unlockedForms ?? Array.Empty<string>());
+            merged.AddRange(newlyUnlocked);
+            candidate.unlockedForms = merged.ToArray();
+            return newlyUnlocked;
+        }
 
-            var merged = new string[(_saveData.unlockedForms?.Length ?? 0) + newlyUnlocked.Length];
-            if (_saveData.unlockedForms != null) Array.Copy(_saveData.unlockedForms, merged, _saveData.unlockedForms.Length);
-            for (var index = 0; index < newlyUnlocked.Length; index++)
+        private void AnnounceFormUnlocks(string[] newlyUnlocked)
+        {
+            foreach (var id in newlyUnlocked)
             {
-                merged[merged.Length - newlyUnlocked.Length + index] = newlyUnlocked[index];
-                var form = PlayerForms.Form(newlyUnlocked[index]);
+                var form = PlayerForms.Form(id);
                 EnqueueToast("Form unlocked", form.Name + " — " + form.Blurb, 4f, ToastKind.Reward);
+                RecordRunHistory("form_unlocked", id, "saved", sourceId: "profile");
             }
-            _saveData.unlockedForms = merged;
-            _gameBridge?.TryPersistProfile();
         }
 
         private void CycleNextFormFromUi() => CycleFormFromUi(1);

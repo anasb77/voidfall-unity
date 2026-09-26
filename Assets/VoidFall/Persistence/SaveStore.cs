@@ -181,6 +181,7 @@ namespace VoidFall.Persistence
         /// than replacing it with the default profile the player is looking at.
         /// </summary>
         private bool _storageUnreadable;
+        public int UnsupportedSaveVersion { get; private set; }
         private bool _preserveBackupUntilSave;
 
         public SaveStore(string path = null)
@@ -207,32 +208,40 @@ namespace VoidFall.Persistence
             catch (Exception) { return false; }
             if (!TryParseExisting(raw, out recovered))
             {
-                if (source == backup || !File.Exists(backup)) return false;
+                if (UnsupportedSaveVersion > SaveVersion || source == backup || !File.Exists(backup)) return false;
                 try { raw = File.ReadAllText(backup); }
                 catch (Exception) { return false; }
                 if (!TryParseExisting(raw, out recovered)) return false;
                 source = backup;
             }
             _storageUnreadable = false;
+            UnsupportedSaveVersion = 0;
             _preserveBackupUntilSave |= string.Equals(source, backup, StringComparison.OrdinalIgnoreCase);
             return true;
         }
 
-        private static bool TryParseExisting(string raw, out SaveData recovered)
+        private bool TryParseExisting(string raw, out SaveData recovered)
         {
             recovered = null;
             try
             {
-                if (BrowserSaveImporter.TryConvert(raw, out var browser)) recovered = Sanitize(browser);
-                else
-                {
-                    var data = JsonUtility.FromJson<SaveData>(raw);
-                    if (data == null || data.version <= 0) return false;
-                    recovered = Sanitize(data);
-                }
+                var data = BrowserSaveImporter.TryConvert(raw, out var browser)
+                    ? browser : JsonUtility.FromJson<SaveData>(raw);
+                if (data == null || data.version <= 0 || QuarantineFutureSave(data)) return false;
+                recovered = Sanitize(data);
                 return true;
             }
             catch (Exception) { recovered = null; return false; }
+        }
+
+        private bool QuarantineFutureSave(SaveData data)
+        {
+            if (data.version <= SaveVersion) return false;
+            UnsupportedSaveVersion = data.version;
+            _storageUnreadable = true;
+            Debug.LogWarning("VoidFall profile uses a newer save version (" + data.version +
+                "); the original file and backups were preserved. Open it with a compatible game version.");
+            return true;
         }
 
         public SaveData Load()
@@ -277,6 +286,7 @@ namespace VoidFall.Persistence
             {
                 if (BrowserSaveImporter.TryConvert(raw, out var browserData))
                 {
+                    if (QuarantineFutureSave(browserData)) return Sanitize(browserData);
                     resolved = Sanitize(browserData);
                     persistMigration = true;
                 }
@@ -284,17 +294,14 @@ namespace VoidFall.Persistence
                 {
                     var data = JsonUtility.FromJson<SaveData>(raw);
                     if (data == null) throw new FormatException("Save root is not an object.");
-                    // Keep the raw value before Sanitize mutates the object to v5.
+                    if (QuarantineFutureSave(data)) return Sanitize(data);
+                    // Keep the raw value before sanitization upgrades legacy fields.
                     var storedVersion = data.version;
                     resolved = Sanitize(data);
                     // Browser loadSave() persists a v3/v4 migration immediately.
                     // Do the same for Unity-native saves so one-time protocol refunds
                     // and other legacy normalization cannot be applied again after a
                     // restart.
-                    // Browser loadSave() compares the raw stored version, not the
-                    // clamped value used by sanitization. Persist unknown/future
-                    // versions too, so the repaired v5 profile is durable and a
-                    // restart cannot re-enter the migration path.
                     persistMigration =
                         !string.Equals(sourcePath, _path, StringComparison.OrdinalIgnoreCase) ||
                         storedVersion != SaveVersion;
@@ -343,6 +350,11 @@ namespace VoidFall.Persistence
                     ? browserData
                     : JsonUtility.FromJson<SaveData>(raw);
                 if (data == null) throw new FormatException("Save backup root is not an object.");
+                if (QuarantineFutureSave(data))
+                {
+                    recovered = Sanitize(data);
+                    return true;
+                }
                 recovered = Sanitize(data);
             }
             catch (Exception exception)
@@ -420,7 +432,10 @@ namespace VoidFall.Persistence
             // Browser loadSave() attempts safeSet() but still returns the
             // usable profile when storage is unavailable.
             try { Save(data); }
-            catch { }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("VoidFall recovered profile could not be saved: " + exception.Message);
+            }
             return data;
         }
 
@@ -450,6 +465,12 @@ namespace VoidFall.Persistence
                 return false;
             }
 
+            if (browserData.version > SaveVersion)
+            {
+                error = "This profile needs a newer game version. The current profile was not changed.";
+                return false;
+            }
+
             try
             {
                 // An import replaces the whole profile and cannot be undone, so
@@ -463,6 +484,7 @@ namespace VoidFall.Persistence
                 // may proceed even if this session could not read the old file.
                 Save(imported, true);
                 _storageUnreadable = false;
+                UnsupportedSaveVersion = 0;
                 return true;
             }
             catch (Exception exception)
@@ -501,10 +523,13 @@ namespace VoidFall.Persistence
 
         private void Save(SaveData data, bool allowOverwriteUnreadable, bool preserveBackup)
         {
+            if (data != null && data.version > SaveVersion)
+                throw new NotSupportedException("Cannot write a profile from a newer save version.");
             if (_storageUnreadable && !allowOverwriteUnreadable)
             {
-                throw new IOException(
-                    "Refusing to overwrite the save file because it could not be read this session.");
+                throw new IOException(UnsupportedSaveVersion > SaveVersion
+                    ? "Refusing to overwrite a profile from a newer game version."
+                    : "Refusing to overwrite the save file because it could not be read this session.");
             }
 
             var sanitized = Sanitize(Clone(data));
@@ -538,6 +563,11 @@ namespace VoidFall.Persistence
                 if (File.Exists(_path)) File.Replace(temporaryPath, _path, preserveBackup ? null : _path + ".bak");
                 else File.Move(temporaryPath, _path);
                 _preserveBackupUntilSave = false;
+                if (allowOverwriteUnreadable)
+                {
+                    _storageUnreadable = false;
+                    UnsupportedSaveVersion = 0;
+                }
             }
             catch
             {
@@ -547,7 +577,8 @@ namespace VoidFall.Persistence
             }
         }
 
-        private static SaveData Clone(SaveData value)
+        /// <summary>Detached candidate for a profile transaction; never mutates the source.</summary>
+        public static SaveData Clone(SaveData value)
         {
             if (value == null) return CreateDefault();
             var copy = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(value));

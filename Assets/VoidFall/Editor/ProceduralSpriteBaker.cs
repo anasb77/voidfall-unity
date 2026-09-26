@@ -143,6 +143,43 @@ namespace VoidFall.Editor
             finally { ReleaseCatalogSnapshot(snapshot); }
         }
 
+        public static void BakeSurvivalSprites()
+        {
+            EnsureFolderTree(SpriteRoot);
+            var catalog = AssetDatabase.LoadAssetAtPath<ProceduralSpriteCatalog>(CatalogPath);
+            if (catalog == null) throw new InvalidOperationException("Base sprite catalog missing.");
+            var entries = new List<ProceduralSpriteCatalogEntry>();
+            var paths = new Dictionary<string, string>();
+            foreach (var entry in catalog.Entries)
+            {
+                if (entry.Key == "pickup|part" || entry.Key == "pickup|part-frame" || entry.Key == "pickup|part-cell")
+                    paths[entry.Key] = AssetDatabase.GetAssetPath(entry.Sprite);
+                else entries.Add(entry);
+            }
+            var snapshot = (ProceduralSpriteCatalog)InvokeFactory("BuildScrapCatalogSnapshot", null);
+            try
+            {
+                foreach (var entry in snapshot.Entries)
+                {
+                    var path = paths.TryGetValue(entry.Key, out var existing) ? existing :
+                        SpriteRoot + "/Sprite_extra_" + SafeFilename(entry.Key) + ".png";
+                    WriteSpritePng(path, entry.Sprite);
+                    ImportSprite(path, entry.Sprite, false);
+                    entries.Add(new ProceduralSpriteCatalogEntry(entry.Key, AssetDatabase.LoadAssetAtPath<Sprite>(path)));
+                }
+                WriteCatalog(entries);
+                AssetDatabase.SaveAssets();
+                Debug.Log("VOIDFALL_SURVIVAL baked three approved Scrap variants");
+            }
+            finally { ReleaseCatalogSnapshot(snapshot); }
+        }
+
+        public static void BakeSurvivalSpritesBatch()
+        {
+            try { BakeSurvivalSprites(); EditorApplication.Exit(0); }
+            catch (Exception error) { Debug.LogException(error); EditorApplication.Exit(1); }
+        }
+
         public static void BakeArsenalBatch()
         {
             try { BakeArsenal(); EditorApplication.Exit(0); }

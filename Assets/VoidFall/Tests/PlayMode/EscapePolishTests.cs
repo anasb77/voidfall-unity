@@ -86,6 +86,14 @@ namespace VoidFall.Tests.PlayMode
                     Call("UpdateJourneyFlow", 0.1f);
                     yield return null;
                 }
+                Assert.That(_runtime.JourneyStatus, Is.EqualTo("Junction"), "single exits also visit the dealer");
+                Call("OnRouteVoidChosen", nodeId);
+                deadline = Time.realtimeSinceStartup + 30f;
+                while (_runtime.JourneyStatus == "Travel" && Time.realtimeSinceStartup < deadline)
+                {
+                    Call("UpdateJourneyFlow", 0.1f);
+                    yield return null;
+                }
                 Assert.That(_runtime.JourneyStatus, Is.EqualTo("Combat"));
                 Assert.That(_runtime.CurrentVoidId, Is.EqualTo(nodeId));
                 Assert.That(Get("_arenaId"), Is.EqualTo(wanted));
@@ -345,6 +353,7 @@ namespace VoidFall.Tests.PlayMode
             var settings = ((SaveData)Get("_saveData")).settings;
             settings.shake = 1f; settings.reducedMotion = false;
             Call("OnVoidObjectiveCompleted");
+            settings = ((SaveData)Get("_saveData")).settings; // Clear progression publishes a detached committed profile.
             var early = 0f; var late = 0f;
             var method = _runtime.GetType().GetMethod("CameraShakeOffset", Flags);
             for (var sample = 0; sample < 20; sample++)

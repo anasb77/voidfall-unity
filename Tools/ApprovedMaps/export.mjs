@@ -16,7 +16,7 @@ const {drawOriginalSentinel,drawOriginalFamily}=await import('./src/court-origin
 const {drawCityAddition}=await import('./src/city-roster.js');
 const {drawInsect,drawHive}=await import('./src/insects.js');
 const {drawHydraFloor,drawLegacy}=await import('./src/hydra-art.js');
-const output=path.resolve(root,'../../Assets/VoidFall/Resources/VoidFall/ApprovedMaps');mkdirSync(output,{recursive:true});
+const output=path.resolve(root,'../../Assets/VoidFall/Generated/ApprovedMaps');mkdirSync(output,{recursive:true});
 const manifest=[];
 function save(name,c,width,height){writeFileSync(path.join(output,name+'.png'),c.toBuffer('image/png'));manifest.push({name,width,height,ppu:c.width/width});}
 function sprite(name,width,height,draw){const c=createCanvas(Math.round(width*4),Math.round(height*4)),g=c.getContext('2d');g.scale(4,4);g.translate(width/2,height/2);draw(g);save(name,c,width,height);}

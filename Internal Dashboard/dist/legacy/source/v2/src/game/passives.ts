@@ -1,0 +1,68 @@
+// ───────────────────────────────────────────────────────────────────
+// VOIDFALL v1.0 — 24 Passive Upgrades with rarities & categories
+// ───────────────────────────────────────────────────────────────────
+import type { PassiveDef, PassiveId } from "./types";
+
+export const PASSIVES: PassiveDef[] = [
+  // ── OFFENSIVE ──
+  { id: "damage", name: "Might", icon: "⚔", rarity: "common", max: 5, weight: 12,
+    description: (l) => `+${l * 12}% damage`, category: "offensive" },
+  { id: "critChance", name: "Precision", icon: "✦", rarity: "rare", max: 5, weight: 8,
+    description: (l) => `+${l * 7}% critical chance`, category: "offensive" },
+  { id: "critDmg", name: "Ruthless", icon: "✸", rarity: "rare", max: 4, weight: 7,
+    description: (l) => `+${l * 25}% critical damage`, category: "offensive" },
+  { id: "fireRate", name: "Haste", icon: "⚡", rarity: "common", max: 5, weight: 12,
+    description: (l) => `-${l * 8}% cooldown`, category: "offensive" },
+  { id: "projSpeed", name: "Velocity", icon: "→", rarity: "common", max: 3, weight: 6,
+    description: (l) => `+${l * 15}% projectile speed`, category: "offensive" },
+  { id: "areaSize", name: "Expansion", icon: "◎", rarity: "rare", max: 5, weight: 9,
+    description: (l) => `+${l * 12}% area of effect`, category: "offensive" },
+  { id: "pierce", name: "Phase Rounds", icon: "⟐", rarity: "rare", max: 4, weight: 7,
+    description: (l) => `+${l} piercing`, category: "offensive" },
+  { id: "statusDmg", name: "Affliction", icon: "☠", rarity: "epic", max: 4, weight: 5,
+    description: (l) => `+${l * 20}% burn/chain/spread damage`, category: "offensive" },
+  { id: "bossDmg", name: "Giant Slayer", icon: "⛨", rarity: "epic", max: 3, weight: 4,
+    description: (l) => `+${l * 20}% damage to bosses & elites`, category: "offensive" },
+  { id: "closeDmg", name: "Point Blank", icon: "⊗", rarity: "common", max: 3, weight: 6,
+    description: (l) => `+${l * 15}% damage at close range`, category: "offensive" },
+  { id: "longDmg", name: "Sniper", icon: "⊕", rarity: "common", max: 3, weight: 5,
+    description: (l) => `+${l * 15}% damage at long range`, category: "offensive" },
+
+  // ── DEFENSIVE ──
+  { id: "maxHp", name: "Vitality", icon: "♥", rarity: "common", max: 5, weight: 12,
+    description: (l) => `+${l * 20} max HP`, category: "defensive" },
+  { id: "armor", name: "Armor Plating", icon: "▣", rarity: "rare", max: 4, weight: 7,
+    description: (l) => `-${l * 3} flat damage taken`, category: "defensive" },
+  { id: "regen", name: "Regeneration", icon: "↻", rarity: "epic", max: 3, weight: 5,
+    description: (l) => `+${l * 0.5}% HP per second`, category: "defensive" },
+  { id: "shield", name: "Barrier", icon: "◇", rarity: "epic", max: 3, weight: 4,
+    description: (l) => `+${l * 15} max shield (absorbs damage)`, category: "defensive" },
+  { id: "dodge", name: "Evasion", icon: "≋", rarity: "legendary", max: 3, weight: 3,
+    description: (l) => `+${l * 5}% dodge chance`, category: "defensive" },
+  { id: "postHitDR", name: "Iron Skin", icon: "⊞", rarity: "rare", max: 3, weight: 5,
+    description: (l) => `-${l * 10}% damage taken for 1.5s after hit`, category: "defensive" },
+  { id: "emergHeal", name: "Second Wind", icon: "✚", rarity: "epic", max: 2, weight: 3,
+    description: (l) => `Heal ${l * 5}% max HP when below 25% (15s cd)`, category: "defensive" },
+
+  // ── UTILITY ──
+  { id: "moveSpeed", name: "Slipstream", icon: "↗", rarity: "common", max: 4, weight: 10,
+    description: (l) => `+${l * 8}% move speed`, category: "utility" },
+  { id: "magnet", name: "Magnet Core", icon: "⊛", rarity: "common", max: 4, weight: 10,
+    description: (l) => `+${l * 35}% pickup radius`, category: "utility" },
+  { id: "xpGain", name: "Scholar", icon: "✿", rarity: "rare", max: 4, weight: 8,
+    description: (l) => `+${l * 15}% experience gained`, category: "utility" },
+  { id: "currencyGain", name: "Fortune", icon: "$", rarity: "rare", max: 4, weight: 8,
+    description: (l) => `+${l * 15}% credits earned`, category: "utility" },
+  { id: "luck", name: "Fortuna", icon: "♠", rarity: "epic", max: 3, weight: 5,
+    description: (l) => `+${l * 10}% rare upgrade chance`, category: "utility" },
+  { id: "rerolls", name: "Reroll", icon: "↺", rarity: "rare", max: 99, weight: 0,
+    description: () => "+1 reroll at level up", category: "utility" },
+  { id: "banishes", name: "Banish", icon: "✕", rarity: "epic", max: 99, weight: 0,
+    description: () => "+1 banish option at level up", category: "utility" },
+  { id: "extraChoices", name: "Insight", icon: "◉", rarity: "epic", max: 3, weight: 3,
+    description: (l) => `+${l} additional upgrade choice`, category: "utility" },
+  { id: "dashCD", name: "Nimble", icon: "»", rarity: "rare", max: 3, weight: 6,
+    description: (l) => `-${l * 12}% dash cooldown`, category: "utility" },
+];
+
+export const PASSIVE_MAP = Object.fromEntries(PASSIVES.map((p) => [p.id, p])) as Record<PassiveId, PassiveDef>;

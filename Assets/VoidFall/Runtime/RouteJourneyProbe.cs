@@ -207,6 +207,14 @@ namespace VoidFall.Runtime
                     }
                     Call("SpawnPickup", new Vector2(2400f, 1600f), 15f);
                 }
+                // Hydra's boss arrives during the covered same-visit transition.
+                // Killing the old empty pool before the swap strands this probe.
+                var phaseDeadline = Time.realtimeSinceStartup + 30f;
+                while ((bool)Get("_hydraPhaseTransition") && _runtime.JourneyStatus == "Travel")
+                {
+                    if (Time.realtimeSinceStartup >= phaseDeadline) throw new TimeoutException("Hydra II did not arrive.");
+                    yield return null;
+                }
                 var bosses = (Array)sim.GetType().GetField("Bosses", Flags).GetValue(sim);
                 for (var index = 0; index < bosses.Length; index++)
                 {
@@ -231,7 +239,7 @@ namespace VoidFall.Runtime
                 while (Time.realtimeSinceStartup < deadline)
                 {
                     if (_mode == "escape" && _runtime.JourneyStatus == "Rewards" && !(bool)Get("_paused") &&
-                        captureIndex < 3 && 15f - (float)Get("_voidCompletionDelayRemaining") >= new[] { 2f, 7f, 13f }[captureIndex])
+                        captureIndex < 3 && 10f - (float)Get("_voidCompletionDelayRemaining") >= new[] { 2f, 5f, 8f }[captureIndex])
                     {
                         yield return new WaitForEndOfFrame();
                         ScreenCapture.CaptureScreenshot(_output + "-escape-" + captureIndex + ".png");
@@ -276,6 +284,8 @@ namespace VoidFall.Runtime
                         Application.Quit(0);
                         yield break;
                     }
+                    if (_runtime.JourneyStatus == "Complete" && (bool)Get("_runSaved") && _runtime.DirectorResultNeedsAcknowledgement)
+                        Call("AcknowledgeDirectorResult");
                     if ((bool)Get("_mainMenuBrowsing"))
                     {
                         var saved = store.Load();
@@ -306,7 +316,9 @@ namespace VoidFall.Runtime
                         Set("_junctionAge", 1f);
                         var playerField = sim.GetType().GetField("Player", Flags);
                         var player = playerField.GetValue(sim);
-                        player.GetType().GetField("Position", Flags).SetValue(player, (Vector2)portals[branch].transform.position);
+                        var destinations = (string[])Get("_junctionDestinations");
+                        var portalIndex = Math.Min(branch, destinations.Length - 1);
+                        player.GetType().GetField("Position", Flags).SetValue(player, (Vector2)portals[portalIndex].transform.position);
                         playerField.SetValue(sim, player);
                     }
                     if (_runtime.JourneyStatus == "Combat" && _runtime.CurrentVoidId != source)

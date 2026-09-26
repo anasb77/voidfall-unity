@@ -9,15 +9,45 @@ scan by default.** Expand only when evidence crosses a boundary or the user
 explicitly requests a broad audit. Update the map when changing ownership,
 entry points or important invariants; do not turn it into a change log.
 
-Check `git status` before editing and preserve unrelated work. Historical
-findings live in `Docs/AI/ReleaseReadiness-2026-09-04.md`; consult them when
-relevant, not as mandatory context for every change.
+Check `git status` before editing and preserve unrelated work. This file and
+`Docs/REPO_MAP.md` define standing development contracts, including the intended
+behavior after foundation repairs. They do not certify that a repair has passed.
+Current implementation/validation status belongs in
+`Docs/AI/FoundationRepairStatus.md`. The September 26 evidence is in
+`Docs/AI/DeepAudit-2026-09-26.md` and
+`Docs/AI/MuseAuditVerification-2026-09-26.md`; consult the relevant finding,
+not both reports in full for an unrelated task. The latter distinguishes
+verified defects from rejected claims and untested design proposals.
 
-`voidfall-unity` is the canonical source project. The sibling director/journey
-worktrees are preserved recovery references, not competing release projects.
+The directory containing this file, `Assets/`, `Packages/` and `ProjectSettings/`
+is the canonical Unity source root. Its parent holds `Builds/`, `Prototypes/`
+and launch helpers; do not mistake the outer folder for the Unity project.
+Sibling director/journey worktrees are preserved recovery references.
 Use `../START_HERE.md` for launch instructions and
 `Docs/Design/2026-09-12-Consolidation.md` for source provenance. Preserve the
 designated `../Builds/Archive/` releases and the live `../Builds/RunExports/`.
+
+## Parallel work and prototypes
+
+Map/asset prototyping and foundation repair may proceed in parallel. Keep
+exploratory output in a named folder under `../Prototypes/` or the task's
+agreed output location. Label the study's purpose, references and approval
+status. A prototype's existence, polish or inclusion in the dashboard does
+not approve production integration, new lore or replacement artwork.
+
+For prototype work, start with the art/arena sections of `Docs/REPO_MAP.md`
+and the relevant approved design reference. Preserve Zack's normal scale,
+arena-specific identities and the readability of enemies, hazards and HUD.
+Record intended world dimensions, camera framing, collision bounds, texture
+sizes and effect density so a later integration can be assessed concretely.
+
+Keep prototype tasks away from profile transactions, journey flow, pool
+admission, telemetry, shared input and production rendering changes unless
+their task includes that integration. Before touching a shared file, inspect
+its current diff and the repair status record. Never discard another task's
+edits or repin a golden master to make concurrent work pass. Coordinate Unity
+Editor/test/build/bake use: only one task may operate on this checkout's
+Editor/import state at a time. Prototype previews need not build the game.
 
 ## Character, art direction and Workshop
 
@@ -138,6 +168,51 @@ Content deliberately uses the `VoidFall.Core` namespace.
   not tint the player/HUD; keep authored Hydra art rather than replacing it
   with procedural approximations.
 
+## Foundation boundaries
+
+- **Profile commits:** stage a complete candidate profile, persist it once,
+  then publish the committed state and success UI. Workshop Scraps and ranks,
+  form unlocks, and terminal run totals/records must commit together within
+  their transaction. Nested helpers must not write an intermediate profile.
+  A failed write leaves live progression and its last good disk state intact.
+- **Wallets and compatibility:** dealer purchases spend the current run's
+  earned Scraps; Workshop spends saved profile Scraps. Do not debit one wallet
+  to repair the other. Preserve existing schema IDs and legacy adapters. A
+  complete Unity profile transfer must retain forms, unlocks, cleared-void IDs
+  and all settings. Browser compatibility exports must state their scope.
+  Preserve/quarantine future-version saves without silently downgrading them.
+- **Journey:** each of the five between-void crossings includes the safe
+  dealer room, including a single destination. Route planning is separate
+  from committed travel. Commit the destination before its objective begins;
+  retain the same-visit Hydra I/II transition. Reward choices own their pause
+  until resolved, and an off-screen relic must not strand departure.
+- **Pool retirement:** keep active flags, order tables, admission counters,
+  provenance, identity sidecars and views consistent on expiry, interception,
+  mass clear and slot reuse. Clearing hostile shots also restores curved-shot
+  capacity. Reuse the owning cleanup path rather than another partial reset.
+- **Spawn admission:** native arena caps apply to every applicable arrival
+  path, including queued offspring. Defer eligible births with their identity
+  and reward ownership intact. Do not cull survivors on a lower-cap phase or
+  silently use the global 750-body pool as a native arena budget.
+- **Assets:** define one release owner for each generated object and loaded
+  asset family. Detach views/caches before releasing packages. Register owned
+  material instances for destruction; do not mutate a shared material to fix
+  an instance leak. New full arena art must not acquire a second permanent
+  Resources cache outside the arena lifetime. Tiny route thumbnails are separate.
+- **UI/input:** the active modal owns submit/cancel and suppresses background
+  shortcuts. Set valid initial/restored focus for keyboard/controller users;
+  selection and pointer hover must expose equivalent actionable information.
+  Check HUD contrast over bright arenas and respect reduced-motion settings.
+- **Hot paths:** bind stable simulation callbacks outside per-tick loops.
+  Keep collision queries conservative for grown actors without scanning a
+  maximum-sized neighborhood unnecessarily. Preserve query order, collision
+  coverage and RNG behavior. Keep telemetry queues bounded and loss visible;
+  improve serialization without dropping the facts needed for balance work.
+
+Treat these as requirements for new work and regression tests. Use the repair
+status record and actual results to establish which existing paths satisfy
+them; do not infer completion from this document's present-tense contracts.
+
 ## Music and reward presentation
 
 Owner direction: a gameplay song loops in full until a Track Shift pickup changes
@@ -167,13 +242,14 @@ network uploads, per-hit file writes or unbounded queues. Keep exports outside
 Assets, in `RunExports` beside the player; isolate automated tests. If capture
 is incomplete, report counters/errors explicitly rather than hiding losses.
 
-Director I version 7 is implemented with a 750-actor ceiling; owner difficulty
+Director I version 8 is implemented with a 750-actor ceiling; owner difficulty
 tuning remains a playtest decision. Its live path is `.DirectorI.cs`, not the
 legacy 64/128/192 profile bands. See the sustained-combat design and validation
-documents in `Docs/Design/`. Next owner priorities are map-size correction,
-then adapted enemy health. Keep these separate from exporter maintenance.
+documents in `Docs/Design/`. Approved map dimensions are recorded below.
+Further health, density, run-length and arena-objective changes are balance
+decisions; an audit suggestion does not authorize silently retuning them.
 
-Owner-approved follow-up: survival is **360 seconds per void**. Loot policy v2
+Owner-approved follow-up: survival is **360 seconds per void**. Loot policy v3
 reserves special-drop capacity, preserves currency/charges when consolidating,
 and returns distant earned loot into reach without directly granting it.
 That earlier loot pass did not include physical arena changes. The owner-approved
@@ -181,6 +257,9 @@ September12 map integration now owns those changes separately.
 Read `Docs/Design/2026-09-08-LootReachability-SixMinutes.md` before changing
 pickup allocation/iteration or time-dependent arena/director rules. Pickup
 generation snapshots must prevent same-tick collection of newborn rewards.
+The safe escape window is ten active seconds; modal choices suspend it.
+Six survival phases already require 36 minutes before bosses and crossings.
+Do not promise a 30-minute completed run or shorten the phases implicitly.
 
 ## Approved map integration (September20)
 
@@ -190,6 +269,9 @@ The owner approved the final browser map study for native implementation.
 Null City uses slider50% (860 vertical world units); Hydra and Court use60%
 (908 units). Preserve normal Zack size and the Spatial Awareness zoom bonus.
 Court and City cameras remain bounded to their authored surfaces.
+Null City's full artwork is centered on its origin; its offset walkable floor
+is a different rectangle. Do not recenter the camera using the floor midpoint
+or confuse world-layout scale with prop, actor or effect scale.
 
 Null City retains its original architecture and mechanics with a1.6× expanded
 layout (2560×1440 art,1984×841.6 floor). Positions expand; props, enemies and
@@ -256,6 +338,16 @@ and logs before claiming success. Historical passing counts are not validation.
 Protect real saves during runtime tests. Stress-probe completion alone does
 not prove active simulation or performance; inspect advancement and captures.
 
+The current comparison PC is the owner's i7-7700HQ / GTX 1060 6 GB / approximately
+16 GB RAM machine at 1920×1080, 60 Hz. Use 60 FPS / 16.7 ms as the working comparison
+target, not an established minimum-spec guarantee. Compare the same build
+configuration, seed, loadout, arena, density and measurement window; verify
+combat ticks/kills advance and report median, p95, p99 and spikes. A missing
+GPU/GC counter means unavailable, not zero cost. Run Editor/build work outside
+accepted player benchmark windows. Report measured gains after repairs rather
+than predicting a percentage or equating lower graphics settings with faster
+simulation. Asset, input and visual changes need their own relevant checks.
+
 ## Exclude by default
 
 Do not scan or edit `Library/`, `Temp/`, `Logs/`, `TestResults/`, `obj/`, `.vs/`,
@@ -265,3 +357,13 @@ Never commit these artifacts. The deprecated browser/React prototype is out
 of scope. Do not hand-edit `ContentCatalog.Generated.cs`, generated arena/sprite
 assets or Addressables output as a shortcut; use their authoring/baking path.
 Change packages, project settings, scenes and prefabs only when the task requires it.
+
+## Internal development dashboard
+
+The owner’s content inventory lives in `Internal Dashboard/` beside `Assets/`.
+Read `Internal Dashboard/Tool Description.md` for scope and maintenance.
+Keep it in this repository and include its relevant files/generated snapshots
+when the owner asks to commit or push the project. After changing cataloged
+content or art, run `Internal Dashboard/Refresh-Inventory.ps1` and validate the
+updated live inventory and legacy comparison. Archive presence does not approve
+migration of old browser designs. Dashboard work must not modify gameplay.

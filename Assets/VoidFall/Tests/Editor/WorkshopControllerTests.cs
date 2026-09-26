@@ -23,7 +23,15 @@ namespace VoidFall.Tests.Editor
             public void ApplyLiveSettings() { }
             public System.Collections.Generic.IReadOnlyList<HighScoreEntry> GetHighScores() => System.Array.Empty<HighScoreEntry>();
             public LifetimeStats GetLifetimeStats() => null;
-            public bool TryPersistProfile() { PersistCalls++; return PersistSucceeds; }
+            public SaveData CandidateSeen;
+            public SaveData CommittedProfile;
+            public bool TryCommitProfile(SaveData candidate)
+            {
+                PersistCalls++;
+                CandidateSeen = SaveStore.Clone(candidate);
+                if (PersistSucceeds) CommittedProfile = CandidateSeen;
+                return PersistSucceeds;
+            }
         }
 
         private static WorkshopEntry Entry(string id, int rank) => new WorkshopEntry { id = id, rank = rank };
@@ -53,6 +61,8 @@ namespace VoidFall.Tests.Editor
             profile.parts = 42;
             profile.workshop[0].rank = 2;
             Assert.That(controller.TrySelectForm(profile, PlayerForms.DasherId, out _), Is.True);
+            Assert.That(profile.form, Is.EqualTo(PlayerForms.DefaultId), "The source is never mutated during staging.");
+            profile = bridge.CommittedProfile;
             Assert.That(profile.form, Is.EqualTo(PlayerForms.DasherId));
             Assert.That(bridge.PersistCalls, Is.EqualTo(1));
             Assert.That(profile.parts, Is.EqualTo(42));
@@ -106,14 +116,18 @@ namespace VoidFall.Tests.Editor
         {
             var bridge = new FakeBridge();
             var controller = new WorkshopController(bridge);
-            var entries = new List<WorkshopEntry> { Entry("integrity", 0) };
-            var parts = 35;
+            var entries = new[] { Entry("integrity", 0) };
+            var profile = SaveStore.CreateDefault();
+            profile.parts = 35;
 
-            var ok = controller.TryPurchase(entries, ref parts, "integrity", out var notice);
+            profile.workshop = entries;
+            var ok = controller.TryPurchase(profile, "integrity", out var notice);
 
             Assert.That(ok, Is.True);
-            Assert.That(parts, Is.EqualTo(0));
-            Assert.That(entries[0].rank, Is.EqualTo(1));
+            Assert.That(bridge.CandidateSeen.parts, Is.Zero, "Persistence sees the debit, not the old wallet.");
+            Assert.That(profile.parts, Is.EqualTo(35));
+            Assert.That(bridge.CandidateSeen.workshop[0].rank, Is.EqualTo(1));
+            Assert.That(entries[0].rank, Is.Zero);
             Assert.That(bridge.PersistCalls, Is.EqualTo(1));
             Assert.That(notice, Does.Contain("rank 1"));
         }
@@ -123,13 +137,15 @@ namespace VoidFall.Tests.Editor
         {
             var bridge = new FakeBridge();
             var controller = new WorkshopController(bridge);
-            var entries = new List<WorkshopEntry> { Entry("power", 0) };
-            var parts = 44;
+            var entries = new[] { Entry("power", 0) };
+            var profile = SaveStore.CreateDefault();
+            profile.parts = 44;
 
-            var ok = controller.TryPurchase(entries, ref parts, "power", out var notice);
+            profile.workshop = entries;
+            var ok = controller.TryPurchase(profile, "power", out var notice);
 
             Assert.That(ok, Is.False);
-            Assert.That(parts, Is.EqualTo(44), "balance must not change on a rejected purchase");
+            Assert.That(profile.parts, Is.EqualTo(44), "balance must not change on a rejected purchase");
             Assert.That(entries[0].rank, Is.EqualTo(0));
             Assert.That(bridge.PersistCalls, Is.EqualTo(0), "nothing to persist when the purchase is rejected");
             Assert.That(notice, Does.Contain("Need 1 more Scraps."));
@@ -140,13 +156,15 @@ namespace VoidFall.Tests.Editor
         {
             var bridge = new FakeBridge();
             var controller = new WorkshopController(bridge);
-            var entries = new List<WorkshopEntry> { Entry("integrity", 3) };
-            var parts = 999;
+            var entries = new[] { Entry("integrity", 3) };
+            var profile = SaveStore.CreateDefault();
+            profile.parts = 999;
 
-            var ok = controller.TryPurchase(entries, ref parts, "integrity", out var notice);
+            profile.workshop = entries;
+            var ok = controller.TryPurchase(profile, "integrity", out var notice);
 
             Assert.That(ok, Is.False);
-            Assert.That(parts, Is.EqualTo(999));
+            Assert.That(profile.parts, Is.EqualTo(999));
             Assert.That(notice, Does.Contain("maximum rank"));
         }
 
@@ -155,13 +173,15 @@ namespace VoidFall.Tests.Editor
         {
             var bridge = new FakeBridge { PersistSucceeds = false };
             var controller = new WorkshopController(bridge);
-            var entries = new List<WorkshopEntry> { Entry("magnet", 1) };
-            var parts = 60;
+            var entries = new[] { Entry("magnet", 1) };
+            var profile = SaveStore.CreateDefault();
+            profile.parts = 60;
 
-            var ok = controller.TryPurchase(entries, ref parts, "magnet", out var notice);
+            profile.workshop = entries;
+            var ok = controller.TryPurchase(profile, "magnet", out var notice);
 
             Assert.That(ok, Is.False);
-            Assert.That(parts, Is.EqualTo(60), "Parts must be rolled back when storage fails");
+            Assert.That(profile.parts, Is.EqualTo(60), "Parts must be rolled back when storage fails");
             Assert.That(entries[0].rank, Is.EqualTo(1), "rank must be rolled back when storage fails");
             Assert.That(notice, Does.Contain("could not be saved"));
         }
@@ -172,14 +192,17 @@ namespace VoidFall.Tests.Editor
             var bridge = new FakeBridge();
             var controller = new WorkshopController(bridge);
             // integrity rank 2 (35+75) + power rank 1 (45) + protocol rank 1 (120)
-            var entries = new List<WorkshopEntry> { Entry("integrity", 2), Entry("power", 1), Entry("protocol", 1) };
-            var parts = 10;
+            var entries = new[] { Entry("integrity", 2), Entry("power", 1), Entry("protocol", 1) };
+            var profile = SaveStore.CreateDefault();
+            profile.parts = 10;
 
-            var refunded = controller.RefundAll(entries, ref parts);
+            profile.workshop = entries;
+            Assert.That(controller.TryRefundAll(profile, out var refunded, out _), Is.True);
 
             Assert.That(refunded, Is.EqualTo(275));
-            Assert.That(parts, Is.EqualTo(285));
-            foreach (var entry in entries) Assert.That(entry.rank, Is.EqualTo(0));
+            Assert.That(profile.parts, Is.EqualTo(10));
+            Assert.That(bridge.CandidateSeen.parts, Is.EqualTo(285));
+            foreach (var entry in bridge.CandidateSeen.workshop) Assert.That(entry.rank, Is.EqualTo(0));
             Assert.That(bridge.PersistCalls, Is.EqualTo(1));
         }
 
@@ -188,13 +211,31 @@ namespace VoidFall.Tests.Editor
         {
             var bridge = new FakeBridge();
             var controller = new WorkshopController(bridge);
-            var parts = 10;
+            var profile = SaveStore.CreateDefault();
+            profile.parts = 10;
 
-            var refunded = controller.RefundAll(null, ref parts);
+            Assert.That(controller.TryRefundAll(null, out var refunded, out _), Is.True);
 
             Assert.That(refunded, Is.EqualTo(0));
-            Assert.That(parts, Is.EqualTo(10));
+            Assert.That(profile.parts, Is.EqualTo(10));
             Assert.That(bridge.PersistCalls, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Failed_refund_retains_the_entire_profile_and_does_not_report_scraps()
+        {
+            var bridge = new FakeBridge { PersistSucceeds = false };
+            var profile = SaveStore.CreateDefault();
+            profile.parts = 65;
+            profile.workshop[0].rank = 1;
+            Assert.That(new WorkshopController(bridge).TryRefundAll(profile, out var refunded, out var notice), Is.False);
+            Assert.That(refunded, Is.Zero);
+            Assert.That(profile.parts, Is.EqualTo(65));
+            Assert.That(profile.workshop[0].rank, Is.EqualTo(1));
+            Assert.That(bridge.CandidateSeen.parts, Is.EqualTo(100));
+            Assert.That(bridge.CandidateSeen.workshop[0].rank, Is.Zero);
+            Assert.That(bridge.CommittedProfile, Is.Null);
+            Assert.That(notice, Does.Contain("could not be saved"));
         }
 
         [Test]
@@ -202,7 +243,7 @@ namespace VoidFall.Tests.Editor
         {
             var bridge = new FakeBridge();
             var controller = new WorkshopController(bridge);
-            var entries = new List<WorkshopEntry> { Entry("integrity", 2), Entry("protocol", 0) };
+            var entries = new[] { Entry("integrity", 2), Entry("protocol", 0) };
 
             var rows = controller.BuildRows(Order, 50, entries);
 

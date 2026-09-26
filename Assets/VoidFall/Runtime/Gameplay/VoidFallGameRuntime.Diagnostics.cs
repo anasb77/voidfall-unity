@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using VoidFall.Core;
 
 namespace VoidFall.Runtime
 {
@@ -22,11 +23,28 @@ namespace VoidFall.Runtime
             if (_stressScenario == null && !_directorPlaytestActive) return;
             _benchmarkDriving = true;
             _diagnosticSimulationCpuMilliseconds = 0;
-            // A diagnostic run chooses an offered upgrade through the real grant path.
-            // Normal runs never call this; unknown/manual pause ownership is not overridden.
+            // Only an explicitly enabled automated scenario owns focus pauses.
+            if (_applicationInactive) SetApplicationActive(true);
+            if (_rouletteActive && _rouletteSession != null)
+            {
+                RouletteRules.Spin(_rouletteSession, _rouletteRng);
+                OnRouletteComplete(_rouletteSession);
+            }
+            if (_prizeRevealActive)
+            {
+                if (_rouletteClaimIndex < _rouletteClaims.Count)
+                    ClaimRouletteReward(_rouletteClaimGeneration, _rouletteClaimIndex);
+                else ClosePrizeReveal();
+            }
+            // Rewards still use the production RNG and committed grant paths.
+            // Diagnostic animation skipping never runs in ordinary gameplay.
             if (_levelUpActive && _levelOptions != null && _levelOptions.Length > 0)
                 SelectLevelOption(0);
             if (_directorPlaytestActive && _revivePending) AcceptRevive();
+            if (_paused && !_levelUpActive && !_rouletteActive && !_prizeRevealActive &&
+                !_revivePending && !_dealerOpen && !_routeMapOpen && !_gameOver &&
+                _menuPage == MenuPage.None && _journeyStage == JourneyStage.Combat)
+                TogglePause();
         }
 
         private void ResetDiagnosticCounters()

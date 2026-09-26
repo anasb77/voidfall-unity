@@ -347,12 +347,12 @@ namespace VoidFall.Tests.PlayMode
             var blockedParent = Path.Combine(_temporaryDirectory, "blocked-parent");
             File.WriteAllText(blockedParent, "A file prevents creation of the save directory.");
             Set(_runtime, "_saveStore", new SaveStore(Path.Combine(blockedParent, "profile.json")));
+            LogAssert.Expect(LogType.Warning, new Regex("^VoidFall profile could not be saved:"));
             LogAssert.Expect(LogType.Error, new Regex("^VoidFall run save failed:"));
 
             FinishSingleVoidRoute();
-            // Snapshot at the save-attempt boundary: the completed Void was
-            // recorded into the profile (form unlock gates, spec §05) before
-            // the save ran, and the failed save must still retain all of it.
+            // Both failed commits must retain the original profile. The route
+            // keeps the clear for the later successful terminal retry.
             var profileBefore = JsonUtility.ToJson(Get(_runtime, "_saveData"));
             var diskBefore = File.ReadAllText(_testStore.PathOnDisk);
             _runtime.enabled = true;

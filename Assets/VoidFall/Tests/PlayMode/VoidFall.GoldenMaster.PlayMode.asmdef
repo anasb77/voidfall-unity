@@ -9,7 +9,9 @@
         "VoidFall.Runtime",
         "VoidFall.Audio",
         "VoidFall.UI",
-        "VoidFall.Persistence"
+        "VoidFall.Persistence",
+        "Unity.InputSystem",
+        "Unity.ugui"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

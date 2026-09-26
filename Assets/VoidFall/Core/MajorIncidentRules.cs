@@ -67,9 +67,10 @@ namespace VoidFall.Core
 
     public static class MajorIncidentRules
     {
-        public const double WarningSeconds = 2.5;
+        // Owner direction: every major incident warns ~10s before going active.
+        public const double WarningSeconds = 10;
         public const double ActivationSeconds = 1.5;
-        public const double BlackHoleWarningSeconds = 1;
+        public const double BlackHoleWarningSeconds = 10;
         public const double BlackHoleActivationSeconds = .5;
         public const double BossLeadSeconds = 15;
         public const float BlackHoleRadius = 230f;

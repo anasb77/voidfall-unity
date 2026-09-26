@@ -150,6 +150,10 @@ namespace VoidFall.Runtime
                 restorationVersion = LegacyRestorationRules.Version,
                 arrivalRateMultiplier = LegacyRestorationRules.ArrivalRateMultiplier,
                 ordinaryRareDropChance = LegacyRestorationRules.OrdinaryRareDropChance,
+                ordinaryScrapDropChance = SurvivalSupportRules.OrdinaryScrapChance,
+                survivalSupportVersion = SurvivalSupportRules.Version,
+                lifeStealKillThreshold = SurvivalSupportRules.KillThreshold, scavengerScrapThreshold = SurvivalSupportRules.ScrapThreshold,
+                playerHitImmunitySeconds = CombatRules.PlayerHitImmunitySeconds,
                 overclockMaximumBankedSeconds = OverclockRules.MaximumBankedSeconds,
                 xpMultiplierAfterLevelFive = 1.25,
                 boomerangSizeScale = ArsenalContent.BoomerangSizeScale,
@@ -168,6 +172,12 @@ namespace VoidFall.Runtime
                 enemyCapacity = MaxEnemies,
                 initialPopulationLimit = DirectorBodyLimit(),
                 directorVersion = UsesSustainedDirector ? SustainedDirectorVersion : 1,
+                directorRosterScheduleVersion = 1,
+                sharedDirectorStage = _sharedDirectorVisitIndex,
+                lateAbyssTierTwoMinimumShare = (float)LegacyRestorationRules.LateAbyssTierTwoMinimumShare,
+                lateAbyssTierTwoMaximumShare = (float)LegacyRestorationRules.LateAbyssTierTwoMaximumShare,
+                secondSharedTierTwoMinimumShare = (float)LegacyRestorationRules.SecondSharedTierTwoMinimumShare,
+                secondSharedTierTwoMaximumShare = (float)LegacyRestorationRules.SecondSharedTierTwoMaximumShare,
                 lootPolicyVersion = LootPolicyVersion,
                 pickupCapacity = MaxPickupSlots,
                 xpMergeDelaySeconds = XpMergeDelaySeconds,
@@ -294,7 +304,8 @@ namespace VoidFall.Runtime
                 _encounter.Phase == CombatEncounterPhase.Deployment ? "encounter" :
                 CurrentVoidIsNullCity || CurrentVoidIsMonochrome ? "native_arena" : "ambient";
             evt.relatedInstanceId = enemy.SummonedByBossTelemetryId != 0 ? enemy.SummonedByBossTelemetryId : _factionControllerIdentity;
-            evt.detail = "mutation=" + enemy.MutationGene + ";shield=" + enemy.Shield.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            evt.detail = "mutation=" + enemy.MutationGene + ";shield=" + enemy.Shield.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                ";sharedStage=" + _sharedDirectorVisitIndex + ";local=" + LocalDirectorSurvivalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
             _telemetry.RecordHistory(evt);
         }
 

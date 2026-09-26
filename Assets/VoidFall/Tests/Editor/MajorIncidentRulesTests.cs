@@ -10,14 +10,14 @@ namespace VoidFall.Tests.Editor
         {
             var state = new MajorIncidentState();
             state.Begin(MajorIncidentKind.BlackHole);
-            state.Step(11.5);
+            state.Step(20.5);
             state.Step(1 - 1e-16);
             Assert.That(state.Phase, Is.EqualTo(MajorIncidentPhase.None));
             Assert.That(state.Kind, Is.EqualTo(MajorIncidentKind.None));
         }
-        [TestCase(MajorIncidentKind.BlackHole, 1, .5, 10, 1.5, 12.5)]
-        [TestCase(MajorIncidentKind.DestroyerRaid, 2.5, 1.5, 32, 3, 37.5)]
-        [TestCase(MajorIncidentKind.Eclipse, 2.5, 1.5, 19.5, 2, 24)]
+        [TestCase(MajorIncidentKind.BlackHole, 10, .5, 10, 1.5, 21.5)]
+        [TestCase(MajorIncidentKind.DestroyerRaid, 10, 1.5, 32, 3, 45)]
+        [TestCase(MajorIncidentKind.Eclipse, 10, 1.5, 19.5, 2, 31.5)]
         public void Lifecycle_preserves_warning_active_release_and_cleans_up(
             MajorIncidentKind kind, double warning, double activation, double active, double release, double total)
         {
@@ -43,9 +43,9 @@ namespace VoidFall.Tests.Editor
             AssertReset(state);
         }
 
-        [TestCase(MajorIncidentKind.BlackHole, 11.75)]
-        [TestCase(MajorIncidentKind.DestroyerRaid, 36)]
-        [TestCase(MajorIncidentKind.Eclipse, 23)]
+        [TestCase(MajorIncidentKind.BlackHole, 20.75)]
+        [TestCase(MajorIncidentKind.DestroyerRaid, 43.5)]
+        [TestCase(MajorIncidentKind.Eclipse, 30.5)]
         public void Large_step_crosses_multiple_phases_with_same_result_as_partitioned_steps(
             MajorIncidentKind kind, double elapsed)
         {
@@ -74,9 +74,9 @@ namespace VoidFall.Tests.Editor
         {
             var state = new MajorIncidentState();
             state.Begin(MajorIncidentKind.BlackHole);
-            state.Step(1.25);
+            state.Step(10.25);
             state.Step(dt);
-            Assert.That(state.Elapsed, Is.EqualTo(1.25));
+            Assert.That(state.Elapsed, Is.EqualTo(10.25));
             Assert.That(state.Remaining, Is.EqualTo(11.25));
             Assert.That(state.Phase, Is.EqualTo(MajorIncidentPhase.Active));
             Assert.That(state.Strength, Is.EqualTo(0.5));
@@ -95,7 +95,7 @@ namespace VoidFall.Tests.Editor
             state.Begin(MajorIncidentKind.DestroyerRaid);
             Assert.That(state.Elapsed, Is.Zero);
             Assert.That(state.Strength, Is.Zero);
-            Assert.That(state.Remaining, Is.EqualTo(37.5));
+            Assert.That(state.Remaining, Is.EqualTo(45));
             state.Begin((MajorIncidentKind)99);
             AssertReset(state);
             state.Begin(MajorIncidentKind.None);
@@ -119,9 +119,9 @@ namespace VoidFall.Tests.Editor
             Assert.That(MajorIncidentRules.IsArenaEligible(arenaId), Is.EqualTo(eligible));
         }
 
-        [TestCase(MajorIncidentKind.BlackHole, 27.5)]
-        [TestCase(MajorIncidentKind.DestroyerRaid, 52.5)]
-        [TestCase(MajorIncidentKind.Eclipse, 39)]
+        [TestCase(MajorIncidentKind.BlackHole, 36.5)]
+        [TestCase(MajorIncidentKind.DestroyerRaid, 60)]
+        [TestCase(MajorIncidentKind.Eclipse, 46.5)]
         public void Admission_reserves_complete_incident_and_boss_lead_time(MajorIncidentKind kind, double required)
         {
             Assert.That(MajorIncidentRules.CanBegin(kind, required, false, false, false), Is.True);

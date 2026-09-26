@@ -125,7 +125,7 @@ namespace VoidFall.UI
             var layout = UIBuilder.CreateRect(content, "Layout");
             layout.anchorMin = Vector2.zero;
             layout.anchorMax = Vector2.one;
-            layout.offsetMin = Vector2.zero;
+            layout.offsetMin = new Vector2(0f, 42f);
             layout.offsetMax = new Vector2(0f, -148f);
 
             BuildPreviewColumn(layout);
@@ -682,8 +682,9 @@ namespace VoidFall.UI
     /// Reports pointer enter and exit, used by the workshop rows to drive the
     /// preview the same way the browser build's pointer handlers do.
     /// </summary>
-    public sealed class UIFocusTrigger : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+    public sealed class UIFocusTrigger : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, ISelectHandler, IDeselectHandler
     {
+        private bool _hovered, _selected;
         private System.Action _onEnter;
         private System.Action _onExit;
 
@@ -693,8 +694,11 @@ namespace VoidFall.UI
             _onExit = onExit;
         }
 
-        public void OnPointerEnter(PointerEventData eventData) => _onEnter?.Invoke();
+        public void OnPointerEnter(PointerEventData eventData) { _hovered = true; _onEnter?.Invoke(); }
+        public void OnSelect(BaseEventData eventData) { _selected = true; _onEnter?.Invoke(); }
+        public void OnDeselect(BaseEventData eventData) { _selected = false; if (!_hovered) _onExit?.Invoke(); }
+        private void OnDisable() { _hovered = _selected = false; _onExit?.Invoke(); }
 
-        public void OnPointerExit(PointerEventData eventData) => _onExit?.Invoke();
+        public void OnPointerExit(PointerEventData eventData) { _hovered = false; if (!_selected) _onExit?.Invoke(); }
     }
 }

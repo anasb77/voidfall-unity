@@ -49,6 +49,11 @@ A giant rotating cube. Owner approved the proposed moveset:
   rotation determines which faces can fire, so players read the rotation.
 - **Row shuffle:** periodically the cube "turns" a row/column, displacing
   hazards or minion positions in the arena (presentation twist, same math).
+- **Shield orbit (unlocked at 50% HP):** the cube summons a ring of small
+  squares that spin fast around it as a guard. The boss is immune while any
+  shield square remains — the player must shoot the squares down (they also
+  hurt on contact). Once the ring is cleared the cube resummons it after a
+  short breather, so the mechanic stays live for the rest of the form.
 - **Break:** on defeat the cube shatters into mini-cube shards (FX only) and
   the Hexahedron Form is revealed.
 
@@ -72,9 +77,11 @@ Owner picked the busiest structure: the boss fights **alongside** its echoes.
 
 - Teleports between arena corners (Hydra-evasion-style sockets) and fires
   **aimed beams** at the player.
-- At fight start summons **Unstable Warden**; at a health threshold summons
-  **Unstable Reaver**. Both use their existing attack logic with the corrupted
-  authored sprites; they are echoes, so no Scraps/objective rewards of their own.
+- **Summons both echoes at form start — the fight becomes a 1v3 at once**
+  (owner decision, 2026-09-22; supersedes the earlier threshold-staggered plan):
+  **Unstable Warden** and **Unstable Reaver** enter together. Both use their
+  existing attack logic with the corrupted authored sprites; they are echoes,
+  so no Scraps/objective rewards of their own.
 - Two visual sub-phases (`unstable phase 1` → `unstable phase 2` sheet) as HP
   falls; attack cadence rises in phase B.
 - Death of the Tehedron Form ends the fight and the run → ending handoff.
@@ -86,7 +93,8 @@ Follows the Hydra/Monochrome/NullCity precedent:
 - `Content/TitriakisContent.cs` — arena + `BossDefinition`s; health-bar names
   come free from `BossDefinition.Name` via `Hud.cs`.
 - `Core/TitriakisEncounterRules.cs` — engine-free timing/geometry: jail rect,
-  bounce reflection, enrage curve, echo thresholds, teleport socket order.
+  bounce reflection, enrage curve, echo spawn (both at form start), teleport
+  socket order.
   Deterministic RNG through the seeded `Rng`, never Unity random.
 - `Runtime/Gameplay/VoidFallGameRuntime.Titriakis.cs` — pooled state, custom
   attack stepping (`ApplyTitriakisAttack` alongside `ApplyHydraAttack`),
@@ -96,6 +104,25 @@ Follows the Hydra/Monochrome/NullCity precedent:
   the next form at the same position).
 - EditMode tests for the rules class (bounce math, enrage curve, thresholds);
   PlayMode probe for the full three-form fight.
+
+## Revision log
+
+- 2026-09-22 — Form 3 summon design locked by owner: both echoes spawn at form
+  start (1v3 at once). Prototype updated to match; the unused lucky-roll
+  shockwave idea was cut from the prototype entirely.
+- 2026-09-22 — Prototype polish pass 2: aurora edge glow reworked (tight,
+  saturated, edge-hugging); Form 1 face lasers are now flowing aurora "elixir"
+  beams instead of red; row-twist telegraph halved (1.2s → 0.6s) and a curved
+  sine-wave twist lane added; jail/transition tiles now render as mini cube
+  faces (3×3 violet grid); transitions gained an aurora swell + twin shockwave
+  rings; Form 2 has a ringside audience of early enemies that turns hostile
+  when the jail breaks.
+- 2026-09-22 — Prototype tuning pass 3 (owner feedback): Rubix Form HP doubled
+  (600 → 1200); new 50%-HP unlock — the shield orbit, 8 fast-spinning guard
+  squares that make the cube immune until destroyed (resummon ~7s after the
+  ring is cleared); square-attack telegraph cut another 20% (0.6s → 0.48s);
+  fixed a crash where a beam's fade could go a hair negative and throw on
+  `arc()` (negative radius).
 
 ## Explicit non-goals (this feature)
 

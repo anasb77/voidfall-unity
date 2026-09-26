@@ -1,0 +1,14 @@
+node_modules/
+exporter/bin/
+exporter/obj/
+exporter/snapshot/
+!exporter/Exporter.csproj
+__pycache__/
+server-output.txt
+server-errors.txt
+project-fingerprints-before.json
+project-integrity.json
+project-status-before.txt
+dashboard-preview.png
+legacy-preview.png
+browser-validation.json

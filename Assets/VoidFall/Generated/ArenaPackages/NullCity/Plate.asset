@@ -20,4 +20,7 @@ MonoBehaviour:
   _detailWidth: 2560
   _detailHeight: 1440
   _nullCityVisuals: {fileID: 11400000, guid: ad2dd15a7c138bf4780382db0924c35b, type: 2}
+  _eonSeaVisuals: {fileID: 0}
+  _crascendoVisuals: {fileID: 0}
+  _approvedMapVisuals: {fileID: 11400000, guid: ff957cc10ba28154f9a58cda17b23f40, type: 2}
   _schema: 2

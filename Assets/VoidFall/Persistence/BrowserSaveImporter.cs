@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using VoidFall.Core;
 
 namespace VoidFall.Persistence
 {
@@ -38,6 +39,9 @@ namespace VoidFall.Persistence
                     recentRuns = ReadRuns(GetList(root, "recentRuns")),
                     bestiary = ReadBestiary(GetObject(root, "bestiary")),
                     arena = GetString(root, "arena", "void"),
+                    form = GetString(root, "form", PlayerForms.DefaultId),
+                    unlockedForms = ReadStrings(GetList(root, "unlockedForms"), new[] { PlayerForms.DefaultId }),
+                    voidsCleared = ReadStrings(GetList(root, "voidsCleared"), Array.Empty<string>()),
                 };
                 return true;
             }
@@ -70,6 +74,15 @@ namespace VoidFall.Persistence
             }
         }
 
+        private static string[] ReadStrings(List<object> values, string[] fallback)
+        {
+            if (values == null) return fallback;
+            var result = new List<string>(values.Count);
+            foreach (var value in values)
+                if (value is string text) result.Add(text);
+            return result.ToArray();
+        }
+
         private static SaveSettings ReadSettings(Dictionary<string, object> source)
         {
             return new SaveSettings
@@ -82,6 +95,12 @@ namespace VoidFall.Persistence
                 highContrast = GetBool(source, "highContrast", false),
                 touchSize = GetFloat(source, "touchSize", 1f),
                 quality = GetString(source, "quality", "high"),
+                resolutionWidth = GetInt(source, "resolutionWidth", 0),
+                resolutionHeight = GetInt(source, "resolutionHeight", 0),
+                fullscreenMode = GetInt(source, "fullscreenMode", 1),
+                monitorIndex = GetInt(source, "monitorIndex", -1),
+                bloom = GetFloat(source, "bloom", -1f),
+                chromatic = GetFloat(source, "chromatic", -1f),
             };
         }
 

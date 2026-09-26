@@ -53,7 +53,7 @@ namespace VoidFall.Tests.Editor
         public void Parity_supports_keep_their_indices_and_extras_append()
         {
             var all = ExtendedCatalog.AllSupports();
-            Assert.That(all.Length, Is.EqualTo(ContentCatalog.Supports.Length + 10));
+            Assert.That(all.Length, Is.EqualTo(ContentCatalog.Supports.Length + 12));
             for (var index = 0; index < ContentCatalog.Supports.Length; index++)
             {
                 Assert.That(all[index], Is.SameAs(ContentCatalog.Supports[index]),
@@ -67,7 +67,7 @@ namespace VoidFall.Tests.Editor
                 Assert.That(ids.Add(support.Id), Is.True, "duplicate support id " + support.Id);
                 Assert.That(support.Name, Is.Not.Empty);
                 Assert.That(support.Weight, Is.GreaterThan(0));
-                Assert.That(support.MaxRank, Is.InRange(1, 4));
+                Assert.That(support.MaxRank, Is.InRange(1, 5));
                 Assert.That(support.Accent, Is.Not.Empty);
                 Assert.That(support.Descriptions, Is.Not.Null);
                 Assert.That(support.Descriptions.Length, Is.EqualTo(support.MaxRank),

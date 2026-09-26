@@ -1,0 +1,98 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a104c4415ca47ffa6db2bd634548def, type: 3}
+  m_Name: ApprovedMaps
+  m_EditorClassIdentifier: VoidFall.Runtime::VoidFall.Runtime.ApprovedMapVisualAsset
+  _arena: 5
+  _entries:
+  - Id: null-city
+    Sprite: {fileID: 21300000, guid: 804564b7ac353174d8ba41cacd0fb2c6, type: 3}
+  - Id: city-0
+    Sprite: {fileID: 21300000, guid: ee95c0b81bab5824e88eb9d911a4fdd7, type: 3}
+  - Id: city-1
+    Sprite: {fileID: 21300000, guid: 5b6d3f5ada3d0ce4ba7db152d8381de7, type: 3}
+  - Id: city-2
+    Sprite: {fileID: 21300000, guid: 672de390a55a9754b90f45ed3a06d854, type: 3}
+  - Id: city-3
+    Sprite: {fileID: 21300000, guid: 4d1be39e4ead3bf4d8918e449754783e, type: 3}
+  - Id: city-4
+    Sprite: {fileID: 21300000, guid: 573c4768be3a08842a3b98854cec0dc3, type: 3}
+  - Id: city-5
+    Sprite: {fileID: 21300000, guid: 780db53f5dbefae45956249d9657ef2c, type: 3}
+  - Id: city-6
+    Sprite: {fileID: 21300000, guid: bc2283ee1ce614945a439f4bb3690e94, type: 3}
+  - Id: city-7
+    Sprite: {fileID: 21300000, guid: 25706c39110d9f643a80612c3b9f5294, type: 3}
+  - Id: city-8
+    Sprite: {fileID: 21300000, guid: 80b6c575b9e3f454bbb19ceb98fb870f, type: 3}
+  - Id: city-9
+    Sprite: {fileID: 21300000, guid: fd445dffb6c64e94299c3ec4a0868825, type: 3}
+  - Id: city-0-frame1
+    Sprite: {fileID: 21300000, guid: 45b5b0e5ff4fef74db1005ebbba444a2, type: 3}
+  - Id: city-1-frame1
+    Sprite: {fileID: 21300000, guid: 902cee6b4851e034da772fb850d89108, type: 3}
+  - Id: city-2-frame1
+    Sprite: {fileID: 21300000, guid: 1f62ff7d9ddc9354aab8b5a071b213fe, type: 3}
+  - Id: city-3-frame1
+    Sprite: {fileID: 21300000, guid: 783498fc412cd1d46a3349239c10b192, type: 3}
+  - Id: city-4-frame1
+    Sprite: {fileID: 21300000, guid: 734695d5e355ff84086810f6879dcc8e, type: 3}
+  - Id: city-5-frame1
+    Sprite: {fileID: 21300000, guid: 29b875ea158531e4db07f126c626aa1c, type: 3}
+  - Id: city-6-frame1
+    Sprite: {fileID: 21300000, guid: 37328455964561c498f4a7c59f4dc856, type: 3}
+  - Id: city-7-frame1
+    Sprite: {fileID: 21300000, guid: 85f9d87092f238e4899bd94c66cf6b91, type: 3}
+  - Id: city-8-frame1
+    Sprite: {fileID: 21300000, guid: a45eb030fff4a7341b3497d781e49802, type: 3}
+  - Id: city-9-frame1
+    Sprite: {fileID: 21300000, guid: 22a410d9883847c4ca407711ef9def6c, type: 3}
+  - Id: city-0-frame2
+    Sprite: {fileID: 21300000, guid: d696f0d922a7a8f43bf9401b0f1e6d0e, type: 3}
+  - Id: city-1-frame2
+    Sprite: {fileID: 21300000, guid: 88e03484f9918fd479542b9f9374c8a8, type: 3}
+  - Id: city-2-frame2
+    Sprite: {fileID: 21300000, guid: 680b120e30bce124fb8ba77842ad6d64, type: 3}
+  - Id: city-3-frame2
+    Sprite: {fileID: 21300000, guid: 00605abc70a2dad4eb4cca2dc5fb11de, type: 3}
+  - Id: city-4-frame2
+    Sprite: {fileID: 21300000, guid: b639f14fafc2c9945ab1ba74454a2ce8, type: 3}
+  - Id: city-5-frame2
+    Sprite: {fileID: 21300000, guid: 1ec2e485ca5a06449a03ce3654d7ba45, type: 3}
+  - Id: city-6-frame2
+    Sprite: {fileID: 21300000, guid: e2a7924f76505414d832393f1402afc1, type: 3}
+  - Id: city-7-frame2
+    Sprite: {fileID: 21300000, guid: 6f27cd8ea96e9184796f35e0b31145a4, type: 3}
+  - Id: city-8-frame2
+    Sprite: {fileID: 21300000, guid: 5f7e6d3fa6f041d4faa3929df8136c22, type: 3}
+  - Id: city-9-frame2
+    Sprite: {fileID: 21300000, guid: 277fc95971455ab4b84665dc6e803d2d, type: 3}
+  - Id: city-0-frame3
+    Sprite: {fileID: 21300000, guid: 8a7650e39c333274bba76dc349a5abfc, type: 3}
+  - Id: city-1-frame3
+    Sprite: {fileID: 21300000, guid: 22a966a09a0ed134793a193503016a55, type: 3}
+  - Id: city-2-frame3
+    Sprite: {fileID: 21300000, guid: e19c357e6c3104140a3b5b43a19bc726, type: 3}
+  - Id: city-3-frame3
+    Sprite: {fileID: 21300000, guid: 35f611df5363ce540bd50de66f0110a7, type: 3}
+  - Id: city-4-frame3
+    Sprite: {fileID: 21300000, guid: bb7765ac949369948b05c030876de36b, type: 3}
+  - Id: city-5-frame3
+    Sprite: {fileID: 21300000, guid: ca6c5916bffc1c649b72ff533e7b7a9d, type: 3}
+  - Id: city-6-frame3
+    Sprite: {fileID: 21300000, guid: 75842a0f388a83f499ba337c430dfef0, type: 3}
+  - Id: city-7-frame3
+    Sprite: {fileID: 21300000, guid: b7340707f107f6a45a4051fae93b5d0c, type: 3}
+  - Id: city-8-frame3
+    Sprite: {fileID: 21300000, guid: ea2934857ec6299469b57ff22ec63d89, type: 3}
+  - Id: city-9-frame3
+    Sprite: {fileID: 21300000, guid: 9436e56adcfa411438259f9795b6ed16, type: 3}

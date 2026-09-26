@@ -80,6 +80,25 @@ namespace VoidFall.Core
             return EnemyRosterForSpawn(EnemyIdName(type), elapsedSeconds, roll);
         }
 
+        /// <summary>
+        /// Shared director tier policy. The first shared visit only previews a
+        /// small late-Abyss tier-II share; the second visit enters at 15% and
+        /// rises to 50%. Later visits retain the established global tiers.
+        /// </summary>
+        public static EnemyRoster SharedRosterForSpawn(
+            string type,
+            int sharedVisit,
+            double localSeconds,
+            double familyAge,
+            double globalSeconds,
+            double roll)
+        {
+            if (!RosterTwoEligible(type)) return EnemyRoster.One;
+            var share = LegacyRestorationRules.SharedTierTwoShare(sharedVisit, localSeconds, familyAge);
+            if (double.IsNaN(share)) return EnemyRosterForSpawn(type, globalSeconds, roll);
+            return roll < share ? EnemyRoster.Two : EnemyRoster.One;
+        }
+
         public static double RosterCooldownSeconds(double seconds, EnemyRoster roster)
         {
             return Math.Max(0, seconds * CooldownMultiplier(roster));

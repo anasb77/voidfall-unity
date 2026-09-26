@@ -28,6 +28,7 @@ namespace VoidFall.Tests.PlayMode
         private const string ScenarioId = "productionMax";
 
         [UnityTest]
+        [Timeout(600000)] // 64 full 750-actor runs can exceed the default three minutes.
         public IEnumerator Production_max_is_bit_stable_across_32_seeds()
         {
             var runtime = UnityEngine.Object.FindAnyObjectByType<VoidFallGameRuntime>();

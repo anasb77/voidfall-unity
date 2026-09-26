@@ -212,8 +212,11 @@ namespace VoidFall.Tests.PlayMode
             Call("StepVoidCompletionDelay", 9.9f);
             Assert.That(route.CurrentVoidId, Is.EqualTo("abyss"));
             Call("StepVoidCompletionDelay", 0.2f);
-            Assert.That(route.CurrentVoidId, Is.EqualTo("hydra"));
+            Assert.That(route.CurrentVoidId, Is.EqualTo("abyss"), "travel to the dealer does not choose a destination");
             Assert.That(_runtime.JourneyStatus, Is.EqualTo("Travel"));
+            SettleCrossing();
+            Assert.That(_runtime.JourneyStatus, Is.EqualTo("Junction"));
+            Assert.That(route.NodesInState(RouteNodeState.Available), Does.Contain("hydra"));
         }
 
         [Test]

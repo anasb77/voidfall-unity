@@ -8,6 +8,17 @@ namespace VoidFall.EditorTools
 {
     public static class BuildScript
     {
+        private static string Argument(string name)
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (args[i].StartsWith(name + "=", StringComparison.OrdinalIgnoreCase)) return args[i].Substring(name.Length + 1);
+                if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) return args[i + 1];
+            }
+            return null;
+        }
+
         public static void BuildWindows()
         {
             ApprovedHudAssets.Configure();
@@ -23,7 +34,7 @@ namespace VoidFall.EditorTools
             AssetDatabase.SaveAssets();
             var scenes = new[] { "Assets/Scenes/SampleScene.unity" };
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-            var outputOverride = Environment.GetEnvironmentVariable("VOIDFALL_BUILD_OUTPUT");
+            var outputOverride = Environment.GetEnvironmentVariable("VOIDFALL_BUILD_OUTPUT") ?? Argument("-vfbuildoutput");
             var buildRoot = string.IsNullOrWhiteSpace(outputOverride)
                 ? Path.GetFullPath(Path.Combine(projectRoot, "..", "Builds")) : Path.GetFullPath(outputOverride);
             if (buildRoot.StartsWith(Application.dataPath, StringComparison.OrdinalIgnoreCase))
@@ -55,7 +66,7 @@ namespace VoidFall.EditorTools
                     "Built (UTC): " + builtAt.ToString("O") + "\n" +
                     "Build GUID: " + summary.guid + "\n" +
                     "Source project: " + projectRoot + "\n" +
-                    "Source revision: " + (Environment.GetEnvironmentVariable("VOIDFALL_SOURCE_REVISION") ?? "working tree") + "\n" +
+                    "Source revision: " + (Environment.GetEnvironmentVariable("VOIDFALL_SOURCE_REVISION") ?? Argument("-vfsource") ?? "working tree") + "\n" +
                     "Unity: " + Application.unityVersion + "\n" +
                     "Windows renderer: Direct3D11 (Direct3D12 opt-in diagnostics)\n" +
                     "Launch: " + summary.outputPath + "\n" +
@@ -69,7 +80,7 @@ namespace VoidFall.EditorTools
                     "Mines: slower placement, 0.9s floor, 1.2s freeze / 1.2s recovery\n" +
                     "Approved weapons: 0.14s armed mine chains; independent summons with 700-unit return leash\n" +
                     "Approved artwork: Pulse Pistol/Railgun ranks I-VI and evolution; Clock numerals 10% lower opacity\n" +
-                    "Incidents v3: eight Destroyers; eight-second Raid/Eclipse/Black Hole notices and dedicated sound cues\n" +
+                    "Incidents v3: eight Destroyers; ten-second Raid/Eclipse/Black Hole notices and dedicated sound cues\n" +
                     "Maps v3: Null City 50% (860 units), Hydra/Court 60% (908 units); normal Zack scale\n" +
                     "Null City: 1.6x expanded layout, native-size props, ten new enemies, portal-clipped transit\n" +
                     "Hydra: stationary floor, mixed hive broods, five insects and two guardians\n" +
@@ -77,7 +88,8 @@ namespace VoidFall.EditorTools
                     "Court attacks: movable Sentinels alternate black/white cells; Wingwang uses matching strikes\n" +
                     "Hydra II: original Unity map and boss encounter preserved\n" +
                     "Legacy restoration: " + VoidFall.Core.LegacyRestorationRules.Version + "\n" +
-                    "Director I v7: later-void momentum; late-Abyss elite escort and rusher flank; bounded per-void incident opportunities\n" +
+                    "Director I v8: earlier specialist introductions, stage-based veteran tiers and mixed formations\n" +
+                    "Null City pacing v1: stronger bounded reinforcements, heavy escorts and adjusted ordinary rewards\n" +
                     "Early roster: Shuriken eligible at 30s; Spiky at 50s; three-enemy introductions and learning grace\n" +
                     "HUD: approved study 02 at 66%, bundled Chakra Petch, custom arsenal/passive/manual slots\n" +
                     "Damage numbers and notifications: Chakra Petch; pressure text +20%; map hint beneath HP\n" +
@@ -86,7 +98,8 @@ namespace VoidFall.EditorTools
                     "Camera shake v2: grouped directional kill pulses, separate major accents, time-based settling\n" +
                     "Prepared arsenal sprites; frame timing telemetry v3 with subsystem and shake windows\n" +
                     "Pressure starts at 1x; Spiky 19.5/58.5 radius every 0.5s, 4x raster resolution; Shuriken spin 14 rad/s\n" +
-                    "Rewards: ordinary rare drops 1/300; Overclock bank capped at 30s; XP +25% from level 6\n" +
+                    "Survival: 0.20s hit immunity; shared shields and growing HP bar; Life Steal / Scavenger; three procedural Scraps\n" +
+                    "Rewards: unified ordinary power-ups 1/700, Scraps 2%; Overclock bank capped at 30s; XP +25% from level 6\n" +
                     "Loot v3: fresh XP gems remain collectable for two seconds before merging; bounded newborn reserve\n" +
                     "Video: saved monitor selection; smaller mute control below score\n" +
                     "Cards: Phase Rounds, weapon-bound Split Shot, Giant Slayer, Second Wind\n" +

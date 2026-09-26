@@ -239,12 +239,24 @@ namespace VoidFall.Runtime
             }
         }
         public int EnemyQueryPadding;
+        public bool ExpandEnemyQueriesForRadius;
+
+        // Neighborhood callers reserve one cell for a normal body's radius.
+        // Only live radii beyond that need additional cells. Radius increases
+        // during a damage cascade update this bound before the next query.
+        public void IncludeEnemyQueryRadius(float radius)
+        {
+            if (!ExpandEnemyQueriesForRadius) return;
+            var extra = Mathf.CeilToInt(Mathf.Max(0, radius - CollisionGrid.CellSize) / CollisionGrid.CellSize);
+            EnemyQueryPadding = Mathf.Max(EnemyQueryPadding, extra);
+        }
         public Func<EnemyState, float, float> EnemyNaturalRadiusHook;
         public int QueryEnemyNeighborhood(float x, float y, int cells, int[] output) => EnemyGrid.QueryNeighborhood(x, y, cells + EnemyQueryPadding, output);
 
         public void RebuildEnemyGrid()
         {
             EnemyGrid.Clear();
+            if (ExpandEnemyQueriesForRadius) EnemyQueryPadding = 0;
             Array.Clear(EnemyGridSpawnIds, 0, EnemyGridSpawnIds.Length);
             for (var order = 0; order < EnemyOrderCount; order++)
             {
@@ -253,6 +265,7 @@ namespace VoidFall.Runtime
                 {
                     EnemyGridSpawnIds[index] = Enemies[index].SpawnId;
                     EnemyGrid.Insert(index, Enemies[index].Position.x, Enemies[index].Position.y);
+                    IncludeEnemyQueryRadius(Enemies[index].Radius);
                 }
             }
         }
@@ -536,6 +549,31 @@ namespace VoidFall.Runtime
             return slot;
         }
 
+        /// <summary>Retires a slot with all admission and provenance sidecars.</summary>
+        public void RetireHostileShot(int slot)
+        {
+            ref var shot = ref HostileShots[slot];
+            if (shot.Active && shot.Curved) CurvedShotCount = Mathf.Max(0, CurvedShotCount - 1);
+            shot.Active = false;
+            HostileShotBlockable[slot] = false;
+            HostileShotSources[slot] = default;
+            HostileShotKillerIds[slot] = string.Empty;
+            HostileShotElite[slot] = false;
+            HostileShotOrder.Remove(slot);
+        }
+
+        /// <summary>Bulk clear also repairs capacity after any partially retired slot.</summary>
+        public void ClearHostileShots()
+        {
+            for (var slot = 0; slot < HostileShots.Length; slot++)
+            {
+                RetireHostileShot(slot);
+                HostileShots[slot] = default;
+            }
+            HostileShotOrder.Reset();
+            CurvedShotCount = 0;
+        }
+
         /// <summary>
         /// Advances every active hostile shot: curve acceleration, drift, life
         /// decay, player-impact resolution, and expiry.
@@ -609,13 +647,11 @@ namespace VoidFall.Runtime
 
                 if (shot.Life <= 0)
                 {
-                    shot.Active = false;
-                    HostileShotBlockable[index] = false;
-                    HostileShotSources[index] = default;
-                    if (shot.Curved) CurvedShotCount = Mathf.Max(0, CurvedShotCount - 1);
+                    HostileShots[index] = shot;
+                    RetireHostileShot(index);
+                    shot = HostileShots[index];
                     if (expiredSlots != null && expiredCount < expiredSlots.Length)
                         expiredSlots[expiredCount++] = index;
-                    HostileShotOrder.Remove(index);
                 }
 
                 HostileShots[index] = shot;

@@ -28,6 +28,70 @@ namespace VoidFall.Tests.PlayMode
             if (Directory.Exists(_directory)) Directory.Delete(_directory, true);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void Compact_history_roundtrips_all_fields_and_only_writes_present_payloads(bool payloads)
+        {
+            var value = new UnityTelemetryHistoryEvent();
+            foreach (var field in typeof(UnityTelemetryHistoryEvent).GetFields())
+            {
+                if (field.FieldType == typeof(string)) field.SetValue(value, field.Name + " \"quote\" \\ path\n\t\u0001");
+                else if (field.FieldType == typeof(int)) field.SetValue(value, 7);
+                else if (field.FieldType == typeof(long)) field.SetValue(value, 1234567890123L);
+                else if (field.FieldType == typeof(float)) field.SetValue(value, 1.25f);
+                else if (field.FieldType == typeof(bool)) field.SetValue(value, true);
+                else if (field.FieldType == typeof(string[])) field.SetValue(value, new[] { "one", "two\n\"three\"" });
+            }
+            if (payloads)
+            {
+                value.sample = new UnityTelemetrySample { hp = 42, maxHp = 100, timeSeconds = 12.5f };
+                value.context = new UnityTelemetryContext { buildVersion = "fixture", formId = "dasher" };
+                value.progress = new UnityTelemetryProgress();
+            }
+            _recorder.ConfigureHistory(_directory, new UnityTelemetryContext());
+            _recorder.RecordHistory(value);
+            _recorder.CloseHistory();
+            var lines = File.ReadAllLines(_recorder.HistoryInfo.file);
+            Assert.That(lines, Has.Length.EqualTo(2));
+            var roundtrip = JsonUtility.FromJson<UnityTelemetryHistoryEvent>(lines[1]);
+            Assert.That(JsonUtility.ToJson(roundtrip), Is.EqualTo(JsonUtility.ToJson(value)),
+                "Every field, including quotes, control characters and explicit zero/default semantics, must survive.");
+            Assert.That(roundtrip.schemaVersion, Is.EqualTo(5));
+            Assert.That(_recorder.HistoryInfo.schemaVersion, Is.EqualTo(5));
+            if (!payloads)
+            {
+                Assert.That(lines[1], Does.Not.Contain("\"sample\":"));
+                Assert.That(lines[1], Does.Not.Contain("\"context\":"));
+                Assert.That(lines[1], Does.Not.Contain("\"progress\":"));
+            }
+        }
+
+        [Test]
+        public void Compact_combat_history_reduces_bytes_with_identical_event_facts()
+        {
+            var value = new UnityTelemetryHistoryEvent
+            {
+                schemaVersion = 5, sequence = 123, kind = "enemy_spawn", id = "chaser", sourceId = "director",
+                arenaId = "void", timeSeconds = 123.5f, wallTimeSeconds = 124.5f, visitIndex = 1,
+                instanceId = 44, hp = 100, maxHp = 100, speed = 80, damage = 5,
+                x = 12.5f, y = -3.25f, amount = 7, activeEnemies = 750,
+            };
+            var legacy = JsonUtility.ToJson(value);
+            var compact = RunHistoryJson.Serialize(value);
+            Assert.That(compact.Length, Is.LessThan(legacy.Length / 2));
+            Assert.That(JsonUtility.ToJson(JsonUtility.FromJson<UnityTelemetryHistoryEvent>(compact)), Is.EqualTo(legacy));
+            const int iterations = 5000;
+            for (var i = 0; i < 100; i++) { JsonUtility.ToJson(value); RunHistoryJson.Serialize(value); }
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            long oldBytes = 0, newBytes = 0;
+            for (var i = 0; i < iterations; i++) oldBytes += JsonUtility.ToJson(value).Length;
+            var oldMs = timer.Elapsed.TotalMilliseconds;
+            timer.Restart();
+            for (var i = 0; i < iterations; i++) newBytes += RunHistoryJson.Serialize(value).Length;
+            var newMs = timer.Elapsed.TotalMilliseconds;
+            Debug.Log($"FOUNDATION_HISTORY_BENCH iterations={iterations} oldBytes={oldBytes} newBytes={newBytes} oldMs={oldMs:F3} newMs={newMs:F3}");
+        }
+
         private string Export(string status = "active", int score = 25)
         {
             return _recorder.Export(status, 12, score, 3, 1, 0, 2, 120, 5, 7, 0, 2, 1,

@@ -36,6 +36,7 @@ namespace VoidFall.Runtime
             public float warmupSeconds, measureSeconds, combatSecondsAdvanced;
             public long simulationTicksAdvanced, gcBytes;
             public bool gcRecorderAvailable;
+            public bool cameraMsaa;
             public bool hold750Requested;
             public bool farGridRequested;
             public int directorCapacityTarget, directorCapacitySteps;
@@ -121,6 +122,8 @@ namespace VoidFall.Runtime
                 _measureSeconds = _measureSeconds > 0 ? _measureSeconds : (float)definition.MeasureSeconds;
                 if (!(_scenarioId == "directorI" ? _runtime.ApplyDirectorPlaytest(_seed) : _runtime.ApplyStressScenario(_scenarioId, _seed)))
                 { Finish("Stress scenario could not be applied."); return; }
+                var msaa = GetArgumentValue("-vfbench-msaa");
+                if (Camera.main != null && msaa != null) Camera.main.allowMSAA = msaa != "0";
                 _started = true;
                 _lastTicks = _runtime.DiagnosticSimulationTicks;
                 Debug.Log($"[VoidFallStress] START scenario={_scenarioId} seed={_seed} warmup={_warmupSeconds} measure={_measureSeconds}");
@@ -233,6 +236,7 @@ namespace VoidFall.Runtime
                 combatSecondsAdvanced = combatAdvanced, simulationTicksAdvanced = ticksAdvanced,
                 frameCount = _frameCount, timingFrames = _timingFrames,
                 gcBytes = _gcBytes, gcRecorderAvailable = _gcRecorder.Valid,
+                cameraMsaa = Camera.main != null && Camera.main.allowMSAA,
                 hold750Requested = _hold750Requested,
                 farGridRequested = HasArgument("-vffargrid"),
                 directorCapacityTarget = _runtime != null ? _runtime.DirectorCapacityTarget : 0,

@@ -26,6 +26,11 @@ namespace VoidFall.Tests.Editor
             var byKey = new Dictionary<string, Sprite>();
             foreach (var entry in catalog.Entries) byKey[entry.Key] = entry.Sprite;
 
+            foreach (var key in new[] { "pickup|part", "pickup|part-frame", "pickup|part-cell" })
+            {
+                Assert.That(byKey, Does.ContainKey(key));
+                Assert.That(byKey[key].bounds.size.x, Is.EqualTo(1).Within(.001), "Scrap raster resolution must preserve world size");
+            }
             Assert.That(byKey, Does.ContainKey("fixed|circle"));
             Assert.That(byKey, Does.ContainKey("fixed|operative"));
             Assert.That(byKey, Does.ContainKey("gem|2"));

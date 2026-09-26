@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  VoidFall build-chip icon atlas.
+  Source: lucide-react 1.24.0 ISC icon nodes used by src/components/GameUI.tsx.
+  Five columns, three rows, 48px cells. White strokes are tinted by Unity.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="144" viewBox="0 0 240 144">
+  <g fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <g transform="translate(6 6) scale(1.5)">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="22" x2="18" y1="12" y2="12"/>
+      <line x1="6" x2="2" y1="12" y2="12"/>
+      <line x1="12" x2="12" y1="6" y2="2"/>
+      <line x1="12" x2="12" y1="22" y2="18"/>
+    </g>
+    <g transform="translate(54 6) scale(1.5)">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="m14.31 8 5.74 9.94"/>
+      <path d="M9.69 8h11.48"/>
+      <path d="m7.38 12 5.74-9.94"/>
+      <path d="M9.69 16 3.95 6.06"/>
+      <path d="M14.31 16H2.83"/>
+      <path d="m16.62 12-5.74 9.94"/>
+    </g>
+    <g transform="translate(102 6) scale(1.5)">
+      <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>
+    </g>
+    <g transform="translate(150 6) scale(1.5)">
+      <path d="M20.341 6.484A10 10 0 0 1 10.266 21.85"/>
+      <path d="M3.659 17.516A10 10 0 0 1 13.74 2.152"/>
+      <circle cx="12" cy="12" r="3"/>
+      <circle cx="19" cy="5" r="2"/>
+      <circle cx="5" cy="19" r="2"/>
+    </g>
+    <g transform="translate(198 6) scale(1.5)">
+      <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/>
+      <path d="M20 2v4"/>
+      <path d="M22 4h-4"/>
+      <circle cx="4" cy="20" r="2"/>
+    </g>
+
+    <g transform="translate(6 54) scale(1.5)">
+      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/>
+      <path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z"/>
+      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/>
+    </g>
+    <g transform="translate(54 54) scale(1.5)">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/>
+    </g>
+    <g transform="translate(102 54) scale(1.5)">
+      <path d="m12 14 4-4"/>
+      <path d="M3.34 19a10 10 0 1 1 17.32 0"/>
+    </g>
+    <g transform="translate(150 54) scale(1.5)">
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+    </g>
+    <g transform="translate(198 54) scale(1.5)">
+      <path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/>
+      <path d="M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/>
+    </g>
+
+    <g transform="translate(6 102) scale(1.5)">
+      <path d="m12 15 4 4"/>
+      <path d="M2.352 10.648a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.029-6.029a1 1 0 1 1 3 3l-6.029 6.029a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.365-6.367A1 1 0 0 0 8.716 4.282z"/>
+      <path d="m5 8 4 4"/>
+    </g>
+    <g transform="translate(54 102) scale(1.5)">
+      <path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/>
+    </g>
+    <g transform="translate(102 102) scale(1.5)">
+      <path d="m15 15 6 6"/>
+      <path d="m15 9 6-6"/>
+      <path d="M21 16v5h-5"/>
+      <path d="M21 8V3h-5"/>
+      <path d="M3 16v5h5"/>
+      <path d="m3 21 6-6"/>
+      <path d="M3 8V3h5"/>
+      <path d="M9 9 3 3"/>
+    </g>
+    <g transform="translate(150 102) scale(1.5)">
+      <path d="m14.479 19.374-.971.939a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5a5.2 5.2 0 0 1-.219 1.49"/>
+      <path d="M15 15h6"/>
+      <path d="M18 12v6"/>
+    </g>
+    <g transform="translate(198 102) scale(1.5)">
+      <path d="M15.6 2.7a10 10 0 1 0 5.7 5.7"/>
+      <circle cx="12" cy="12" r="2"/>
+      <path d="M13.4 10.6 19 5"/>
+    </g>
+  </g>
+</svg>

@@ -155,6 +155,29 @@ namespace VoidFall.Tests.PlayMode
             Enemy(0, 104); Assert.That(Get(HitEnemy(0, 1), "Radius"), Is.EqualTo(20f));
         }
 
+        [Test]
+        public void Query_expansion_tracks_live_radii_and_covers_growth_before_grid_rebuild()
+        {
+            EnterCrascendo();
+            Enemy(0, 501); Invoke(_runtime, "AppendEnemyOrder", 0);
+            Invoke(_runtime, "RebuildEnemyGrid");
+            Assert.That(Get(GameSim, "EnemyQueryPadding"), Is.EqualTo(0));
+            var enemies = (Array)Get(GameSim, "Enemies");
+            var enemy = enemies.GetValue(0);
+            Set(enemy, "Position", new Vector2(140, 0)); enemies.SetValue(enemy, 0);
+            Invoke(_runtime, "RebuildEnemyGrid");
+            for (var hit = 0; hit < 20; hit++) HitEnemy(0, 1);
+            Assert.That(Get(GameSim, "EnemyQueryPadding"), Is.EqualTo(1), "100-unit bodies need one extra cell, not eight.");
+            var candidates = new int[750];
+            var count = (int)Invoke(GameSim, "QueryEnemyNeighborhood", -1f, 0f, 1, candidates);
+            Assert.That(candidates.Take(count), Does.Contain(0), "Same-step growth remains queryable before rebuilding.");
+            Invoke(_runtime, "RebuildEnemyGrid");
+            Assert.That(Get(GameSim, "EnemyQueryPadding"), Is.EqualTo(1));
+            Set(enemy, "Active", false); enemies.SetValue(enemy, 0);
+            Invoke(_runtime, "RebuildEnemyGrid");
+            Assert.That(Get(GameSim, "EnemyQueryPadding"), Is.EqualTo(0), "Retired large bodies no longer enlarge queries.");
+        }
+
         private object GameSim => Get(_runtime, "_gameSim");
         private void EnterCrascendo()
         {

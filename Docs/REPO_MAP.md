@@ -1,14 +1,55 @@
 # VoidFall repository map
 
-Derived from the September 4, 2026 audit; update relevant sections as systems
-change. This is a navigation aid, not a claim that every planned feature is
-implemented. All paths below are relative to **`Assets/VoidFall/`**, except
+Context refreshed September 26, 2026 after source review, native-player audit
+and verification of the submitted second audit. Update relevant sections as
+ownership or contracts change. This map describes entry points and intended
+invariants; repair completion and validation evidence live separately in
+`Docs/AI/FoundationRepairStatus.md`. All paths below are relative to
+**`Assets/VoidFall/`**, except
 paths explicitly starting with `Assets/`, `Docs/`, `Packages/` or `.github/`.
+`Tools/` and `Internal Dashboard/` are also relative to the project root;
+`../Prototypes/` and `../Builds/` are in its parent.
 
-Canonical source: this `voidfall-unity` project. Canonical player:
+Canonical source: the Unity root containing this map's parent `Docs/`,
+`AGENTS.md`, `Assets/`, `Packages/` and `ProjectSettings/`. Canonical player:
 `../Builds/VoidFall.exe`; launch instructions: `../START_HERE.md`. Sibling source
 worktrees and `../Builds/Archive/` are recovery references. Source provenance is
 recorded in `Docs/Design/2026-09-12-Consolidation.md`.
+
+## Start here for map and asset prototyping
+
+Read `AGENTS.md`, the relevant identity below, and the corresponding approved
+design document; then inspect the actual artwork and rendering path. Broad
+re-auditing of saves, combat or UI is unnecessary for an isolated art study.
+
+The implemented arena pool is **Abyss, White Sakura, Red Nebula, Hydra,
+Monochrome Court, Crascendo, Eon Sea and Null City**. A seeded run visits six
+arenas through nine route nodes, starting in Abyss. Additional names or maps
+in `../Prototypes/` are studies until the owner approves their integration.
+New assets must retain Zack Hazard's eye identity, normal player scale and
+the distinction between shared geometric creatures and Null City's machinery.
+
+| Prototype concern | Reference / later integration owner |
+|---|---|
+| Current Court, Hydra and City appearance/scale | `Docs/Design/2026-09-20-Approved-Map-Integration.md`; frozen exporters in `Tools/ApprovedMaps/`; `.ApprovedMaps`, `.ApprovedCourt`, `.ApprovedHydra`, `.ApprovedCity`, `.MapPresentation` |
+| Null City original architecture and machinery | `Docs/Design/NullCity-Approved.md`; `Tools/NullCity/`; `Art/NullCity/`; `.NullCity.Render` |
+| Eon Sea | `Docs/Design/EonSea-Approved.md`; `Tools/EonSea/export-eon.cjs`; `.EonSea.Render`; `EonSeaVisualAsset` |
+| Crascendo | `Tools/Crascendo/export-crascendo.cjs`; `.Crascendo.Render`; `CrascendoVisualAsset`; per-hit growth rules in `Core/CrascendoRules.cs` |
+| Shared/player/projectile artwork | Character table below; `Runtime/Rendering/PlayerCosmetics.cs`; `ProceduralSpriteFactory` partials; `Editor/ProceduralSpriteBaker.cs` |
+| Later production integration | Prepared recipe/plate assets, arena residency and build gates in “Audio, rendering and authored data”; route metadata/objectives in “Route, objectives and special encounters” |
+
+Keep a new study in its own `../Prototypes/<study>/` or agreed output directory.
+Include its approval status, intended world/camera dimensions, actor scale,
+walkable bounds, source assets, texture sizes and effect density. Full-scene
+texture duplication, per-frame procedural texture generation and hundreds of
+new per-actor components need a measured production cost before integration.
+Preserve visibility of Zack, enemy warnings, projectiles, loot and the HUD on
+both bright and dark surfaces; include a reduced-motion presentation.
+
+The foundation repair workstream owns shared progression, flow, pool admission,
+input, telemetry and lifetime changes. Isolated prototype work can proceed
+without editing those files or running Unity builds/imports in this checkout.
+Consult `Docs/AI/FoundationRepairStatus.md` before an overlapping integration.
 
 ## Character identity and visual references
 
@@ -30,9 +71,9 @@ For visual work, view the relevant assets as well as reading their code:
 | Zack's eye | `Runtime/Gameplay/ProceduralSpriteFactory.cs`: `Operative()` draws the circular blue iris, dark center and central light. Current baked sprite: `Generated/ProceduralSprites/Sprite_0089_fixed_operative.png`. `VoidFallGameRuntime.Render.cs` composes the eye, aura, ring and Workshop cosmetics. |
 | Shared enemies and elites | Original forms: `ProceduralSpriteFactory.cs`; higher tiers: `Art/RosterProgression/`, `Resources/VoidFall/RosterProgressionVisuals.asset`, and runtime `.RosterProgression.cs`. Four tiers across 14 shared families and three elite families: Exploder, Siege Mortar and Curved Gunner. |
 | Shared bosses | Herald, Warden, Matriarch and Reaver: definitions in `Content/ContentCatalog.Generated.cs`, artwork in `ProceduralSpriteFactory.cs` and baked `Generated/ProceduralSprites/` boss images. |
-| Monochrome Court | Nineteen forms across Pawn, Rook, Bishop, Knight, Queen and mounted Armored Knight, plus Sentinels and both Grandmasters. `Content/ApprovedMapContent.cs`, `MonochromeContent.cs`, runtime `.ApprovedCourt`, and `Resources/VoidFall/ApprovedMaps/` (exported by `Tools/ApprovedMaps`). |
+| Monochrome Court | Twenty forms across Pawn, Rook, Bishop, Knight, Queen and mounted Armored Knight, plus Sentinels and both Grandmasters. `Content/ApprovedMapContent.cs`, `MonochromeContent.cs`, runtime `.ApprovedCourt`, and `Generated/ApprovedMaps/` (exported by `Tools/ApprovedMaps`). |
 | Hydra | Ten original hybrid/Virus forms, five insects, hives and two guardians: `HydraPopulationRules`, `ApprovedMapContent`, runtime `.HydraPopulation`/`.ApprovedHydra` and approved map resources. `HydraContent` defines Hydra Prime; the live boss retains `Resources/VoidFall/Hydra/HydraPrime.png` and runtime `.Hydra.cs`. |
-| Null City | Nine original units, three lockdown police, ten approved additions and Motherload: `Content/NullCityContent.cs`, `Art/NullCity/Units/`, `Resources/VoidFall/ApprovedMaps/`, `NullCityVisualAsset`, runtime `.NullCity.Render`/`.ApprovedCity`. Motherload is explicitly a detailed ship. |
+| Null City | Nine original units, three lockdown police, ten approved additions and Motherload: `Content/NullCityContent.cs`, `Art/NullCity/Units/`, `Generated/ApprovedMaps/`, `NullCityVisualAsset`, runtime `.NullCity.Render`/`.ApprovedCity`. Motherload is explicitly a detailed ship. |
 
 The 14 shared families are Regular (`chaser`), Runner, Gunner, Twin Gunner,
 Dasher, Brute, Exploder, Guard, Technician, Mortar, Splitter, Bulwark, Harvester
@@ -72,9 +113,33 @@ Runtime     -> Core + Content + Persistence + UI + Audio
 Assembly definitions live at each subsystem root. `Core` and `Content` have
 `noEngineReferences: true`; `GameSim` is in Runtime and uses Unity types.
 
+## Foundation ownership and invariants
+
+These are the integration contracts to preserve. They state the required
+behavior after repairs; they are not a claim that every existing path is
+already validated. Consult the separate status record for implementation state.
+
+| Boundary | Existing entry points | Required invariant |
+|---|---|---|
+| Profile transactions | `UI/Views/WorkshopController.cs`; `UI/Core/IGameBridge.cs`; nested `RuntimeGameBridge`; runtime `.Persist.cs` / `.Forms.cs`; `Persistence/SaveStore.cs` | Stage the whole profile change, save once, publish on success. Wallet/ranks, unlocks and terminal records cannot partially commit. Failure cannot present successful progression. |
+| Save transfer/versioning | `Persistence/BrowserSaveExporter.cs`, `BrowserSaveImporter.cs`, `SaveStore.cs`; runtime `.Persist.cs` | Preserve all Unity fields for complete-profile transfer, distinguish browser format scope, retain legacy IDs and quarantine future schemas without overwrite. |
+| All five crossings | Runtime `.Rift.cs`, `.Journey.cs`, `.Escape.cs`; `Core/VoidRoute.cs`; `Content/PlayableVoidRoutes.cs` | Every between-void path reaches the dealer; choices commit before new objectives. Planning, reward claims and Hydra's same-visit phase swap keep distinct ownership. |
+| Projectile retirement | `GameSim.cs`; runtime `ClearTransitionProjectiles`, Hydra/City clear paths, orbital interception and `.Destroyers.cs` | Active/order/provenance/counter state is consistent after every exit; curved capacity is reclaimed. |
+| Native population admission | `Core/NullCityPacingRules.cs`; runtime `.NullCity.cs`, `.ApprovedHydra.cs`, `.HydraPopulation.cs`, `.Sim.cs` | All applicable births/arrivals honor the native cap. Deferred children retain identity and earned-reward roots. Global pool capacity is a separate limit. |
+| Simulation cost | `GameSim.cs`; `.Sim.cs:UpdateEnemies`; `.Crascendo.cs`; `Core/CollisionGrid.cs` | Stable callbacks are reused; enlarged-actor queries remain conservative and ordered without unnecessary worst-case scanning. |
+| Asset/material lifetime | `ArenaResidencyManager.cs`; `.Arena.cs`; `.ApprovedMaps.cs`; `Runtime/Rendering/VoidFallRenderMaterials.cs` | Consumers detach before package release; owned instances have a release owner. Avoid a parallel permanent full-arena Resources cache. |
+| Menus/HUD/input | Runtime `.UI.cs`, `.Hud.cs`, `.ApprovedHud.cs`, main `Update`; `Runtime/Input/InputReader.cs`; `UI/Core/UIManager.cs` and views | One active modal owns actions and focus; controller/keyboard can reach the same actions; bright maps retain readable HUD. |
+| Telemetry/diagnostics | Runtime `.Telemetry.cs`; `Runtime/Telemetry/RunTelemetry.cs`; `StressBenchmarkProbe.cs`; startup logging in the main runtime | Bounded output preserves committed facts and exposes losses. Diagnostics distinguish actual advancing simulation from an idle/paused screen. |
+| Prepared content/build | `Editor/PreparedContentBuildSetup.cs`, `ArenaContentBaker.cs`, `ProceduralSpriteBaker.cs`, `BuildScript.cs` | Validate asset shape and authoring freshness, preserve GUIDs, build through the canonical path and attach actual test/build/capture evidence. |
+
+Do not apply the rejected fixes from an audit list by analogy: combat RNG
+sharing is not itself nondeterminism; different highlight/commit radii are not
+automatically a bug; a future asset study does not authorize changing approved
+camera zoom, bloom, actor density or the six-minute survival rule.
+
 ## Legacy restoration ownership
 
-`Content/LegacyRestorationRules.cs` appends the three enemy families and compatible support cards without changing generated IDs. Runtime `.LegacyRestoration.cs` owns Second Wind cooldown, delayed Spiky chains, shuriken/Spiky motion and expansion-only crowd shoves, roster introductions, the independent V1 ring clock and identity-keyed V1 dash controllers; `.DirectorI.cs` owns the sustained v7 schedule, independent standard/variant elite cadence, bounded post-clear refill and budgets. The approved browser HUD is owned by runtime `.ApprovedHud.cs` and `ApprovedHudSlot.cs`; it reuses the original HUD bindings with bundled Chakra Petch fonts, live slots, and a 0.66 study scale. `LegacyHudGradient.cs` supplies the bar gradients. `UITheme.ApplyReadableContent` applies the bundled timer-family font selectively to level-up content, main-menu buttons, pause and result bodies while preserving existing headings and symbol glyphs. `.Journey.cs` / `.Rift.cs` / `.Escape.cs` retain covered swaps and the ten-second reward window. `LegacyRestorationProbe.cs` provides isolated native captures with `-vfrestoration-check=<directory>`. See `Docs/Design/2026-09-19-LegacyRestoration.md` for approved tuning and `LegacyRestoration*Tests` for regression coverage.
+`Content/LegacyRestorationRules.cs` appends the three enemy families and compatible support cards without changing generated IDs. Runtime `.LegacyRestoration.cs` owns Second Wind cooldown, delayed Spiky chains, shuriken/Spiky motion and expansion-only crowd shoves, stage-aware shared-roster introductions, the independent V1 ring clock and identity-keyed V1 dash controllers; `.DirectorI.cs` owns the sustained v8 schedule, independent standard/variant elite cadence, bounded post-clear refill and attack budgets. The roster stage counter advances only on shared director visits, so native arenas and skipped route branches do not flush overdue introductions. `.Telemetry.cs` exports the selected stage schedule, tier-share bounds and committed `enemy_spawn` stage/local context. The approved browser HUD is owned by runtime `.ApprovedHud.cs` and `ApprovedHudSlot.cs`; it reuses the original HUD bindings with bundled Chakra Petch fonts, live slots, and a 0.66 study scale. `LegacyHudGradient.cs` supplies the bar gradients. `UITheme.ApplyReadableContent` applies the bundled timer-family font selectively to level-up content, main-menu buttons, pause and result bodies while preserving existing headings and symbol glyphs. `.Journey.cs` / `.Rift.cs` / `.Escape.cs` retain covered swaps and the ten-second reward window. `LegacyRestorationProbe.cs` provides isolated native captures with `-vfrestoration-check=<directory>`. See `Docs/Design/2026-09-19-LegacyRestoration.md` for approved tuning and `LegacyRestoration*Tests` for regression coverage.
 
 ## Locate a gameplay change
 
@@ -85,15 +150,17 @@ Assembly definitions live at each subsystem root. `Core` and `Content` have
 | Simulation ordering / state reset | `Runtime/Gameplay/VoidFallGameRuntime.cs`: `Simulate`, `StartRunInternal`; `GameSim.cs`, `FxSim.cs` in the same directory |
 | Movement / device polling | `Runtime/Input/InputReader.cs`; `Runtime/Gameplay/VoidFallGameRuntime.Sim.cs`: `MovePlayer` |
 | Weapons / targeting / damage / pickups | `Runtime/Gameplay/VoidFallGameRuntime.Sim.cs`: `UpdateWeapons`, `FireWeapon`, `UpdateBlades`, `UpdateBullets`, `UpdatePickups`; `Core/CombatRules.cs`, `PickupRules.cs`, `BalanceRules.cs` |
-| Enemies / spawn pressure / ordinary bosses | `Content/DirectorRules.cs`, `EnemyRosterRules.cs`, `EliteRules.cs`, `FormationRules.cs`; `Runtime/Gameplay/VoidFallGameRuntime.Sim.cs`: spawning, attacks and deaths |
+| Enemies / spawn pressure / ordinary bosses | `Content/DirectorRules.cs`, `EnemyRosterRules.cs`, `LegacyRestorationRules.cs`, `EliteRules.cs`, `FormationRules.cs`; `Runtime/Gameplay/VoidFallGameRuntime.DirectorI.cs`, `.LegacyRestoration.cs`, and `.Sim.cs`: stage-aware shared introductions, tier previews, compositions, spawning, attacks, deaths and native-arena reward tuning |
 | Upgrades / evolutions / support effects | `Content/UpgradeRules.cs`, `EvolutionRules.cs`, `SupportEffectRules.cs`, `ExtendedCatalog.cs`; `Core/ProgressionRules.cs`; runtime `RecalculatePlayerStats`, `RollLevelOptions`, `SelectLevelOption` |
 | Roulette / reward ceremony | `Content/RouletteRules.cs`, `RoulettePresentationRules.cs`; `Runtime/Gameplay/VoidFallGameRuntime.Roulette.cs`, `.RouletteClaims.cs`, `.RouletteChest.cs`; `UI/Views/RouletteView.cs`, `RouletteWheelGraphic.cs`, `LevelUpView.cs` |
 | Wild Cards / overclock / mutations | `Content/WildCardRules.cs`, `Core/OverclockRules.cs`, `MutationRules.cs`; `Runtime/Gameplay/VoidFallGameRuntime.WildCards.cs` and `.Sim.cs` |
 | Meteors / arena hazards | `Core/MeteorRules.cs`, `HazardRules.cs`; `Runtime/Gameplay/GameSim.cs`, `VoidFallGameRuntime.NebulaStrikes.cs` |
 | Player cosmetics / Workshop preview | `Runtime/Rendering/PlayerCosmetics.cs`, `PlayerFramePreview.cs`; `Runtime/Gameplay/VoidFallGameRuntime.Cosmetics.cs`; `UI/Views/WorkshopView.cs` |
 
-Roulette relics emerge at the last defeated boss, ignore magnets, and require
-physical pickup; the safe Rewards stage allows movement and waits for the relic.
+Roulette relics emerge at the last defeated boss and ignore magnets. They can
+be collected physically in the safe Rewards stage; escape also delivers an
+unclaimed relic after enemy retirement, preventing an off-screen chest from
+stranding the run. The ceremony retains pause ownership until claims finish.
 `RoulettePresentationRules` projects the final probabilities, including the single
 first/repeat protection re-sample, into segment sizes and readable reward facts.
 The 6.8-second spin opens the mandatory reward-claim sequence. Runtime
@@ -118,6 +185,26 @@ text is removed; purchase/refund feedback and selected reward details remain.
 Improve Odds upgrades the Parts cache from 60 to 90 and rejects further no-op
 purchases. UI ticks use the existing audio service. The relic owns its generated
 sprite/texture and releases both at runtime teardown.
+
+`CombatRules.PlayerHitImmunitySeconds` owns the 0.20-second shared protection
+after HP damage or a fully absorbed dealer-shield hit. `DamagePlayer` applies it;
+ordinary enemy contact still has its own 0.72-second cooldown. Ordinary eligible
+deaths roll power-ups at 1/700 (`LegacyRestorationRules.OrdinaryRareDropChance`)
+and Scraps at 2% (`SurvivalSupportRules`), uniformly across arenas. Elite/boss
+rates and power-up type weights remain unchanged. `SurvivalSupportCatalog`
+appends Life Steal (five ranks, 0.2/0.4/0.5/0.7/0.9 HP per 200 player kills) and
+Scavenger (four ranks, +5/10/15/20% relative Scrap chance, 5 shields per 200
+collected Scraps). Runtime `.SurvivalSupports.cs` owns counters, healing, shared
+Dealer/Scavenger shields and the growing HP/shield HUD. Capacity starts at 20;
+larger grants can enlarge it. HUD shows current shield without a denominator.
+Maximum HP increases bar width proportionally with a HUD-space limit.
+`ProceduralSpriteFactory.Scraps.cs` draws the approved Twin Plates, Open Frame
+and Cell Remnant variants; `.Sim.cs` selects by pool slot, without RNG or audio
+changes. The incremental `ProceduralSpriteBaker.BakeSurvivalSpritesBatch` updates
+the prepared pickup catalogue. `SurvivalRevisionProbe` captures native HUD/card
+states through the isolated restoration probe. Run exports record effective
+chances, counters, actual healing, shield grants and absorption. See the
+September 26 Life Steal and Scavenger design documents for detailed contracts.
 
 `Runtime/Gameplay/CombatStateTypes.cs` defines entity structs such as
 `EnemyState`. Fixed-capacity arrays and order tables live in `GameSim`;
@@ -177,7 +264,9 @@ emission marks only ordinary enemy shots; boss, elite, meteor and unknown
 sources remain protected. Standard expiry handles counters and view cleanup.
 `OrbitalDefenseIntegrationTests.cs` covers provenance, near misses and reuse.
 
-The live support list has 13 cards. Scholar combines XP and power-up drop
+Resolve the live support list through `ExtendedCatalog.AllSupports()` and
+`SupportCount`, including legacy-restoration and survival additions; do not
+use an old fixed card count. Scholar combines XP and power-up drop
 bonuses; Velocity Coils combines projectile/orbit speed and camera dezoom.
 `ExtendedCatalog.CanonicalSupportId` maps retired fortune/spatialAwareness IDs
 to scholar/projectileSpeed. Save sanitation merges legacy record ranks by
@@ -216,15 +305,18 @@ both combat and safe reward phases. `.RouletteClaims.cs` owns pending rewards
 through the shared upgrade menu until taken (or a Wild Card is left).
 `SyncUiScreen` must preserve that ownership.
 
-Escape timing lives in Journey/Rift and `.Escape.cs`: fifteen active seconds
+Escape timing lives in Journey/Rift and `.Escape.cs`: ten active seconds
 with normal movement, staggered harmless enemy deaths, animated `Escaping...`
-dots and three increasing shake patterns. At eleven seconds, remaining XP and
-Parts sweep toward the player; departure settles them through the normal grant
+dots and three increasing shake patterns. Enemy retirement finishes at five
+seconds; an unclaimed relic then starts its ceremony. At six seconds, remaining
+XP and Scraps sweep toward the player; departure settles them through the normal grant
 path and drains queued level choices. Overclock time remains held until combat
 resumes. Modal UI pauses the window. The relic stays at the boss's actual death
 site and is delivered if unclaimed; roulette holds the window until all reward
-cards are resolved. See `Docs/Design/2026-09-06-JourneyPolish.md` and
-`EscapePolishTests.cs` / `EscapeWindowTests.cs`.
+cards are resolved. The current timing supersedes the older fifteen-second
+JourneyPolish description. See `Docs/Design/2026-09-19-LegacyRestoration.md`
+and the constants/tests for the current contract; older timing assertions are
+tracked separately in the foundation validation work.
 
 The map uses small arena thumbnails from `Resources/VoidFall/RouteThumbnails/`;
 it does not load all full arena packages. `Editor/RouteMapThumbnailBaker.cs`
@@ -247,9 +339,11 @@ Its horizons are tessellated as adjacent strips rather than a crossing fan.
   route selection and collapse/swap/settle travel. `Core/VoidProgressionRules.cs`
   owns shared cadence rules.
 - `UI/Views/RouteSelectController.cs` projects route cards and confirms choices;
-  `RouteSelectView.cs` renders them. Automatic single-exit travel must pass
-  through confirmation too. `CommitRiftTransitionSwap` clears enemies, shots
-  and meteors before initializing the next arena/objective.
+  `RouteSelectView.cs` renders them. The standing crossing contract includes
+  a dealer room for both single and forked destinations; a single destination
+  must not bypass it via automatic travel. Physical selection commits the route.
+  `CommitRiftTransitionSwap` owns outgoing combat retirement before initializing
+  the next arena/objective. Keep every pool/order/counter/view consistent.
 - Hydra: `Content/HydraContent.cs`, `Core/HydraEncounterRules.cs`,
   `Runtime/Gameplay/HydraRuntimeRules.cs`, `.Hydra.cs` and `.HydraTravel.cs`.
   HydraI360s survival uses stationary approved glyph ground; `.MapPresentation`
@@ -292,6 +386,10 @@ Its horizons are tessellated as adjacent strips rather than a crossing fan.
   preserves collision and purge timing. The original LCD anchor has a cached
   world-space text overlay for welcome/lockdown state. Native projectile,
   tractor,bomb,purge and XP clamps convert world radii before authored tests.
+  The complete artwork is centered at `_nullCityOrigin`; the walkable floor
+  midpoint is 52.8 world units below it. Camera bounds use the complete artwork,
+  not that floor midpoint. `Core/NullCityPacingRules.cs` defines quiet/lockdown
+  admission caps 50/90 separately from the global 750-body capacity.
 - Eon Sea: `Content/EonSeaContent.cs`, `Core/EonSeaTerrain.cs`, runtime
   `.EonSea.cs` / `.EonSea.Render.cs`. Streamed world-space glaciers provide
   cover, autonomous melting and explosion-accelerated stress. Collapse applies
@@ -311,7 +409,9 @@ Its horizons are tessellated as adjacent strips rather than a crossing fan.
   Spawn-ID/telemetry-ID sidecars preserve struct/hash contracts; giant deaths
   push survivors without damage or additional growth. Native harvester growth
   accumulates through GameSim's optional natural-radius hook. Wider queries are
-  enabled only during this arena. Ground progresses Indigo/Amber through
+  enabled only during this arena. Query padding is measured in grid cells,
+  not world units; preserve collision coverage for 5× growth when optimizing it.
+  Ground progresses Indigo/Amber through
   Violet/Coral to Crying Violet using local survival time; boss/rewards hold
   maximum while animated tears continue under native pause ownership. The plate
   owns `CrascendoVisualAsset`; presentation detaches before package release.
@@ -356,10 +456,13 @@ artwork to `Logs/WorkshopForms`, without reading or writing a real profile.
 `Content/DealerRules.cs` owns fixed 100-Scrap transactions, three distinct offers,
 fragment masks and late-stock fallbacks. `Content/LegendaryRules.cs` owns the
 manual weapon timing/ranks and stable attribution IDs. Runtime `.Dealer.cs`
-extends the existing Journey junction (including single exits) with fixed stock,
+owns the dealer within the Journey junction with fixed stock,
 upper-only placement, E/controller interaction, modal ownership and atomic
 fragment saving. Closing/reopening never regenerates the session. One offer
 can be purchased per crossing; ordinary spending uses the run wallet.
+The required route contract is five dealer opportunities, including single
+exits; see the repair status for end-to-end path validation. Do not infer that
+a test calling `BeginPortalJunction` directly validates every path to it.
 
 `UI/Views/DealerView.cs` provides cards/icons/puzzle art and prices;
 `DealerPortraitView.cs` renders CSS-sized glyph quads with the preview's fixed
@@ -404,8 +507,9 @@ transactions, persistence, cooldown reuse, input guards, damage and exports.
 `-vfdealer-check=<absolute-folder>` runs the rendered `DealerIntegrationProbe`
 with a profile selected before the first load. It writes crossing/shop/weapon
 captures and a success/failure file. No fake preview income controls ship.
-Its `room-browse` capture exercises the lower dealer from the legal platform
-edge before purchase; inspect upper/lower framing and prompt clearance too.
+Its `room-browse` capture must exercise the current upper-side dealer from
+the legal walking area before purchase. Preserve the owner's upper-only
+revision; older lower-dealer fixtures are historical, not the design target.
 Roulette fragments and the three alternative legendary candidates are deferred.
 
 `UI/Core/UIManager.cs` defines `UIScreen`, `UICallbacks` and `UIManager`.
@@ -500,6 +604,11 @@ temp + flush + atomic replacement + backup.
 Recovery prioritizes the current backup over legacy profiles and protects it
 across failed writes. `BrowserSaveImporter.cs` / `BrowserSaveExporter.cs` are
 compatibility adapters, not a reason to reopen the deprecated browser project.
+Native profile storage and browser transfer are separate entry points. Both
+adapters retain `form`, `unlockedForms`, `voidsCleared` and every video setting.
+`SaveStore.UnsupportedSaveVersion` quarantines future profiles and backups;
+ordinary saves and run starts remain blocked until a compatible load or explicit
+supported import replaces them. Browser export uses atomic file replacement.
 
 `Runtime/Gameplay/VoidFallGameRuntime.Pressure.cs` observes scaled survival and
 complete boss health high-water per visit, then freezes the exact score once.
@@ -508,12 +617,22 @@ complete boss health high-water per visit, then freezes the exact score once.
 belongs beneath `.Hud.cs`'s timer. Result/save/telemetry share `FrozenRunScore`.
 Schema v6 adds director choice/onboarding and versioned 64-bit score facts;
 legacy records keep their legacy score/version. Historical protocol refunds
-remain scoped to pre-v5 saves. Browser adapters preserve the new fields and
-integer precision; local rankings select final score only for versioned runs.
+remain scoped to pre-v5 saves. Browser adapters include the director/score
+fields, integer precision and the current Unity form/video fields. Local rankings select final score only for
+versioned runs.
 
 `Runtime/Gameplay/VoidFallGameRuntime.Persist.cs` owns `SaveRun`, reward/stat
-commit and failure rollback. Live-run snapshots/resume are not implemented in
+candidate staging and terminal commit. Live-run snapshots/resume are not implemented in
 the audited schema; `SaveRun` only commits terminal game-over results.
+The run wallet is `_partsEarned`; it starts at zero and banks its remainder
+into profile `parts` only at the terminal commit. Dealer fragment ownership
+persists separately when purchased using that run wallet. Do not substitute
+the persistent Workshop wallet for the run wallet. Unlock calculation inside
+a terminal save must not issue a nested profile write.
+`IGameBridge.TryCommitProfile` stages and publishes complete profiles for UI
+controllers. `.Forms.cs` stages clear/unlock facts and announces them only after
+commit. Callers must obtain the current profile again after a commit; references
+to the previous profile or its settings are detached snapshots.
 `UI/Core/VideoSettingsRules.cs` supplies display rules;
 `Runtime/Gameplay/VoidFallGameRuntime.VideoSettings.cs` applies resolution and
 runtime volume overrides. Saved `arena` preview values, route IDs and `ArenaId`
@@ -564,6 +683,23 @@ are different representations: use existing mapping helpers.
   `ProceduralSpriteCatalog.cs`: prepared asset contracts. `ArenaResidencyManager.cs`
   owns Addressables handles; `Core/ArenaResidencyPlanner.cs` bounds residency.
   `Core/ArenaCatalogRules.cs` maps identities/package addresses.
+  The menu catalogue intentionally holds all eight prepared packages; normal
+  gameplay residency is current plus up to two exits. Reconciliation releases
+  unused entries before acquiring replacements. Route lookup uses ArenaId,
+  including nodes with `@depth-lane` suffixes. Failed travel loads have a
+  resume/retry path in `.Journey.cs` / `.Rift.cs`.
+  `ApprovedMapVisualAsset` catalogues hold the 145 approved sprites under
+  `Generated/ApprovedMaps/`, referenced by the Hydra, Court and City plates.
+  `.ApprovedMaps.cs` resolves only resident package art and retries pending
+  visuals after async loads. Reconciliation detaches renderer/frame/legacy
+  caches before releasing handles; it leaves combat sidecars intact.
+  `Editor/ApprovedMapAssetMigration.cs` preserves GUIDs when moving legacy
+  Resources art and rebuilds catalogue references from the export manifest.
+  `Editor/ApprovedMapAssetImporter.cs` applies Standalone BC7 without changing
+  source dimensions, pixels, pivots or GUIDs. Reimport through that authoring
+  path; prepared-content validation checks catalogue and import completeness.
+  Recipe memory estimates deduplicate texture dependencies and use their
+  imported block format, including mip levels.
 - `Editor/ArenaContentBaker.cs`, `ProceduralSpriteBaker.cs`,
   `ArenaAddressableMigration.cs`: authoring and registration. The
   `PreparedContentBuildGate` in `Editor/PreparedContentBuildSetup.cs` rejects
@@ -577,6 +713,10 @@ are different representations: use existing mapping helpers.
   rejected under a null graphics device. `ProceduralSpriteBaker.RepairCorruptedSpritesBatch`
   regenerates uniform RGBA-205 readback failures through their original authoring
   entries, preserving asset paths and GUIDs.
+  Shape validation already runs through `IPreprocessBuildWithReport`; do not
+  duplicate it because a direct call is absent from `BuildWindows`. Authoring
+  freshness is a separate concern: changed generator/art inputs need a scoped
+  reproducible bake and freshness evidence, not just an existing valid asset.
 - `Tools/NullCity/` exports approved artwork offline into `Art/NullCity/`.
   `Editor/NullCityContentBaker.cs` validates every frame, crop, PPU and FullRect
   bound. `NullCityVisualAsset` is referenced by `ArenaPlateAsset`, so Addressables
@@ -589,7 +729,7 @@ are different representations: use existing mapping helpers.
   extend that data. Legacy enums/counts are not necessarily the full live
   catalogue; consumers such as support selection use `ExtendedCatalog.AllSupports()`.
 
-## Director I sustained combat (version 7)
+## Director I sustained combat (version 8)
 
 Current duration is **360 seconds** for all eight voids (`Core/VoidProgressionRules`).
 `LocalDirectorSurvivalSeconds` reports actual seconds; Director I beat cutoff336,
@@ -603,7 +743,8 @@ new360+60 raw stage model. `SixMinuteSurvivalIntegrationTests` and
 five-minute completion calls. See the loot/six-minute design document.
 
 `Runtime/Gameplay/VoidFallGameRuntime.DirectorI.cs` owns I-only continuous
-arrivals, seeded Pursuit/Flank/Hunt/Breakthrough beats, temporary damage relief
+arrivals, seeded Pursuit/Flank/Hunt/Breakthrough beats, stage-aware shared
+roster introductions/compositions, temporary damage relief
 and committed-attack reservations. `Core/EncounterPacingRules.cs` reuses the
 existing clock via `BeginSustained`; survivors keep their native pursuit AI.
 `Core/SimulationRules.MaxActiveEnemies` is the 750-slot pool authority, aliased
@@ -667,16 +808,28 @@ returned into view on a bounded cadence, remains physically collectable, respect
 Greed and existing Null City bounds. Roulette preview checks reclaimable room
 without mutating the pool before Claim. No physical map resize was made.
 
-`Runtime/Telemetry/RunTelemetry.cs` owns the existing schema-4 JSON summary and
-bounded asynchronous JSONL journal. `Runtime/Gameplay/VoidFallGameRuntime.Telemetry.cs`
+`Runtime/Telemetry/RunTelemetry.cs` owns the schema-4 JSON summary and bounded
+asynchronous JSONL journal. `RunHistoryJson.cs` writes compact history schema 5:
+all scalar facts remain, absent optional payloads are omitted, and every event
+declares its version. The queue still counts written, dropped and rejected records.
+`Runtime/Gameplay/VoidFallGameRuntime.Telemetry.cs`
 owns run identity/context, event helpers, one-second combat/sample observations,
 thirty-second summary checkpoints, and finalization. Frame timing version 3
 retains corrected FPS units and bounded script CPU/GC windows, adding simulation
-subsystem costs, fixed/frozen step counts and grouped shake intensity/duty;
-see `Docs/RunExports.md` for timing coverage and exclusions. `.Persist.cs`
+subsystem costs, fixed/frozen step counts and grouped shake intensity/duty. The
+director context also carries the additive roster schedule version, shared-visit
+stage and tier-share bounds; `enemy_spawn`, `director_choice`,
+`director_arrival_budget` and `director_beat_deployed` retain actual stage/local
+decisions and outcomes. See `Docs/RunExports.md` for timing coverage and exclusions. `.Persist.cs`
 retains the silent manual export entry point; gameplay terminal export is
 independent of profile-save success. Main runtime startup distinguishes menu initialization
 from actual play, and finalizes before restart/menu resets and on quit/destruction.
+The startup frame window closes on leaving the menu or after ten seconds.
+`PrepareBenchmarkFrame` resolves automated rewards through production grant paths;
+`RouteJourneyProbe` waits for same-visit Hydra travel, chooses valid crossing
+destinations and acknowledges saved results. `Tools/Validation/Smoke-Player.ps1`
+checks an isolated Windows player for advancing combat, separately from native
+visual/audio/performance evidence.
 
 `RunExports` lives beside the built executable (project root in Editor).
 `Docs/RunExports.md` defines joins, units, loss reporting and verification.
@@ -759,3 +912,15 @@ Read `Docs/Design/VoidFallArenaArchitecture.md` for arena design constraints,
 `Docs/RefactoringPlaybook.md` for larger ownership changes, and
 `Docs/AI/ReleaseReadiness-2026-09-04.md` for dated audit evidence and unresolved
 release risks. They are task-specific references, not required bulk reading.
+
+## Internal development dashboard
+
+`Internal Dashboard/` is a repository-root development companion, outside
+`Assets/`. Launch `Open-Dashboard.cmd` or view `dist/index.html` offline.
+`Tool Description.md` owns usage, evidence limits, GitHub inclusion and agent
+maintenance instructions. `Refresh-Inventory.ps1` executes copied Core/Content
+catalogs and refreshes original asset snapshots; `Refresh-Legacy.ps1` reads the
+five Desktop browser versions. The Legacy Voidfall section compares the full
+version union with live Unity entries and preserves original source evidence.
+Refresh after relevant content/art changes and include tool changes in an
+authorized project commit/push. It has no gameplay or Unity build dependency.

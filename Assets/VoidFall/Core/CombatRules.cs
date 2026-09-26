@@ -16,6 +16,8 @@ namespace VoidFall.Core
 
     public static class CombatRules
     {
+        public const float PlayerHitImmunitySeconds = 0.20f;
+
         public static CombatVector NormalizedDirection(double x, double y)
         {
             var length = Math.Sqrt(x * x + y * y);

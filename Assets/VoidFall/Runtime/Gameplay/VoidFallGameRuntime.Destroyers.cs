@@ -110,11 +110,8 @@ namespace VoidFall.Runtime
             for (var i = 0; i < _gameSim.HostileShots.Length; i++)
             {
                 if (_gameSim.HostileShotSources[i].Faction != CombatFaction.Destroyer) continue;
-                var shot = _gameSim.HostileShots[i];
-                if (shot.Active && shot.Curved) _gameSim.CurvedShotCount = Mathf.Max(0, _gameSim.CurvedShotCount - 1);
-                shot.Active = false; shot.Life = 0; _gameSim.HostileShots[i] = shot;
-                _gameSim.HostileShotSources[i] = default; _gameSim.HostileShotBlockable[i] = false;
-                _gameSim.HostileShotOrder.Remove(i); Hide(_hostileShotViews[i]);
+                _gameSim.RetireHostileShot(i);
+                Hide(_hostileShotViews[i]);
             }
         }
         private bool TryUpdateDestroyer(ref EnemyState enemy, float dt, float distance, Vector2 direction)

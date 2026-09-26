@@ -18,7 +18,13 @@ namespace VoidFall.Runtime
 
         private void RecordStartupMenuFrame()
         {
-            if (_startupMenuReportLogged || _startupMenuReadyRealtime <= 0 || !_mainMenuBrowsing) return;
+            if (_startupMenuReportLogged || _startupMenuReadyRealtime <= 0) return;
+            var elapsed = Time.realtimeSinceStartupAsDouble - _startupMenuReadyRealtime;
+            if (!_mainMenuBrowsing || elapsed >= 10.0)
+            {
+                CompleteStartupMenuReport(elapsed, _mainMenuBrowsing ? "window_complete" : "run_started");
+                return;
+            }
             if (_startupMenuSkipNextFrame)
             {
                 _startupMenuSkipNextFrame = false;
@@ -34,14 +40,16 @@ namespace VoidFall.Runtime
                 _startupMenuWorstFrameElapsed =
                     Time.realtimeSinceStartupAsDouble - _startupMenuReadyRealtime;
             }
-            if (Time.realtimeSinceStartupAsDouble - _startupMenuReadyRealtime < 10.0) return;
+        }
 
+        private void CompleteStartupMenuReport(double elapsed, string reason)
+        {
             _startupMenuReportLogged = true;
             var averageFps = _startupMenuSampleSeconds > 0
                 ? _startupMenuFrameCount / _startupMenuSampleSeconds
                 : 0;
             Debug.Log(
-                "VOIDFALL_MENU_STABILITY seconds=10" +
+                "VOIDFALL_MENU_STABILITY seconds=" + elapsed.ToString("F2") + " reason=" + reason +
                 " frames=" + _startupMenuFrameCount +
                 " averageFps=" + averageFps.ToString("F1") +
                 " worstFrameMs=" + (_startupMenuWorstFrameSeconds * 1000f).ToString("F1") +
@@ -193,10 +201,13 @@ namespace VoidFall.Runtime
             if (profile?.workshop == null) return;
             if (_workshopController == null)
                 _workshopController = new WorkshopController(_gameBridge);
-            var parts = profile.parts;
-            var refundedParts = _workshopController.RefundAll(profile.workshop, ref parts);
-            profile.parts = parts;
-            EnqueueToast("Workshop refunded", $"+{refundedParts} Scraps", 2.5f, ToastKind.Reward);
+            if (!_workshopController.TryRefundAll(profile, out var refundedParts, out var notice))
+            {
+                SetMenuNotice(notice);
+                return;
+            }
+            if (refundedParts > 0)
+                EnqueueToast("Workshop refunded", $"+{refundedParts} Scraps", 2.5f, ToastKind.Reward);
         }
 
         private void EnterMainMenu()
@@ -809,6 +820,7 @@ namespace VoidFall.Runtime
         {
             var settings = _saveData?.settings;
             if (settings == null) return;
+            RefreshApprovedHudContrast();
             var qualityMode = string.IsNullOrEmpty(settings.quality) ? "high" : settings.quality;
             if (_qualityController == null || _qualityModeApplied != qualityMode)
             {
@@ -2938,14 +2950,11 @@ namespace VoidFall.Runtime
             if (profile?.workshop == null) return;
             if (_workshopController == null)
                 _workshopController = new WorkshopController(_gameBridge);
-            var parts = profile.parts;
-            if (!_workshopController.TryPurchase(profile.workshop, ref parts, id, out var notice))
+            if (!_workshopController.TryPurchase(profile, id, out var notice))
             {
                 if (notice != null) SetMenuNotice(notice);
-                profile.parts = parts;
                 return;
             }
-            profile.parts = parts;
             SetMenuNotice(notice);
             _workshopPreviewId = WorkshopPreviewAfterPurchase();
         }

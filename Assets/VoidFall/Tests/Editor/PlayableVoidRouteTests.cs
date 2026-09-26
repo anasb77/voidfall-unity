@@ -238,7 +238,7 @@ namespace VoidFall.Tests.Editor
                 Assert.That(node.RewardSummary, Does.Not.Contain("Boon"));
             }
             Assert.That(run.Node("hydra").ObjectiveSummary, Does.Contain("Hydra Prime"));
-            Assert.That(run.Node("monochrome-court").ObjectiveSummary, Does.Contain("Grandmasters"));
+            Assert.That(run.Node("monochrome-court").ObjectiveSummary, Does.Contain("Wingwang"));
             foreach (var id in new[] { "abyss", "red-nebula", "white-sakura", "eon-sea" })
                 Assert.That(run.Node(id).ObjectiveSummary, Does.Contain("random").And.Contain("boss"));
         }

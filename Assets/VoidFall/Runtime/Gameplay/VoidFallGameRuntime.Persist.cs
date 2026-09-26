@@ -17,75 +17,48 @@ namespace VoidFall.Runtime
     {
 
         private static SaveData CloneSaveData(SaveData data)
-        {
-            if (data == null) return null;
-            return JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(data));
-        }
-
-        private void RestoreFailedRunSave(
-            SaveData previousSaveData,
-            bool previousLastRunIsBest,
-            int previousLastRunRank)
-        {
-            _saveData = previousSaveData;
-            _lastRunIsBest = previousLastRunIsBest;
-            _lastRunRank = previousLastRunRank;
-            // Keep the terminal run eligible for a later SaveRun call. The
-            // profile snapshot above prevents a failed attempt from being
-            // applied again when that retry happens.
-            _runSaved = false;
-            _lastRunSaved = false;
-        }
+            => data == null ? null : SaveStore.Clone(data);
 
         private void SaveRun()
         {
             // Browser recordRun runs only after the terminal Game Over path. Do
             // not turn an application close during a live run into a fake score.
             if (_runSaved || _mainMenuBrowsing || !_gameOver) return;
-            // Snapshot the complete profile before mutating it. SaveStore.Save
-            // serializes its own clone, but this runtime object is updated in
-            // place below; restore it if the disk transaction fails.
             FreezePressureAndScore();
-            var previousSaveData = CloneSaveData(_saveData);
-            var previousLastRunIsBest = _lastRunIsBest;
-            var previousLastRunRank = _lastRunRank;
             _lastRunSaved = false;
             if (_saveStore == null || _saveData == null)
             {
-                RestoreFailedRunSave(
-                    previousSaveData,
-                    previousLastRunIsBest,
-                    previousLastRunRank);
                 SetMenuNotice("Progress was not saved.");
                 return;
             }
+            var candidate = SaveStore.Sanitize(CloneSaveData(_saveData));
             var savedDamageDealt = RoundedDamageCounter(_damageDealt);
             var savedDamageTaken = RoundedDamageCounter(_damageTaken);
-            var previousBestScore = _saveData.highScores != null && _saveData.highScores.Length > 0 && _saveData.highScores[0] != null
-                ? SaveStore.ScoreForRanking(_saveData.highScores[0])
+            var previousBestScore = candidate.highScores != null && candidate.highScores.Length > 0 && candidate.highScores[0] != null
+                ? SaveStore.ScoreForRanking(candidate.highScores[0])
                 : -1;
-            _saveData.stats.totalRuns = AddCounter(_saveData.stats.totalRuns, 1);
-            _saveData.stats.totalPlaySeconds = AddCounter(
-                _saveData.stats.totalPlaySeconds, Mathf.Max(0, Mathf.FloorToInt(_time)));
-            _saveData.stats.totalKills = AddCounter(_saveData.stats.totalKills, _kills);
-            _saveData.stats.totalEliteKills = AddCounter(_saveData.stats.totalEliteKills, _eliteKills);
-            _saveData.stats.totalBossKills = AddCounter(_saveData.stats.totalBossKills, _bossKills);
-            _saveData.stats.totalDamageDealt = AddDamageCounter(_saveData.stats.totalDamageDealt, savedDamageDealt);
-            _saveData.stats.totalDamageTaken = AddDamageCounter(_saveData.stats.totalDamageTaken, savedDamageTaken);
-            _saveData.stats.totalPartsEarned = AddCounter(_saveData.stats.totalPartsEarned, _partsEarned);
+            candidate.stats.totalRuns = AddCounter(candidate.stats.totalRuns, 1);
+            candidate.stats.totalPlaySeconds = AddCounter(
+                candidate.stats.totalPlaySeconds, Mathf.Max(0, Mathf.FloorToInt(_time)));
+            candidate.stats.totalKills = AddCounter(candidate.stats.totalKills, _kills);
+            candidate.stats.totalEliteKills = AddCounter(candidate.stats.totalEliteKills, _eliteKills);
+            candidate.stats.totalBossKills = AddCounter(candidate.stats.totalBossKills, _bossKills);
+            candidate.stats.totalDamageDealt = AddDamageCounter(candidate.stats.totalDamageDealt, savedDamageDealt);
+            candidate.stats.totalDamageTaken = AddDamageCounter(candidate.stats.totalDamageTaken, savedDamageTaken);
+            candidate.stats.totalPartsEarned = AddCounter(candidate.stats.totalPartsEarned, _partsEarned);
             // The browser keeps run rewards in partsEarned until recordRun at
             // terminal Game Over. Commit the complete run total here so
             // pickups, elite/boss rewards, and tune-limit Scraps are all saved
             // once and a live run cannot mutate the profile early.
-            CommitRunParts(_saveData, _partsEarned);
-            _saveData.stats.bestScore = Mathf.Max(_saveData.stats.bestScore, (int)Math.Min(999_999_999L, _frozenRunScore.BaseScore));
-            _saveData.stats.bestFinalScore = Math.Max(_saveData.stats.bestFinalScore, _frozenRunScore.FinalScore);
-            _saveData.stats.bestTime = Mathf.Max(_saveData.stats.bestTime, Mathf.FloorToInt(_time));
-            _saveData.stats.bestKills = Mathf.Max(_saveData.stats.bestKills, _kills);
-            _saveData.stats.highestLevel = Mathf.Max(_saveData.stats.highestLevel, _level);
-            // Gate evaluation runs here too so a run that ends on its first
-            // guardian still opens the form before the profile is written.
-            EvaluateFormUnlocks();
+            CommitRunParts(candidate, _partsEarned);
+            candidate.stats.bestScore = Mathf.Max(candidate.stats.bestScore, (int)Math.Min(999_999_999L, _frozenRunScore.BaseScore));
+            candidate.stats.bestFinalScore = Math.Max(candidate.stats.bestFinalScore, _frozenRunScore.FinalScore);
+            candidate.stats.bestTime = Mathf.Max(candidate.stats.bestTime, Mathf.FloorToInt(_time));
+            candidate.stats.bestKills = Mathf.Max(candidate.stats.bestKills, _kills);
+            candidate.stats.highestLevel = Mathf.Max(candidate.stats.highestLevel, _level);
+            // Totals already include this run. Stage gates once, without an
+            // intermediate save or a success toast before the terminal commit.
+            var newlyUnlocked = StageFormProgress(candidate, candidate.stats.totalBossKills);
 
             var run = new RunRecordEntry
             {
@@ -111,16 +84,16 @@ namespace VoidFall.Runtime
                 late = BuildRankEntries(LateIds(), _upgradeProgress?.LateRanks),
                 evolved = BuildEvolvedEntries(),
             };
-            _lastRunIsBest = run.finalScore > previousBestScore;
+            var lastRunIsBest = run.finalScore > previousBestScore;
             var recentRuns = new List<RunRecordEntry>();
-            foreach (var previous in _saveData.recentRuns ?? Array.Empty<RunRecordEntry>())
+            foreach (var previous in candidate.recentRuns ?? Array.Empty<RunRecordEntry>())
             {
                 if (previous != null) recentRuns.Add(previous);
             }
             recentRuns.Insert(0, run);
             if (recentRuns.Count > SaveStore.MaxRecentRuns)
                 recentRuns.RemoveRange(SaveStore.MaxRecentRuns, recentRuns.Count - SaveStore.MaxRecentRuns);
-            _saveData.recentRuns = recentRuns.ToArray();
+            candidate.recentRuns = recentRuns.ToArray();
 
             var scoreEntry = new HighScoreEntry
             {
@@ -140,29 +113,29 @@ namespace VoidFall.Runtime
                 date = run.date,
             };
             var highScores = new List<HighScoreEntry>();
-            foreach (var previous in _saveData.highScores ?? Array.Empty<HighScoreEntry>())
+            foreach (var previous in candidate.highScores ?? Array.Empty<HighScoreEntry>())
             {
                 if (previous != null) highScores.Add(previous);
             }
             highScores.Add(scoreEntry);
             highScores.Sort(SaveStore.CompareScores);
             var rawRank = highScores.IndexOf(scoreEntry);
-            _lastRunRank = rawRank >= 0 && rawRank < SaveStore.MaxHighScores ? rawRank : -1;
+            var lastRunRank = rawRank >= 0 && rawRank < SaveStore.MaxHighScores ? rawRank : -1;
             if (highScores.Count > SaveStore.MaxHighScores)
                 highScores.RemoveRange(SaveStore.MaxHighScores, highScores.Count - SaveStore.MaxHighScores);
-            _saveData.highScores = highScores.ToArray();
+            candidate.highScores = highScores.ToArray();
             try
             {
-                _saveStore.Save(_saveData);
+                _saveStore.Save(candidate);
+                _saveData = candidate;
+                _lastRunIsBest = lastRunIsBest;
+                _lastRunRank = lastRunRank;
                 _runSaved = true;
                 _lastRunSaved = true;
+                AnnounceFormUnlocks(newlyUnlocked);
             }
             catch (Exception exception)
             {
-                RestoreFailedRunSave(
-                    previousSaveData,
-                    previousLastRunIsBest,
-                    previousLastRunRank);
                 Debug.LogError("VoidFall run save failed: " + exception.Message);
             }
             if (!_lastRunSaved) SetMenuNotice("Progress was not saved.");
@@ -206,11 +179,11 @@ namespace VoidFall.Runtime
         {
             try
             {
-                CommitSettings();
+                if (!CommitSettings()) return;
                 var path = System.IO.Path.Combine(
                     Application.persistentDataPath,
                     "VoidFallBrowserSave.json");
-                System.IO.File.WriteAllText(path, BrowserSaveExporter.Export(_saveData));
+                BrowserSaveExporter.WriteFile(path, _saveData);
                 SetMenuNotice("Browser save exported: " + path);
             }
             catch (Exception exception)
