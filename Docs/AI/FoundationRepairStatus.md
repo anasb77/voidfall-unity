@@ -2,10 +2,11 @@
 
 Updated September 26, 2026.
 
-**Confirmed defect repairs are implemented. The full Unity suites and Windows
-build pass. Both complete native journey branches and the final smoke pass. Visible-menu and
-performance validation await permission to show the test player. The final
-hidden-window map recapture failed its visibility guard; promotion is on hold.**
+**Confirmed defect repairs are implemented. The full Unity suites, both native
+journey branches, Windows rebuild and final-location smoke pass. The rebuilt
+player is promoted to `../Builds/VoidFall.exe` following the owner's explicit
+build-unification request. Visible-menu and performance validation remain open:
+the earlier hidden-window map recapture failed its visibility guard.**
 
 `AGENTS.md` and `Docs/REPO_MAP.md` describe standing development contracts and
 current subsystem ownership. This file records actual implementation and evidence;
@@ -18,7 +19,11 @@ The source baseline is `afd885ef06e2e0acee41b5981db54cb2e1757b27` plus the owner
 existing uncommitted changes. Do not reset to that commit. Pre-repair hashes,
 source copies and a binary working-tree patch are preserved locally under
 `Logs/FoundationRepairs-2026-09-26/` (`baseline-files.json`, `before/`,
-`baseline.patch`). No commit, push or deployment has been requested.
+`baseline.patch`). The owner subsequently requested one updated build and a
+project push to GitHub. The repaired source, existing gameplay changes, approved
+assets and internal dashboard are committed as
+`e5e3e16f62bb5572669696416e932e28ef54c597`; the unified player records that revision.
+Subsequent handoff documentation changes do not alter the built game content.
 
 The original evidence is in `Docs/AI/DeepAudit-2026-09-26.md` (F01-F14) and
 `Docs/AI/MuseAuditVerification-2026-09-26.md` (B001-B040). The latter separates
@@ -61,8 +66,9 @@ validators passed (900 live checks and 4,474 legacy checks).
 
 ## Validation evidence
 
-Local outputs are under `Logs/FoundationRepairs-2026-09-26/` and are not intended
-for source control. Tests use isolated saves. The real player profile and
+Repair outputs are under `Logs/FoundationRepairs-2026-09-26/`; rebuild/promotion
+outputs are under `Logs/UnifiedBuild-2026-09-26/`. Neither belongs in source
+control. Tests use isolated saves. The real player profile and
 `../Builds/RunExports/` are protected.
 
 | Check | Result |
@@ -81,6 +87,12 @@ for source control. Tests use isolated saves. The real player profile and
 | Native menu capture first attempt | 720p home rendered; several hidden-window captures were black and are rejected as visual evidence |
 | Hidden D3D11 batch capture control | Also returned a black menu frame; rejected as visual evidence |
 | Visible menu/FPS checks | Awaiting explicit permission to show the player; no accepted post-repair FPS result yet |
+| Unified Windows rebuild, `UnifiedBuild-2026-09-26/windows-build.log` | Succeeded, 903,358,083 reported bytes; GUID `2d7414bcfc83419a8f622798dfb5ce32`; source `e5e3e16f62bb5572669696416e932e28ef54c597` |
+| Fresh staging smoke | Passed; 331 simulation ticks, 5.205 combat seconds; no runtime/load errors |
+| Canonical-path smoke after promotion | Passed; 344 simulation ticks, 5.161 combat seconds; no runtime/load errors |
+| Promotion integrity | All 220 staged player files matched SHA-256 after promotion; only the build-info launch path was then updated |
+| Consolidation integrity | Exactly one `VoidFall.exe` remains in the workspace, excluding regenerable Unity/Git caches; all 80 pre-existing canonical run-export files match their original SHA-256 hashes |
+| Internal dashboard refresh | 900 current checks and 4,474 legacy checks passed; 982 images with no missing entity artwork; current map/enemy art and legacy overview inspected in browser |
 
 Earlier failed intermediate runs remain in the evidence directory. The initial
 440-case PlayMode pass exposed stale fixtures, a test overload-selection error,
@@ -110,8 +122,9 @@ Baseline PC: Intel i7-7700HQ, NVIDIA GTX 1060 6 GB, approximately 16 GB RAM,
 
 Original advancing stress evidence: approximately 45.08 FPS holding 750 actors
 and 58.51 FPS in the lighter Director I scenario. Those are different workloads.
-The final comparison repeats the baseline player and repaired player with the
-same scenario, seed, profile, resolution and time window, with Editor/build work
+The remaining performance comparison requires baseline and repaired players
+built from the preserved source, using the same scenario, seed, profile,
+resolution and time window, with Editor/build work
 stopped. An MSAA-off diagnostic isolates comparable camera settings; the repaired
 High preset is also measured with the authored multisampling enabled. Results
 must include actual combat advancement, density, p95/p99 and spikes. Unsupported
@@ -121,12 +134,22 @@ The generated Addressables linker file includes the new catalogue types; its
 original metadata GUID has been restored and verified against the baseline hash.
 The final file inventory found no unexpected missing files or artwork changes.
 
-The replacement is currently staged at `../Builds/.foundation-validation/`.
-The canonical `../Builds/VoidFall.exe` has not yet been promoted to this repair
-build. Promotion is on hold for the visible menu/HUD and FPS checks. Local launch tool
-instructions require explicit permission to show an automated player; that
-question remains pending. Promotion preserves unrelated builds,
-archives and run exports.
+The rebuilt player is now at `../Builds/VoidFall.exe`, built September 26 at
+21:12:50 UTC from source revision `e5e3e16f62bb5572669696416e932e28ef54c597`.
+`../Builds/BUILD_INFO.txt` and `../START_HERE.md` identify the current player.
+The owner explicitly requested promotion/consolidation after the repair pass;
+headless smoke verifies advancing combat but does not close the visible HUD,
+audio-device or FPS validation gaps. No percentage FPS improvement is claimed.
+
+After the final-path smoke passed, all six temporary player locations and the
+temporary previous-canonical backup were removed. The final inventory contains
+only `../Builds/VoidFall.exe`. The 80 original files in `../Builds/RunExports/`
+(approximately 10.2 GB) were verified unchanged. The 44 export files from the
+audit and staging players were separately copied and hash-verified under
+`Logs/UnifiedBuild-2026-09-26/RetainedPlayerEvidence/`, alongside build metadata
+and removal manifests. Audit reports, original source evidence and designated
+archives were retained. The earlier cleanup hold is resolved by the owner's
+subsequent explicit rebuild/consolidation request.
 
 ## Remaining limits and follow-up
 
@@ -140,9 +163,6 @@ archives and run exports.
   hardening opportunities, not confirmed data-loss/stale-art defects.
 - Density, boss health, camera shake, bloom and six-minute survival duration are
   design/balance decisions. The repair pass preserves their approved rules.
-- Earlier full audit-player cleanup was rejected twice by automatic approval
-  review with only `blocked by policy`. Those retained evidence players have
-  not been deleted or moved to bypass the rejection.
 
 The expected functional benefit is reliable progression, consistent pool and
 spawn limits, complete dealer crossings and usable modal navigation. Build and
